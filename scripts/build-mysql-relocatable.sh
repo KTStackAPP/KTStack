@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# Build a relocatable MySQL server (mysqld) from source and produce an on-demand artifact
+# (tar.gz + sha256). MySQL ships on-demand (installed via the UI), so this does NOT copy into
+# Resources/bin — it stages a self-contained mysql-<ver>/ tree (bin + lib + share) for a release host.
+#
+# HEAVY: CMake + a full C++ compile (bundled boost). Expect ~30-90 min and several GB of scratch.
+# Run it directly when you want the artifact: `scripts/build-mysql-relocatable.sh`.
+#
+# Relocatability: mysqld derives its basedir from the executable path, so bin/share/lib kept together
+# run from anywhere. The one external dep is OpenSSL (Homebrew) → vendored into lib/ + install names
+# rewritten to @loader_path/../lib via `vendor_nonsystem_dylibs`. The build is re-extracted to a
+# different path and `--initialize-insecure` is run to PROVE relocation.
+#
+# Licensing: MySQL is GPLv2 — KEPT for Laragon parity (free/open-source distribution is compatible);
+# Phase 9 ships the NOTICE + written source offer. MariaDB remains a technically-swappable fallback.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+ROOT="$PWD"
+
+MYSQL_VER="${MYSQL_VER:-8.4.3}"
+MYSQL_SERIES="${MYSQL_SERIES:-8.4}"
+ARCH="${ARCH:-$(uname -m)}"
+ARTIFACTS="${ARTIFACTS:-$ROOT/.build-cache/artifacts}"
+BUILD="${BUILD:-$ROOT/.build-cache/mysql-$ARCH}"
+PREFIX="$BUILD/buildroot"
+source "$ROOT/scripts/lib-relocatable.sh"
+
+command -v cmake >/dev/null || { echo "cmake required (brew install cmake)" >&2; exit 2; }
+OPENSSL_PREFIX="${OPENSSL_PREFIX:-$(brew --prefix openssl@3 2>/dev/null || true)}"
+[[ -n "$OPENSSL_PREFIX" ]] || { echo "openssl@3 required (brew install openssl@3)" >&2; exit 2; }
+
+echo "=== MySQL build — ${MYSQL_VER} (${ARCH}) — HEAVY, ~30-90 min ==="
+mkdir -p "$BUILD" "$ARTIFACTS"
+cd "$BUILD"
+
+SRC="mysql-$MYSQL_VER"
+if [[ ! -d "$SRC" ]]; then
+    echo "=== fetch mysql-boost source ==="
+    curl -fsSL "https://cdn.mysql.com/Downloads/MySQL-${MYSQL_SERIES}/mysql-boost-${MYSQL_VER}.tar.gz" -o mysql.tgz
+    tar -xf mysql.tgz
+fi
+
+if [[ ! -x "$PREFIX/bin/mysqld" ]]; then
+    echo "=== cmake configure (minimal: no tests/router/mysqlx) ==="
+    cmake -S "$SRC" -B "$BUILD/cmbuild" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+        -DWITH_BOOST="$SRC/boost" \
+        -DWITH_SSL="$OPENSSL_PREFIX" \
+        -DWITH_UNIT_TESTS=OFF -DWITH_ROUTER=OFF -DWITH_MYSQLX=OFF \
+        -DDOWNLOAD_BOOST=0 >/dev/null
+    echo "=== make + install (this is the long part) ==="
+    cmake --build "$BUILD/cmbuild" -j"$(sysctl -n hw.ncpu)" >/dev/null
+    cmake --install "$BUILD/cmbuild" >/dev/null
+fi
+
+echo "=== stage self-contained artifact tree ==="
+STAGE="$(mktemp -d)"; TOP="$STAGE/mysql-$MYSQL_VER"
+mkdir -p "$TOP"
+cp -R "$PREFIX/bin" "$TOP/bin"
+cp -R "$PREFIX/lib" "$TOP/lib"
+cp -R "$PREFIX/share" "$TOP/share"
+
+echo "=== vendor OpenSSL + fix install names ==="
+vendor_nonsystem_dylibs "$TOP/bin/mysqld" "$TOP/lib"
+
+echo "=== relocatability gate (mysqld) ==="
+relocatable_gate "$TOP/bin/mysqld"
+ad_hoc_sign "$TOP/bin/mysqld" "$TOP"/lib/*.dylib 2>/dev/null || ad_hoc_sign "$TOP/bin/mysqld"
+
+echo "=== PROVE relocation: --initialize-insecure from a moved copy ==="
+RELOC="$(mktemp -d)/moved"; mkdir -p "$RELOC"; cp -R "$TOP" "$RELOC/"
+MYDIR="$RELOC/mysql-$MYSQL_VER"; DATA="$(mktemp -d)/data"
+if "$MYDIR/bin/mysqld" --no-defaults --initialize-insecure --datadir="$DATA" >/tmp/mysql-reloc.log 2>&1; then
+    echo "  ✓ mysqld initialized from moved path"
+else
+    echo "  ✗ mysqld failed from moved path:"; tail -8 /tmp/mysql-reloc.log; exit 1
+fi
+rm -rf "$DATA" "$RELOC"
+
+package_dir "$TOP" "$ARTIFACTS"
+rm -rf "$STAGE"
+echo "MYSQL BUILD OK"

@@ -26,7 +26,9 @@ ROOT="$PWD"
 PHP_VER="${PHP_VER:-8.4}"
 ARCH="${ARCH:-$(uname -m)}"                    # arm64 | x86_64 (spc target token below)
 OUT="${OUT:-$ROOT/KDWarm/Resources/bin}"
-BUILD="${BUILD:-$ROOT/.build-cache/php-$ARCH}" # scratch (gitignored)
+BUILD="${BUILD:-$ROOT/.build-cache/php-$ARCH-$PHP_VER}" # per-version scratch (gitignored) — must NOT
+                                                       # be shared across versions or a stale buildroot
+                                                       # leaks the wrong PHP into the artifact.
 
 # spc arch token: arm64 → aarch64
 case "$ARCH" in
@@ -74,16 +76,29 @@ for b in "$PHP_BIN" "$FPM_BIN"; do
     echo "  ✓ $(basename "$b") clean"
 done
 
-cp "$PHP_BIN" "$OUT/php"
-cp "$FPM_BIN" "$OUT/php-fpm"
-chmod +x "$OUT/php" "$OUT/php-fpm"
-# Ad-hoc sign so BinaryStager's `codesign --verify` passes in dev and the cdhash seals the
-# binary against post-stage tampering. Phase 9 replaces this with a Developer ID signature.
-codesign --force --sign - "$OUT/php" "$OUT/php-fpm"
+# Ad-hoc sign so the cdhash seals the binary against post-stage tampering (Phase 9 → Developer ID).
+codesign --force --sign - "$PHP_BIN" "$FPM_BIN"
 
 echo "=== health probe ==="
-"$OUT/php" -v | head -1
-echo "  php -r '6*7' => $("$OUT/php" -r 'echo 6*7;')"
-"$OUT/php-fpm" -t -v 2>&1 | head -2 || true
-echo "=== vendored → $OUT/php, $OUT/php-fpm ==="
+"$PHP_BIN" -v | head -1
+echo "  php -r '6*7' => $("$PHP_BIN" -r 'echo 6*7;')"
+
+# The DEFAULT bundled version (8.4) ships flat in Resources/bin (baseline, works out of the box).
+# Extra versions install ON-DEMAND via the UI — produced only as a hosted artifact, never bundled.
+DEFAULT_VER="8.4"
+if [[ "$PHP_VER" == "$DEFAULT_VER" ]]; then
+    cp "$PHP_BIN" "$OUT/php"; cp "$FPM_BIN" "$OUT/php-fpm"
+    chmod +x "$OUT/php" "$OUT/php-fpm"
+    codesign --force --sign - "$OUT/php" "$OUT/php-fpm"
+    echo "=== bundled (default) → $OUT/php, $OUT/php-fpm ==="
+fi
+
+# On-demand artifact: php-<ver>/bin/{php,php-fpm} → tar.gz + sha256 (downloader extract layout).
+echo "=== package on-demand artifact ==="
+source "$ROOT/scripts/lib-relocatable.sh"
+STAGE="$(mktemp -d)"; TOP="$STAGE/php-$PHP_VER"; mkdir -p "$TOP/bin"
+cp "$PHP_BIN" "$TOP/bin/php"; cp "$FPM_BIN" "$TOP/bin/php-fpm"
+ARTIFACTS="${ARTIFACTS:-$ROOT/.build-cache/artifacts}"
+package_dir "$TOP" "$ARTIFACTS"
+rm -rf "$STAGE"
 echo "PHP BUILD OK"
