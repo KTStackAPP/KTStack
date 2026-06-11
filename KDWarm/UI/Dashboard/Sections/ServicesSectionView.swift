@@ -38,7 +38,9 @@ struct ServicesSectionView: View {
                             canToggle: snapshot.kind != .phpFpm,
                             onToggle: { services.toggle(snapshot.kind) },
                             onRestart: { services.restart(snapshot.kind) },
-                            onOpenLogs: { onOpenLogs(Self.logSourceID(for: snapshot.kind)) })
+                            onOpenLogs: { onOpenLogs(Self.logSourceID(for: snapshot.kind)) },
+                            onInstall: { services.install(snapshot.kind) },
+                            onCancelInstall: { services.cancelInstall(snapshot.kind) })
                         Divider()
                     }
                 }

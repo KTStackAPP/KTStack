@@ -7,37 +7,39 @@ public final class MySQLController: ManagedService, @unchecked Sendable {
     public let kind = ServiceKind.mysql
     public var detail: String { ":3306" }
     public var logsURL: URL? { paths.serviceLog("mysql") }
-    public var isInstalled: Bool { FileManager.default.isExecutableFile(atPath: binary.path) }
+    public var isInstalled: Bool { catalog.isInstalled(.mysql) }
 
     private let paths: AppSupportPaths
     private let runner: LaunchdServiceRunner
-    private var binary: URL { paths.binary("mysqld") }
+    private let catalog: ServiceBinaryCatalog
+    private var binary: URL? { catalog.binary(.mysql, "bin/mysqld") }
     private var dataDir: URL { paths.serviceData("mysql") }
     private var configFile: URL { paths.serviceConfig("mysql", ext: "cnf") }
 
     public init(paths: AppSupportPaths, agents: LaunchAgentManager) {
         self.paths = paths
+        self.catalog = ServiceBinaryCatalog(paths: paths)
         self.runner = LaunchdServiceRunner(
             kind: .mysql, label: ServiceKind.mysql.launchdLabel,
             preflightPorts: [3306], probe: .tcp(port: 3306), agents: agents)
     }
 
     public func start() async throws {
-        guard isInstalled else { throw ServiceNotInstalled(.mysql) }
+        guard let binary else { throw ServiceNotInstalled(.mysql) }
         try writeConfig()
-        try initializeIfNeeded()
-        try await runner.start(spec: spec())
+        try initializeIfNeeded(binary: binary)
+        try await runner.start(spec: spec(binary: binary))
     }
     public func stop() async throws { try runner.stop() }
     public func restart() async throws {
-        guard isInstalled else { throw ServiceNotInstalled(.mysql) }
-        try await runner.restart(spec: spec())
+        guard let binary else { throw ServiceNotInstalled(.mysql) }
+        try await runner.restart(spec: spec(binary: binary))
     }
     public func probe() async -> ServiceStatus { isInstalled ? await runner.probe() : .stopped }
 
     /// `mysqld --initialize-insecure` builds the system tables on first run (datadir must be empty).
     /// `mysql` subdir is the sentinel that init has completed.
-    private func initializeIfNeeded() throws {
+    private func initializeIfNeeded(binary: URL) throws {
         try ServiceInitializer.ensureDir(dataDir)
         guard !ServiceInitializer.isInitialized(dataDir, marker: "mysql") else { return }
         try ServiceInitializer.run(
@@ -59,7 +61,7 @@ public final class MySQLController: ManagedService, @unchecked Sendable {
         try config.write(to: configFile, atomically: true, encoding: .utf8)
     }
 
-    private func spec() -> LaunchAgentSpec {
+    private func spec(binary: URL) -> LaunchAgentSpec {
         LaunchAgentSpec(
             label: kind.launchdLabel,
             programArguments: [binary.path, "--defaults-file=\(configFile.path)"],

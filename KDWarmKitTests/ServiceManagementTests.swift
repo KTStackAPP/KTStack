@@ -146,9 +146,9 @@ final class ServiceManagementTests: XCTestCase {
 
     // MARK: - BinaryStager optional set
 
-    func testOptionalBinariesIncludeDatabasesAndMailpit() {
-        XCTAssertEqual(Set(BinaryStager.optionalBinaryNames),
-                       ["mysqld", "postgres", "initdb", "redis-server", "mailpit"])
+    func testOnlyMailpitIsBundledOptionally() {
+        // DB engines install on-demand (ServiceBinaryCatalog), not bundled — only Mailpit ships.
+        XCTAssertEqual(Set(BinaryStager.optionalBinaryNames), ["mailpit"])
     }
 
     // MARK: - Controller installed-state + spec wiring (no launchd)
@@ -156,7 +156,48 @@ final class ServiceManagementTests: XCTestCase {
     func testRedisControllerReportsNotInstalledWithoutBinary() {
         let redis = RedisController(paths: paths, agents: LaunchAgentManager(paths: paths))
         XCTAssertEqual(redis.kind, .redis)
-        XCTAssertFalse(redis.isInstalled)            // no staged redis-server in the test tree
+        XCTAssertFalse(redis.isInstalled)            // no on-demand install in the test tree
         XCTAssertEqual(redis.detail, ":6379")
+    }
+
+    // MARK: - ServiceBinaryCatalog (on-demand DB install)
+
+    func testServiceManifestWellFormed() {
+        XCTAssertFalse(ServiceBinaryCatalog.manifest.isEmpty)
+        for r in ServiceBinaryCatalog.manifest {
+            XCTAssertEqual(r.sha256.count, 64, "\(r.id) sha256 must be 64 hex chars")
+            XCTAssertTrue(r.url.absoluteString.hasSuffix("\(r.kind.rawValue)-\(r.version)-\(ServiceBinaryCatalog.arch).tar.gz"))
+        }
+    }
+
+    func testCatalogResolvesInstalledEngineAndHidesAvailable() throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("kd-svc-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let paths = AppSupportPaths(root: root)
+        let catalog = ServiceBinaryCatalog(paths: paths)
+
+        // Not installed → no binary, but a catalog release is offered.
+        XCTAssertFalse(catalog.isInstalled(.redis))
+        XCTAssertNil(catalog.binary(.redis, "bin/redis-server"))
+        XCTAssertEqual(catalog.availableRelease(.redis)?.version, "7.4.2")
+
+        // Simulate an on-demand install: runtimes/redis/7.4.2/bin/redis-server.
+        let bin = paths.runtimeBin("redis", "7.4.2")
+        try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: bin.appendingPathComponent("redis-server").path,
+                                       contents: Data(), attributes: [.posixPermissions: 0o755])
+
+        XCTAssertTrue(catalog.isInstalled(.redis))
+        XCTAssertEqual(catalog.installedVersion(.redis), "7.4.2")
+        XCTAssertEqual(catalog.binary(.redis, "bin/redis-server")?.lastPathComponent, "redis-server")
+        XCTAssertNil(catalog.availableRelease(.redis), "installed engine is not offered for install")
+    }
+
+    func testCatalogHasNoMySQLReleaseUntilBuilt() {
+        // MySQL build artifact isn't published yet → no on-demand release (shows Not installed only).
+        let catalog = ServiceBinaryCatalog(paths: paths)
+        XCTAssertNil(catalog.availableRelease(.mysql))
+        XCTAssertNotNil(ServiceBinaryCatalog.marker(.mysql))
     }
 }

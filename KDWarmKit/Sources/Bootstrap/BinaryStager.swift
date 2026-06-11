@@ -29,10 +29,11 @@ public struct BinaryStager {
     /// for signature verification. PHP is NOT here — it is staged into the runtimes layout (below).
     public static let binBinaries = ["nginx", "dnsmasq", "mkcert"]
 
-    /// Database / Mailpit binaries staged into `bin/` ONLY when present in the bundle. They are large
-    /// relocatable builds produced by a separate pipeline; until a build ships them the matching
-    /// service reports "Not installed" rather than failing. `initdb` accompanies `postgres`.
-    public static let optionalBinaryNames = ["mysqld", "postgres", "initdb", "redis-server", "mailpit"]
+    /// Binaries staged into `bin/` ONLY when present in the bundle. Mailpit is the one bundled mail
+    /// catcher (baseline). The database engines (MySQL/PostgreSQL/Redis) are NOT bundled — they
+    /// install on demand via the Services UI into `runtimes/<engine>/` (see `ServiceBinaryCatalog`),
+    /// so KDWarm ships lean.
+    public static let optionalBinaryNames = ["mailpit"]
 
     private let bundleBinDir: URL
     private let paths: AppSupportPaths

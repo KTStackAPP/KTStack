@@ -90,6 +90,10 @@ public struct ServiceSnapshot: Identifiable, Sendable, Hashable {
     public var isInstalled: Bool
     public var isBusy: Bool
     public var errorMessage: String?
+    /// A not-installed engine that CAN be downloaded on demand (a catalog release exists).
+    public var installable: Bool
+    /// Download progress (0…1) while an on-demand install is in flight; nil otherwise.
+    public var downloadFraction: Double?
 
     public var id: ServiceKind { kind }
     public var displayName: String { kind.displayName }
@@ -100,12 +104,16 @@ public struct ServiceSnapshot: Identifiable, Sendable, Hashable {
                 detail: String,
                 isInstalled: Bool,
                 isBusy: Bool = false,
-                errorMessage: String? = nil) {
+                errorMessage: String? = nil,
+                installable: Bool = false,
+                downloadFraction: Double? = nil) {
         self.kind = kind
         self.status = status
         self.detail = detail
         self.isInstalled = isInstalled
         self.isBusy = isBusy
         self.errorMessage = errorMessage
+        self.installable = installable
+        self.downloadFraction = downloadFraction
     }
 }

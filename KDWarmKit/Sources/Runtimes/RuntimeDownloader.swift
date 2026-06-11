@@ -21,34 +21,45 @@ public struct RuntimeDownloader: Sendable {
     private let paths: AppSupportPaths
     public init(paths: AppSupportPaths) { self.paths = paths }
 
-    /// Install `release`, reporting progress. Returns the installed version dir on success; throws
-    /// (leaving nothing behind) on checksum mismatch, extract failure, or cancellation.
+    /// Install a runtime `release`, reporting progress. Returns the installed version dir.
     @discardableResult
     public func install(_ release: RuntimeRelease,
                         onProgress: @escaping @Sendable (Progress) -> Void) async throws -> URL {
+        try await installArchive(
+            url: release.url, sha256: release.sha256,
+            into: paths.runtimeDir(release.language.rawValue, release.version),
+            markerRelPath: release.language.executableRelPath,
+            onProgress: onProgress)
+    }
+
+    /// Generic on-demand install: download → checksum-verify → extract → atomically move the single
+    /// top-level payload dir into `dest`, verifying the `markerRelPath` executable landed. Reused by
+    /// both runtime (PHP/Node/…) and database (Redis/Postgres/MySQL) installs. Throws — leaving
+    /// nothing behind — on mismatch, extract failure, missing marker, or cancellation.
+    @discardableResult
+    public func installArchive(url: URL, sha256: String, into dest: URL, markerRelPath: String,
+                               onProgress: @escaping @Sendable (Progress) -> Void) async throws -> URL {
         try paths.ensureDirectoryTree()
         let coordinator = DownloadCoordinator { received, total in
             onProgress(Progress(received: received, total: total))
         }
-        let archive = try await coordinator.download(release.url)
+        let archive = try await coordinator.download(url)
         defer { try? FileManager.default.removeItem(at: archive) }
 
-        try ChecksumVerifier.verify(archive, expected: release.sha256)
+        try ChecksumVerifier.verify(archive, expected: sha256)
         let payload = try extract(archive)
         defer { try? FileManager.default.removeItem(at: payload.deletingLastPathComponent()) }
 
-        let dest = paths.runtimeDir(release.language.rawValue, release.version)
         let fm = FileManager.default
         if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }
         try fm.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
         try fm.moveItem(at: payload, to: dest)        // atomic within the same volume
 
-        // Sanity-check the payload actually contains the language's marker executable; otherwise the
-        // install would silently "succeed" yet never show as installed. Roll back the junk dir.
-        let marker = dest.appendingPathComponent(release.language.executableRelPath)
-        guard fm.isExecutableFile(atPath: marker.path) else {
+        // The payload must contain the marker executable, else the install silently "succeeds" yet
+        // never shows as installed. Roll back the junk dir.
+        guard fm.isExecutableFile(atPath: dest.appendingPathComponent(markerRelPath).path) else {
             try? fm.removeItem(at: dest)
-            throw ExtractError(message: "Archive did not contain \(release.language.executableRelPath).")
+            throw ExtractError(message: "Archive did not contain \(markerRelPath).")
         }
         return dest
     }

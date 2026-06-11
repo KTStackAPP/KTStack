@@ -11,6 +11,8 @@ struct ServiceRowView: View {
     let onToggle: () -> Void
     let onRestart: () -> Void
     let onOpenLogs: () -> Void
+    var onInstall: () -> Void = {}
+    var onCancelInstall: () -> Void = {}
 
     var body: some View {
         HStack(spacing: KDSpacing.space2) {
@@ -26,15 +28,7 @@ struct ServiceRowView: View {
             Spacer()
             StatusPill(snapshot.status, text: pillText)
 
-            if snapshot.isBusy {
-                ProgressView().controlSize(.small).frame(width: 32)
-            } else {
-                Toggle("", isOn: toggleBinding)
-                    .toggleStyle(.switch)
-                    .controlSize(.mini)
-                    .labelsHidden()
-                    .disabled(!canToggle || !snapshot.isInstalled)
-            }
+            trailingControl
 
             overflowMenu
         }
@@ -43,6 +37,27 @@ struct ServiceRowView: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(snapshot.displayName), \(snapshot.status.label), \(pillText)")
+    }
+
+    /// Right-edge control: download progress, an Install button (on-demand engine), a transition
+    /// spinner, or the on/off toggle.
+    @ViewBuilder
+    private var trailingControl: some View {
+        if let fraction = snapshot.downloadFraction {
+            HStack(spacing: KDSpacing.space1) {
+                ProgressView(value: fraction).frame(width: 56)
+                Button { onCancelInstall() } label: { Image(systemName: "xmark.circle") }
+                    .buttonStyle(.borderless)
+            }
+        } else if !snapshot.isInstalled && snapshot.installable {
+            Button("Install", action: onInstall).controlSize(.small)
+        } else if snapshot.isBusy {
+            ProgressView().controlSize(.small).frame(width: 32)
+        } else {
+            Toggle("", isOn: toggleBinding)
+                .toggleStyle(.switch).controlSize(.mini).labelsHidden()
+                .disabled(!canToggle || !snapshot.isInstalled)
+        }
     }
 
     private var toggleBinding: Binding<Bool> {

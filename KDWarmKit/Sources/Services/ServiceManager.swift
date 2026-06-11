@@ -24,6 +24,12 @@ public final class ServiceManager: ObservableObject {
     private let restart = RestartPolicy()
     private var busy: Set<ServiceKind> = []
     private var pollTask: Task<Void, Never>?
+    /// On-demand DB engine install: catalog + downloader + per-kind progress/error/task.
+    private let catalog: ServiceBinaryCatalog
+    private let downloader: RuntimeDownloader
+    private var downloadFraction: [ServiceKind: Double] = [:]
+    private var installError: [ServiceKind: String] = [:]
+    private var installTasks: [ServiceKind: Task<Void, Never>] = [:]
 
     public init(server: LocalServerController, dns: DNSAutomationService,
                 paths: AppSupportPaths = AppSupportPaths()) {
@@ -32,6 +38,8 @@ public final class ServiceManager: ObservableObject {
         self.paths = paths
         let agents = LaunchAgentManager(paths: paths)
         self.agents = agents
+        self.catalog = ServiceBinaryCatalog(paths: paths)
+        self.downloader = RuntimeDownloader(paths: paths)
         self.services = [
             .dnsmasq:  DnsmasqProxyService(dns: dns),
             .mysql:    MySQLController(paths: paths, agents: agents),
@@ -102,6 +110,49 @@ public final class ServiceManager: ObservableObject {
         }
     }
 
+    // MARK: - On-demand engine install
+
+    /// Download + install a DB engine on demand (verified, into `runtimes/<engine>/<version>/`).
+    /// No-op if it's already installing or has no catalog release.
+    public func install(_ kind: ServiceKind) {
+        guard installTasks[kind] == nil, let release = catalog.availableRelease(kind) else { return }
+        let marker = ServiceBinaryCatalog.marker(kind) ?? ""
+        let dest = catalog.installDir(release)
+        downloadFraction[kind] = 0
+        installError[kind] = nil
+        let downloader = self.downloader
+        installTasks[kind] = Task { [weak self] in
+            do {
+                try await downloader.installArchive(
+                    url: release.url, sha256: release.sha256, into: dest, markerRelPath: marker
+                ) { progress in
+                    Task { @MainActor [weak self] in
+                        guard self?.downloadFraction[kind] != nil else { return }
+                        self?.downloadFraction[kind] = progress.fraction
+                    }
+                }
+                await self?.finishInstall(kind, error: nil)
+            } catch is CancellationError {
+                await self?.finishInstall(kind, error: nil)
+            } catch {
+                await self?.finishInstall(kind, error: error.localizedDescription)
+            }
+        }
+    }
+
+    public func cancelInstall(_ kind: ServiceKind) {
+        installTasks[kind]?.cancel()
+        installTasks[kind] = nil
+        downloadFraction[kind] = nil
+    }
+
+    private func finishInstall(_ kind: ServiceKind, error: String?) {
+        installTasks[kind] = nil
+        downloadFraction[kind] = nil
+        if let error { installError[kind] = error }
+        // The next poll recomputes the snapshot; the engine now resolves as installed on success.
+    }
+
     // MARK: - Polling
 
     private func refresh() async {
@@ -122,8 +173,14 @@ public final class ServiceManager: ObservableObject {
             return ServiceSnapshot(kind: kind, status: .stopped, detail: "", isInstalled: false)
         }
         guard svc.isInstalled else {
-            return ServiceSnapshot(kind: kind, status: .stopped, detail: "Not installed",
-                                   isInstalled: false, isBusy: busy.contains(kind))
+            let installing = downloadFraction[kind] != nil
+            return ServiceSnapshot(
+                kind: kind, status: .stopped,
+                detail: installing ? "Installing…" : "Not installed",
+                isInstalled: false, isBusy: busy.contains(kind),
+                errorMessage: installError[kind],
+                installable: catalog.availableRelease(kind) != nil,
+                downloadFraction: downloadFraction[kind])
         }
         // dnsmasq is helper-owned (no launchd label we control) — trust its probe directly.
         if kind == .dnsmasq {
