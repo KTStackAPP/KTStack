@@ -1,13 +1,17 @@
 import Foundation
 
-/// Supervises a bundled `mysqld` as a user LaunchAgent that persists across app quit. First run
+/// Supervises an on-demand-installed `mysqld` as a user LaunchAgent that persists across app quit. First run
 /// initializes an insecure (no root password) datadir under app-support — a documented dev-only
 /// default. Binds loopback only. GPLv2 attribution is a Phase 9 NOTICE formality (free distribution).
 public final class MySQLController: ManagedService, @unchecked Sendable {
     public let kind = ServiceKind.mysql
     public var detail: String { ":3306" }
     public var logsURL: URL? { paths.serviceLog("mysql") }
-    public var isInstalled: Bool { catalog.isInstalled(.mysql) }
+    /// Derived from the SAME resolved binary `start()` will launch (guards against a wrong path).
+    public var isInstalled: Bool {
+        guard let binary else { return false }
+        return FileManager.default.isExecutableFile(atPath: binary.path)
+    }
 
     private let paths: AppSupportPaths
     private let runner: LaunchdServiceRunner

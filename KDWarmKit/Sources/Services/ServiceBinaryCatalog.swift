@@ -61,8 +61,8 @@ public struct ServiceBinaryCatalog: Sendable {
         guard let entries = try? fm.contentsOfDirectory(atPath: root.path) else { return nil }
         return entries
             .filter { fm.isExecutableFile(atPath: root.appendingPathComponent($0).appendingPathComponent(marker).path) }
-            .sorted()
-            .last
+            // Numeric compare so "7.10" > "7.9" and "10.0" > "9.0" (lexicographic would mis-order).
+            .max { $0.compare($1, options: .numeric) == .orderedAscending }
     }
 
     public func isInstalled(_ kind: ServiceKind) -> Bool { installedVersion(kind) != nil }

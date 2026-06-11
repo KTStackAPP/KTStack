@@ -194,6 +194,22 @@ final class ServiceManagementTests: XCTestCase {
         XCTAssertNil(catalog.availableRelease(.redis), "installed engine is not offered for install")
     }
 
+    func testRedisControllerIsInstalledOnlyWithBinUnderBinDir() throws {
+        // Locks the binary path: the controller must resolve runtimes/redis/<v>/bin/redis-server.
+        // A wrong relPath (missing "bin/") would leave isInstalled false despite the marker existing.
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("kd-redisctl-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let p = AppSupportPaths(root: root)
+        let redis = RedisController(paths: p, agents: LaunchAgentManager(paths: p))
+        XCTAssertFalse(redis.isInstalled)
+        let bin = p.runtimeBin("redis", "7.4.2")
+        try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: bin.appendingPathComponent("redis-server").path,
+                                       contents: Data(), attributes: [.posixPermissions: 0o755])
+        XCTAssertTrue(redis.isInstalled, "redis-server under bin/ must mark the controller installed")
+    }
+
     func testCatalogHasNoMySQLReleaseUntilBuilt() {
         // MySQL build artifact isn't published yet → no on-demand release (shows Not installed only).
         let catalog = ServiceBinaryCatalog(paths: paths)

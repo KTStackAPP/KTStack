@@ -46,10 +46,13 @@ public struct RuntimeDownloader: Sendable {
         let archive = try await coordinator.download(url)
         defer { try? FileManager.default.removeItem(at: archive) }
 
+        try Task.checkCancellation()
         try ChecksumVerifier.verify(archive, expected: sha256)
         let payload = try extract(archive)
         defer { try? FileManager.default.removeItem(at: payload.deletingLastPathComponent()) }
 
+        // Last honored cancel point — once we move the payload into place the engine is installed.
+        try Task.checkCancellation()
         let fm = FileManager.default
         if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }
         try fm.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)

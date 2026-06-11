@@ -1,6 +1,6 @@
 import Foundation
 
-/// Supervises a bundled `postgres` as a user LaunchAgent that persists across app quit. First run
+/// Supervises an on-demand-installed `postgres` as a user LaunchAgent that persists across app quit. First run
 /// runs `initdb` (trust auth, no password) into an app-support datadir — a documented dev-only
 /// default. Listens on loopback only; the unix socket lives under `run/`.
 public final class PostgreSQLController: ManagedService, @unchecked Sendable {
