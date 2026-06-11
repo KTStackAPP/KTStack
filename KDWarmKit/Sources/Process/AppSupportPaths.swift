@@ -36,6 +36,12 @@ public struct AppSupportPaths: Sendable {
     public var run: URL              { dir("run") }
     public var logs: URL             { dir("logs") }
     public var sites: URL            { dir("sites") }
+    /// Persistent data directories for bundled databases / Mailpit (`data/mysql`, `data/postgres`,
+    /// `data/redis`, `data/mailpit`). Never inside the immutable bundle — always app-support.
+    public var data: URL             { dir("data") }
+    /// Rendered LaunchAgent plists (loaded via `launchctl bootstrap`). Kept out of
+    /// `~/Library/LaunchAgents` so they are app-controlled, not auto-loaded at login.
+    public var launchAgents: URL     { dir("launchd") }
 
     /// Persisted registry of explicitly-added sites.
     public var sitesRegistryFile: URL { sitesConfigDir.appendingPathComponent("sites.json") }
@@ -49,8 +55,34 @@ public struct AppSupportPaths: Sendable {
     /// Every directory that `ensureDirectoryTree()` creates.
     public var allDirectories: [URL] {
         [root, bin, runtimes, config, nginxConfigDir, sitesEnabled, phpFpmConfigDir,
-         sitesConfigDir, caDir, certsDir, run, logs, sites]
+         sitesConfigDir, caDir, certsDir, run, logs, sites, data, launchAgents]
     }
+
+    // MARK: Per-service data / config / logs (databases + Mailpit)
+
+    /// Persistent data dir for a service (`data/<service>`), e.g. a DB datadir.
+    public func serviceData(_ service: String) -> URL {
+        data.appendingPathComponent(service, isDirectory: true)
+    }
+    /// Rendered config file for a service (`config/<service>.conf`).
+    public func serviceConfig(_ service: String, ext: String = "conf") -> URL {
+        config.appendingPathComponent("\(service).\(ext)")
+    }
+    /// Combined stdout+stderr log for a service (`logs/<service>.log`).
+    public func serviceLog(_ service: String) -> URL {
+        logs.appendingPathComponent("\(service).log")
+    }
+    /// Unix socket for a service that uses one (`run/<service>.sock`).
+    public func serviceSocket(_ service: String) -> URL {
+        run.appendingPathComponent("\(service).sock")
+    }
+    /// Rendered LaunchAgent plist for a launchd label (`launchd/<label>.plist`).
+    public func launchAgentPlist(_ label: String) -> URL {
+        launchAgents.appendingPathComponent("\(label).plist")
+    }
+
+    /// Staged binary for a bundled service executable (`bin/<name>`).
+    public func binary(_ name: String) -> URL { bin.appendingPathComponent(name) }
 
     // MARK: Binaries (staged copies)
 

@@ -65,7 +65,7 @@ public final class CATrustService: ObservableObject {
     // MARK: - Trust query
 
     /// True if the CA cert's SHA-1 appears among the System Keychain's certificates.
-    nonisolated static func isTrustedInSystemKeychain(caCert: URL) -> Bool {
+    public nonisolated static func isTrustedInSystemKeychain(caCert: URL) -> Bool {
         guard let pem = try? Data(contentsOf: caCert),
               let der = CertMinter.pemToDER(pem) else { return false }
         let sha1 = Insecure.SHA1.hash(data: der).map { String(format: "%02X", $0) }.joined()

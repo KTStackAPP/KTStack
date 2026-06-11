@@ -23,6 +23,11 @@ public struct PortPreflight {
         guard fd >= 0 else { return .blocked(message: "Could not create a probe socket.") }
         defer { close(fd) }
 
+        // Match how nginx binds (SO_REUSEADDR) so a socket lingering in TIME_WAIT — e.g. right after
+        // we boot our own server out during a restart — is not misreported as a foreign conflict.
+        var reuse: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, socklen_t(MemoryLayout<Int32>.size))
+
         var addr = sockaddr_in()
         addr.sin_family = sa_family_t(AF_INET)
         addr.sin_port = in_port_t(UInt16(port)).bigEndian
@@ -48,12 +53,32 @@ public struct PortPreflight {
         return .blocked(message: "Could not bind 0.0.0.0:\(port): \(String(cString: strerror(err))).")
     }
 
-    /// Build a human, named-conflict message. Apple's Apache (`httpd`) is the usual suspect on :80.
+    /// Convenience: pre-flight every port in `ports`, returning the first conflict (or `.available`).
+    /// Generalises the single-port check across the service ports (80/443/3306/5432/6379/8025/1025).
+    public func firstConflict(in ports: [Int]) -> Outcome {
+        for port in ports {
+            let outcome = check(port: port)
+            if outcome != .available { return outcome }
+        }
+        return .available
+    }
+
+    /// Build a human, named-conflict message. Apple's Apache (`httpd`) is the usual suspect on :80;
+    /// a pre-existing Homebrew DB is the usual suspect on a DB port.
     static func conflictMessage(port: Int, process: String?) -> String {
         switch process?.lowercased() {
         case "httpd":
             return "Apache (macOS built-in) is using port \(port). Stop it with "
                 + "`sudo apachectl stop`, or change KDWarm's port in Settings."
+        case "mysqld", "mariadbd":
+            return "Another MySQL/MariaDB is using port \(port) (often a Homebrew install). "
+                + "Stop it (`brew services stop mysql`) or change KDWarm's port in Settings."
+        case "postgres":
+            return "Another PostgreSQL is using port \(port) (often a Homebrew install). "
+                + "Stop it (`brew services stop postgresql`) or change KDWarm's port in Settings."
+        case "redis-server":
+            return "Another Redis is using port \(port) (often a Homebrew install). "
+                + "Stop it (`brew services stop redis`) or change KDWarm's port in Settings."
         case .some(let name):
             return "Port \(port) is already in use by “\(name)”. Stop that process or change KDWarm's port."
         case .none:

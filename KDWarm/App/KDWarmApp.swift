@@ -13,6 +13,7 @@ struct KDWarmApp: App {
         MenuBarExtra("KDWarm", image: "MenuBarGlyph") {
             MenuBarContentView()
                 .environmentObject(appDelegate.server)
+                .environmentObject(appDelegate.services)
         }
         .menuBarExtraStyle(.window)
 
@@ -21,6 +22,7 @@ struct KDWarmApp: App {
             DashboardWindow()
                 .environmentObject(appDelegate.server)
                 .environmentObject(appDelegate.dns)
+                .environmentObject(appDelegate.services)
         }
         .defaultSize(width: 920, height: 600)
         .windowResizability(.contentMinSize)
@@ -44,6 +46,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor lazy var dns = DNSAutomationService(
         bundledDnsmasq: Self.bundleBinDir.appendingPathComponent("dnsmasq"))
 
+    /// Aggregates all services (nginx/php-fpm via the server; DBs/Mailpit/dnsmasq) for the Services
+    /// view + menu bar, polling their health sub-second.
+    @MainActor lazy var services: ServiceManager = {
+        let manager = ServiceManager(server: server, dns: dns)
+        manager.startPolling()
+        return manager
+    }()
+
     /// Local root CA trust (mkcert) for HTTPS `*.test`.
     @MainActor lazy var caTrust = CATrustService(
         paths: AppSupportPaths(), mkcertBinary: Self.bundleBinDir.appendingPathComponent("mkcert"))
@@ -62,6 +72,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             name: NSWindow.willCloseNotification,
             object: nil)
         registerHelperIfSigned()
+        // Touch the service manager so its health poll starts immediately — this also reattaches the
+        // status of any launchd services left running by a previous session.
+        _ = services
     }
 
     /// Register the SMAppService daemon — but only on a real signed build. The dev/ad-hoc build
@@ -79,9 +92,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // Dev-shim children run in their own process group, so they would survive the app.
-        // Stop them explicitly so quitting leaves no orphaned nginx/php-fpm (Phase 2 criterion;
-        // Phase 6 changes this to persistent launchd services).
+        // Services are launchd-managed and PERSIST across app quit (the app is a controller, not the
+        // process parent), so we deliberately do NOT stop nginx/php-fpm here — only the in-process
+        // folder watcher. Bringing everything down is the explicit "Stop all" action.
         MainActor.assumeIsolated { server.shutdownForQuit() }
     }
 

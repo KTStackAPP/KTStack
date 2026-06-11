@@ -39,41 +39,6 @@ public enum ServiceStatus: String, CaseIterable, Sendable {
     }
 }
 
-/// A managed long-running service (Nginx, PHP-FPM, a DB, Mailpit, dnsmasq…).
-/// Phase 1 ships static samples; real supervision arrives in Phase 6.
-public struct Service: Identifiable, Hashable, Sendable {
-    public let id: UUID
-    public var name: String
-    public var symbolName: String
-    public var detail: String       // port or version, e.g. ":443" / "8.3"
-    public var status: ServiceStatus
-    public var isOn: Bool
-
-    public init(id: UUID = UUID(),
-                name: String,
-                symbolName: String,
-                detail: String,
-                status: ServiceStatus,
-                isOn: Bool) {
-        self.id = id
-        self.name = name
-        self.symbolName = symbolName
-        self.detail = detail
-        self.status = status
-        self.isOn = isOn
-    }
-
-    /// Deterministic placeholder rows for the menu-bar skeleton.
-    public static let sample: [Service] = [
-        Service(name: "Nginx",   symbolName: "arrow.triangle.branch", detail: ":443",   status: .running, isOn: true),
-        Service(name: "PHP-FPM", symbolName: "chevron.left.forwardslash.chevron.right", detail: "8.3", status: .running, isOn: true),
-        Service(name: "MySQL",   symbolName: "cylinder.split.1x2", detail: ":3306", status: .running, isOn: true),
-        Service(name: "Redis",   symbolName: "bolt.fill",          detail: ":6379", status: .warning, isOn: true),
-        Service(name: "Mailpit", symbolName: "envelope",           detail: "off",   status: .stopped, isOn: false),
-        Service(name: "dnsmasq", symbolName: "point.3.connected.trianglepath.dotted", detail: "*.test", status: .running, isOn: true),
-    ]
-}
-
 /// How a registered folder is served. A static or Node site must NOT be routed through
 /// PHP-FPM (that yields 502/blank), so the type drives which vhost template is generated.
 public enum SiteType: String, Codable, CaseIterable, Sendable {

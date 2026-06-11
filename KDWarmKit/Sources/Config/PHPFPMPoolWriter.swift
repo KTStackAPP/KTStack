@@ -13,7 +13,7 @@ public struct PHPFPMPoolWriter {
     public init() {}
 
     /// A complete php-fpm config (global + one pool). `daemonize = no` because the master
-    /// runs in the foreground under `ManagedProcess` supervision (`php-fpm -F`).
+    /// runs in the foreground under launchd supervision (`php-fpm -F`).
     public func poolConfig(paths: AppSupportPaths,
                            poolName: String,
                            user: String = NSUserName()) -> String {

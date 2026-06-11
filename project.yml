@@ -21,6 +21,17 @@ settings:
     CODE_SIGNING_ALLOWED: "YES"
     DEVELOPMENT_TEAM: ""
 
+schemes:
+  # Test scheme so `xcodebuild test` can drive the framework's logic tests without an app host.
+  KDWarmKit-Tests:
+    build:
+      targets:
+        KDWarmKit: all
+        KDWarmKitTests: [test]
+    test:
+      targets:
+        - KDWarmKitTests
+
 targets:
   # Shared framework: design tokens + models + the XPC contract, linked by the app
   # (and, from Phase 4, the privileged helper) so model types stay single-sourced.

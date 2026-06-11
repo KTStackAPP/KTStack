@@ -1,68 +1,57 @@
 import Foundation
 
-/// Starts/stops one php-fpm master + pool, supervised by `ManagedProcess`. `poolName` doubles
-/// as the pool key and socket suffix (`run/php-fpm-<poolName>.sock`); `PHPFPMPoolManager` keys
-/// pools by PHP version, so `poolName` is the version (e.g. "8.4") and `executable` the matching
-/// versioned binary.
+/// Starts/stops one php-fpm master + pool as a user LaunchAgent that PERSISTS across app quit.
+/// `poolName` doubles as the pool key and socket suffix (`run/php-fpm-<poolName>.sock`);
+/// `PHPFPMPoolManager` keys pools by PHP version, so `poolName` is the version (e.g. "8.4") and
+/// `executable` the matching versioned binary.
 ///
-/// Phase 2 runs the master as a foreground dev-shim child (`-F`), killed when the app quits.
-/// Phase 6 promotes this to a launchd-managed service that persists across app quit.
+/// The master runs foreground (`-F`, `daemonize = no`) under launchd; `KeepAlive` auto-restarts a
+/// crash, a clean stop is a `bootout`.
 public final class PHPFPMController: @unchecked Sendable {
     public let poolName: String
     private let paths: AppSupportPaths
     private let executable: URL
+    private let agents: LaunchAgentManager
     private let poolWriter: PHPFPMPoolWriter
-    private let lock = NSLock()
-    private var managed: ManagedProcess?
 
-    /// Called off the main thread when the master exits.
-    public var onExit: (@Sendable (ManagedProcess.State) -> Void)?
+    /// One launchd job per pool: `com.kdwarm.php-fpm.<version>`.
+    private var label: String { "com.kdwarm.php-fpm.\(poolName)" }
 
-    /// - Parameter executable: the php-fpm binary for this pool's version; defaults to the
-    ///   unversioned `bin/php-fpm` (Phase 2's PHP 8.4).
     public init(paths: AppSupportPaths,
+                agents: LaunchAgentManager,
                 poolName: String = BundledPHP.defaultVersion,
                 executable: URL? = nil,
                 poolWriter: PHPFPMPoolWriter = PHPFPMPoolWriter()) {
         self.paths = paths
+        self.agents = agents
         self.poolName = poolName
         self.executable = executable ?? paths.phpFpmBinary
         self.poolWriter = poolWriter
     }
 
-    public var isRunning: Bool {
-        lock.lock(); defer { lock.unlock() }
-        return managed?.isRunning ?? false
-    }
+    public var isRunning: Bool { agents.isLoaded(label) }
 
-    /// Render the pool config and launch the foreground master.
+    /// Render the pool config and bootstrap the launchd job (idempotent reattach if already loaded).
     public func start() throws {
-        lock.lock()
-        guard managed == nil else { lock.unlock(); return }
-        lock.unlock()
-
         let poolConf = try poolWriter.write(paths: paths, poolName: poolName)
-        // Stale socket from a crash would make nginx see a dead socket — clear it first.
-        try? FileManager.default.removeItem(at: paths.phpFpmSocket(poolName))
-
-        let proc = ManagedProcess(
-            label: "php-fpm[\(poolName)]",
-            executable: executable,
-            arguments: ["-p", paths.root.path, "-y", poolConf.path, "-F"],
-            workingDirectory: paths.root,
-            logFile: paths.phpFpmLog(poolName))
-        proc.onTerminate = { [weak self] state in
-            self?.lock.lock(); self?.managed = nil; self?.lock.unlock()
-            self?.onExit?(state)
+        // Stale socket from a crash would make nginx see a dead socket — clear it before (re)launch.
+        if !agents.isLoaded(label) {
+            try? FileManager.default.removeItem(at: paths.phpFpmSocket(poolName))
         }
-        try proc.start()
-
-        lock.lock(); managed = proc; lock.unlock()
+        try agents.bootstrap(spec(poolConf: poolConf))
     }
 
     public func stop(grace: TimeInterval = 3.0) {
-        lock.lock(); let p = managed; managed = nil; lock.unlock()
-        p?.stop(gracePeriod: grace)
+        try? agents.bootout(label)
         try? FileManager.default.removeItem(at: paths.phpFpmSocket(poolName))
+    }
+
+    private func spec(poolConf: URL) -> LaunchAgentSpec {
+        LaunchAgentSpec(
+            label: label,
+            programArguments: [executable.path, "-p", paths.root.path, "-y", poolConf.path, "-F"],
+            workingDirectory: paths.root.path,
+            stdoutPath: paths.phpFpmLog(poolName).path,
+            stderrPath: paths.phpFpmLog(poolName).path)
     }
 }

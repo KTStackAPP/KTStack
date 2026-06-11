@@ -8,14 +8,13 @@ import Foundation
 /// aborting the others — the multi-version path goes fully live once Phase 7 adds the binaries.
 public final class PHPFPMPoolManager: @unchecked Sendable {
     private let paths: AppSupportPaths
+    private let agents: LaunchAgentManager
     private let lock = NSLock()
     private var pools: [String: PHPFPMController] = [:]
 
-    /// Forwarded when any pool master exits unexpectedly: `(version, state)`.
-    public var onPoolExit: (@Sendable (String, ManagedProcess.State) -> Void)?
-
-    public init(paths: AppSupportPaths) {
+    public init(paths: AppSupportPaths, agents: LaunchAgentManager) {
         self.paths = paths
+        self.agents = agents
     }
 
     public func socket(for version: String) -> URL { paths.phpFpmSocket(version) }
@@ -47,8 +46,7 @@ public final class PHPFPMPoolManager: @unchecked Sendable {
             guard FileManager.default.isExecutableFile(atPath: binary.path) else {
                 missing.append(version); continue
             }
-            let ctl = PHPFPMController(paths: paths, poolName: version, executable: binary)
-            ctl.onExit = { [weak self] state in self?.onPoolExit?(version, state) }
+            let ctl = PHPFPMController(paths: paths, agents: agents, poolName: version, executable: binary)
             try ctl.start()
             lock.lock(); pools[version] = ctl; lock.unlock()
         }

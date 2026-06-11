@@ -2,15 +2,13 @@ import SwiftUI
 import AppKit
 import KDWarmKit
 
-/// Menu-bar dropdown skeleton (design-guidelines §5.2, wireframe `menubar-dropdown`).
-/// Header · placeholder service rows · footer actions. All data is static sample data;
-/// real service state binds in Phase 6.
+/// Menu-bar dropdown (design-guidelines §5.2, wireframe `menubar-dropdown`).
+/// Header with global Start all / Stop all · live service rows (bound to `ServiceManager`) ·
+/// footer actions. Quitting the app leaves launchd-managed services running.
 struct MenuBarContentView: View {
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var server: LocalServerController
-
-    /// Placeholder rows for services not yet supervised (real supervision: Phase 6).
-    private let placeholders = Service.sample.filter { !["Nginx", "PHP-FPM"].contains($0.name) }
+    @EnvironmentObject private var services: ServiceManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -24,6 +22,8 @@ struct MenuBarContentView: View {
         .frame(width: 324)
     }
 
+    private var anyRunning: Bool { services.snapshots.contains { $0.status == .running } }
+
     private var header: some View {
         HStack(spacing: KDSpacing.space2) {
             Image(systemName: "bolt.horizontal.circle")
@@ -36,17 +36,18 @@ struct MenuBarContentView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Stop All") { server.stop() }
-                .buttonStyle(.borderless)
-                .font(KDFont.footnote)
-                .disabled(!server.isRunning || server.isBusy)
+            Button(anyRunning ? "Stop All" : "Start All") {
+                anyRunning ? services.stopAll() : services.startAll()
+            }
+            .buttonStyle(.borderless)
+            .font(KDFont.footnote)
         }
         .padding(.horizontal, KDSpacing.space1)
     }
 
     private var headerSubtitle: String {
-        if server.isBusy { return "v0.1.0 · working…" }
-        return server.isRunning ? "v0.1.0 · web server running" : "v0.1.0 · web server stopped"
+        let running = services.snapshots.filter { $0.status == .running }.count
+        return "v0.1.0 · \(running) of \(services.snapshots.count) running"
     }
 
     private var servicesSection: some View {
@@ -56,49 +57,45 @@ struct MenuBarContentView: View {
                 .foregroundStyle(.tertiary)
                 .padding(.horizontal, KDSpacing.space1)
 
-            // Live, supervised services (this phase). The Nginx row carries the master
-            // toggle that boots/stops the whole php-fpm + nginx slice.
-            liveRow(name: "Nginx", symbol: "arrow.triangle.branch", detail: ":80",
-                    status: server.nginxStatus, isMasterToggle: true)
-            liveRow(name: "PHP-FPM", symbol: "chevron.left.forwardslash.chevron.right",
-                    detail: "8.4", status: server.phpStatus, isMasterToggle: false)
-
-            ForEach(placeholders) { service in
-                serviceRow(service.name, symbol: service.symbolName, detail: service.detail,
-                           status: service.status, toggleOn: .constant(service.isOn), enabled: false)
+            ForEach(services.snapshots) { snapshot in
+                serviceRow(snapshot)
             }
         }
     }
 
-    /// A live service row bound to the controller. The master row's toggle drives start/stop.
-    private func liveRow(name: String, symbol: String, detail: String,
-                         status: ServiceStatus, isMasterToggle: Bool) -> some View {
+    /// A live service row bound to the `ServiceManager` snapshot. php-fpm follows the web server,
+    /// so its toggle is read-only; not-installed services are disabled.
+    private func serviceRow(_ snapshot: ServiceSnapshot) -> some View {
+        let canToggle = snapshot.kind != .phpFpm && snapshot.isInstalled
         let binding = Binding<Bool>(
-            get: { server.isRunning },
-            set: { _ in server.toggle() })
-        return serviceRow(name, symbol: symbol, detail: detail, status: status,
-                          toggleOn: binding, enabled: isMasterToggle && !server.isBusy)
-    }
-
-    private func serviceRow(_ name: String, symbol: String, detail: String,
-                            status: ServiceStatus, toggleOn: Binding<Bool>, enabled: Bool) -> some View {
-        HStack(spacing: KDSpacing.space2) {
-            Image(systemName: symbol)
+            get: { snapshot.status == .running },
+            set: { _ in services.toggle(snapshot.kind) })
+        return HStack(spacing: KDSpacing.space2) {
+            Image(systemName: snapshot.symbolName)
                 .frame(width: 18)
                 .foregroundStyle(.secondary)
-            Text(name).font(KDFont.body)
+            Text(snapshot.displayName).font(KDFont.body)
             Spacer()
-            StatusPill(status, text: detail)
-            Toggle("", isOn: toggleOn)
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-                .labelsHidden()
-                .disabled(!enabled)
+            StatusPill(snapshot.status, text: pillText(snapshot))
+            if snapshot.isBusy {
+                ProgressView().controlSize(.mini).frame(width: 28)
+            } else {
+                Toggle("", isOn: binding)
+                    .toggleStyle(.switch)
+                    .controlSize(.mini)
+                    .labelsHidden()
+                    .disabled(!canToggle)
+            }
         }
         .padding(.vertical, KDSpacing.space1)
         .padding(.horizontal, KDSpacing.space1)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(name), \(status.label), \(detail)")
+        .accessibilityLabel("\(snapshot.displayName), \(snapshot.status.label), \(pillText(snapshot))")
+    }
+
+    private func pillText(_ snapshot: ServiceSnapshot) -> String {
+        snapshot.isInstalled ? (snapshot.detail.isEmpty ? snapshot.status.label : snapshot.detail)
+                             : "Not installed"
     }
 
     private var footer: some View {

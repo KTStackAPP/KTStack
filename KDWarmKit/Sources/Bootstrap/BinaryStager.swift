@@ -24,10 +24,15 @@ public struct BinaryStager {
         }
     }
 
-    /// The binaries this phase stages. Extended as later phases add runtimes.
+    /// The binaries this phase REQUIRES — a missing one aborts startup.
     /// `dnsmasq` is bundled for DNS automation; the sudo-fallback / helper copies it to a
     /// root-owned location, but it is staged into user app-support too for signature verification.
     public static let binaryNames = ["nginx", "php", "php-fpm", "dnsmasq", "mkcert"]
+
+    /// Database / Mailpit binaries staged ONLY when present in the bundle. They are large relocatable
+    /// builds produced by a separate pipeline; until a build ships them the matching service reports
+    /// "Not installed" rather than failing. `initdb` accompanies `postgres`.
+    public static let optionalBinaryNames = ["mysqld", "postgres", "initdb", "redis-server", "mailpit"]
 
     private let bundleBinDir: URL
     private let paths: AppSupportPaths
@@ -40,9 +45,14 @@ public struct BinaryStager {
     }
 
     /// Stage any binary that is missing or out of date. Verifies signatures on both ends.
+    /// Required binaries must be present; optional DB/Mailpit binaries are staged only if bundled.
     public func stageIfNeeded() throws {
         try paths.ensureDirectoryTree(fileManager: fileManager)
         for name in Self.binaryNames {
+            try stage(name)
+        }
+        for name in Self.optionalBinaryNames where fileManager.isReadableFile(
+            atPath: bundleBinDir.appendingPathComponent(name).path) {
             try stage(name)
         }
     }

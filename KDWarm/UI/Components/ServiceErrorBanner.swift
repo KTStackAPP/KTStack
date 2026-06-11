@@ -1,0 +1,40 @@
+import SwiftUI
+import KDWarmKit
+
+/// One reusable error/remediation surface (design §5.8) shared by the Services / Sites / Runtimes
+/// views. Renders a tinted banner with an icon, a message, and an optional remediation CTA — the
+/// consolidated home for the cross-phase error states (helper-pending, CA-untrusted, port-conflict,
+/// download-failed, service-error-after-retries) so they read as guidance, not a bare red pill.
+struct ServiceErrorBanner: View {
+    let status: ServiceStatus
+    let title: String
+    let message: String
+    var ctaTitle: String? = nil
+    var action: (() -> Void)? = nil
+
+    var body: some View {
+        HStack(alignment: .top, spacing: KDSpacing.space2) {
+            Image(systemName: status.symbolName)
+                .foregroundStyle(status.color)
+                .font(.system(size: 15, weight: .semibold))
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(KDFont.body).fontWeight(.medium)
+                Text(message).font(KDFont.footnote).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: KDSpacing.space2)
+            if let ctaTitle, let action {
+                Button(ctaTitle, action: action)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+            }
+        }
+        .padding(KDSpacing.space2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8).fill(status.color.opacity(0.12)))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(status.color.opacity(0.25), lineWidth: 1))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title). \(message)")
+    }
+}

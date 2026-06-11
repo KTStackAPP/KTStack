@@ -21,6 +21,7 @@ public final class LocalServerController: ObservableObject {
     // These collaborators are Sendable and used from the off-main `applyConfiguration` work, so
     // they are explicitly nonisolated (avoids a Swift 6 main-actor isolation error).
     nonisolated private let paths: AppSupportPaths
+    nonisolated private let agents: LaunchAgentManager
     nonisolated private let nginx: NginxController
     nonisolated private let pools: PHPFPMPoolManager
     nonisolated private let generator: SiteConfigGenerator
@@ -34,23 +35,62 @@ public final class LocalServerController: ObservableObject {
 
     public init(bundleBinDir: URL, paths: AppSupportPaths = AppSupportPaths()) {
         self.paths = paths
+        self.agents = LaunchAgentManager(paths: paths)
         self.registry = SiteRegistry(storeURL: paths.sitesRegistryFile)
-        self.nginx = NginxController(paths: paths)
-        self.pools = PHPFPMPoolManager(paths: paths)
+        self.nginx = NginxController(paths: paths, agents: agents)
+        self.pools = PHPFPMPoolManager(paths: paths, agents: agents)
         self.generator = SiteConfigGenerator(paths: paths)
         self.stager = BinaryStager(bundleBinDir: bundleBinDir, paths: paths)
         self.mkcert = MkcertRunner(mkcert: paths.mkcertBinary, caroot: paths.caDir)
         self.certMinter = CertMinter(paths: paths, runner: MkcertRunner(mkcert: paths.mkcertBinary, caroot: paths.caDir))
 
-        nginx.onExit = { [weak self] state in
-            Task { @MainActor in self?.handleUnexpectedExit("Nginx", state) }
-        }
-        pools.onPoolExit = { [weak self] version, state in
-            Task { @MainActor in self?.handleUnexpectedExit("PHP-FPM \(version)", state) }
-        }
         registry.onChange = { [weak self] in self?.onRegistryChanged() }
         watcher.onChange = { [weak self] folder in
             Task { @MainActor in self?.handleFolderChange(folder) }
+        }
+        // Reattach: services may already be running (launchd) from a previous session — reflect that
+        // and resume watching so site edits keep reconciling without a re-spawn.
+        if nginx.isRunning { reattachOnLaunch() } else { recomputeStatus() }
+    }
+
+    /// Re-derive published status from the live launchd/socket state. Called by the Service Manager's
+    /// health poll because launchd (not the app) now supervises restarts — there is no exit callback.
+    /// No-ops while an operation is in flight so a poll can't flash a transient `error` mid-start.
+    public func refreshStatus() {
+        guard !isBusy else { return }
+        recomputeStatus()
+    }
+
+    /// Rebuild the in-memory pool map from the registry so it matches the launchd jobs that survived
+    /// the last app quit (`bootstrap` is idempotent → reattach, never re-spawn). Without this the pool
+    /// map is empty on launch and php-fpm would be mislabeled `error` despite serving fine.
+    private func reattachOnLaunch() {
+        let required = SiteConfigGenerator.requiredVersions(for: registry.sites)
+        _ = try? pools.reconcile(required: required)
+        recomputeStatus()
+        refreshWatches()
+    }
+
+    /// Restart the whole web slice (overflow menu / error-banner CTA): boot out nginx + pools, then
+    /// start fresh. Runs as ONE sequenced operation so the start half can't be dropped by the async
+    /// stop's busy flag, and skips the `:80` pre-flight (we are intentionally re-binding our own port).
+    public func restart() {
+        guard !isBusy else { return }
+        isBusy = true; lastError = nil
+        nginxStatus = .starting; phpStatus = .starting
+        ensureSeed()
+        let sites = registry.sites
+        let port = httpPort
+        Task.detached(priority: .userInitiated) { [self] in
+            nginx.stop(); pools.stopAll()
+            do {
+                try stager.stageIfNeeded()
+                let missing = try await applyConfiguration(sites: sites, port: port, startNginx: true, runPreflight: false)
+                await finish(missing: missing, error: nil)
+            } catch {
+                pools.stopAll(); nginx.stop()
+                await finish(missing: [], error: error.localizedDescription)
+            }
         }
     }
 
@@ -73,10 +113,11 @@ public final class LocalServerController: ObservableObject {
 
         isBusy = true; lastError = nil
         let mkcert = self.mkcert, minter = self.certMinter, domain = site.domain
+        let caCert = self.paths.caRootCert
         Task.detached(priority: .userInitiated) {
             var failure: String?
             do {
-                if !CATrustService.isTrustedInSystemKeychain(caCert: mkcert.caroot.appendingPathComponent("rootCA.pem")) {
+                if !CATrustService.isTrustedInSystemKeychain(caCert: caCert) {
                     try mkcert.install()        // generate + trust the CA (idempotent; prompts once)
                 }
                 try minter.mint(name: domain, domain: domain)
@@ -123,10 +164,10 @@ public final class LocalServerController: ObservableObject {
         }
     }
 
-    /// Synchronous, short-grace teardown for `applicationWillTerminate` (no orphaned children).
+    /// Called from `applicationWillTerminate`. Services are launchd-managed and PERSIST across app
+    /// quit (Herd's model) — so we do NOT stop nginx/php-fpm here; we only stop the in-process folder
+    /// watcher. Bringing everything down is the explicit "Stop all" action, not a side effect of quit.
     public func shutdownForQuit() {
-        nginx.stop(grace: 0.5)
-        pools.stopAll(grace: 0.5)
         watcher.stop()
     }
 
@@ -154,17 +195,20 @@ public final class LocalServerController: ObservableObject {
 
     /// Generate vhosts → reconcile pools → wait for sockets → start or reload nginx. Returns the
     /// required PHP versions whose binary isn't bundled yet (surfaced as a non-fatal warning).
-    private nonisolated func applyConfiguration(sites: [Site], port: Int, startNginx: Bool) async throws -> [String] {
+    private nonisolated func applyConfiguration(sites: [Site], port: Int, startNginx: Bool,
+                                                runPreflight: Bool = true) async throws -> [String] {
         let changed = try generator.generate(sites: sites, port: port)
         let missing = try pools.reconcile(required: SiteConfigGenerator.requiredVersions(for: sites))
         for version in pools.activeVersions {
             try await Self.waitForSocket(pools.socket(for: version))
         }
         if startNginx {
-            switch preflight.check(port: port) {
-            case .available: break
-            case .inUse(_, let m), .blocked(let m): throw NSError(domain: "KDWarm", code: 2,
-                userInfo: [NSLocalizedDescriptionKey: m])
+            if runPreflight {
+                switch preflight.check(port: port) {
+                case .available: break
+                case .inUse(_, let m), .blocked(let m): throw NSError(domain: "KDWarm", code: 2,
+                    userInfo: [NSLocalizedDescriptionKey: m])
+                }
             }
             try nginx.start()
         } else if changed {
@@ -194,13 +238,6 @@ public final class LocalServerController: ObservableObject {
         let allUp = !active.isEmpty && active.allSatisfy { pools.isRunning(version: $0) }
         let anyPHP = registry.sites.contains { $0.type == .php }
         phpStatus = allUp ? .running : (anyPHP && nginx.isRunning ? .error : .stopped)
-    }
-
-    private func handleUnexpectedExit(_ who: String, _ state: ManagedProcess.State) {
-        if !isBusy, case .failed(let reason) = state {
-            lastError = "\(who) exited unexpectedly: \(reason)"
-        }
-        recomputeStatus()
     }
 
     private func handleFolderChange(_ folder: URL) {

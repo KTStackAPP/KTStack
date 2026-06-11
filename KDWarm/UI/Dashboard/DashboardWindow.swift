@@ -24,7 +24,7 @@ struct DashboardWindow: View {
     private func detail(for item: SidebarItem) -> some View {
         switch item {
         case .sites:    SitesSectionView()
-        case .services: ServicesSectionView()
+        case .services: ServicesSectionView(onNavigate: { selection = $0 })
         case .runtimes: RuntimesSectionView()
         case .logs:     LogsSectionView()
         case .mail:     MailSectionView()

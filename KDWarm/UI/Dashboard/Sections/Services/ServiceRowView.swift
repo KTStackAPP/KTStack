@@ -1,0 +1,91 @@
+import SwiftUI
+import KDWarmKit
+
+/// One service row in the Services list (design §5.5): SF Symbol · name · secondary detail ·
+/// status pill · toggle (or spinner mid-transition, §5.3) · overflow menu (Restart, Logs).
+/// A not-installed service shows a neutral pill + a disabled toggle; the section banner explains why.
+struct ServiceRowView: View {
+    let snapshot: ServiceSnapshot
+    /// php-fpm follows the web server (pools auto-reconcile to site needs) → its toggle is read-only.
+    let canToggle: Bool
+    let onToggle: () -> Void
+    let onRestart: () -> Void
+    let onOpenLogs: () -> Void
+
+    var body: some View {
+        HStack(spacing: KDSpacing.space2) {
+            Image(systemName: snapshot.symbolName)
+                .frame(width: 20)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(snapshot.displayName).font(KDFont.body)
+                Text(secondaryText)
+                    .font(KDFont.footnote)
+                    .foregroundStyle(.tertiary)
+            }
+            Spacer()
+            StatusPill(snapshot.status, text: pillText)
+
+            if snapshot.isBusy {
+                ProgressView().controlSize(.small).frame(width: 32)
+            } else {
+                Toggle("", isOn: toggleBinding)
+                    .toggleStyle(.switch)
+                    .controlSize(.mini)
+                    .labelsHidden()
+                    .disabled(!canToggle || !snapshot.isInstalled)
+            }
+
+            overflowMenu
+        }
+        .padding(.vertical, KDSpacing.space1)
+        .padding(.horizontal, KDSpacing.space2)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(snapshot.displayName), \(snapshot.status.label), \(pillText)")
+    }
+
+    private var toggleBinding: Binding<Bool> {
+        Binding(get: { snapshot.status == .running }, set: { _ in onToggle() })
+    }
+
+    private var pillText: String {
+        snapshot.isInstalled ? (snapshot.detail.isEmpty ? snapshot.status.label : snapshot.detail)
+                             : "Not installed"
+    }
+
+    private var secondaryText: String {
+        if !snapshot.isInstalled { return "Not bundled in this build yet" }
+        if let error = snapshot.errorMessage { return error }
+        return snapshot.kind.subtitle
+    }
+
+    private var overflowMenu: some View {
+        Menu {
+            Button("Restart", systemImage: "arrow.clockwise", action: onRestart)
+                .disabled(!canToggle || !snapshot.isInstalled || snapshot.status != .running)
+            Button("Open Logs", systemImage: "text.alignleft", action: onOpenLogs)
+                .disabled(snapshot.kind == .dnsmasq)
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .frame(width: 28)
+    }
+}
+
+private extension ServiceKind {
+    /// Short, stable secondary line under the service name.
+    var subtitle: String {
+        switch self {
+        case .nginx:    return "Reverse proxy · HTTP/HTTPS"
+        case .phpFpm:   return "FastCGI pools (managed with web server)"
+        case .dnsmasq:  return "*.test resolver (via helper)"
+        case .mysql:    return "Database · 127.0.0.1"
+        case .postgres: return "Database · 127.0.0.1"
+        case .redis:    return "Cache · 127.0.0.1"
+        case .mailpit:  return "Mail catcher · SMTP :1025"
+        }
+    }
+}
