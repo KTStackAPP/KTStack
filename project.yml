@@ -43,6 +43,14 @@ targets:
     platform: macOS
     sources:
       - path: KDWarm
+        excludes:
+          - "Resources/bin/**"
+      # Folder reference so the vendored binaries keep their `bin/` subdirectory in the
+      # bundle (Contents/Resources/bin/), which is where BinaryStager reads them from.
+      # The contents are build artifacts produced by scripts/build-*.sh (gitignored).
+      - path: KDWarm/Resources/bin
+        type: folder
+        buildPhase: resources
     dependencies:
       - target: KDWarmKit
         embed: true
@@ -74,3 +82,17 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.kdwarm.helper
         CODE_SIGN_ENTITLEMENTS: KDWarmHelper/KDWarmHelper.entitlements
         ENABLE_HARDENED_RUNTIME: "YES"
+
+  # Logic tests for the framework (config writers, paths, pool/preflight). Runs without an
+  # app host — pure XCTest against KDWarmKit.
+  KDWarmKitTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: KDWarmKitTests
+    dependencies:
+      - target: KDWarmKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kdwarm.kit.tests
+        GENERATE_INFOPLIST_FILE: "YES"
