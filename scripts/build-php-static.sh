@@ -7,9 +7,11 @@
 # by the Foundations Spike (s3-relocatable/run-s3-php.sh). The prebuilt downloads at
 # dl.static-php.dev ship the CLI only, so php-fpm MUST be compiled here.
 #
-# Extension set: a lean web-dev baseline (MySQL/SQLite PDO, curl+openssl TLS, mbstring,
-# opcache). Heavy-dep extensions (gd, intl, zip) are intentionally omitted to keep the first
-# build fast and reliable; extend EXTENSIONS below when a later phase needs them.
+# Extension set: a curated, comprehensive web-dev matrix so most projects run without a missing
+# extension. Static PHP can't dlopen at runtime, so the set is fixed at build time — adding one is a
+# rebuild + re-publish, never a user action. Heavy deps (gd→libpng/jpeg/freetype, intl→ICU,
+# zip→libzip, gmp, bz2) inflate build time + binary size; imagick is excluded (ImageMagick isn't
+# static-friendly). static-php-cli resolves each extension's libs via `download --for-extensions`.
 #
 # JIT: opcache is included → PHP's JIT is available (opcache.jit). This requires the
 # `com.apple.security.cs.allow-jit` entitlement once the app is notarized — RECORDED for
@@ -37,7 +39,7 @@ case "$ARCH" in
   *) echo "unsupported ARCH=$ARCH" >&2; exit 2 ;;
 esac
 
-EXTENSIONS="${EXTENSIONS:-bcmath,curl,dom,fileinfo,filter,mbstring,mysqli,opcache,openssl,pdo,pdo_mysql,pdo_sqlite,phar,session,sqlite3,tokenizer,xml,zlib}"
+EXTENSIONS="${EXTENSIONS:-bcmath,bz2,calendar,curl,dom,exif,fileinfo,filter,gd,gmp,intl,mbstring,mysqli,opcache,openssl,pcntl,pdo,pdo_mysql,pdo_sqlite,phar,redis,session,soap,sockets,sqlite3,tokenizer,xml,zip,zlib}"
 
 echo "=== static-php-cli build — PHP ${PHP_VER} (${ARCH}) ==="
 echo "    extensions: $EXTENSIONS"

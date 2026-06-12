@@ -7,6 +7,12 @@ import KDWarmKit
 struct RuntimesSectionView: View {
     @EnvironmentObject private var runtimes: RuntimeManager
     @State private var showInstall = false
+    @State private var editingIni: EditingIni?
+    /// `php -m` per installed PHP version, loaded off-main (the probe runs the binary).
+    @State private var phpExtensions: [String: [String]] = [:]
+
+    /// Identifiable wrapper so the editor sheet binds to which PHP version was tapped.
+    private struct EditingIni: Identifiable { let version: String; var id: String { version } }
 
     private let columns = [GridItem(.flexible(), spacing: KDSpacing.space3),
                            GridItem(.flexible(), spacing: KDSpacing.space3)]
@@ -24,6 +30,17 @@ struct RuntimesSectionView: View {
         }
         .navigationTitle("Runtimes")
         .sheet(isPresented: $showInstall) { RuntimeDownloadSheet() }
+        .sheet(item: $editingIni) { PHPIniEditorSheet(version: $0.version) }
+        .task(id: runtimes.installed[.php] ?? []) { await loadPHPExtensions() }
+    }
+
+    /// Probe `php -m` for each installed PHP version off the main thread, then publish the map.
+    private func loadPHPExtensions() async {
+        let versions = runtimes.installed[.php] ?? []
+        let map = await Task.detached(priority: .utility) {
+            Dictionary(uniqueKeysWithValues: versions.map { ($0, PHPModules.list(version: $0)) })
+        }.value
+        phpExtensions = map
     }
 
     private var toolbar: some View {
@@ -44,6 +61,8 @@ struct RuntimesSectionView: View {
             download: runtimes.downloads[lang],
             onSetDefault: { runtimes.setGlobalDefault(lang, $0) },
             onInstall: { runtimes.install($0) },
-            onCancel: { runtimes.cancel(lang) })
+            onCancel: { runtimes.cancel(lang) },
+            onEditIni: lang == .php ? { editingIni = EditingIni(version: $0) } : nil,
+            extensions: lang == .php ? phpExtensions : [:])
     }
 }

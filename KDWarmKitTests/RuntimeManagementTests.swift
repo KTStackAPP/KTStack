@@ -128,6 +128,32 @@ final class RuntimeManagementTests: XCTestCase {
         XCTAssertThrowsError(try ChecksumVerifier.verify(file, expected: String(repeating: "0", count: 64)))
     }
 
+    // MARK: - PHPModules
+
+    func testPHPModulesParseStripsHeadersDeDupesAndSorts() {
+        let output = """
+        [PHP Modules]
+        curl
+        Core
+        gd
+
+        [Zend Modules]
+        Zend OPcache
+        curl
+        """
+        // Headers ([...]) and blanks dropped; lowercased, de-duped, sorted.
+        XCTAssertEqual(PHPModules.parse(output), ["core", "curl", "gd", "zend opcache"])
+    }
+
+    func testPHPModulesParseEmptyOutput() {
+        XCTAssertEqual(PHPModules.parse(""), [])
+    }
+
+    func testPHPModulesListEmptyWhenBinaryAbsent() throws {
+        let paths = AppSupportPaths(root: try tempDir())
+        XCTAssertEqual(PHPModules.list(version: "9.9", paths: paths), [])
+    }
+
     // MARK: - Helpers
 
     private func tempDir() throws -> URL {

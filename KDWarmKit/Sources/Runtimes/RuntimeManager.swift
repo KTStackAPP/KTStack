@@ -65,6 +65,7 @@ public final class RuntimeManager: ObservableObject {
         downloads[release.language] = DownloadState(version: release.version, received: 0, total: -1)
         let downloader = self.downloader
         let lang = release.language
+        let version = release.version
         tasks[lang] = Task { [weak self] in
             do {
                 try await downloader.install(release) { progress in
@@ -75,6 +76,10 @@ public final class RuntimeManager: ObservableObject {
                         self?.downloads[lang]?.total = progress.total
                     }
                 }
+                // Drop any cached `php -m` for this version: a same-version reinstall (e.g. upgrading to
+                // a rebuilt artifact with a wider extension set) keeps the installed list identical, so
+                // the card's extension display would otherwise stay stale until relaunch.
+                if lang == .php { PHPModules.invalidate(version: version) }
                 await self?.finish(lang, error: nil)
             } catch is CancellationError {
                 await self?.finish(lang, error: nil)
