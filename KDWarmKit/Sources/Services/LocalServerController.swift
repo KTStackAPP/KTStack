@@ -242,11 +242,17 @@ public final class LocalServerController: ObservableObject {
     }
 
     private func recomputeStatus() {
-        nginxStatus = nginx.isRunning ? .running : .stopped
+        // Assign only on a real change. The sub-second health poll calls this every tick; setting an
+        // identical @Published value still fires objectWillChange, which would re-render every view
+        // observing the server (the whole dashboard) ~1x/sec and make navigation feel sluggish.
+        let nginxRunning = nginx.isRunning
+        let newNginx: ServiceStatus = nginxRunning ? .running : .stopped
         let active = pools.activeVersions
         let allUp = !active.isEmpty && active.allSatisfy { pools.isRunning(version: $0) }
         let anyPHP = registry.sites.contains { $0.type == .php }
-        phpStatus = allUp ? .running : (anyPHP && nginx.isRunning ? .error : .stopped)
+        let newPhp: ServiceStatus = allUp ? .running : (anyPHP && nginxRunning ? .error : .stopped)
+        if newNginx != nginxStatus { nginxStatus = newNginx }
+        if newPhp != phpStatus { phpStatus = newPhp }
     }
 
     private func handleFolderChange(_ folder: URL) {
