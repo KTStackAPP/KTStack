@@ -70,7 +70,9 @@ struct ServiceRowView: View {
     }
 
     private var secondaryText: String {
-        if !snapshot.isInstalled { return "Not bundled in this build yet" }
+        if !snapshot.isInstalled {
+            return snapshot.installable ? "Not installed — click Install to download" : "Not available in this build yet"
+        }
         if let error = snapshot.errorMessage { return error }
         return snapshot.kind.subtitle
     }

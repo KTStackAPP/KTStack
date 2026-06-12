@@ -30,6 +30,7 @@ public final class ServiceManager: ObservableObject {
     private var downloadFraction: [ServiceKind: Double] = [:]
     private var installError: [ServiceKind: String] = [:]
     private var installTasks: [ServiceKind: Task<Void, Never>] = [:]
+    private var cancellables = Set<AnyCancellable>()
 
     public init(server: LocalServerController, dns: DNSAutomationService,
                 paths: AppSupportPaths = AppSupportPaths()) {
@@ -48,6 +49,31 @@ public final class ServiceManager: ObservableObject {
             .mailpit:  MailpitController(paths: paths, agents: agents),
         ]
         snapshots = Self.order.map { ServiceSnapshot(kind: $0, status: .stopped, detail: "", isInstalled: true) }
+
+        // nginx/php/dns status changes are driven by their own controllers (a toggle flips them
+        // synchronously). Mirror those into the published snapshots IMMEDIATELY instead of waiting up
+        // to one ~0.9s poll cycle — otherwise a Start/Stop tap looks unresponsive until the next poll
+        // (the reported "have to switch tabs and back" lag). `receive(on:)` defers the read until after
+        // the controller's @Published value has committed (objectWillChange fires pre-change).
+        server.objectWillChange
+            .merge(with: dns.objectWillChange)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.syncControllerSnapshots() }
+            .store(in: &cancellables)
+    }
+
+    /// Refresh just the controller-owned rows (nginx/php-fpm web slice + dnsmasq) from their live
+    /// state — cheap, no network probe — so a toggle reflects instantly. The poll still owns the
+    /// DB/Mailpit rows and re-derives everything authoritatively each cycle.
+    private func syncControllerSnapshots() {
+        guard !snapshots.isEmpty else { return }
+        replaceSnapshot(webSnapshot(.nginx, status: server.nginxStatus,
+                                    detail: server.isRunning ? ":80/:443" : "off"))
+        replaceSnapshot(webSnapshot(.phpFpm, status: server.phpStatus, detail: phpDetail()))
+    }
+
+    private func replaceSnapshot(_ snap: ServiceSnapshot) {
+        if let i = snapshots.firstIndex(where: { $0.kind == snap.kind }) { snapshots[i] = snap }
     }
 
     /// Begin the health poll. Safe to call once (idempotent).

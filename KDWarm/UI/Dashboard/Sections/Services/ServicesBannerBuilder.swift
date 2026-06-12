@@ -61,13 +61,15 @@ enum ServicesBannerBuilder {
                 ctaTitle: "Restart", action: { onRestart(snap.kind) }))
         }
 
-        // Download/not-installed — DB/Mailpit binaries not bundled in this build (informational).
-        let missing = snapshots.filter { !$0.isInstalled }.map(\.displayName)
-        if !missing.isEmpty {
+        // Only services that are neither installed NOR installable are truly unavailable (e.g. MySQL
+        // has no published build yet). Installable engines (Redis/Postgres) get their own per-row
+        // Install button, so they don't need a banner.
+        let unavailable = snapshots.filter { !$0.isInstalled && !$0.installable }.map(\.displayName)
+        if !unavailable.isEmpty {
             result.append(ServiceBanner(
-                id: "not-installed", status: .info,
-                title: "Some services aren't bundled yet",
-                message: "\(missing.joined(separator: ", ")) will be available once their binaries ship in a later build."))
+                id: "not-available", status: .info,
+                title: "Some services aren't available yet",
+                message: "\(unavailable.joined(separator: ", ")) will ship in a later build. Redis and PostgreSQL can be installed now from their row."))
         }
         return result
     }
