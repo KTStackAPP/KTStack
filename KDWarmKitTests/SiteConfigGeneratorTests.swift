@@ -22,7 +22,7 @@ final class SiteConfigGeneratorTests: XCTestCase {
         let gen = SiteConfigGenerator(paths: paths)
 
         let php = gen.vhostText(for: site("demo.test", type: .php, version: "8.4"), port: 80)
-        XCTAssertTrue(php.contains("fastcgi_pass unix:\(paths.phpFpmSocket("8.4").path);"))
+        XCTAssertTrue(php.contains("fastcgi_pass \"unix:\(paths.phpFpmSocket("8.4").path)\";"))
         XCTAssertTrue(php.contains("listen 0.0.0.0:80;"))
 
         let stat = gen.vhostText(for: site("html.test", type: .staticSite), port: 80)

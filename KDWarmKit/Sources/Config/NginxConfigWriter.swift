@@ -17,19 +17,24 @@ public struct NginxConfigWriter {
 
     public init() {}
 
+    /// Wrap a path in double quotes for an nginx directive. The app-support tree lives under
+    /// "Application Support" (contains a space), so EVERY emitted path must be quoted or nginx
+    /// whitespace-splits it (`pid /…/Application Support/… → "invalid number of arguments").
+    static func q(_ path: String) -> String { "\"\(path)\"" }
+
     /// Master `nginx.conf`. `daemon off;` is supplied by the controller via `-g`, not here.
     public func masterConfig(paths: AppSupportPaths) -> String {
         """
         worker_processes auto;
-        pid \(paths.nginxPid.path);
-        error_log \(paths.nginxErrorLog.path) warn;
+        pid \(Self.q(paths.nginxPid.path));
+        error_log \(Self.q(paths.nginxErrorLog.path)) warn;
 
         events {
             worker_connections 1024;
         }
 
         http {
-            access_log \(paths.nginxAccessLog.path);
+            access_log \(Self.q(paths.nginxAccessLog.path));
             default_type application/octet-stream;
             types {
                 text/html                html htm;
@@ -46,7 +51,7 @@ public struct NginxConfigWriter {
             sendfile on;
             keepalive_timeout 65;
 
-            include \(paths.sitesEnabled.path)/*.conf;
+            include \(Self.q(paths.sitesEnabled.path + "/*.conf"));
         }
         """
     }
@@ -55,8 +60,8 @@ public struct NginxConfigWriter {
     /// viewer tail one site in isolation (Phase 8).
     public static func logDirectives(access: URL?, error: URL?) -> String {
         var lines: [String] = []
-        if let access { lines.append("    access_log \(access.path);") }
-        if let error { lines.append("    error_log \(error.path);") }
+        if let access { lines.append("    access_log \(q(access.path));") }
+        if let error { lines.append("    error_log \(q(error.path));") }
         return lines.isEmpty ? "" : "\n" + lines.joined(separator: "\n")
     }
 
@@ -67,7 +72,7 @@ public struct NginxConfigWriter {
         server {
             listen \(Self.listenAddress):\(port);
             server_name \(domain);
-            root \(root.path);
+            root \(Self.q(root.path));
             index index.php index.html;\(Self.logDirectives(access: accessLog, error: errorLog))
 
             location / {
@@ -75,7 +80,7 @@ public struct NginxConfigWriter {
             }
 
             location ~ \\.php$ {
-                fastcgi_pass unix:\(phpFpmSocket.path);
+                fastcgi_pass \(Self.q("unix:" + phpFpmSocket.path));
                 fastcgi_index index.php;
                 fastcgi_param SCRIPT_FILENAME  $document_root$fastcgi_script_name;
                 fastcgi_param QUERY_STRING     $query_string;
@@ -111,7 +116,7 @@ public struct NginxConfigWriter {
         server {
             listen \(Self.listenAddress):\(port);
             server_name \(domain);
-            root \(root.path);
+            root \(Self.q(root.path));
             index index.html index.htm;\(Self.logDirectives(access: accessLog, error: errorLog))
 
             location / {

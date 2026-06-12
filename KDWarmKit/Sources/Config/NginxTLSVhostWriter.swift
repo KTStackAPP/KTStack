@@ -21,11 +21,11 @@ public struct NginxTLSVhostWriter {
             listen \(Self.listenAddress):443 ssl;
             http2 on;
             server_name \(domain);
-            root \(root.path);
+            root \(NginxConfigWriter.q(root.path));
             index \(index);\(NginxConfigWriter.logDirectives(access: accessLog, error: errorLog))
 
-            ssl_certificate \(certFile.path);
-            ssl_certificate_key \(keyFile.path);
+            ssl_certificate \(NginxConfigWriter.q(certFile.path));
+            ssl_certificate_key \(NginxConfigWriter.q(keyFile.path));
             ssl_protocols TLSv1.2 TLSv1.3;
             ssl_prefer_server_ciphers off;
 
@@ -54,7 +54,7 @@ public struct NginxTLSVhostWriter {
             }
 
             location ~ \\.php$ {
-                fastcgi_pass unix:\(socket.path);
+                fastcgi_pass \(NginxConfigWriter.q("unix:" + socket.path));
                 fastcgi_index index.php;
                 fastcgi_param SCRIPT_FILENAME  $document_root$fastcgi_script_name;
                 fastcgi_param QUERY_STRING     $query_string;

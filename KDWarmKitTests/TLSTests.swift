@@ -12,9 +12,9 @@ final class NginxTLSVhostWriterTests: XCTestCase {
                                 phpFpmSocket: URL(fileURLWithPath: "/run/php-fpm-8.4.sock"))
         XCTAssertTrue(v.contains("listen 0.0.0.0:443 ssl;"))
         XCTAssertFalse(v.contains("127.0.0.1"))                  // wildcard bind, same rule as :80
-        XCTAssertTrue(v.contains("ssl_certificate /ca/certs/app.test/cert.pem;"))
-        XCTAssertTrue(v.contains("ssl_certificate_key /ca/certs/app.test/key.pem;"))
-        XCTAssertTrue(v.contains("fastcgi_pass unix:/run/php-fpm-8.4.sock;"))
+        XCTAssertTrue(v.contains("ssl_certificate \"/ca/certs/app.test/cert.pem\";"))
+        XCTAssertTrue(v.contains("ssl_certificate_key \"/ca/certs/app.test/key.pem\";"))
+        XCTAssertTrue(v.contains("fastcgi_pass \"unix:/run/php-fpm-8.4.sock\";"))
         XCTAssertTrue(v.contains("fastcgi_param HTTPS            on;"))
     }
 
