@@ -104,7 +104,7 @@ public final class LocalServerController: ObservableObject {
 
     public var isRunning: Bool { nginxStatus == .running }
 
-    /// PHP versions whose binary is actually bundled (the per-site picker offers only these).
+    /// PHP versions whose binary is actually installed (the per-site picker offers only these).
     public var availableVersions: [String] {
         let v = BundledPHP.availableVersions(php: paths.phpRuntimesRoot)
         return v.isEmpty ? [BundledPHP.defaultVersion] : v
@@ -212,7 +212,7 @@ public final class LocalServerController: ObservableObject {
     }
 
     /// Generate vhosts → reconcile pools → wait for sockets → start or reload nginx. Returns the
-    /// required PHP versions whose binary isn't bundled yet (surfaced as a non-fatal warning).
+    /// required PHP versions whose binary isn't installed (surfaced as a non-fatal warning).
     private nonisolated func applyConfiguration(sites: [Site], port: Int, startNginx: Bool,
                                                 runPreflight: Bool = true) async throws -> [String] {
         let changed = try generator.generate(sites: sites, port: port)
@@ -242,7 +242,7 @@ public final class LocalServerController: ObservableObject {
         isBusy = false
         if let error { lastError = error }
         else if !missing.isEmpty {
-            lastError = "PHP \(missing.joined(separator: ", ")) not bundled yet (arrives in Phase 7); those sites won't serve."
+            lastError = "PHP \(missing.joined(separator: ", ")) not installed — install it from Runtimes; those sites won't serve until then."
         }
         recomputeStatus()
         refreshWatches()
