@@ -140,6 +140,15 @@ public final class LocalServerController: ObservableObject {
         }
     }
 
+    /// Restart one PHP version's pool so it re-reads its edited `php.ini` (the editor's Save). Throws
+    /// if the kickstart fails so the caller can offer to revert; no-op if that version isn't running.
+    public func reloadPHPPool(version: String) async throws {
+        let pools = self.pools
+        try await Task.detached(priority: .userInitiated) {
+            try pools.reload(version: version)
+        }.value
+    }
+
     public func start() {
         guard !isBusy, !isRunning else { return }
         isBusy = true; lastError = nil

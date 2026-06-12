@@ -34,11 +34,21 @@ public final class PHPFPMController: @unchecked Sendable {
     /// Render the pool config and bootstrap the launchd job (idempotent reattach if already loaded).
     public func start() throws {
         let poolConf = try poolWriter.write(paths: paths, poolName: poolName)
+        // Seed the per-version php.ini so `-c` points at a real file (a missing one would make
+        // php-fpm error out); a seeding failure just drops `-c` and runs on compiled defaults.
+        try? PHPIniStore(paths: paths).ensureSeeded(version: poolName)
         // Stale socket from a crash would make nginx see a dead socket — clear it before (re)launch.
         if !agents.isLoaded(label) {
             try? FileManager.default.removeItem(at: paths.phpFpmSocket(poolName))
         }
         try agents.bootstrap(spec(poolConf: poolConf))
+    }
+
+    /// Restart the loaded master in place so it re-reads its `php.ini` (the editor's Save). No-op if
+    /// the pool isn't running — the edit is picked up on the next start since `-c` reads the file fresh.
+    public func reload() throws {
+        guard agents.isLoaded(label) else { return }
+        try agents.kickstart(label)
     }
 
     public func stop(grace: TimeInterval = 3.0) {
@@ -47,9 +57,16 @@ public final class PHPFPMController: @unchecked Sendable {
     }
 
     private func spec(poolConf: URL) -> LaunchAgentSpec {
-        LaunchAgentSpec(
+        var args = [executable.path, "-p", paths.root.path, "-y", poolConf.path, "-F"]
+        // Point php-fpm at the managed per-version php.ini, but only if it exists — `-c` on a missing
+        // file makes php-fpm fail to start, so a failed seed safely degrades to compiled defaults.
+        let ini = paths.phpIni(version: poolName)
+        if FileManager.default.fileExists(atPath: ini.path) {
+            args += ["-c", ini.path]
+        }
+        return LaunchAgentSpec(
             label: label,
-            programArguments: [executable.path, "-p", paths.root.path, "-y", poolConf.path, "-F"],
+            programArguments: args,
             workingDirectory: paths.root.path,
             stdoutPath: paths.phpFpmLog(poolName).path,
             stderrPath: paths.phpFpmLog(poolName).path)
