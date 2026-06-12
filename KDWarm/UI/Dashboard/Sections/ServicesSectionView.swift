@@ -16,6 +16,12 @@ struct ServicesSectionView: View {
 
     private let paths = AppSupportPaths()
 
+    // Cached CA-trust state. Computing it spawns `/usr/bin/security` (reads the whole System keychain),
+    // so it must NEVER run inline in `body` — it would fork a subprocess on the main thread on every
+    // render and make the tab stutter. Refreshed off-main on a slow loop while the view is visible.
+    @State private var caExists = false
+    @State private var caTrusted = false
+
     var body: some View {
         VStack(spacing: 0) {
             toolbar
@@ -47,6 +53,26 @@ struct ServicesSectionView: View {
             }
         }
         .navigationTitle("Services")
+        .task { await refreshCATrustLoop() }
+    }
+
+    /// Recompute CA-trust off the main thread on a slow cadence while the view is on screen. The
+    /// `.task` is cancelled when the view disappears, so there's no background keychain polling when
+    /// the user is on another tab.
+    private func refreshCATrustLoop() async {
+        let caCert = paths.caRootCert
+        while !Task.isCancelled {
+            let exists = FileManager.default.fileExists(atPath: caCert.path)
+            var trusted = false
+            if exists {
+                trusted = await Task.detached {
+                    CATrustService.isTrustedInSystemKeychain(caCert: caCert)
+                }.value
+            }
+            if exists != caExists { caExists = exists }
+            if trusted != caTrusted { caTrusted = trusted }
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+        }
     }
 
     private var toolbar: some View {
@@ -78,10 +104,7 @@ struct ServicesSectionView: View {
     }
 
     private var banners: [ServiceBanner] {
-        let caCert = paths.caRootCert
-        let caExists = FileManager.default.fileExists(atPath: caCert.path)
-        let caTrusted = caExists && CATrustService.isTrustedInSystemKeychain(caCert: caCert)
-        return ServicesBannerBuilder.banners(
+        ServicesBannerBuilder.banners(
             snapshots: services.snapshots,
             dns: dns,
             caTrusted: caTrusted,

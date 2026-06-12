@@ -8,14 +8,14 @@ import Foundation
 /// are scripted by the app's `SudoFallbackInstaller` for the no-helper path, both sourcing the
 /// same `DNSConstants`, so the two paths cannot drift.
 final class HelperDNSManager {
-    func enableDNS() -> (Bool, String?) {
+    func enableDNS(tld: String) -> (Bool, String?) {
         if let conflict = port53Owner(), conflict != DNSConstants.daemonLabel, conflict != "dnsmasq" {
             return (false, "Port 53 is already held by “\(conflict)”. Stop it (another DNS tool?) and retry.")
         }
         do {
-            try writeRootFile(DNSConstants.dnsmasqConf, to: DNSConstants.dnsmasqConfPath, mode: 0o644)
+            try writeRootFile(DNSConstants.dnsmasqConf(for: tld), to: DNSConstants.dnsmasqConfPath, mode: 0o644)
             try writeRootFile(DNSConstants.daemonPlist, to: DNSConstants.daemonPlistPath, mode: 0o644)
-            try writeRootFile(DNSConstants.resolverContents, to: DNSConstants.resolverPath, mode: 0o644)
+            try writeRootFile(DNSConstants.resolverContents, to: DNSConstants.resolverPath(for: tld), mode: 0o644)
             try bootstrapDaemon()
             return (true, nil)
         } catch {
@@ -23,22 +23,35 @@ final class HelperDNSManager {
         }
     }
 
-    func disableDNS() -> (Bool, String?) {
+    func disableDNS(tld: String) -> (Bool, String?) {
         bootoutDaemon()
-        try? FileManager.default.removeItem(atPath: DNSConstants.resolverPath)
+        try? FileManager.default.removeItem(atPath: DNSConstants.resolverPath(for: tld))
         try? FileManager.default.removeItem(atPath: DNSConstants.daemonPlistPath)
         return (true, nil)
     }
 
     /// Reconcile: tear everything down, then re-enable from a clean slate (recovers a stale resolver
     /// or a VPN-hijacked state).
-    func resetDNS() -> (Bool, String?) {
-        _ = disableDNS()
-        return enableDNS()
+    func resetDNS(tld: String) -> (Bool, String?) {
+        _ = disableDNS(tld: tld)
+        return enableDNS(tld: tld)
     }
 
-    func status() -> (resolverPresent: Bool, dnsmasqRunning: Bool, conflict: String?) {
-        let resolver = FileManager.default.fileExists(atPath: DNSConstants.resolverPath)
+    /// Change the dev TLD: remove the OLD resolver, then enable `new` (rewrites dnsmasq wildcard +
+    /// writes the new resolver + restarts dnsmasq), then flush the DNS cache. Removing the old
+    /// resolver is the critical step — leaving it orphaned would keep poisoning system DNS for a TLD
+    /// that no longer resolves. No-ops cleanly when `old == new`.
+    func setTLD(old: String, new: String) -> (Bool, String?) {
+        if old != new {
+            try? FileManager.default.removeItem(atPath: DNSConstants.resolverPath(for: old))
+        }
+        let result = enableDNS(tld: new)
+        _ = run("/usr/bin/dscacheutil", ["-flushcache"])
+        return result
+    }
+
+    func status(tld: String) -> (resolverPresent: Bool, dnsmasqRunning: Bool, conflict: String?) {
+        let resolver = FileManager.default.fileExists(atPath: DNSConstants.resolverPath(for: tld))
         let running = launchctl(["print", "system/\(DNSConstants.daemonLabel)"]).status == 0
         let owner = port53Owner()
         // A conflict is only interesting when it is NOT our own dnsmasq.

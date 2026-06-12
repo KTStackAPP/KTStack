@@ -4,9 +4,10 @@ import Foundation
 /// helper (which performs the operations) and the `SudoFallbackInstaller` (which scripts the same
 /// operations for the no-helper path). One source of truth so the two paths can't drift.
 public enum DNSConstants {
-    /// macOS per-TLD resolver file. Its mere presence routes `*.test` lookups to the nameserver below.
-    public static let resolverPath = "/etc/resolver/test"
-    public static let tld = "test"
+    /// macOS per-TLD resolver file for `tld`. Its mere presence routes `*.<tld>` lookups to the
+    /// nameserver below. The TLD is configurable (Phase 5) so the path is derived, not constant —
+    /// the helper and the sudo fallback both call this so the two privileged paths can't drift.
+    public static func resolverPath(for tld: String) -> String { "/etc/resolver/\(tld)" }
 
     /// Root-owned support dir holding the dnsmasq binary copy + its config (outside the user's
     /// writable app-support, since the daemon runs as root).
@@ -21,13 +22,14 @@ public enum DNSConstants {
 
     public static let dnsPort = 53
 
-    /// `/etc/resolver/test` body — route `*.test` to the local dnsmasq.
+    /// `/etc/resolver/<tld>` body — route lookups for that TLD to the local dnsmasq. TLD-independent
+    /// (the routing is keyed by the resolver file's name, not its contents).
     public static var resolverContents: String {
         "nameserver 127.0.0.1\nport \(dnsPort)\n"
     }
 
-    /// Minimal dnsmasq config: answer ONLY `*.test` with 127.0.0.1, bound to loopback, no upstream.
-    public static var dnsmasqConf: String {
+    /// Minimal dnsmasq config: answer ONLY `*.<tld>` with 127.0.0.1, bound to loopback, no upstream.
+    public static func dnsmasqConf(for tld: String) -> String {
         """
         port=\(dnsPort)
         listen-address=127.0.0.1

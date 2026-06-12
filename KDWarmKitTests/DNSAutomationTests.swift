@@ -7,11 +7,13 @@ final class DNSConstantsTests: XCTestCase {
         XCTAssertTrue(DNSConstants.resolverContents.contains("port 53"))
     }
 
-    func testDnsmasqConfAnswersOnlyTestTLD() {
-        let conf = DNSConstants.dnsmasqConf
+    func testDnsmasqConfAnswersOnlyConfiguredTLD() {
+        let conf = DNSConstants.dnsmasqConf(for: "test")
         XCTAssertTrue(conf.contains("address=/.test/127.0.0.1"))
         XCTAssertTrue(conf.contains("listen-address=127.0.0.1"))
-        XCTAssertTrue(conf.contains("no-resolv"))   // no upstream — only answers *.test
+        XCTAssertTrue(conf.contains("no-resolv"))   // no upstream — only answers the configured TLD
+        // A custom TLD wildcards that TLD instead.
+        XCTAssertTrue(DNSConstants.dnsmasqConf(for: "home.arpa").contains("address=/.home.arpa/127.0.0.1"))
     }
 
     func testDaemonPlistReferencesBinaryAndLabel() {
@@ -22,7 +24,7 @@ final class DNSConstantsTests: XCTestCase {
     }
 
     func testRootPathsAreSystemOwnedNotUserWritable() {
-        XCTAssertEqual(DNSConstants.resolverPath, "/etc/resolver/test")
+        XCTAssertEqual(DNSConstants.resolverPath(for: "test"), "/etc/resolver/test")
         XCTAssertTrue(DNSConstants.daemonPlistPath.hasPrefix("/Library/LaunchDaemons/"))
         XCTAssertTrue(DNSConstants.supportDir.hasPrefix("/Library/"))
     }
@@ -61,7 +63,7 @@ final class SudoFallbackInstallerTests: XCTestCase {
         XCTAssertTrue(s.contains("cp '/tmp/dnsmasq' '\(DNSConstants.dnsmasqBinaryPath)'"))
         XCTAssertTrue(s.contains("address=/.test/127.0.0.1"))
         XCTAssertTrue(s.contains("launchctl bootstrap system '\(DNSConstants.daemonPlistPath)'"))
-        XCTAssertTrue(s.contains("cat > '\(DNSConstants.resolverPath)'"))
+        XCTAssertTrue(s.contains("cat > '\(DNSConstants.resolverPath(for: "test"))'"))
     }
 
     func testShellQuoteEscapesSingleQuotes() {
@@ -79,7 +81,7 @@ final class SudoFallbackInstallerTests: XCTestCase {
     func testUninstallScriptReversesEverything() {
         let s = installer.uninstallScript()
         XCTAssertTrue(s.contains("launchctl bootout system/com.kdwarm.dnsmasq"))
-        XCTAssertTrue(s.contains("rm -f '\(DNSConstants.resolverPath)'"))
+        XCTAssertTrue(s.contains("rm -f '\(DNSConstants.resolverPath(for: "test"))'"))
     }
 
     func testWriteScriptsProducesExecutableFiles() throws {

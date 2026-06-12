@@ -74,6 +74,27 @@ final class RuntimeManagementTests: XCTestCase {
         }
     }
 
+    func testPHPManifestEntryHostedOnReleasesWithArchFilename() {
+        let php = RuntimeCatalog.manifest.filter { $0.language == .php }
+        XCTAssertFalse(php.isEmpty, "PHP must have at least one downloadable version")
+        // 8.4 is bundled, so it must NOT also be a download entry (no double source-of-truth).
+        XCTAssertFalse(php.contains { $0.version == "8.4" })
+        for r in php {
+            XCTAssertEqual(r.url.host, "github.com")
+            XCTAssertTrue(r.url.path.contains("/releases/download/"), "\(r.id) must resolve to a release asset")
+            XCTAssertEqual(r.url.lastPathComponent, "php-\(r.version)-arm64.tar.gz",
+                           "filename must follow <name>-<version>-<arch>.tar.gz")
+        }
+    }
+
+    func testServiceBinaryReleaseURLResolvesUnderReleasesHost() {
+        let redis = ServiceBinaryCatalog.manifest.first { $0.kind == .redis }
+        XCTAssertNotNil(redis)
+        XCTAssertEqual(redis?.url.host, "github.com")
+        XCTAssertTrue(redis?.url.path.contains("/releases/download/") ?? false)
+        XCTAssertEqual(redis?.url.lastPathComponent, "redis-\(redis!.version)-\(ServiceBinaryCatalog.arch).tar.gz")
+    }
+
     // MARK: - VersionSwitcher clamping
 
     func testResolvedPHPClampsUninstalledPinToInstalled() throws {
@@ -105,6 +126,32 @@ final class RuntimeManagementTests: XCTestCase {
         XCTAssertEqual(digest.count, 64)
         XCTAssertNoThrow(try ChecksumVerifier.verify(file, expected: digest.uppercased()))  // case-insensitive
         XCTAssertThrowsError(try ChecksumVerifier.verify(file, expected: String(repeating: "0", count: 64)))
+    }
+
+    // MARK: - PHPModules
+
+    func testPHPModulesParseStripsHeadersDeDupesAndSorts() {
+        let output = """
+        [PHP Modules]
+        curl
+        Core
+        gd
+
+        [Zend Modules]
+        Zend OPcache
+        curl
+        """
+        // Headers ([...]) and blanks dropped; lowercased, de-duped, sorted.
+        XCTAssertEqual(PHPModules.parse(output), ["core", "curl", "gd", "zend opcache"])
+    }
+
+    func testPHPModulesParseEmptyOutput() {
+        XCTAssertEqual(PHPModules.parse(""), [])
+    }
+
+    func testPHPModulesListEmptyWhenBinaryAbsent() throws {
+        let paths = AppSupportPaths(root: try tempDir())
+        XCTAssertEqual(PHPModules.list(version: "9.9", paths: paths), [])
     }
 
     // MARK: - Helpers

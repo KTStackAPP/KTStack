@@ -20,19 +20,21 @@ public struct CertMinter {
     }
 
     public enum CertError: LocalizedError {
-        case nonLocalDomain(String)
+        case nonLocalDomain(String, tld: String)
         public var errorDescription: String? {
             switch self {
-            case .nonLocalDomain(let d): return "Refusing to mint a certificate for “\(d)” — only .test domains are allowed."
+            case .nonLocalDomain(let d, let t): return "Refusing to mint a certificate for “\(d)” — only .\(t) domains are allowed."
             }
         }
     }
 
     /// Mint (or re-mint) the leaf for `name` → `domain`. Returns the cert + key paths.
-    /// Guards that `domain` is `.test`-scoped — the local CA must NEVER mint a publicly-named leaf.
+    /// Guards that `domain` is scoped to the configured dev `tld` — the local CA must NEVER mint a
+    /// publicly-named leaf. The caller passes the live TLD (`AppPreferences.tld`) so a custom TLD's
+    /// sites can still be secured.
     @discardableResult
-    public func mint(name: String, domain: String, tld: String = "test") throws -> (cert: URL, key: URL) {
-        guard domain.hasSuffix(".\(tld)") else { throw CertError.nonLocalDomain(domain) }
+    public func mint(name: String, domain: String, tld: String = AppPreferences.defaultTLD) throws -> (cert: URL, key: URL) {
+        guard domain.hasSuffix(".\(tld)") else { throw CertError.nonLocalDomain(domain, tld: tld) }
         let cert = paths.siteCert(name), key = paths.siteKey(name)
         try runner.mint(domain: domain, certFile: cert, keyFile: key)
         return (cert, key)

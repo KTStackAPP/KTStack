@@ -53,6 +53,13 @@ public final class PHPFPMPoolManager: @unchecked Sendable {
         return missing
     }
 
+    /// Restart one version's running pool in place so it re-reads its edited `php.ini`. No-op if that
+    /// version has no live pool (the edit applies on the next start).
+    public func reload(version: String) throws {
+        guard let ctl = pool(for: version) else { return }
+        try ctl.reload()
+    }
+
     public func stopAll(grace: TimeInterval = 3.0) {
         for (_, ctl) in snapshot() { ctl.stop(grace: grace) }
         lock.lock(); pools.removeAll(); lock.unlock()

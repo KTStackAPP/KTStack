@@ -36,9 +36,9 @@ public final class UninstallService: ObservableObject {
         // resolver is actually gone at the end rather than optimistically claiming success here
         // (a cancelled sudo prompt would otherwise leave /etc/resolver/test behind silently).
         dns.disable()
-        record("Removing .test DNS resolver…")
+        record("Removing .\(dns.tld) DNS resolver…")
 
-        let agents = self.agents, mkcert = self.mkcert, root = paths.root
+        let agents = self.agents, mkcert = self.mkcert, root = paths.root, resolverTLD = dns.tld
         Task.detached(priority: .userInitiated) { [weak self] in
             agents.bootoutAll()
             await self?.record("Stopped all launchd services.")
@@ -60,14 +60,15 @@ public final class UninstallService: ObservableObject {
             } catch { failure = error.localizedDescription }
 
             // The DNS removal is the one async/privileged step that can be cancelled — verify it.
-            let resolverLeft = FileManager.default.fileExists(atPath: DNSConstants.resolverPath)
+            // Check the resolver for the LIVE TLD (configurable), not a hardcoded `.test`.
+            let resolverLeft = FileManager.default.fileExists(atPath: DNSConstants.resolverPath(for: resolverTLD))
 
             await MainActor.run {
                 self?.record(failure == nil
                     ? "Removed all app-support data, runtimes and databases."
                     : "Data removal warning: \(failure!)")
                 if resolverLeft {
-                    self?.record("Warning: \(DNSConstants.resolverPath) still present — re-run, or remove it with sudo.")
+                    self?.record("Warning: \(DNSConstants.resolverPath(for: resolverTLD)) still present — re-run, or remove it with sudo.")
                 }
                 if let failure {
                     self?.state = .failed(failure)

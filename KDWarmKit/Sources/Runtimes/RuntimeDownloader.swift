@@ -57,6 +57,7 @@ public struct RuntimeDownloader: Sendable {
         if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }
         try fm.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
         try fm.moveItem(at: payload, to: dest)        // atomic within the same volume
+        Self.stripQuarantine(dest)                    // else an ad-hoc-signed php-fpm may be Gatekeeper-blocked
 
         // The payload must contain the marker executable, else the install silently "succeeds" yet
         // never shows as installed. Roll back the junk dir.
@@ -65,6 +66,21 @@ public struct RuntimeDownloader: Sendable {
             throw ExtractError(message: "Archive did not contain \(markerRelPath).")
         }
         return dest
+    }
+
+    /// Strip `com.apple.quarantine` from a freshly-downloaded runtime tree. URLSession tags downloaded
+    /// files with the quarantine xattr; for our self-built ad-hoc-signed binaries (php-fpm, redis,
+    /// postgres) — unlike the notarized upstream Node/Go/Python — that attr makes Gatekeeper block the
+    /// first exec. Best-effort: a missing attr or `xattr` tool is non-fatal (the binary still runs when
+    /// it was never quarantined, e.g. a local-mirror install).
+    private static func stripQuarantine(_ dir: URL) {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
+        p.arguments = ["-dr", "com.apple.quarantine", dir.path]
+        p.standardOutput = FileHandle.nullDevice
+        p.standardError = FileHandle.nullDevice
+        try? p.run()
+        p.waitUntilExit()
     }
 
     /// Untar into a fresh temp dir and return the single top-level payload directory (each official

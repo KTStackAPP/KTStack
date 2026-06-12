@@ -1,8 +1,9 @@
 import Foundation
 
 /// XPC contract between the app (client) and the privileged helper (root). This is the WHOLE
-/// privileged attack surface — keep it minimal and DNS/resolver-scoped. Phase 5 adds exactly two
-/// CA methods and nothing else.
+/// privileged attack surface — keep it minimal and DNS/resolver + CA-scoped. The TLD is configurable
+/// (Phase 5): because the helper compiles its OWN copy of `DNSConstants`, the live TLD must cross the
+/// boundary at call time, so the DNS methods take it as an argument rather than baking a constant.
 ///
 /// Reply types are ObjC-compatible primitives (no custom structs across the boundary); the app
 /// rebuilds `HelperDNSStatus` from the `dnsStatus` reply tuple.
@@ -10,17 +11,23 @@ import Foundation
     /// Liveness probe; replies with the helper's bundle version.
     func ping(reply: @escaping (String) -> Void)
 
-    /// Write `/etc/resolver/test` + start dnsmasq so `*.test → 127.0.0.1`. Idempotent.
-    func enableDNS(reply: @escaping (Bool, String?) -> Void)
+    /// Write `/etc/resolver/<tld>` + start dnsmasq so `*.<tld> → 127.0.0.1`. Idempotent.
+    func enableDNS(tld: String, reply: @escaping (Bool, String?) -> Void)
 
-    /// Remove `/etc/resolver/test` + stop dnsmasq. Idempotent.
-    func disableDNS(reply: @escaping (Bool, String?) -> Void)
+    /// Remove `/etc/resolver/<tld>` + stop dnsmasq. Idempotent.
+    func disableDNS(tld: String, reply: @escaping (Bool, String?) -> Void)
 
-    /// Reconcile actual vs desired: purge a stale resolver, restart dnsmasq, re-write the resolver.
-    func resetDNS(reply: @escaping (Bool, String?) -> Void)
+    /// Reconcile actual vs desired for `tld`: purge a stale resolver, restart dnsmasq, re-write it.
+    func resetDNS(tld: String, reply: @escaping (Bool, String?) -> Void)
 
-    /// Status: resolver present? dnsmasq running? name of a process holding :53 (conflict), else nil.
-    func dnsStatus(reply: @escaping (Bool, Bool, String?) -> Void)
+    /// Change the dev TLD in ONE root op: remove `/etc/resolver/<old>`, write `/etc/resolver/<new>`,
+    /// rewrite the dnsmasq wildcard to `<new>`, restart dnsmasq, flush the DNS cache. A single combined
+    /// op (not enable-new + disable-old) so the OLD resolver is always removed — an orphaned
+    /// `/etc/resolver/<old>` would keep routing a dead TLD into system DNS. nginx/php keep running.
+    func setTLD(old: String, new: String, reply: @escaping (Bool, String?) -> Void)
+
+    /// Status for `tld`: resolver present? dnsmasq running? name of a process holding :53, else nil.
+    func dnsStatus(tld: String, reply: @escaping (Bool, Bool, String?) -> Void)
 
     /// Helper bundle version — used to reconcile after an app/helper update.
     func helperVersion(reply: @escaping (String) -> Void)

@@ -19,10 +19,12 @@ public struct ServiceBinaryRelease: Sendable, Hashable, Identifiable {
 /// manifest lists verified builds (real checksums from the build pipeline). MySQL has no entry until
 /// its (heavy) build artifact is published.
 public struct ServiceBinaryCatalog: Sendable {
-    /// Where engine artifacts are hosted. Overridable for tests / a local mirror (the default points
-    /// at the release host; the binaries are published there, not bundled).
+    /// Where engine artifacts are hosted: the project's GitHub Releases download path (self-built,
+    /// relocatable Redis/Postgres — no upstream macOS drop-in exists). `appendingPathComponent(fileName)`
+    /// resolves to `…/releases/download/<tag>/<kind>-<version>-<arch>.tar.gz`. Overridable for tests /
+    /// a local mirror.
     public nonisolated(unsafe) static var releaseBaseURL =
-        URL(string: "https://downloads.kdwarm.app/binaries")!
+        URL(string: "https://github.com/nguyenkhoi489/kd-warm/releases/download/binaries-v1")!
 
     public static var arch: String {
         #if arch(arm64)

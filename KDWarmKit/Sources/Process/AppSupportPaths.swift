@@ -27,6 +27,9 @@ public struct AppSupportPaths: Sendable {
     public var nginxConfigDir: URL   { config.appendingPathComponent("nginx", isDirectory: true) }
     public var sitesEnabled: URL     { nginxConfigDir.appendingPathComponent("sites-enabled", isDirectory: true) }
     public var phpFpmConfigDir: URL  { config.appendingPathComponent("php-fpm", isDirectory: true) }
+    /// Root for the managed, user-editable `php.ini` files, one subdir per PHP version
+    /// (`config/php/<version>/php.ini`). php-fpm reads its version's file via `-c`.
+    public var phpConfigDir: URL     { config.appendingPathComponent("php", isDirectory: true) }
     /// Holds the persisted site registry (`sites.json`).
     public var sitesConfigDir: URL   { config.appendingPathComponent("sites", isDirectory: true) }
     /// mkcert CAROOT — the local root CA material (key is 600, never leaves this dir).
@@ -54,7 +57,7 @@ public struct AppSupportPaths: Sendable {
 
     /// Every directory that `ensureDirectoryTree()` creates.
     public var allDirectories: [URL] {
-        [root, bin, runtimes, config, nginxConfigDir, sitesEnabled, phpFpmConfigDir,
+        [root, bin, runtimes, config, nginxConfigDir, sitesEnabled, phpFpmConfigDir, phpConfigDir,
          sitesConfigDir, caDir, certsDir, run, logs, logsSites, sites, data, launchAgents]
     }
 
@@ -149,6 +152,16 @@ public struct AppSupportPaths: Sendable {
     }
     public func phpFpmLog(_ name: String) -> URL {
         logs.appendingPathComponent("php-fpm-\(name).log")
+    }
+
+    /// Per-version config dir holding the managed `php.ini` (`config/php/<version>`). Created on
+    /// demand when the ini is first seeded (not part of `ensureDirectoryTree`, which is version-agnostic).
+    public func phpIniDir(version: String) -> URL {
+        phpConfigDir.appendingPathComponent(version, isDirectory: true)
+    }
+    /// The managed, user-editable `php.ini` for a PHP version (`config/php/<version>/php.ini`).
+    public func phpIni(version: String) -> URL {
+        phpIniDir(version: version).appendingPathComponent("php.ini")
     }
 
     private func dir(_ name: String) -> URL {

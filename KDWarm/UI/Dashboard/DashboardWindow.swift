@@ -7,6 +7,9 @@ struct DashboardWindow: View {
     static let windowID = "dashboard"
 
     // Forwarded into the in-dashboard Settings pane (env-object lookup is reliable in a Window scene).
+    @EnvironmentObject private var preferences: AppPreferences
+    @EnvironmentObject private var dns: DNSAutomationService
+    @EnvironmentObject private var server: LocalServerController
     @EnvironmentObject private var caTrust: CATrustService
     @EnvironmentObject private var updater: UpdaterController
     @EnvironmentObject private var uninstaller: UninstallService
@@ -41,7 +44,9 @@ struct DashboardWindow: View {
         case .runtimes: RuntimesSectionView()
         case .logs:     LogsSectionView(targetSourceID: logTarget)
         case .mail:     MailSectionView()
-        case .settings: SettingsView(caTrust: caTrust, updater: updater, uninstaller: uninstaller)
+        case .settings: SettingsView(preferences: preferences, dns: dns, server: server,
+                                     caTrust: caTrust, updater: updater, uninstaller: uninstaller)
+                            .navigationTitle("Settings")
         }
     }
 }

@@ -14,8 +14,10 @@ public final class SiteRegistry: ObservableObject {
     /// Fired after any successful mutation (and after load), on the main actor.
     public var onChange: (() -> Void)?
 
-    /// MVP resolves only this TLD automatically (dnsmasq wildcard, Phase 4).
-    public let tld = "test"
+    /// The single dev TLD this registry validates against (dnsmasq wildcard). Injected from
+    /// `AppPreferences` at init and baked for the registry's lifetime — a change takes effect on the
+    /// next launch (the registry/helper read the TLD once at startup; live re-injection is avoided).
+    public let tld: String
 
     private let storeURL: URL
     private let inspector = SiteInspector()
@@ -27,8 +29,10 @@ public final class SiteRegistry: ObservableObject {
     private let installedPHP: @Sendable () -> [String]
 
     public init(storeURL: URL,
+                tld: String = AppPreferences.defaultTLD,
                 installedPHP: @escaping @Sendable () -> [String] = { BundledPHP.plannedVersions }) {
         self.storeURL = storeURL
+        self.tld = tld
         self.installedPHP = installedPHP
         load()
     }

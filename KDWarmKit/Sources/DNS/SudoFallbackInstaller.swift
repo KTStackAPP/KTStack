@@ -11,36 +11,52 @@ import Foundation
 public struct SudoFallbackInstaller {
     /// The bundled dnsmasq to copy into the root support dir (`KDWarm.app/Contents/Resources/bin/dnsmasq`).
     public let bundledDnsmasq: URL
+    /// The live dev TLD (configurable, Phase 5). The install/uninstall/reset scripts operate on this
+    /// TLD; `setTLDScript` takes explicit old/new so a change can clean up the previous resolver.
+    public let tld: String
 
-    public init(bundledDnsmasq: URL) {
+    public init(bundledDnsmasq: URL, tld: String = AppPreferences.defaultTLD) {
         self.bundledDnsmasq = bundledDnsmasq
+        self.tld = tld
     }
 
     /// Root install script — idempotent: re-running re-bootstraps with the current config.
-    public func installScript() -> String { "#!/bin/bash\nset -euo pipefail\n" + installBody() }
+    public func installScript() -> String { "#!/bin/bash\nset -euo pipefail\n" + installBody(tld: tld) }
 
     /// Root uninstall script — full cleanup (reverses installScript).
-    public func uninstallScript() -> String { "#!/bin/bash\nset -uo pipefail\n" + uninstallBody() }
+    public func uninstallScript() -> String { "#!/bin/bash\nset -uo pipefail\n" + uninstallBody(tld: tld) }
 
     /// Combined reset: uninstall then install in ONE root invocation (single admin prompt).
     public func resetScript() -> String {
-        "#!/bin/bash\nset -uo pipefail\n" + uninstallBody() + "\nset -e\n" + installBody()
+        "#!/bin/bash\nset -uo pipefail\n" + uninstallBody(tld: tld) + "\nset -e\n" + installBody(tld: tld)
+    }
+
+    /// Combined TLD change in ONE root invocation (single admin prompt): remove the OLD resolver,
+    /// then re-bootstrap dnsmasq + write the NEW resolver for `new`, then flush the DNS cache. The
+    /// mirror of `HelperDNSManager.setTLD` for the no-helper path. Removing the old resolver first is
+    /// the critical step — an orphaned `/etc/resolver/<old>` would keep poisoning system DNS.
+    public func setTLDScript(old: String, new: String) -> String {
+        let removeOld = old == new ? "" : "rm -f \(q(DNSConstants.resolverPath(for: old)))\n"
+        return "#!/bin/bash\nset -euo pipefail\n"
+            + removeOld
+            + installBody(tld: new)
+            + "\n/usr/bin/dscacheutil -flushcache || true\n"
     }
 
     // MARK: - Script bodies (no shebang) — composed by the public scripts above.
 
-    private func installBody() -> String {
+    private func installBody(tld: String) -> String {
         """
         mkdir -p \(q("\(DNSConstants.supportDir)/bin"))
         cp \(q(bundledDnsmasq.path)) \(q(DNSConstants.dnsmasqBinaryPath))
         chmod 0755 \(q(DNSConstants.dnsmasqBinaryPath))
 
         cat > \(q(DNSConstants.dnsmasqConfPath)) <<'KDWARM_CONF'
-        \(DNSConstants.dnsmasqConf)
+        \(DNSConstants.dnsmasqConf(for: tld))
         KDWARM_CONF
 
         mkdir -p /etc/resolver
-        cat > \(q(DNSConstants.resolverPath)) <<'KDWARM_RESOLVER'
+        cat > \(q(DNSConstants.resolverPath(for: tld))) <<'KDWARM_RESOLVER'
         \(DNSConstants.resolverContents)KDWARM_RESOLVER
 
         cat > \(q(DNSConstants.daemonPlistPath)) <<'KDWARM_PLIST'
@@ -50,16 +66,16 @@ public struct SudoFallbackInstaller {
 
         launchctl bootout system/\(DNSConstants.daemonLabel) 2>/dev/null || true
         launchctl bootstrap system \(q(DNSConstants.daemonPlistPath))
-        echo "KDWarm DNS enabled — *.\(DNSConstants.tld) resolves to 127.0.0.1"
+        echo "KDWarm DNS enabled — *.\(tld) resolves to 127.0.0.1"
         """
     }
 
-    private func uninstallBody() -> String {
+    private func uninstallBody(tld: String) -> String {
         """
         launchctl bootout system/\(DNSConstants.daemonLabel) 2>/dev/null || true
-        rm -f \(q(DNSConstants.resolverPath)) \(q(DNSConstants.daemonPlistPath)) \(q(DNSConstants.dnsmasqConfPath))
+        rm -f \(q(DNSConstants.resolverPath(for: tld))) \(q(DNSConstants.daemonPlistPath)) \(q(DNSConstants.dnsmasqConfPath))
         rm -f \(q(DNSConstants.dnsmasqBinaryPath))
-        echo "KDWarm DNS disabled — *.\(DNSConstants.tld) no longer resolves locally"
+        echo "KDWarm DNS disabled — *.\(tld) no longer resolves locally"
         """
     }
 
@@ -102,6 +118,18 @@ public struct SudoFallbackInstaller {
     }
     public func runResetWithAdminPrivileges() throws {
         try runAsAdmin(try writeScripts(to: Self.freshStagingDir()).reset.path)
+    }
+
+    /// Change the TLD from `old` to `new` via a single admin prompt (no-helper path). Stages the
+    /// combined script in a fresh `0700` per-run dir (no predictable path to swap before root reads).
+    public func runSetTLDWithAdminPrivileges(old: String, new: String) throws {
+        let dir = Self.freshStagingDir()
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true,
+                                                attributes: [.posixPermissions: 0o700])
+        let script = dir.appendingPathComponent("set-tld.sh")
+        try setTLDScript(old: old, new: new).write(to: script, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: script.path)
+        try runAsAdmin(script.path)
     }
 
     /// Run `bash <scriptPath>` via a GUI admin-authentication prompt. `scriptPath` lives in a

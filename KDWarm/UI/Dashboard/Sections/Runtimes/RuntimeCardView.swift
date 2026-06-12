@@ -13,6 +13,11 @@ struct RuntimeCardView: View {
     let onSetDefault: (String) -> Void
     let onInstall: (RuntimeRelease) -> Void
     let onCancel: () -> Void
+    /// Per-version "Edit php.ini" action. Non-nil only for PHP (the only stack with a managed ini).
+    var onEditIni: ((String) -> Void)? = nil
+    /// Compiled-in extensions per installed version (`php -m`), shown read-only. PHP only; empty
+    /// while still loading or for non-PHP cards.
+    var extensions: [String: [String]] = [:]
 
     var body: some View {
         VStack(alignment: .leading, spacing: KDSpacing.space2) {
@@ -55,16 +60,28 @@ struct RuntimeCardView: View {
     }
 
     private func installedRow(_ version: String) -> some View {
-        HStack(spacing: KDSpacing.space2) {
-            Text(version).font(KDFont.mono)
-            Spacer()
-            if defaultVersion == version {
-                Text("Global").font(.system(size: 10, weight: .semibold))
-                    .padding(.horizontal, 7).padding(.vertical, 1)
-                    .background(Capsule().fill(Color.accentColor)).foregroundStyle(.white)
-            } else {
-                Button("Set default") { onSetDefault(version) }
-                    .buttonStyle(.link).font(KDFont.footnote)
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: KDSpacing.space2) {
+                Text(version).font(KDFont.mono)
+                Spacer()
+                if let onEditIni {
+                    Button("php.ini") { onEditIni(version) }
+                        .buttonStyle(.link).font(KDFont.footnote)
+                }
+                if defaultVersion == version {
+                    Text("Global").font(.system(size: 10, weight: .semibold))
+                        .padding(.horizontal, 7).padding(.vertical, 1)
+                        .background(Capsule().fill(Color.accentColor)).foregroundStyle(.white)
+                } else {
+                    Button("Set default") { onSetDefault(version) }
+                        .buttonStyle(.link).font(KDFont.footnote)
+                }
+            }
+            if let mods = extensions[version], !mods.isEmpty {
+                Text("Extensions: \(mods.joined(separator: ", "))")
+                    .font(.system(size: 10)).foregroundStyle(.tertiary)
+                    .lineLimit(2).truncationMode(.tail)
+                    .help(mods.joined(separator: ", "))
             }
         }
         .padding(.vertical, 4).padding(.horizontal, 8)

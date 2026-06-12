@@ -29,6 +29,7 @@ struct KDWarmApp: App {
         // Dashboard window, opened on demand from the menu-bar footer.
         Window("KDWarm Dashboard", id: DashboardWindow.windowID) {
             DashboardWindow()
+                .environmentObject(appDelegate.preferences)
                 .environmentObject(appDelegate.server)
                 .environmentObject(appDelegate.dns)
                 .environmentObject(appDelegate.services)
@@ -42,24 +43,34 @@ struct KDWarmApp: App {
         .windowResizability(.contentMinSize)
 
         Settings {
-            SettingsView(caTrust: appDelegate.caTrust,
+            SettingsView(preferences: appDelegate.preferences,
+                         dns: appDelegate.dns,
+                         server: appDelegate.server,
+                         caTrust: appDelegate.caTrust,
                          updater: appDelegate.updater,
                          uninstaller: appDelegate.uninstaller)
+                .frame(width: 480, height: 360)   // the standalone Settings window's fixed size
         }
     }
 }
 
 /// Owns the accessory-app launch posture and restores it as windows close.
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// The single persisted-preferences layer (sites root + dev TLD). Read once at launch by the
+    /// server + DNS service below — a change takes effect on the next launch (TLD additionally
+    /// reconciles root DNS up front via Settings).
+    @MainActor lazy var preferences = AppPreferences()
+
     /// The live nginx + php-fpm orchestrator, shared with the menu bar and dashboard.
     /// Binaries are staged from the bundle's `Resources/bin` into app-support on first start.
     @MainActor lazy var server: LocalServerController = {
-        LocalServerController(bundleBinDir: Self.bundleBinDir)
+        LocalServerController(bundleBinDir: Self.bundleBinDir, tld: preferences.tld)
     }()
 
-    /// `.test` DNS automation (helper when signed; sudo fallback otherwise).
+    /// Configurable-TLD DNS automation (helper when signed; sudo fallback otherwise).
     @MainActor lazy var dns = DNSAutomationService(
-        bundledDnsmasq: Self.bundleBinDir.appendingPathComponent("dnsmasq"))
+        bundledDnsmasq: Self.bundleBinDir.appendingPathComponent("dnsmasq"),
+        tld: preferences.tld)
 
     /// Aggregates all services (nginx/php-fpm via the server; DBs/Mailpit/dnsmasq) for the Services
     /// view + menu bar, polling their health sub-second.
