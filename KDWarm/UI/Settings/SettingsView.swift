@@ -8,7 +8,7 @@ import KDWarmKit
 /// dashboard sections — a `TabView` hoists its tabs into the window toolbar and hides the title.
 struct SettingsView: View {
     private enum SettingsTab: String, CaseIterable, Identifiable {
-        case general = "General", services = "Services", tls = "TLS", advanced = "Advanced", about = "About"
+        case general = "General", services = "Services", tls = "TLS", advanced = "Advanced"
         var id: String { rawValue }
     }
     @State private var tab: SettingsTab = .general
@@ -75,7 +75,6 @@ struct SettingsView: View {
         case .services: servicesTab
         case .tls:      TLSSettingsView(caTrust: caTrust)
         case .advanced: advancedTab
-        case .about:    AboutSettingsView()
         }
     }
 
