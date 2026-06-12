@@ -37,7 +37,7 @@ public struct ServiceBinaryCatalog: Sendable {
     /// Verified engine builds (checksums emitted by `scripts/build-*-relocatable.sh`).
     public static let manifest: [ServiceBinaryRelease] = [
         ServiceBinaryRelease(kind: .mysql, version: "9.6.0",
-                             sha256: "ad3bfd82be733ff51d6bd10fb61555ecab39bcace15292d280d2be3f5a37cddd"),
+                             sha256: "e8bf680f8372a9cd4fab38b120753fef1ffb8980d8b5554d64c7186e671616b0"),
         ServiceBinaryRelease(kind: .redis, version: "7.4.2",
                              sha256: "b9e086c252492561e4a53820589cb893ad07bbd4b1c08f38fcf87836ad1cb6e9"),
         ServiceBinaryRelease(kind: .postgres, version: "17.10",
