@@ -74,11 +74,7 @@ public final class AppPreferences: ObservableObject {
     /// One or more lowercase RFC-1123 labels joined by single dots (`test`, `home.arpa`). Rejects
     /// uppercase, spaces, leading/trailing/double dots, and empty labels. Public-TLD safety is a
     /// separate concern enforced by `safeTLDs` in the picker — this only checks hostname syntax.
-    public static func isValidTLD(_ s: String) -> Bool {
-        guard !s.isEmpty, s == s.lowercased(), !s.hasPrefix("."), !s.hasSuffix(".") else { return false }
-        let labels = s.split(separator: ".", omittingEmptySubsequences: false)
-        guard !labels.isEmpty else { return false }
-        let label = #"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"#
-        return labels.allSatisfy { $0.range(of: label, options: .regularExpression) != nil }
-    }
+    /// Delegates to the shared privileged-boundary validator so the app and the root paths (helper +
+    /// sudo fallback) accept exactly the same set.
+    public static func isValidTLD(_ s: String) -> Bool { DNSConstants.isValidTLD(s) }
 }

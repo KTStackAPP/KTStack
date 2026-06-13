@@ -9,13 +9,18 @@ import Foundation
 /// same `DNSConstants`, so the two paths cannot drift.
 final class HelperDNSManager {
     func enableDNS(tld: String) -> (Bool, String?) {
+        // Re-validate at the privileged boundary: the app-side check is a UX gate, not a trust
+        // boundary, so a crafted `tld` (traversal / dnsmasq-config injection) must be refused here.
+        guard let resolverPath = try? DNSConstants.resolverPathChecked(for: tld) else {
+            return (false, "Invalid TLD.")
+        }
         if let conflict = port53Owner(), conflict != DNSConstants.daemonLabel, conflict != "dnsmasq" {
             return (false, "Port 53 is already held by “\(conflict)”. Stop it (another DNS tool?) and retry.")
         }
         do {
             try writeRootFile(DNSConstants.dnsmasqConf(for: tld), to: DNSConstants.dnsmasqConfPath, mode: 0o644)
             try writeRootFile(DNSConstants.daemonPlist, to: DNSConstants.daemonPlistPath, mode: 0o644)
-            try writeRootFile(DNSConstants.resolverContents, to: DNSConstants.resolverPath(for: tld), mode: 0o644)
+            try writeRootFile(DNSConstants.resolverContents, to: resolverPath, mode: 0o644)
             try bootstrapDaemon()
             return (true, nil)
         } catch {
@@ -24,8 +29,11 @@ final class HelperDNSManager {
     }
 
     func disableDNS(tld: String) -> (Bool, String?) {
+        guard let resolverPath = try? DNSConstants.resolverPathChecked(for: tld) else {
+            return (false, "Invalid TLD.")
+        }
         bootoutDaemon()
-        try? FileManager.default.removeItem(atPath: DNSConstants.resolverPath(for: tld))
+        try? FileManager.default.removeItem(atPath: resolverPath)
         try? FileManager.default.removeItem(atPath: DNSConstants.daemonPlistPath)
         return (true, nil)
     }
@@ -42,8 +50,13 @@ final class HelperDNSManager {
     /// resolver is the critical step — leaving it orphaned would keep poisoning system DNS for a TLD
     /// that no longer resolves. No-ops cleanly when `old == new`.
     func setTLD(old: String, new: String) -> (Bool, String?) {
+        // Both TLDs reach root file paths — validate each at the boundary.
+        guard let oldResolver = try? DNSConstants.resolverPathChecked(for: old),
+              (try? DNSConstants.validatedTLD(new)) != nil else {
+            return (false, "Invalid TLD.")
+        }
         if old != new {
-            try? FileManager.default.removeItem(atPath: DNSConstants.resolverPath(for: old))
+            try? FileManager.default.removeItem(atPath: oldResolver)
         }
         let result = enableDNS(tld: new)
         _ = run("/usr/bin/dscacheutil", ["-flushcache"])
@@ -51,6 +64,7 @@ final class HelperDNSManager {
     }
 
     func status(tld: String) -> (resolverPresent: Bool, dnsmasqRunning: Bool, conflict: String?) {
+        guard DNSConstants.isValidTLD(tld) else { return (false, false, nil) }
         let resolver = FileManager.default.fileExists(atPath: DNSConstants.resolverPath(for: tld))
         let running = launchctl(["print", "system/\(DNSConstants.daemonLabel)"]).status == 0
         let owner = port53Owner()
