@@ -91,6 +91,10 @@ public struct SudoFallbackInstaller {
     /// return their URLs.
     @discardableResult
     public func writeScripts(to dir: URL) throws -> (install: URL, uninstall: URL, reset: URL) {
+        // Refuse before staging any root-run script: `tld` renders into a dnsmasq heredoc body that
+        // cannot be shell-quoted, so a crafted value (newline → injected directives) must be rejected
+        // here — input validation is the only correct control for the heredoc body.
+        _ = try DNSConstants.validatedTLD(tld)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true,
                                                 attributes: [.posixPermissions: 0o700])
         let install = dir.appendingPathComponent("install.sh")
@@ -123,6 +127,10 @@ public struct SudoFallbackInstaller {
     /// Change the TLD from `old` to `new` via a single admin prompt (no-helper path). Stages the
     /// combined script in a fresh `0700` per-run dir (no predictable path to swap before root reads).
     public func runSetTLDWithAdminPrivileges(old: String, new: String) throws {
+        // `old` and `new` are fresh untrusted inputs that reach root file paths + the dnsmasq heredoc
+        // — validate both before staging/running anything as root.
+        _ = try DNSConstants.validatedTLD(old)
+        _ = try DNSConstants.validatedTLD(new)
         let dir = Self.freshStagingDir()
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true,
                                                 attributes: [.posixPermissions: 0o700])
