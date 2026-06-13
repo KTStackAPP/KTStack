@@ -94,9 +94,9 @@ struct SettingsView: View {
                     .disabled(!updater.canCheckForUpdates)
             }
             Section("Uninstall") {
-                Text("Removes all KDWarm services, the .\(preferences.tld) DNS resolver, the local CA trust, and all app data, runtimes and databases.")
+                Text("Removes all KTStack services, the .\(preferences.tld) DNS resolver, the local CA trust, and all app data, runtimes and databases.")
                     .font(KDFont.footnote).foregroundStyle(.secondary)
-                Button("Uninstall / Reset KDWarm…", role: .destructive) { confirmUninstall = true }
+                Button("Uninstall / Reset KTStack…", role: .destructive) { confirmUninstall = true }
                     .disabled(uninstaller.state == .running)
                 if !uninstaller.log.isEmpty {
                     ForEach(uninstaller.log, id: \.self) { line in
@@ -107,7 +107,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .padding(KDSpacing.space4)
-        .confirmationDialog("Uninstall KDWarm and remove all data?", isPresented: $confirmUninstall) {
+        .confirmationDialog("Uninstall KTStack and remove all data?", isPresented: $confirmUninstall) {
             Button("Uninstall / Reset", role: .destructive) { uninstaller.uninstall() }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -137,7 +137,7 @@ struct SettingsView: View {
                     pendingTLD = newValue
                     confirmTLDChange = true
                 }
-                Text("Changing the TLD rewrites the system DNS resolver and dnsmasq, then relaunches KDWarm. Existing sites keep their current domain until you re-edit them.")
+                Text("Changing the TLD rewrites the system DNS resolver and dnsmasq, then relaunches KTStack. Existing sites keep their current domain until you re-edit them.")
                     .font(KDFont.footnote).foregroundStyle(.secondary)
                 if dns.isBusy {
                     Label("Updating DNS resolver…", systemImage: "arrow.triangle.2.circlepath")
@@ -148,7 +148,7 @@ struct SettingsView: View {
                         .font(KDFont.footnote).foregroundStyle(.red)
                 }
             }
-            Toggle("Launch KDWarm at login", isOn: .constant(false)).disabled(true)
+            Toggle("Launch KTStack at login", isOn: .constant(false)).disabled(true)
         }
         .formStyle(.grouped)
         .padding(KDSpacing.space4)
@@ -168,7 +168,7 @@ struct SettingsView: View {
 
     private var tldChangeMessage: String {
         let count = affectedSites.count
-        let base = "KDWarm will reconfigure local DNS (one admin step) and relaunch to apply the new TLD."
+        let base = "KTStack will reconfigure local DNS (one admin step) and relaunch to apply the new TLD."
         guard count > 0 else { return base }
         let names = affectedSites.prefix(5).map(\.domain).joined(separator: ", ")
         let more = count > 5 ? " (+\(count - 5) more)" : ""
@@ -214,7 +214,7 @@ struct SettingsView: View {
             DispatchQueue.main.async {
                 if let error {
                     awaitingRelaunch = false
-                    tldError = "TLD changed — quit and reopen KDWarm to apply it. (Auto-relaunch failed: \(error.localizedDescription))"
+                    tldError = "TLD changed — quit and reopen KTStack to apply it. (Auto-relaunch failed: \(error.localizedDescription))"
                 } else {
                     NSApp.terminate(nil)
                 }

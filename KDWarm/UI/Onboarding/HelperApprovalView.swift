@@ -42,7 +42,7 @@ struct DNSStatusBar: View {
     }
     private var subtitle: String {
         dns.usesHelper
-            ? "Managed by the KDWarm privileged helper."
+            ? "Managed by the KTStack privileged helper."
             : "Uses a one-time admin password (helper signing arrives later)."
     }
     private var icon: String {
@@ -72,8 +72,8 @@ struct HelperApprovalView: View {
             Label("Enable automatic .test DNS", systemImage: "network")
                 .font(KDFont.title)
             Text(dns.usesHelper
-                 ? "KDWarm installs a small background helper to run a local DNS resolver for *.test. macOS will ask you to allow it in System Settings → Login Items."
-                 : "KDWarm will ask for your admin password once to set up local DNS for *.test. No background item is installed on this build.")
+                 ? "KTStack installs a small background helper to run a local DNS resolver for *.test. macOS will ask you to allow it in System Settings → Login Items."
+                 : "KTStack will ask for your admin password once to set up local DNS for *.test. No background item is installed on this build.")
                 .font(KDFont.body).foregroundStyle(.secondary)
             if let error = dns.lastError {
                 Label(error, systemImage: "exclamationmark.triangle.fill")

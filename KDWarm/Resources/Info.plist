@@ -11,9 +11,9 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>KDWarm</string>
+	<string>KTStack</string>
 	<key>CFBundleDisplayName</key>
-	<string>KDWarm</string>
+	<string>KTStack</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -27,7 +27,7 @@
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>© 2026 KDWarm — free / open-source.</string>
+	<string>© 2026 KTStack — free / open-source.</string>
 	<!-- Sparkle auto-update. SUPublicEDKey is the EdDSA public key; its private counterpart lives
 	     in the Keychain / CI secret and signs the appcast (see scripts/release/update-appcast.sh).
 	     SUFeedURL is the HTTPS appcast host. -->
