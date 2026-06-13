@@ -40,6 +40,52 @@ final class SiteConfigGeneratorTests: XCTestCase {
         XCTAssertEqual(SiteConfigGenerator.requiredVersions(for: sites), ["8.4", "8.1"])
     }
 
+    // MARK: - PHP version fallback (pinned-but-not-installed → serve on an installed version)
+
+    private func installPHP(_ versions: [String], in paths: AppSupportPaths) throws {
+        for v in versions {
+            let bin = paths.runtimeBin("php", v)
+            try fm.createDirectory(at: bin, withIntermediateDirectories: true)
+            fm.createFile(atPath: bin.appendingPathComponent("php-fpm").path,
+                          contents: Data(), attributes: [.posixPermissions: 0o755])
+        }
+    }
+
+    func testEffectivePHPVersionFallsBackWhenPinNotInstalled() throws {
+        let (paths, root) = makePaths(); defer { try? fm.removeItem(at: root) }
+        try installPHP(["8.1"], in: paths)
+        let gen = SiteConfigGenerator(paths: paths)
+        XCTAssertEqual(gen.effectivePHPVersion("8.4"), "8.1")   // pin missing → newest installed
+        XCTAssertEqual(gen.effectivePHPVersion("8.1"), "8.1")   // pin installed → unchanged
+    }
+
+    func testEffectivePHPVersionPicksNewestInstalledNumerically() throws {
+        let (paths, root) = makePaths(); defer { try? fm.removeItem(at: root) }
+        try installPHP(["8.1", "8.3", "8.10"], in: paths)   // 8.10 > 8.3 numerically (not lexically)
+        let gen = SiteConfigGenerator(paths: paths)
+        XCTAssertEqual(gen.effectivePHPVersion("8.4"), "8.10")
+    }
+
+    func testEffectivePHPVersionKeepsPinWhenNothingInstalled() throws {
+        let (paths, root) = makePaths(); defer { try? fm.removeItem(at: root) }
+        let gen = SiteConfigGenerator(paths: paths)
+        XCTAssertEqual(gen.effectivePHPVersion("8.4"), "8.4")   // nothing to fall back to
+    }
+
+    func testPoolVersionsAndVhostRouteToFallback() throws {
+        let (paths, root) = makePaths(); defer { try? fm.removeItem(at: root) }
+        try installPHP(["8.1"], in: paths)
+        let gen = SiteConfigGenerator(paths: paths)
+        let sites = [site("a.test", type: .php, version: "8.4"),
+                     site("b.test", type: .php, version: "8.1")]
+        // Both PHP sites collapse onto the one installed version → a single 8.1 pool.
+        XCTAssertEqual(gen.poolVersions(for: sites), ["8.1"])
+        // The 8.4 site's vhost routes to the 8.1 fallback socket (so nginx has a live upstream).
+        let vhost = gen.vhostText(for: site("a.test", type: .php, version: "8.4"), port: 80)
+        XCTAssertTrue(vhost.contains("fastcgi_pass \"unix:\(paths.phpFpmSocket("8.1").path)\";"),
+                      "an 8.4 site must route to the 8.1 fallback socket")
+    }
+
     func testGenerateWritesIdempotentlyAndRemovesOrphans() throws {
         let (paths, root) = makePaths(); defer { try? fm.removeItem(at: root) }
         let gen = SiteConfigGenerator(paths: paths)

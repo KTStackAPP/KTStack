@@ -18,7 +18,9 @@ public struct SiteConfigGenerator {
     /// PHP routes to `run/php-fpm-<version>.sock`.
     public func vhostText(for site: Site, port: Int) -> String {
         let root = URL(fileURLWithPath: site.docroot)
-        let socket = site.type == .php ? paths.phpFpmSocket(site.phpVersion) : nil
+        // Route to the EFFECTIVE version so the socket always has a live pool — a site pinned to a
+        // version that isn't installed serves on an installed one instead of 502ing on a dead upstream.
+        let socket = site.type == .php ? paths.phpFpmSocket(effectivePHPVersion(site.phpVersion)) : nil
         let access = paths.siteAccessLog(site.domain)
         let error = paths.siteErrorLog(site.domain)
 
@@ -75,9 +77,28 @@ public struct SiteConfigGenerator {
         return changed
     }
 
-    /// PHP versions that at least one PHP site needs — drives `PHPFPMPoolManager.reconcile`.
+    /// PHP versions that PHP sites PIN (raw, un-clamped). Used to detect pins whose binary isn't
+    /// installed so the orchestrator can warn the user that those sites are running on a fallback.
     public static func requiredVersions(for sites: [Site]) -> Set<String> {
         Set(sites.filter { $0.type == .php }.map(\.phpVersion))
+    }
+
+    /// Installed PHP versions (those with an executable `php-fpm` under `runtimes/php/<v>/bin`).
+    private func installedPHP() -> [String] { BundledPHP.availableVersions(php: paths.phpRuntimesRoot) }
+
+    /// The PHP version a site is actually SERVED on: its pinned version when installed, else the newest
+    /// installed version (numeric compare). Falls through to the pinned version only when NOTHING is
+    /// installed — there is nothing to fall back to, so the site surfaces the missing-engine state.
+    public func effectivePHPVersion(_ requested: String) -> String {
+        let installed = installedPHP()
+        if installed.contains(requested) { return requested }
+        return installed.max { $0.compare($1, options: .numeric) == .orderedAscending } ?? requested
+    }
+
+    /// PHP versions that need a running pool — the EFFECTIVE (fallback-resolved) version of each PHP
+    /// site, so the pool every vhost routes to always exists. Drives `PHPFPMPoolManager.reconcile`.
+    public func poolVersions(for sites: [Site]) -> Set<String> {
+        Set(sites.filter { $0.type == .php }.map { effectivePHPVersion($0.phpVersion) })
     }
 
     // MARK: - Private

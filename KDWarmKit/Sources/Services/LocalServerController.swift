@@ -73,7 +73,7 @@ public final class LocalServerController: ObservableObject {
     /// the last app quit (`bootstrap` is idempotent → reattach, never re-spawn). Without this the pool
     /// map is empty on launch and php-fpm would be mislabeled `error` despite serving fine.
     private func reattachOnLaunch() {
-        let required = SiteConfigGenerator.requiredVersions(for: registry.sites)
+        let required = generator.poolVersions(for: registry.sites)
         _ = try? pools.reconcile(required: required)
         recomputeStatus()
         refreshWatches()
@@ -219,7 +219,13 @@ public final class LocalServerController: ObservableObject {
     private nonisolated func applyConfiguration(sites: [Site], port: Int, startNginx: Bool,
                                                 runPreflight: Bool = true) async throws -> [String] {
         let changed = try generator.generate(sites: sites, port: port)
-        let missing = try pools.reconcile(required: SiteConfigGenerator.requiredVersions(for: sites))
+        // Reconcile pools for the EFFECTIVE (fallback-resolved) versions so every vhost has a live
+        // upstream; the warning below reports any PINNED version that isn't installed (now served on
+        // a fallback) so the substitution isn't silent.
+        _ = try pools.reconcile(required: generator.poolVersions(for: sites))
+        let installedPHP = Set(BundledPHP.availableVersions(php: paths.phpRuntimesRoot))
+        let missing = SiteConfigGenerator.requiredVersions(for: sites)
+            .subtracting(installedPHP).sorted()
         for version in pools.activeVersions {
             try await Self.waitForSocket(pools.socket(for: version))
         }
@@ -245,7 +251,16 @@ public final class LocalServerController: ObservableObject {
         isBusy = false
         if let error { lastError = error }
         else if !missing.isEmpty {
-            lastError = "PHP \(missing.joined(separator: ", ")) not installed — install it from Runtimes; those sites won't serve until then."
+            let pins = missing.joined(separator: ", ")
+            let installed = BundledPHP.availableVersions(php: paths.phpRuntimesRoot)
+            if let fallback = installed.max(by: { $0.compare($1, options: .numeric) == .orderedAscending }) {
+                // Sites still serve — on a fallback version — so flag it as a warning, not a failure.
+                lastError = "PHP \(pins) not installed — those sites are running on PHP \(fallback) for now. "
+                    + "Install \(pins) from Runtimes to use the pinned version."
+            } else {
+                lastError = "PHP \(pins) not installed and no PHP is available — those sites won't serve. "
+                    + "Install PHP from Runtimes."
+            }
         }
         recomputeStatus()
         refreshWatches()
