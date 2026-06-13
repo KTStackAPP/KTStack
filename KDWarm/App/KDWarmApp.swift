@@ -17,7 +17,7 @@ struct KDWarmApp: App {
     var body: some Scene {
         // Menu-bar entry. `.window` style gives a real SwiftUI canvas so status pills
         // and toggles render per the design (a plain `.menu` cannot host them).
-        MenuBarExtra("KDWarm", image: "MenuBarGlyph") {
+        MenuBarExtra("KTStack", image: "MenuBarGlyph") {
             MenuBarContentView()
                 .environmentObject(appDelegate.server)
                 .environmentObject(appDelegate.services)
@@ -27,7 +27,7 @@ struct KDWarmApp: App {
         .menuBarExtraStyle(.window)
 
         // Dashboard window, opened on demand from the menu-bar footer.
-        Window("KDWarm Dashboard", id: DashboardWindow.windowID) {
+        Window("KTStack Dashboard", id: DashboardWindow.windowID) {
             DashboardWindow()
                 .environmentObject(appDelegate.preferences)
                 .environmentObject(appDelegate.server)

@@ -17,7 +17,7 @@ struct AboutSettingsView: View {
                     Image(systemName: "bolt.horizontal.circle.fill")
                         .font(.system(size: 40)).foregroundStyle(Color.accentColor)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("KDWarm").font(KDFont.title)
+                        Text("KTStack").font(KDFont.title)
                         Text("Local web development host manager for macOS")
                             .font(KDFont.footnote).foregroundStyle(.secondary)
                         Text("Version \(version)").font(KDFont.footnote).foregroundStyle(.tertiary)

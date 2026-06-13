@@ -33,7 +33,7 @@ struct MenuBarContentView: View {
                 .font(.system(size: 18))
                 .foregroundStyle(Color.accentColor)
             VStack(alignment: .leading, spacing: 1) {
-                Text("KDWarm").font(KDFont.headline)
+                Text("KTStack").font(KDFont.headline)
                 Text(headerSubtitle)
                     .font(KDFont.footnote)
                     .foregroundStyle(.secondary)

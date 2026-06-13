@@ -125,3 +125,4 @@ spikes/**/staging-MOVED/
 spikes/**/*.pem
 spikes/**/*.tar.gz
 spikes/**/staging*/
+log/

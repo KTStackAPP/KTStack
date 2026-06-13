@@ -48,7 +48,7 @@ enum ServicesBannerBuilder {
             result.append(ServiceBanner(
                 id: "ca-untrusted", status: .warning,
                 title: "Local HTTPS CA isn't trusted",
-                message: "Secure `.test` sites will warn until KDWarm's root CA is trusted in the System Keychain.",
+                message: "Secure `.test` sites will warn until KTStack's root CA is trusted in the System Keychain.",
                 ctaTitle: "Open TLS Settings", action: onOpenTLSSettings))
         }
 

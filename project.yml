@@ -82,6 +82,9 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kdwarm.app
+        # Display/product name is KTStack (the app is KTStack.app); the Xcode TARGET + bundle id stay
+        # "KDWarm"/com.kdwarm.* internally so existing installs, data dir, and launchd jobs keep working.
+        PRODUCT_NAME: KTStack
         INFOPLIST_FILE: KDWarm/Resources/Info.plist
         GENERATE_INFOPLIST_FILE: "NO"
         CODE_SIGN_ENTITLEMENTS: entitlements/app.entitlements
