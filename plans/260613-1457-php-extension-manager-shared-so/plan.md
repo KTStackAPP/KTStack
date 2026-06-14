@@ -88,6 +88,23 @@ existing `-c` php.ini. Findings applied to phases:
 
 **Top 3 before Phase 1:** C1+C2 redesign install path · H1 pre-commit `-d` fallback · H2 silent-fail status.
 
+## Code review (2026-06-14) — findings fixed
+Evidence-based review of P1–P4. Fixes applied + re-verified (153 Kit tests, app builds):
+- **C1 (Critical):** `installedExtensions` used a BARE `php -m` (compiled scan dir, which the relocatable
+  build lacks) → every installed optional ext mis-resolved to `.installedButFailedToLoad`. Fixed:
+  `PHPModules.loadedModules(version:scanDir:)` runs `php -m` with `PHP_INI_SCAN_DIR` = the ext conf.d;
+  catalog uses it; the sheet probes once per refresh + the pure status overload. Proven live (bare
+  `php -m` omits imagick; with the scan dir it appears).
+- **H2 (High):** `reloadPHPPool` = `kickstart -k` keeps the old job definition → a pool bootstrapped
+  before the `PHP_INI_SCAN_DIR` env never loads exts. Fixed: `restartPHPPool` (bootout + re-bootstrap,
+  full master re-exec) on the install/uninstall path.
+- **M2:** modules/ + conf.d/ now created `0700` (matches the app-support tree invariant).
+- **M3:** load-failure detection also matches "Failed loading" (Zend extension), not only "Unable to load".
+- **L1:** the "n/a" tooltip is version-agnostic (no hard-coded 8.1).
+- Accepted as-is: H1 (post-C1 `refresh()` recomputes the correct status; the captured Warning is still
+  surfaced), M1 (`verifyLoad` reads stdout-then-stderr — safe for tiny `php -m` output), shell manifest
+  aggregation is intentionally cumulative across versions.
+
 ## Out of scope
 - Trimming the compiled-in base into shared (non-breaking now; optimize later).
 - Per-extension version pinning (ext `.so` is ABI-locked to its PHP minor — one `.so` per ext×version).

@@ -36,15 +36,19 @@ final class PHPExtensionsModel: ObservableObject {
     func refresh() async {
         let catalog = self.catalog
         let version = self.version
-        let statuses: [String: PHPExtensionStatus] = await Task.detached(priority: .utility) {
-            var map: [String: PHPExtensionStatus] = [:]
-            for ext in PHPExtensionCatalog.descriptors {
-                map[ext.id] = catalog.status(ext, phpVersion: version)
+        // One scan-dir `php -m` probe for the whole sheet (not per ext), plus per-ext on-disk checks,
+        // resolved off-main; status itself is then pure.
+        let (installed, onDisk): (Set<String>, [String: Bool]) = await Task.detached(priority: .utility) {
+            let installed = catalog.installedExtensions(version)
+            var onDisk: [String: Bool] = [:]
+            for ext in PHPExtensionCatalog.descriptors where !ext.isBuiltIn {
+                onDisk[ext.id] = catalog.sharedObjectExists(ext.id, phpVersion: version)
             }
-            return map
+            return (installed, onDisk)
         }.value
         rows = PHPExtensionCatalog.descriptors
-            .map { Row(ext: $0, status: statuses[$0.id] ?? .unavailable) }
+            .map { Row(ext: $0, status: catalog.status($0, phpVersion: version,
+                                                        installed: installed, soOnDisk: onDisk[$0.id] ?? false)) }
             .sorted { a, b in
                 if a.ext.isBuiltIn != b.ext.isBuiltIn { return !a.ext.isBuiltIn }   // optional first
                 return a.ext.displayName.localizedCaseInsensitiveCompare(b.ext.displayName) == .orderedAscending

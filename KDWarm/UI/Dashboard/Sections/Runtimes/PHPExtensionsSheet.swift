@@ -56,7 +56,7 @@ struct PHPExtensionsSheet: View {
     }
 
     private func reloadPool(_ version: String) async throws {
-        try await server.reloadPHPPool(version: version)
+        try await server.restartPHPPool(version: version)   // full restart so the .so actually (un)loads
     }
 
     private func uninstallAlert(_ ext: PHPExtension) -> Alert {

@@ -106,7 +106,8 @@ public struct RuntimeDownloader: Sendable {
             throw ExtractError(message: "Archive did not contain \(soName).")
         }
         try Task.checkCancellation()
-        try fm.createDirectory(at: modulesDir, withIntermediateDirectories: true)
+        try fm.createDirectory(at: modulesDir, withIntermediateDirectories: true,
+                               attributes: [.posixPermissions: 0o700])
         let dest = modulesDir.appendingPathComponent(soName)
         if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }   // replace THIS .so only
         try fm.moveItem(at: src, to: dest)

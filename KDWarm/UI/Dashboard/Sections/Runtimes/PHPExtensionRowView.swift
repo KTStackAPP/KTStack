@@ -79,7 +79,7 @@ struct PHPExtensionRowView: View {
                 Button("Install", action: onInstall).buttonStyle(.borderless).font(KDFont.footnote)
             case .unavailable:
                 Text("n/a").font(KDFont.footnote).foregroundStyle(.tertiary)
-                    .help("No build available for PHP \(ext.id == "swoole" ? "8.1" : "this version").")
+                    .help("No \(ext.displayName) build is available for this PHP version.")
             }
         }
     }

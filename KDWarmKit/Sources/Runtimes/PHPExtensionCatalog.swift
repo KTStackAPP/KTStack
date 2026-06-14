@@ -88,10 +88,12 @@ public struct PHPExtensionCatalog: Sendable {
 
     // MARK: Installed-state resolution
 
-    /// Loaded extensions for an installed PHP version, from `php -m` (lowercased, cached). Reuses the
-    /// Runtimes-card probe; empty when the binary is missing.
+    /// Extensions an installed PHP version actually LOADS, from `php -m` run with our
+    /// `PHP_INI_SCAN_DIR` (the optional-ext conf.d) — a bare `php -m` cannot see a scan-dir `.so`, so it
+    /// would mis-report every installed optional ext as failed-to-load. Empty when the binary is missing.
     public func installedExtensions(_ phpVersion: String) -> Set<String> {
-        Set(PHPModules.list(version: phpVersion, paths: paths))
+        Set(PHPModules.loadedModules(version: phpVersion,
+                                     scanDir: paths.phpExtConfDir(version: phpVersion), paths: paths))
     }
 
     /// Status of `ext` for an installed PHP version. Gathers the live `php -m` set + the on-disk `.so`
@@ -115,7 +117,7 @@ public struct PHPExtensionCatalog: Sendable {
 
     /// Whether the optional `.so` is staged under this version's modules dir
     /// (`runtimes/php/<version>/modules/<ext>.so`) — the layout the installer (Phase 3) writes.
-    func sharedObjectExists(_ extID: String, phpVersion: String) -> Bool {
+    public func sharedObjectExists(_ extID: String, phpVersion: String) -> Bool {
         let so = paths.runtimeDir("php", phpVersion)
             .appendingPathComponent("modules/\(extID).so")
         return FileManager.default.fileExists(atPath: so.path)

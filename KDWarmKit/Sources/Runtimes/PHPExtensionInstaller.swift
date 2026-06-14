@@ -58,7 +58,8 @@ public struct PHPExtensionInstaller: Sendable {
     /// Write the shared `extension_dir` ini pointing at this version's modules dir.
     public func writeExtensionDirIni(phpVersion: String) throws {
         let dir = paths.phpExtConfDir(version: phpVersion)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true,
+                                                attributes: [.posixPermissions: 0o700])
         let body = "extension_dir = \"\(paths.phpModulesDir(version: phpVersion).path)\"\n"
         try body.write(to: extensionDirIniURL(phpVersion: phpVersion), atomically: true, encoding: .utf8)
     }
@@ -68,7 +69,8 @@ public struct PHPExtensionInstaller: Sendable {
     /// uses `RuntimeDownloader.installSharedObject`, which applies the same no-sibling-wipe rule.
     public func placeSharedObject(from local: URL, extID: String, phpVersion: String) throws {
         let modules = paths.phpModulesDir(version: phpVersion)
-        try FileManager.default.createDirectory(at: modules, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: modules, withIntermediateDirectories: true,
+                                                attributes: [.posixPermissions: 0o700])
         let dest = soURL(extID, phpVersion)
         if FileManager.default.fileExists(atPath: dest.path) { try FileManager.default.removeItem(at: dest) }
         try FileManager.default.copyItem(at: local, to: dest)
@@ -147,9 +149,12 @@ public struct PHPExtensionInstaller: Sendable {
         let loaded = proc.terminationStatus == 0 && modulesList.contains(extID.lowercased())
         // PHP routes the "Unable to load dynamic library" startup warning to stdout OR stderr depending
         // on ini — scan both so a silent load failure is always surfaced.
+        // "Unable to load dynamic library" (extension=) and "Failed loading … Zend extension"
+        // (zend_extension=) are the two startup-failure signatures to surface.
         let warning = (errText + "\n" + outText).split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespaces) }
-            .first { $0.range(of: "Unable to load", options: .caseInsensitive) != nil }
+            .first { $0.range(of: "Unable to load", options: .caseInsensitive) != nil
+                  || $0.range(of: "Failed loading", options: .caseInsensitive) != nil }
         return (loaded, loaded ? nil : warning)
     }
 
