@@ -1,7 +1,7 @@
 ---
 title: "PHP Extension Manager (shared .so, Laragon-style)"
 description: "Install/uninstall PHP extensions on-demand as shared .so over the static base — no variants, no version-identity change"
-status: pending
+status: done
 priority: P2
 created: 2026-06-13
 mode: tdd
@@ -36,7 +36,7 @@ Trimming the base into shared is a later optimization, out of scope.
 | 2 | [Extension catalog model (Kit)](./phase-02-extension-catalog-model.md) | Done (148 tests green) |
 | 3 | [ExtensionInstaller + php-fpm wiring (Kit)](./phase-03-extension-installer.md) | Done (H1 proven, 153 tests) |
 | 4 | [Extension Manager UI](./phase-04-extension-manager-ui.md) | Done (app builds) |
-| 5 | [Signing / notarization + docs](./phase-05-signing-notarization-docs.md) | Pending |
+| 5 | [Signing / notarization + docs](./phase-05-signing-notarization-docs.md) | Done (dev ad-hoc verified; prod recipe scripted) |
 
 ## Key dependencies
 - P2 (catalog) needs P1's published `.so` URLs + sha256.
