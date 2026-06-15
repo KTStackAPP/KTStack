@@ -8,11 +8,16 @@ import XCTest
 final class ConnectionStoreTests: XCTestCase {
     private let fm = FileManager.default
 
-    private func makeStore() -> (ConnectionStore, URL) {
+    /// A store backed by a temp JSON file and a dedicated test-service Keychain (so password assertions
+    /// never touch real `com.kdwarm.db` credentials). The keychain is returned for read-back + cleanup.
+    private func makeStore() -> (ConnectionStore, URL, KeychainStore) {
         let dir = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("kd-conn-\(UUID().uuidString)", isDirectory: true)
         try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
-        return (ConnectionStore(storeURL: dir.appendingPathComponent("connections.json")), dir)
+        let keychain = KeychainStore(service: "com.kdwarm.db.tests")
+        let store = ConnectionStore(storeURL: dir.appendingPathComponent("connections.json"),
+                                    keychain: keychain)
+        return (store, dir, keychain)
     }
 
     private func sampleProfile(_ name: String = "prod") -> ConnectionProfile {
@@ -21,7 +26,7 @@ final class ConnectionStoreTests: XCTestCase {
     }
 
     func testAddPersistsAndReloads() throws {
-        let (store, dir) = makeStore(); defer { try? fm.removeItem(at: dir) }
+        let (store, dir, _) = makeStore(); defer { try? fm.removeItem(at: dir) }
         let profile = sampleProfile()
         store.add(profile)
         XCTAssertTrue(store.profiles.contains(profile))
@@ -31,7 +36,7 @@ final class ConnectionStoreTests: XCTestCase {
     }
 
     func testManagedProfileAlwaysListedButNeverPersisted() throws {
-        let (store, dir) = makeStore(); defer { try? fm.removeItem(at: dir) }
+        let (store, dir, _) = makeStore(); defer { try? fm.removeItem(at: dir) }
         // The synthetic managed engine is surfaced in `allProfiles` for the UI...
         XCTAssertTrue(store.allProfiles.contains { $0.isManaged })
         // ...but the on-disk JSON only ever holds user-added profiles.
@@ -42,7 +47,7 @@ final class ConnectionStoreTests: XCTestCase {
     }
 
     func testUpdateMutatesInPlaceAndPersists() throws {
-        let (store, dir) = makeStore(); defer { try? fm.removeItem(at: dir) }
+        let (store, dir, _) = makeStore(); defer { try? fm.removeItem(at: dir) }
         var profile = sampleProfile()
         store.add(profile)
         profile.name = "renamed"
@@ -52,15 +57,42 @@ final class ConnectionStoreTests: XCTestCase {
     }
 
     func testRemoveDeletesProfileAndKeychainPassword() throws {
-        let (store, dir) = makeStore(); defer { try? fm.removeItem(at: dir) }
+        let (store, dir, keychain) = makeStore(); defer { try? fm.removeItem(at: dir) }
         let profile = sampleProfile()
-        store.add(profile)
+        store.add(profile, password: "s3cr3t")
+        XCTAssertEqual(try keychain.get(account: profile.id.uuidString), "s3cr3t")
         store.remove(profile)
         XCTAssertFalse(store.profiles.contains(profile))
+        XCTAssertNil(try keychain.get(account: profile.id.uuidString))   // no orphaned secret
+    }
+
+    func testAddStoresPasswordInKeychainNotJSON() throws {
+        let (store, dir, keychain) = makeStore(); defer { try? fm.removeItem(at: dir) }
+        let profile = sampleProfile()
+        defer { try? keychain.delete(account: profile.id.uuidString) }
+        store.add(profile, password: "s3cr3t")
+
+        // The password is retrievable from the Keychain...
+        XCTAssertEqual(try keychain.get(account: profile.id.uuidString), "s3cr3t")
+        // ...but never written to the on-disk JSON.
+        let json = String(decoding: try Data(contentsOf: dir.appendingPathComponent("connections.json")),
+                          as: UTF8.self)
+        XCTAssertFalse(json.contains("s3cr3t"))
+        XCTAssertFalse(json.lowercased().contains("password"))
+    }
+
+    func testUpdateWithNilPasswordKeepsExistingSecret() throws {
+        let (store, dir, keychain) = makeStore(); defer { try? fm.removeItem(at: dir) }
+        var profile = sampleProfile()
+        defer { try? keychain.delete(account: profile.id.uuidString) }
+        store.add(profile, password: "keepme")
+        profile.name = "renamed"
+        store.update(profile)   // no password supplied → existing secret untouched
+        XCTAssertEqual(try keychain.get(account: profile.id.uuidString), "keepme")
     }
 
     func testOnChangeFiresOnMutation() throws {
-        let (store, dir) = makeStore(); defer { try? fm.removeItem(at: dir) }
+        let (store, dir, _) = makeStore(); defer { try? fm.removeItem(at: dir) }
         var fires = 0
         store.onChange = { fires += 1 }
         store.add(sampleProfile())

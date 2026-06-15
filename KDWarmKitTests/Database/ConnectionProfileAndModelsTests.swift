@@ -60,6 +60,29 @@ final class ConnectionProfileAndModelsTests: XCTestCase {
         XCTAssertEqual(local.tlsMode, .prefer)
     }
 
+    // MARK: - Read-only defaults
+
+    func testReadOnlyDefaultsOnForRemoteOffForLoopbackAndManaged() {
+        let remote = ConnectionProfile(name: "r", kind: .mysql, host: "10.0.0.5",
+                                       port: 3306, user: "u", database: "d")
+        XCTAssertTrue(remote.readOnly)    // external default ON — the server rejects stray writes
+        let local = ConnectionProfile(name: "l", kind: .mysql, host: "127.0.0.1",
+                                      port: 3306, user: "u", database: "d")
+        XCTAssertFalse(local.readOnly)
+        XCTAssertFalse(ConnectionProfile.managedMySQL.readOnly)
+    }
+
+    func testDecodingLegacyProfileWithoutReadOnlyUsesHostDefault() throws {
+        // A profile saved before the field existed: an absent `readOnly` must not fail the decode
+        // (which would back up + drop the user's saved connections) — it falls back to the host default.
+        let legacy = #"""
+        {"id":"11111111-1111-1111-1111-111111111111","name":"p","kind":"mysql",\#
+        "host":"10.0.0.5","port":3306,"user":"u","database":"d","tlsMode":"verifyFull"}
+        """#
+        let decoded = try JSONDecoder().decode(ConnectionProfile.self, from: Data(legacy.utf8))
+        XCTAssertTrue(decoded.readOnly)   // non-loopback host → defaults ON
+    }
+
     func testManagedProfileIsLoopbackRootAndFlaggedManaged() {
         let managed = ConnectionProfile.managedMySQL
         XCTAssertTrue(managed.isManaged)

@@ -30,17 +30,34 @@ public final class ConnectionStore: ObservableObject {
 
     // MARK: - Mutators
 
-    /// Append a new profile and persist. (Callers store the password separately via `KeychainStore`.)
-    public func add(_ profile: ConnectionProfile) {
+    /// Append a new profile and persist. A non-empty `password` is written to the Keychain (keyed by
+    /// the profile id), never to the JSON store.
+    public func add(_ profile: ConnectionProfile, password: String? = nil) {
         profiles.append(profile)
+        setPassword(password, for: profile)
         persist()
     }
 
-    /// Replace an existing profile (matched by id) in place; no-op if absent.
-    public func update(_ profile: ConnectionProfile) {
+    /// Replace an existing profile (matched by id) in place; no-op if absent. A nil `password` leaves
+    /// the stored secret untouched (editing other fields), so the user needn't re-enter it.
+    public func update(_ profile: ConnectionProfile, password: String? = nil) {
         guard let idx = profiles.firstIndex(where: { $0.id == profile.id }) else { return }
         profiles[idx] = profile
+        setPassword(password, for: profile)
         persist()
+    }
+
+    /// Persist a password to the Keychain when one was supplied. An empty/nil value is a no-op so an
+    /// edit that doesn't touch the password can't accidentally clear it. A write failure is logged (no
+    /// secret in the message) rather than thrown — the profile still persists, and the missing password
+    /// surfaces as an auth failure on the next connect; logging keeps that traceable.
+    private func setPassword(_ password: String?, for profile: ConnectionProfile) {
+        guard let password, !password.isEmpty else { return }
+        do {
+            try keychain.set(password, account: profile.id.uuidString)
+        } catch {
+            NSLog("KDWarm: failed to store connection password in Keychain: \(error.localizedDescription)")
+        }
     }
 
     /// Remove a profile and clear its Keychain password so no secret outlives the connection.

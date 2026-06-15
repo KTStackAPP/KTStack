@@ -68,9 +68,15 @@ public final class DatabaseViewModel: ObservableObject {
     /// The browsed table's primary-key columns — the key set edits build UPDATE/DELETE predicates from.
     public var primaryKeyColumns: [ColumnInfo] { currentColumns.primaryKeyColumns }
 
-    /// Why row editing is unavailable, or nil when it's allowed. Editing needs a single-table browse
-    /// AND a primary key to target exactly one row; a SQL result or a PK-less table is read-only.
+    /// True when the selected connection is opened read-only (server-enforced). Mirrored into the UI so
+    /// edit affordances are hidden rather than offered and then rejected by the server.
+    public var isReadOnlyConnection: Bool { selectedProfile?.readOnly ?? false }
+
+    /// Why row editing is unavailable, or nil when it's allowed. Editing needs a writable (not
+    /// read-only) connection, a single-table browse, AND a primary key to target exactly one row; a
+    /// read-only connection, a SQL result, or a PK-less table is not editable.
     public var editDisabledReason: String? {
+        if isReadOnlyConnection { return "This connection is read-only." }
         guard isTableBrowse else { return "Editing is only available when browsing a single table." }
         guard !primaryKeyColumns.isEmpty else {
             return "This table has no primary key, so rows can't be edited safely."

@@ -112,8 +112,9 @@ public struct MySQLDriver: RelationalDriver {
     func connect(database: String?) async throws -> MySQLConnection {
         let group = try EventLoopProvider.shared.group()
         let address = try SocketAddress.makeAddressResolvingHost(profile.host, port: profile.port)
+        let connection: MySQLConnection
         do {
-            return try await MySQLConnection.connect(
+            connection = try await MySQLConnection.connect(
                 to: address,
                 username: profile.user,
                 database: database ?? profile.database,
@@ -124,6 +125,20 @@ public struct MySQLDriver: RelationalDriver {
         } catch {
             throw MySQLErrorMapper.map(error, isManaged: profile.isManaged)
         }
+        // Read-only is enforced by the SERVER, not the client: the session default makes every
+        // subsequent transaction (each autocommitted statement included) READ ONLY, so an INSERT/
+        // UPDATE/DELETE fails server-side even if the UI guard is bypassed. The client toggle only
+        // drives this flag. Close the connection if the setting can't be applied — never hand back a
+        // connection a read-only profile could still write through.
+        if profile.readOnly {
+            do {
+                _ = try await connection.simpleQuery("SET SESSION TRANSACTION READ ONLY").get()
+            } catch {
+                try? await connection.close().get()
+                throw MySQLErrorMapper.map(error, isManaged: profile.isManaged)
+            }
+        }
+        return connection
     }
 
     /// The managed engine is on-demand: if its profile is selected but no engine is installed, fail
