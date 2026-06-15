@@ -1,11 +1,8 @@
 import SwiftUI
 import KDWarmKit
 
-/// Logs viewer (design §5.9): a source picker (service / per-site logs) → virtualized live tail with
-/// a severity gutter, a text filter, a "● Live" auto-scroll toggle, and clear. Binds to a
-/// `LogTailController` that incrementally tails the selected file into a bounded ring buffer.
 struct LogsSectionView: View {
-    /// Optional deep-link target (a `LogSource.id`) from a Services/Sites "Logs" action.
+
     var targetSourceID: String?
 
     @EnvironmentObject private var server: LocalServerController

@@ -1,17 +1,14 @@
 import Foundation
 
-/// Supervises bundled Mailpit (a single static Go binary) as a user LaunchAgent. Mailpit is the
-/// dev mail catcher: an SMTP sink on :1025 + a web UI / message store on :8025 (consumed by the
-/// Phase 8 mail viewer). Binds loopback only; messages persist in a SQLite db under app-support.
 public final class MailpitController: ManagedService, @unchecked Sendable {
     public let kind = ServiceKind.mailpit
     public var detail: String { ":8025" }
     public var logsURL: URL? { paths.serviceLog("mailpit") }
     public var isInstalled: Bool { FileManager.default.isExecutableFile(atPath: binary.path) }
 
-    /// The Mailpit web UI URL — used by the health probe and by the Phase 8 viewer.
+  
     public static let uiURL = URL(string: "http://127.0.0.1:8025/")!
-    /// Base URL for the Mailpit REST API (`/api/v1/...`) consumed by `MailpitClient` (Phase 8).
+    
     public static let apiBaseURL = URL(string: "http://127.0.0.1:8025/api/v1")!
 
     private let paths: AppSupportPaths

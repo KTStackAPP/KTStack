@@ -2,10 +2,7 @@ import Foundation
 import MySQLNIO
 import NIOCore
 
-/// Row-level writes for `MySQLDriver`. Each composes a parameterized statement via `SQLDialect`,
-/// binds values (never interpolated), and runs inside a transaction that commits only when exactly
-/// one row changed — a corrupt/non-unique key or a stale row rolls back instead of silently mutating
-/// many rows. Kept apart from the read path so each file stays focused.
+
 extension MySQLDriver {
 
     public func insert(database: String, table: String, values: [ColumnValue]) async throws {
@@ -24,9 +21,7 @@ extension MySQLDriver {
         try await executeWrite(statement, database: database)
     }
 
-    /// Run a single-row write transactionally, committing only on `affectedRows == 1`. A statement
-    /// that would touch a different number of rows is rolled back and surfaced — the integrity backstop
-    /// behind the dialect's keyless-write refusal. The connection is closed on every path.
+  
     private func executeWrite(_ statement: DMLStatement, database: String) async throws {
         try preflightManagedEngine()
         let connection = try await connect(database: database)
@@ -54,9 +49,7 @@ extension MySQLDriver {
     }
 }
 
-/// A reference box so the `onMetadata` callback (invoked on the event loop) can hand the affected-row
-/// count back to the awaiting caller; the future's completion establishes the happens-before, so the
-/// read after `.get()` sees the written value.
+
 private final class AffectedRowsBox: @unchecked Sendable {
     var value: UInt64 = 0
 }

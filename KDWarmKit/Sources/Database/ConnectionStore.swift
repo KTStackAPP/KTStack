@@ -1,16 +1,13 @@
 import Foundation
 import Combine
 
-/// Source of truth for user-saved connection profiles. Persists to `config/database/connections.json`
-/// and mirrors `SiteRegistry`: `@MainActor`-isolated `@Published` state, `onChange` after every
-/// mutation (and load), reload-on-init. Passwords are NOT stored here — `remove` also clears the
-/// profile's Keychain item so deleting a connection leaves no orphaned secret.
+
 @MainActor
 public final class ConnectionStore: ObservableObject {
-    /// User-added profiles only — exactly what persists to JSON.
+    
     @Published public private(set) var profiles: [ConnectionProfile] = []
 
-    /// Fired after any successful mutation (and after load), on the main actor.
+   
     public var onChange: (() -> Void)?
 
     private let storeURL: URL
@@ -22,24 +19,20 @@ public final class ConnectionStore: ObservableObject {
         load()
     }
 
-    /// Profiles surfaced to the UI: the always-listed synthetic managed engine first, then the saved
-    /// ones. The managed profile is never in `profiles`/JSON, so it can't be edited or removed.
+   
     public var allProfiles: [ConnectionProfile] {
         [.managedMySQL] + profiles
     }
 
     // MARK: - Mutators
 
-    /// Append a new profile and persist. A non-empty `password` is written to the Keychain (keyed by
-    /// the profile id), never to the JSON store.
+   
     public func add(_ profile: ConnectionProfile, password: String? = nil) {
         profiles.append(profile)
         setPassword(password, for: profile)
         persist()
     }
 
-    /// Replace an existing profile (matched by id) in place; no-op if absent. A nil `password` leaves
-    /// the stored secret untouched (editing other fields), so the user needn't re-enter it.
     public func update(_ profile: ConnectionProfile, password: String? = nil) {
         guard let idx = profiles.firstIndex(where: { $0.id == profile.id }) else { return }
         profiles[idx] = profile
@@ -47,10 +40,6 @@ public final class ConnectionStore: ObservableObject {
         persist()
     }
 
-    /// Persist a password to the Keychain when one was supplied. An empty/nil value is a no-op so an
-    /// edit that doesn't touch the password can't accidentally clear it. A write failure is logged (no
-    /// secret in the message) rather than thrown — the profile still persists, and the missing password
-    /// surfaces as an auth failure on the next connect; logging keeps that traceable.
     private func setPassword(_ password: String?, for profile: ConnectionProfile) {
         guard let password, !password.isEmpty else { return }
         do {
@@ -60,7 +49,7 @@ public final class ConnectionStore: ObservableObject {
         }
     }
 
-    /// Remove a profile and clear its Keychain password so no secret outlives the connection.
+
     public func remove(_ profile: ConnectionProfile) {
         profiles.removeAll { $0.id == profile.id }
         try? keychain.delete(account: profile.id.uuidString)
@@ -75,8 +64,7 @@ public final class ConnectionStore: ObservableObject {
         if let decoded = try? JSONDecoder().decode([ConnectionProfile].self, from: data) {
             profiles = decoded
         } else {
-            // Present but undecodable (corrupt / old schema): back it up rather than overwrite it on
-            // the next persist, so a user's saved connections aren't silently lost.
+
             let backup = storeURL.appendingPathExtension("bak")
             try? FileManager.default.removeItem(at: backup)
             try? FileManager.default.copyItem(at: storeURL, to: backup)

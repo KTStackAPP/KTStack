@@ -1,18 +1,9 @@
 import Foundation
 
-/// One-time `sudo` path to enable `.test` DNS WITHOUT the SMAppService helper — the safety net for
-/// when the user misses/declines the background-item approval. It performs the SAME root operations
-/// as the helper (copy dnsmasq to a root dir, write config + `/etc/resolver/test` + a launchd daemon
-/// plist, bootstrap dnsmasq), sourced from the same `DNSConstants`, so behaviour can't diverge.
-///
-/// Security: every value interpolated into the root-run script is single-quote-escaped (`shellQuote`),
-/// and the script is staged in a freshly-created `0700` per-run directory (no fixed, predictable path
-/// another same-user process could swap before root reads it).
 public struct SudoFallbackInstaller {
-    /// The bundled dnsmasq to copy into the root support dir (`KDWarm.app/Contents/Resources/bin/dnsmasq`).
+   
     public let bundledDnsmasq: URL
-    /// The live dev TLD (configurable, Phase 5). The install/uninstall/reset scripts operate on this
-    /// TLD; `setTLDScript` takes explicit old/new so a change can clean up the previous resolver.
+
     public let tld: String
 
     public init(bundledDnsmasq: URL, tld: String = AppPreferences.defaultTLD) {
@@ -20,21 +11,17 @@ public struct SudoFallbackInstaller {
         self.tld = tld
     }
 
-    /// Root install script — idempotent: re-running re-bootstraps with the current config.
+   
     public func installScript() -> String { "#!/bin/bash\nset -euo pipefail\n" + installBody(tld: tld) }
 
-    /// Root uninstall script — full cleanup (reverses installScript).
+
     public func uninstallScript() -> String { "#!/bin/bash\nset -uo pipefail\n" + uninstallBody(tld: tld) }
 
-    /// Combined reset: uninstall then install in ONE root invocation (single admin prompt).
+   
     public func resetScript() -> String {
         "#!/bin/bash\nset -uo pipefail\n" + uninstallBody(tld: tld) + "\nset -e\n" + installBody(tld: tld)
     }
 
-    /// Combined TLD change in ONE root invocation (single admin prompt): remove the OLD resolver,
-    /// then re-bootstrap dnsmasq + write the NEW resolver for `new`, then flush the DNS cache. The
-    /// mirror of `HelperDNSManager.setTLD` for the no-helper path. Removing the old resolver first is
-    /// the critical step — an orphaned `/etc/resolver/<old>` would keep poisoning system DNS.
     public func setTLDScript(old: String, new: String) -> String {
         let removeOld = old == new ? "" : "rm -f \(q(DNSConstants.resolverPath(for: old)))\n"
         return "#!/bin/bash\nset -euo pipefail\n"
@@ -79,7 +66,6 @@ public struct SudoFallbackInstaller {
         """
     }
 
-    /// Single-quote-escape a value for safe interpolation into the root shell script.
     static func shellQuote(_ value: String) -> String {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
@@ -87,13 +73,9 @@ public struct SudoFallbackInstaller {
 
     // MARK: - Staging + execution
 
-    /// Write all three scripts into a FRESH `0700` per-run dir (no predictable path to swap), and
-    /// return their URLs.
     @discardableResult
     public func writeScripts(to dir: URL) throws -> (install: URL, uninstall: URL, reset: URL) {
-        // Refuse before staging any root-run script: `tld` renders into a dnsmasq heredoc body that
-        // cannot be shell-quoted, so a crafted value (newline → injected directives) must be rejected
-        // here — input validation is the only correct control for the heredoc body.
+       
         _ = try DNSConstants.validatedTLD(tld)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true,
                                                 attributes: [.posixPermissions: 0o700])
@@ -109,7 +91,6 @@ public struct SudoFallbackInstaller {
         return (install, uninstall, reset)
     }
 
-    /// A fresh, unguessable, user-only staging dir for one run.
     public static func freshStagingDir() -> URL {
         FileManager.default.temporaryDirectory.appendingPathComponent("kdwarm-dns-\(UUID().uuidString)")
     }
@@ -124,11 +105,8 @@ public struct SudoFallbackInstaller {
         try runAsAdmin(try writeScripts(to: Self.freshStagingDir()).reset.path)
     }
 
-    /// Change the TLD from `old` to `new` via a single admin prompt (no-helper path). Stages the
-    /// combined script in a fresh `0700` per-run dir (no predictable path to swap before root reads).
     public func runSetTLDWithAdminPrivileges(old: String, new: String) throws {
-        // `old` and `new` are fresh untrusted inputs that reach root file paths + the dnsmasq heredoc
-        // — validate both before staging/running anything as root.
+      
         _ = try DNSConstants.validatedTLD(old)
         _ = try DNSConstants.validatedTLD(new)
         let dir = Self.freshStagingDir()
@@ -140,10 +118,6 @@ public struct SudoFallbackInstaller {
         try runAsAdmin(script.path)
     }
 
-    /// Run `bash <scriptPath>` via a GUI admin-authentication prompt. `scriptPath` lives in a
-    /// freshly-created UUID dir under the user's `$TMPDIR` (no shell metacharacters by construction);
-    /// it is additionally AppleScript-string-escaped and shell-quoted via `quoted form of`, so the
-    /// root invocation is safe even if the path ever changed shape.
     private func runAsAdmin(_ scriptPath: String) throws {
         let asEscaped = scriptPath
             .replacingOccurrences(of: "\\", with: "\\\\")

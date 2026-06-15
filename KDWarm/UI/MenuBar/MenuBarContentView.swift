@@ -2,9 +2,7 @@ import SwiftUI
 import AppKit
 import KDWarmKit
 
-/// Menu-bar dropdown (design-guidelines §5.2, wireframe `menubar-dropdown`).
-/// Header with global Start all / Stop all · live service rows (bound to `ServiceManager`) ·
-/// footer actions. Quitting the app leaves launchd-managed services running.
+
 struct MenuBarContentView: View {
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var server: LocalServerController
@@ -66,8 +64,7 @@ struct MenuBarContentView: View {
         }
     }
 
-    /// A live service row bound to the `ServiceManager` snapshot. php-fpm follows the web server,
-    /// so its toggle is read-only; not-installed services are disabled.
+
     private func serviceRow(_ snapshot: ServiceSnapshot) -> some View {
         let canToggle = snapshot.kind != .phpFpm && snapshot.isInstalled
         let binding = Binding<Bool>(
@@ -118,10 +115,7 @@ struct MenuBarContentView: View {
         }
     }
 
-    /// Opening the `Settings` scene from an accessory menu-bar app is version-specific:
-    /// the legacy `showSettingsWindow:` selector was removed in macOS 14, so on 14+ we
-    /// use `SettingsLink` (with a pre-tap activation flip) and keep the selector only as
-    /// the macOS 13 fallback. Both promote to `.regular` so the window can take focus.
+
     @ViewBuilder
     private var settingsFooterItem: some View {
         if #available(macOS 14.0, *) {

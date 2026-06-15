@@ -1,10 +1,6 @@
 import SwiftUI
 import KDWarmKit
 
-/// One reusable error/remediation surface (design §5.8) shared by the Services / Sites / Runtimes
-/// views. Renders a tinted banner with an icon, a message, and an optional remediation CTA — the
-/// consolidated home for the cross-phase error states (helper-pending, CA-untrusted, port-conflict,
-/// download-failed, service-error-after-retries) so they read as guidance, not a bare red pill.
 struct ServiceErrorBanner: View {
     let status: ServiceStatus
     let title: String

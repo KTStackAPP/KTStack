@@ -2,10 +2,7 @@ import SwiftUI
 import AppKit
 import KDWarmKit
 
-/// Settings scene (design-guidelines §10): a segmented sub-nav over `Form`s. The General tab edits the
-/// persisted preferences (sites root + dev TLD); changing the TLD reconciles root DNS then prompts a
-/// relaunch. A segmented Picker (not a `TabView`) is used so the header lines up with the other
-/// dashboard sections — a `TabView` hoists its tabs into the window toolbar and hides the title.
+
 struct SettingsView: View {
     private enum SettingsTab: String, CaseIterable, Identifiable {
         case general = "General", services = "Services", tls = "TLS", advanced = "Advanced"
@@ -13,21 +10,16 @@ struct SettingsView: View {
     }
     @State private var tab: SettingsTab = .general
 
-    // Injected via init, NOT @EnvironmentObject: SwiftUI's `Settings` scene evaluates its body during
-    // app/menu setup before scene-level .environmentObject modifiers are in scope, which traps an
-    // @EnvironmentObject lookup. Init-injection (like TLSSettingsView) is reliable here.
     @ObservedObject var preferences: AppPreferences
     @ObservedObject var dns: DNSAutomationService
-    /// Read-only here — used to list the sites a TLD change would orphan. Not observed (the warning
-    /// is computed when the confirm dialog opens, not live).
+
     let server: LocalServerController
     @ObservedObject var caTrust: CATrustService
     @ObservedObject var updater: UpdaterController
     @ObservedObject var uninstaller: UninstallService
     @State private var confirmUninstall = false
 
-    /// Mirrors `preferences.tld` so the Picker shows the current value; an actual change routes
-    /// through the confirm dialog before it is applied (and is reverted on cancel/failure).
+    
     @State private var selectedTLD: String
     @State private var pendingTLD: String?
     @State private var confirmTLDChange = false
@@ -51,8 +43,7 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Same toolbar-row + Divider shape as the Sites/Services sections so the header aligns.
-            // Full-width segmented control → the 4 tabs split the row evenly and stay centered.
+
             Picker("", selection: $tab) {
                 ForEach(SettingsTab.allCases) { Text($0.rawValue).tag($0) }
             }
@@ -63,8 +54,7 @@ struct SettingsView: View {
             Divider()
             tabContent
         }
-        // No fixed frame here: the standalone Settings scene sizes it (see KDWarmApp); inside the
-        // Dashboard it fills the detail pane so its header lines up with the other sections.
+
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -78,7 +68,6 @@ struct SettingsView: View {
         }
     }
 
-    /// Distinct status glyph: done = check, failed = warning, in-progress = dotted.
     private var uninstallGlyph: String {
         switch uninstaller.state {
         case .done:        return "checkmark.circle"
@@ -161,7 +150,6 @@ struct SettingsView: View {
         }
     }
 
-    /// Sites whose domain would stop resolving after the TLD change (they keep their old domain).
     private var affectedSites: [Site] {
         server.registry.sites.filter { $0.domain.hasSuffix(".\(preferences.tld)") }
     }
@@ -203,10 +191,6 @@ struct SettingsView: View {
         }
     }
 
-    /// Relaunch the app so the registry/DNS/cert layers re-read the new TLD at init (the apply model
-    /// is relaunch-required — values bake once at launch; no live re-injection). On a launch failure
-    /// we do NOT terminate (that would leave the user with no app); DNS + the pref are already
-    /// committed, so we surface a "quit and reopen" message and the next manual launch applies it.
     private func relaunchApp() {
         let config = NSWorkspace.OpenConfiguration()
         config.createsNewApplicationInstance = true

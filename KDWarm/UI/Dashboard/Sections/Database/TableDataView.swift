@@ -1,16 +1,14 @@
 import SwiftUI
 import KDWarmKit
 
-/// Right-pane "Data" tab: the paginated row browser + row CRUD for the selected table. Shows the grid
-/// for any single-table browse (`isTableBrowse`); edit/insert/delete are enabled only when the table
-/// has a usable primary key (`canEditRows`), otherwise a one-line reason explains why it's read-only.
+
 struct TableDataView: View {
     @EnvironmentObject private var vm: DatabaseViewModel
     @State private var selectedRow: Int?
     @State private var editor: EditorMode?
     @State private var pendingDelete: Int?
 
-    /// Identifiable sheet target: add a new row, or edit the row at this page index.
+    
     enum EditorMode: Identifiable {
         case insert
         case edit(Int)

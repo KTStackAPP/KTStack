@@ -1,8 +1,6 @@
 import SwiftUI
 import KDWarmKit
 
-/// Mail catcher (design Open-Q#3 → embedded viewer): a master list of caught messages (live-polled
-/// from Mailpit) beside the embedded `MailMessageView`. When Mailpit is off, shows a start prompt.
 struct MailSectionView: View {
     @EnvironmentObject private var mail: MailStore
     @EnvironmentObject private var services: ServiceManager
@@ -66,7 +64,7 @@ struct MailSectionView: View {
     }
 }
 
-/// One row in the message list: unread dot · from · subject · relative date (+ attachment hint).
+
 private struct MailRow: View {
     let summary: MailSummary
 

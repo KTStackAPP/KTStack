@@ -1,11 +1,7 @@
 import SwiftUI
 import KDWarmKit
 
-/// Sheet for inserting or editing one row (chosen over fiddly inline NSTableView editing for v1).
-/// One field per column from the browsed table; nullable columns get a NULL toggle so a SQL NULL is
-/// distinct from an empty string. In edit mode the primary-key columns are shown read-only — they
-/// form the WHERE key and aren't part of the SET. Values bind as text; the server coerces them into
-/// each column's declared type.
+
 struct RowEditorView: View {
     @EnvironmentObject private var vm: DatabaseViewModel
     @Environment(\.dismiss) private var dismiss
@@ -78,7 +74,7 @@ struct RowEditorView: View {
         fields = initial
     }
 
-    /// The cells of the row being edited (positional), or nil for insert.
+
     private var currentRowCells: [Cell]? {
         guard case .edit(let rowIndex) = mode,
               let result = vm.result, rowIndex < result.rows.count else { return nil }
@@ -102,9 +98,7 @@ struct RowEditorView: View {
         }
     }
 
-    /// Translate the editor fields into column values. In edit mode the PK columns are excluded (they
-    /// key the row, not the SET). On insert, a blank, non-NULL field for a column with a default /
-    /// auto-increment is omitted so the server supplies the value.
+  
     private func buildValues() -> [ColumnValue] {
         var out: [ColumnValue] = []
         for column in vm.currentColumns {
@@ -123,7 +117,7 @@ struct RowEditorView: View {
 }
 
 private extension Array {
-    /// Bounds-checked subscript so a positional row/column mismatch yields nil instead of trapping.
+
     subscript(safe index: Int) -> Element? {
         indices.contains(index) ? self[index] : nil
     }

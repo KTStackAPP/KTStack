@@ -1,8 +1,6 @@
 import SwiftUI
 import KDWarmKit
 
-/// About tab (Settings §): app identity + author credit. Read-only; the author link opens in the
-/// default browser. Version is read from the bundle so it tracks the build, not a hardcoded string.
 struct AboutSettingsView: View {
     private var version: String {
         let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
@@ -27,7 +25,7 @@ struct AboutSettingsView: View {
             }
 
             Section("Author") {
-                LabeledContent("Tác giả", value: "Nguyên Khôi")
+                LabeledContent("Tác giả", value: "Minh Trang")
                 HStack {
                     Text("Website")
                     Spacer()
@@ -37,7 +35,7 @@ struct AboutSettingsView: View {
             }
 
             Section {
-                Text("© 2026 Nguyên Khôi · nguyenkhoi.dev")
+                Text("© 2026 Minh Trang · nguyenkhoi.dev")
                     .font(KDFont.footnote).foregroundStyle(.secondary)
             }
         }

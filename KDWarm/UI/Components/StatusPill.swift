@@ -1,9 +1,7 @@
 import SwiftUI
 import KDWarmKit
 
-/// Capsule status pill (design-guidelines §5.4): tinted background at ~15% of the
-/// status color + full-strength symbol/text. Always pairs color with a symbol so it
-/// reads color-blind safe, and exposes an independent accessibility label.
+
 struct StatusPill: View {
     private let status: ServiceStatus
     private let text: String?

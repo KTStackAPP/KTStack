@@ -1,15 +1,11 @@
 import SwiftUI
 import KDWarmKit
 
-/// Add/edit form for an external MySQL connection. Writes the profile to `ConnectionStore` and the
-/// password to the Keychain (never the JSON store). New connections default to read-only ON and
-/// `verify-full` TLS — the safe posture for a remote/prod database; the user lowers either explicitly.
-/// "Test Connection" opens a real `ping`, so it fails closed when TLS is unavailable on a verified host.
+
 struct AddConnectionSheet: View {
     @EnvironmentObject private var store: ConnectionStore
     @Environment(\.dismiss) private var dismiss
 
-    /// The profile being edited, or nil to add a new one.
     let editing: ConnectionProfile?
 
     @State private var name = ""
@@ -85,7 +81,6 @@ struct AddConnectionSheet: View {
         }
     }
 
-    /// Host, user, and an in-range numeric port are the minimum to form a connection.
     private var isValid: Bool {
         !host.trimmingCharacters(in: .whitespaces).isEmpty
             && !user.trimmingCharacters(in: .whitespaces).isEmpty
@@ -99,7 +94,6 @@ struct AddConnectionSheet: View {
         tlsMode = e.tlsMode; readOnly = e.readOnly   // password intentionally left blank
     }
 
-    /// Build a profile from the form, preserving the id when editing so the update matches in place.
     private func buildProfile() -> ConnectionProfile? {
         let trimmedHost = host.trimmingCharacters(in: .whitespaces)
         guard isValid, let portNum = Int(port) else { return nil }
@@ -115,17 +109,14 @@ struct AddConnectionSheet: View {
             readOnly: readOnly)
     }
 
-    /// The password to connect with: the typed value, or — when editing with the field left blank —
-    /// the secret already saved for this profile, so Test Connection validates the real credentials
-    /// rather than an empty password the saved connection never used.
+
     private var effectivePassword: String? {
         if !password.isEmpty { return password }
         guard let editing else { return nil }
         return try? KeychainStore().get(account: editing.id.uuidString)
     }
 
-    /// Open a real connection with the form's settings. Fails closed when TLS is unavailable on a
-    /// verified host (the driver's `verify-full`/`require` modes keep cert verification on).
+
     private func runTest() {
         guard let profile = buildProfile() else { return }
         let pwd = effectivePassword

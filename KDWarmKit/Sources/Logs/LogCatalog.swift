@@ -1,6 +1,5 @@
 import Foundation
 
-/// A tailable log source for the Logs viewer — a service log or a per-site nginx log.
 public struct LogSource: Identifiable, Sendable, Hashable {
     public enum Kind: String, Sendable { case service, site }
     public let id: String
@@ -9,10 +8,6 @@ public struct LogSource: Identifiable, Sendable, Hashable {
     public let url: URL
 }
 
-/// Enumerates the tailable log files from the canonical app-support layout. Core sources
-/// (nginx, active php-fpm pools) are always listed; database/Mailpit and per-site logs appear once
-/// their file exists (i.e. the service/site has run). The tail reader tolerates a not-yet-created
-/// file, so listing a core source before its first write is fine.
 public struct LogCatalog: Sendable {
     private let paths: AppSupportPaths
     public init(paths: AppSupportPaths) { self.paths = paths }

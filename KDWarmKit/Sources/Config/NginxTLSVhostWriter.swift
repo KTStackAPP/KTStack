@@ -1,17 +1,12 @@
 import Foundation
 
-/// Renders the HTTPS server block (`0.0.0.0:443 ssl`) for a secured site plus an `:80 → :443`
-/// redirect. Same bind rule as Phase 2: the listener is the WILDCARD `0.0.0.0`, never a loopback
-/// `127.0.0.1:443` (which needs root). Cert material comes from mkcert (`config/certs/<name>/`).
-///
-/// The PHP `location` body intentionally mirrors `NginxConfigWriter.vhost` — kept here rather than
-/// shared to avoid refactoring that already-tested writer; the fastcgi params are identical.
+
 public struct NginxTLSVhostWriter {
-    public static let listenAddress = NginxConfigWriter.listenAddress  // "0.0.0.0"
+    public static let listenAddress = NginxConfigWriter.listenAddress
 
     public init() {}
 
-    /// HTTPS server for a site. `phpFpmSocket == nil` → static `try_files` (no fastcgi).
+ 
     public func secureVhost(domain: String, root: URL, certFile: URL, keyFile: URL,
                             phpFpmSocket: URL?, accessLog: URL? = nil, errorLog: URL? = nil) -> String {
         let routing = phpFpmSocket.map { phpRouting(socket: $0) } ?? staticRouting()
@@ -34,7 +29,7 @@ public struct NginxTLSVhostWriter {
         """
     }
 
-    /// Plain-http server that redirects everything to https (for a secured site).
+
     public func redirectVhost(domain: String) -> String {
         """
         server {

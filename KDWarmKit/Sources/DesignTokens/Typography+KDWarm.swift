@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Type tokens (design-guidelines §2). System fonts only — SF Pro for UI, SF Mono
-/// for domains / paths / versions / logs. Do not bundle web fonts.
 public enum KDFont {
     public static let title: Font = .title2.weight(.semibold)
     public static let headline: Font = .headline

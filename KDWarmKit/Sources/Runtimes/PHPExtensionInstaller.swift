@@ -1,14 +1,10 @@
 import Foundation
 
-/// Install/uninstall lifecycle for the optional shared-extension layer. Loading is driven by
-/// `PHP_INI_SCAN_DIR` (set on the php-fpm spec) + a low-numbered `extension_dir` ini, NOT pool
-/// `php_admin_value` (modules load at MINIT, before pool values apply). The per-version `php.ini` is
-/// untouched. The CALLER restarts the pool after install/uninstall — a `dlopen`'d `.so` stays loaded
-/// until the master restarts, so a reload is insufficient to load or unload one.
+
 public struct PHPExtensionInstaller: Sendable {
     public enum InstallResult: Sendable, Equatable {
         case installed
-        /// `.so` placed + ini written, but `php` did not load it (ABI/signature) — surface, don't hide.
+       
         case installedButFailedToLoad(warning: String?)
     }
 
@@ -31,8 +27,7 @@ public struct PHPExtensionInstaller: Sendable {
 
     // MARK: - Ini generation
 
-    /// The scan-dir ini body for an extension. A plain module resolves `<ext>.so` via `extension_dir`;
-    /// a Zend extension MUST be referenced by an ABSOLUTE path (`extension_dir` does not apply to it).
+   
     public func iniContent(forExtID extID: String, phpVersion: String) -> String {
         let directive = PHPExtensionCatalog.descriptor(extID)?.loadDirective ?? .module
         switch directive {
@@ -44,18 +39,16 @@ public struct PHPExtensionInstaller: Sendable {
         }
     }
 
-    /// `conf.d/20-<ext>.ini` — the per-extension load directive (20- so it loads after the 00- dir ini).
     public func extensionIniURL(extID: String, phpVersion: String) -> URL {
         paths.phpExtConfDir(version: phpVersion).appendingPathComponent("20-\(extID).ini")
     }
-    /// `conf.d/00-extension-dir.ini` — sets `extension_dir`, loaded before any `20-<ext>.ini`.
+   
     public func extensionDirIniURL(phpVersion: String) -> URL {
         paths.phpExtConfDir(version: phpVersion).appendingPathComponent("00-extension-dir.ini")
     }
 
     // MARK: - File operations
 
-    /// Write the shared `extension_dir` ini pointing at this version's modules dir.
     public func writeExtensionDirIni(phpVersion: String) throws {
         let dir = paths.phpExtConfDir(version: phpVersion)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true,
@@ -64,9 +57,6 @@ public struct PHPExtensionInstaller: Sendable {
         try body.write(to: extensionDirIniURL(phpVersion: phpVersion), atomically: true, encoding: .utf8)
     }
 
-    /// Copy a local `.so` into the version's modules dir, replacing ONLY that ext's file — sibling
-    /// extensions are left intact (red-team C1). Used for a local mirror / tests; the network path
-    /// uses `RuntimeDownloader.installSharedObject`, which applies the same no-sibling-wipe rule.
     public func placeSharedObject(from local: URL, extID: String, phpVersion: String) throws {
         let modules = paths.phpModulesDir(version: phpVersion)
         try FileManager.default.createDirectory(at: modules, withIntermediateDirectories: true,
@@ -76,7 +66,7 @@ public struct PHPExtensionInstaller: Sendable {
         try FileManager.default.copyItem(at: local, to: dest)
     }
 
-    /// Write the extension-dir ini + the per-extension ini (the `.so` must already be placed).
+    
     public func finishInstall(extID: String, phpVersion: String) throws {
         try writeExtensionDirIni(phpVersion: phpVersion)
         try iniContent(forExtID: extID, phpVersion: phpVersion)
@@ -85,8 +75,6 @@ public struct PHPExtensionInstaller: Sendable {
 
     // MARK: - Lifecycle
 
-    /// Download + verify + place the `.so`, write the inis, then verify it actually loads. The caller
-    /// RESTARTS the pool afterwards so the running master picks it up.
     @discardableResult
     public func install(_ extID: String, phpVersion: String,
                         onProgress: @escaping @Sendable (RuntimeDownloader.Progress) -> Void = { _ in })
@@ -104,7 +92,7 @@ public struct PHPExtensionInstaller: Sendable {
         return loaded ? .installed : .installedButFailedToLoad(warning: warning)
     }
 
-    /// Remove the ext's ini + `.so`. The caller RESTARTS the pool to actually unload it (reload won't).
+  
     public func uninstall(_ extID: String, phpVersion: String) throws {
         let fm = FileManager.default
         for url in [extensionIniURL(extID: extID, phpVersion: phpVersion), soURL(extID, phpVersion)]
@@ -116,9 +104,6 @@ public struct PHPExtensionInstaller: Sendable {
 
     // MARK: - Load verification (silent-fail detection, red-team H2)
 
-    /// Run `php -d extension_dir=… -d (zend_)extension=<so> -m`, capturing stderr. Returns whether the
-    /// module loaded (present in `php -m`, exit 0) plus any startup Warning text — so a `.so` that
-    /// dlopens-but-fails (ABI/signature) is reported, not silently treated as "not installed".
     public func verifyLoad(extID: String, phpVersion: String) -> (loaded: Bool, warning: String?) {
         let php = paths.phpBinary(version: phpVersion)
         guard FileManager.default.isExecutableFile(atPath: php.path) else { return (false, nil) }
@@ -142,15 +127,11 @@ public struct PHPExtensionInstaller: Sendable {
         let errText = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
         proc.waitUntilExit()
 
-        // Loaded only if `php -m` lists the module as its OWN line — a startup Warning that merely
-        // mentions "<ext>.so" must not count as loaded (exact line match, not substring).
+      
         let modulesList = outText.split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
         let loaded = proc.terminationStatus == 0 && modulesList.contains(extID.lowercased())
-        // PHP routes the "Unable to load dynamic library" startup warning to stdout OR stderr depending
-        // on ini — scan both so a silent load failure is always surfaced.
-        // "Unable to load dynamic library" (extension=) and "Failed loading … Zend extension"
-        // (zend_extension=) are the two startup-failure signatures to surface.
+      
         let warning = (errText + "\n" + outText).split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .first { $0.range(of: "Unable to load", options: .caseInsensitive) != nil

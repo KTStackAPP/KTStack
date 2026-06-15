@@ -2,8 +2,7 @@ import SwiftUI
 import AppKit
 import KDWarmKit
 
-/// One site row (design-guidelines §5.5): type icon · name · editable domain (mono) · PHP
-/// version pill · Open · overflow menu. The secure toggle is a disabled placeholder (Phase 5).
+
 struct SiteRowView: View {
     let site: Site
     let availableVersions: [String]

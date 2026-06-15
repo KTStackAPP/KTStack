@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Service / site lifecycle state. Each state carries its own color + SF Symbol so
-/// callers never rely on color alone (design-guidelines §3.2, §9 — WCAG 1.4.1).
 public enum ServiceStatus: String, CaseIterable, Sendable {
     case running, stopped, starting, warning, error, info
 
@@ -39,12 +37,10 @@ public enum ServiceStatus: String, CaseIterable, Sendable {
     }
 }
 
-/// How a registered folder is served. A static or Node site must NOT be routed through
-/// PHP-FPM (that yields 502/blank), so the type drives which vhost template is generated.
 public enum SiteType: String, Codable, CaseIterable, Sendable {
-    case php            // has index.php / PHP framework layout → fastcgi to a version socket
-    case staticSite     // plain HTML/static assets → try_files, no fastcgi
-    case node           // package.json present → served static for now (proxy_pass: Phase 7)
+    case php
+    case staticSite
+    case node
 
     public var label: String {
         switch self {
@@ -62,17 +58,15 @@ public enum SiteType: String, Codable, CaseIterable, Sendable {
     }
 }
 
-/// A manually-registered site (Valet-`link`-style) served at `<domain>` (default
-/// `<dirname>.test`). The registry persists these to `config/sites/sites.json`.
 public struct Site: Identifiable, Hashable, Codable, Sendable {
     public let id: UUID
-    public var name: String        // registered folder's display name (dir name)
-    public var path: String        // the registered folder (absolute)
-    public var docroot: String     // resolved document root served by nginx (absolute)
-    public var domain: String      // editable; must end in a wildcarded TLD (.test in MVP)
-    public var phpVersion: String  // one of the bundled versions, e.g. "8.4"
+    public var name: String
+    public var path: String
+    public var docroot: String
+    public var domain: String
+    public var phpVersion: String
     public var type: SiteType
-    public var secure: Bool        // HTTPS — placeholder until Phase 5
+    public var secure: Bool    
 
     public init(id: UUID = UUID(),
                 name: String,

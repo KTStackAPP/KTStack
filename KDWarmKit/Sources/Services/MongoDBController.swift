@@ -1,16 +1,10 @@
 import Foundation
 
-/// Supervises an on-demand-installed `mongod` as a user LaunchAgent that persists across app quit.
-/// Config is passed entirely via CLI args (no YAML config file — avoids the path-quoting failure
-/// class) and the server binds loopback only: a dev-insecure, no-auth, 127.0.0.1-only default,
-/// consistent with the MySQL/Redis controllers. Data lives under app-support; mongod runs in the
-/// foreground (no `--fork`) so launchd owns the process.
 public final class MongoDBController: ManagedService, @unchecked Sendable {
     public let kind = ServiceKind.mongodb
     public var detail: String { ":27017" }
     public var logsURL: URL? { paths.serviceLog("mongodb") }
-    /// Derived from the SAME resolved binary `start()` will launch, so a wrong path can't report
-    /// "installed" yet fail to start.
+
     public var isInstalled: Bool {
         guard let binary else { return false }
         return FileManager.default.isExecutableFile(atPath: binary.path)
@@ -19,7 +13,7 @@ public final class MongoDBController: ManagedService, @unchecked Sendable {
     private let paths: AppSupportPaths
     private let runner: LaunchdServiceRunner
     private let catalog: ServiceBinaryCatalog
-    /// Resolved from the on-demand install location (`runtimes/mongodb/7.0/bin/mongod`).
+    
     private var binary: URL? { catalog.binary(.mongodb, "bin/mongod") }
 
     public init(paths: AppSupportPaths, agents: LaunchAgentManager) {
@@ -45,8 +39,6 @@ public final class MongoDBController: ManagedService, @unchecked Sendable {
     }
     public func probe() async -> ServiceStatus { isInstalled ? await runner.probe() : .stopped }
 
-    /// Launch arguments for mongod. Loopback-only bind is a hard security invariant (covered by a
-    /// unit test); no auth is enabled this round (service-only scope).
     func mongoArgs(binary: URL) -> [String] {
         [binary.path,
          "--dbpath", paths.serviceData("mongodb").path,

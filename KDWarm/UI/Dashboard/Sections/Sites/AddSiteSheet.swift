@@ -2,13 +2,10 @@ import SwiftUI
 import AppKit
 import KDWarmKit
 
-/// "Add Site" sheet: choose a folder (defaults to the configured sites root), confirm the editable
-/// domain (default `<dirname>.<tld>`, TLD-validated) and PHP version, then register it. Sites may live
-/// anywhere — the managed root is only the picker's starting point, not a containment requirement.
 struct AddSiteSheet: View {
     @ObservedObject var registry: SiteRegistry
     let availableVersions: [String]
-    /// The managed sites root (`AppPreferences.sitesRootURL`) the folder picker opens at.
+
     let sitesRoot: URL
     @Environment(\.dismiss) private var dismiss
 
@@ -66,8 +63,7 @@ struct AddSiteSheet: View {
     }
 
     private func chooseFolder() {
-        // Create the managed root on first use so the picker actually opens there (NSOpenPanel falls
-        // back to a default dir if directoryURL doesn't exist). Best-effort: 0700, owner-only.
+
         try? FileManager.default.createDirectory(at: sitesRoot, withIntermediateDirectories: true,
                                                  attributes: [.posixPermissions: 0o700])
         let panel = NSOpenPanel()

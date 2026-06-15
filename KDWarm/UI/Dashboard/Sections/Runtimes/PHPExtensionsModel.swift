@@ -1,11 +1,6 @@
 import Foundation
 import KDWarmKit
 
-/// View-model for one PHP version's extension manager sheet. Publishes a row per catalog extension
-/// (built-in status-only + optional install/uninstall) with live `php -m` status, and drives the
-/// install/uninstall lifecycle: `PHPExtensionInstaller` → restart that version's php-fpm pool (a
-/// `dlopen`'d `.so` only (un)loads on a master restart) → re-probe status. Transient per-extension
-/// busy/progress/error are kept SEPARATE from the rows so a status refresh never clobbers them.
 @MainActor
 final class PHPExtensionsModel: ObservableObject {
     struct Row: Identifiable {
@@ -31,13 +26,10 @@ final class PHPExtensionsModel: ObservableObject {
         self.catalog = PHPExtensionCatalog(paths: paths)
     }
 
-    /// Rebuild rows from live status. `status(...)` runs `php -m`, so resolve off the main thread; the
-    /// optional set sorts first (actionable), built-ins after (status-only), each alphabetical.
     func refresh() async {
         let catalog = self.catalog
         let version = self.version
-        // One scan-dir `php -m` probe for the whole sheet (not per ext), plus per-ext on-disk checks,
-        // resolved off-main; status itself is then pure.
+
         let (installed, onDisk): (Set<String>, [String: Bool]) = await Task.detached(priority: .utility) {
             let installed = catalog.installedExtensions(version)
             var onDisk: [String: Bool] = [:]
@@ -65,8 +57,7 @@ final class PHPExtensionsModel: ObservableObject {
             try await reloadPool(version)
             PHPModules.invalidate(version: version)
             await refresh()
-            // A `.so` that lands on disk but fails to load shows up as `.installedButFailedToLoad` in
-            // the refreshed status; surface the captured Warning so it isn't a silent half-install.
+           
             if case .installedButFailedToLoad(let warning) = result {
                 errors[extID] = warning ?? "Installed but the extension failed to load."
             }

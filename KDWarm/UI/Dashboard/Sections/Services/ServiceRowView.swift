@@ -1,25 +1,21 @@
 import SwiftUI
 import KDWarmKit
 
-/// One service row in the Services list (design §5.5): SF Symbol · name · secondary detail ·
-/// status pill · toggle (or spinner mid-transition, §5.3) · overflow menu (Restart, Logs).
-/// A not-installed service shows a neutral pill + a disabled toggle; the section banner explains why.
 struct ServiceRowView: View {
     let snapshot: ServiceSnapshot
-    /// php-fpm follows the web server (pools auto-reconcile to site needs) → its toggle is read-only.
+
     let canToggle: Bool
     let onToggle: () -> Void
     let onRestart: () -> Void
     let onOpenLogs: () -> Void
     var onInstall: () -> Void = {}
     var onCancelInstall: () -> Void = {}
-    /// Destroy the service's on-disk data (unclean-shutdown recovery). Only surfaced for engines that
-    /// can wedge on a stale lock (MongoDB today).
+
     var onResetData: () -> Void = {}
 
     @State private var showResetConfirm = false
 
-    /// A crash-looping datastore that a data reset can recover (stale lock after unclean shutdown).
+   
     private var canResetData: Bool { snapshot.kind == .mongodb && snapshot.status == .error }
 
     var body: some View {
@@ -54,8 +50,7 @@ struct ServiceRowView: View {
         }
     }
 
-    /// Right-edge control: download progress, an Install button (on-demand engine), a transition
-    /// spinner, or the on/off toggle.
+
     @ViewBuilder
     private var trailingControl: some View {
         if let fraction = snapshot.downloadFraction {
@@ -112,7 +107,7 @@ struct ServiceRowView: View {
 }
 
 private extension ServiceKind {
-    /// Short, stable secondary line under the service name.
+
     var subtitle: String {
         switch self {
         case .nginx:    return "Reverse proxy · HTTP/HTTPS"

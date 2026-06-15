@@ -1,13 +1,7 @@
 import Foundation
 import Combine
 
-/// App-side DNS automation. When a signing identity exists (Phase 9) it drives the privileged
-/// helper over XPC; otherwise it uses the `sudo` fallback — so `.test` DNS works either way.
-/// Status is derived from the filesystem (resolver file + `:53` ownership), so the UI reflects
-/// reality without the helper being approved.
-///
-/// NOTE: on the current dev/ad-hoc build `usesHelper` is false, so the XPC branch never runs — the
-/// fallback is the live path. The helper branch is wired (not dead) and goes live in Phase 9.
+
 @MainActor
 public final class DNSAutomationService: ObservableObject {
     public enum Status: Equatable, Sendable {
@@ -21,13 +15,10 @@ public final class DNSAutomationService: ObservableObject {
     @Published public private(set) var isBusy = false
     @Published public private(set) var lastError: String?
 
-    /// True once the build can use the live SMAppService helper (Phase 9); false on dev → fallback.
+   
     public let usesHelper = HelperIdentity.hasSigningIdentity
 
-    /// The live dev TLD (configurable, Phase 5), injected from `AppPreferences` at launch and baked
-    /// for this service's lifetime — every resolver path + DNS op is keyed by it. A TLD CHANGE goes
-    /// through `changeTLD(to:)` (old→new reconcile) and then requires an app relaunch so this and the
-    /// site registry pick up the new value at init.
+
     public let tld: String
 
     nonisolated private let fallback: SudoFallbackInstaller
@@ -42,7 +33,7 @@ public final class DNSAutomationService: ObservableObject {
 
     private enum Op { case enable, disable, reset }
 
-    /// Recompute status from the live system state.
+
     public func refresh() {
         if let conflict = port53.check() { status = .conflict(conflict.process); return }
         status = FileManager.default.fileExists(atPath: DNSConstants.resolverPath(for: tld)) ? .enabled : .disabled
@@ -52,14 +43,10 @@ public final class DNSAutomationService: ObservableObject {
 
     public func enable() { perform(.enable) }
     public func disable() { perform(.disable) }
-    /// Reconcile a stale/hijacked state — one root invocation (single admin prompt).
+
     public func reset() { perform(.reset) }
 
-    /// Change the dev TLD from the current `tld` to `newTLD` in ONE privileged op (removes the old
-    /// resolver, writes the new, rewrites the dnsmasq wildcard, restarts, flushes the cache). On the
-    /// signed build this is a single XPC call; on dev it is a single admin prompt. The caller (Settings)
-    /// persists the pref + prompts a relaunch ONLY on success — DNS is reconciled before the prefs flip
-    /// so a cancelled prompt leaves the old TLD fully working. No-ops when `newTLD == tld`.
+
     public func changeTLD(to newTLD: String, completion: @escaping @MainActor (Result<Void, Error>) -> Void) {
         guard !isBusy else {
             completion(.failure(NSError(domain: "KDWarm", code: -3,
@@ -127,7 +114,7 @@ public final class DNSAutomationService: ObservableObject {
         }
     }
 
-    /// Live XPC path (Phase 9). Bridges the callback-based helper reply into async, resuming once.
+
     nonisolated private static func viaHelper(_ helper: HelperConnection, _ op: Op, tld: String) async throws {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             let guard1 = ResumeOnce(cont)
@@ -149,7 +136,7 @@ public final class DNSAutomationService: ObservableObject {
         }
     }
 
-    /// XPC `setTLD` (old→new) bridged into async, resuming once.
+
     nonisolated private static func viaHelperSetTLD(_ helper: HelperConnection, old: String, new: String) async throws {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             let guard1 = ResumeOnce(cont)
@@ -166,8 +153,7 @@ public final class DNSAutomationService: ObservableObject {
         }
     }
 
-    /// Guards a CheckedContinuation against the double-resume that an XPC error-handler + reply can
-    /// otherwise cause (which would crash).
+
     private final class ResumeOnce: @unchecked Sendable {
         private let cont: CheckedContinuation<Void, Error>
         private let lock = NSLock()

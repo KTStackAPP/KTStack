@@ -1,11 +1,9 @@
 import SwiftUI
 import KDWarmKit
 
-/// Sites dashboard: the list of registered sites + Add/Remove + the DNS automation bar
-/// (replaces the Phase 2/3 manual `/etc/hosts` note). Observes the server (status), the registry
-/// (site list) and the DNS service so it re-renders on any change.
+
 struct SitesSectionView: View {
-    /// Opens the Logs view filtered to a site's log (set by a row's "Logs" action).
+    
     var onOpenLogs: (String?) -> Void = { _ in }
 
     @EnvironmentObject private var server: LocalServerController

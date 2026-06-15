@@ -1,8 +1,7 @@
 import SwiftUI
 import KDWarmKit
 
-/// Compact DNS automation bar shown under the Sites list. Replaces the manual `/etc/hosts` note:
-/// one click enables `*.test` resolution (via the helper when signed, else the sudo fallback).
+
 struct DNSStatusBar: View {
     @ObservedObject var dns: DNSAutomationService
 
@@ -61,8 +60,7 @@ struct DNSStatusBar: View {
     }
 }
 
-/// First-run helper-approval explainer. Shown when the build uses the SMAppService helper
-/// (signed releases). On the dev build it falls back to the sudo path, so this is informational.
+
 struct HelperApprovalView: View {
     @ObservedObject var dns: DNSAutomationService
     @Environment(\.dismiss) private var dismiss

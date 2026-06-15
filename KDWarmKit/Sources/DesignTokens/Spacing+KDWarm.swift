@@ -1,6 +1,5 @@
 import CoreGraphics
 
-/// 8-pt soft grid (allow 4 for tight control padding) — design-guidelines §4.
 public enum KDSpacing {
     public static let space1: CGFloat = 4   // icon↔label gap, pill inset
     public static let space2: CGFloat = 8   // control padding, intra-row gap
@@ -10,7 +9,6 @@ public enum KDSpacing {
     public static let space6: CGFloat = 24  // major section / view padding
 }
 
-/// Corner radii — design-guidelines §4.
 public enum KDRadius {
     public static let control: CGFloat = 6
     public static let card: CGFloat = 10

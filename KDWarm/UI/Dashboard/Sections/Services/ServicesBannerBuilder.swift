@@ -1,8 +1,7 @@
 import SwiftUI
 import KDWarmKit
 
-/// A single banner descriptor for the Services view. Identity is the stable `id` (closures aren't
-/// Equatable), so SwiftUI can diff the list across refreshes.
+
 struct ServiceBanner: Identifiable {
     let id: String
     let status: ServiceStatus
@@ -12,9 +11,6 @@ struct ServiceBanner: Identifiable {
     var action: (() -> Void)? = nil
 }
 
-/// Builds the consolidated error/remediation banners from live state. This is the one place the
-/// cross-phase error surfaces are assembled (port-conflict, CA-untrusted, dns/helper, not-installed,
-/// service-error-after-retries) so each renders as guidance + a CTA, reused via `ServiceErrorBanner`.
 enum ServicesBannerBuilder {
     @MainActor
     static func banners(snapshots: [ServiceSnapshot],
@@ -27,7 +23,7 @@ enum ServicesBannerBuilder {
                         onRestart: @escaping (ServiceKind) -> Void) -> [ServiceBanner] {
         var result: [ServiceBanner] = []
 
-        // Port / DNS conflict — a foreign process holds :53 (Herd/Valet). Remediation: reset DNS.
+        
         if case .conflict(let proc) = dns.status {
             result.append(ServiceBanner(
                 id: "dns-conflict", status: .error,
@@ -35,7 +31,7 @@ enum ServicesBannerBuilder {
                 message: "“\(proc)” is holding port 53, so `.test` resolution is blocked. Reset DNS to take it over.",
                 ctaTitle: "Reset DNS", action: onResetDNS))
         } else if dns.status == .disabled {
-            // helper/DNS pending — `.test` won't resolve until DNS is enabled (helper or sudo fallback).
+            
             result.append(ServiceBanner(
                 id: "dns-off", status: .warning,
                 title: "`.test` DNS is off",
@@ -43,7 +39,7 @@ enum ServicesBannerBuilder {
                 ctaTitle: "Enable DNS", action: onEnableDNS))
         }
 
-        // CA-untrusted (Phase 5) — HTTPS shows a warning until the local CA is trusted.
+     
         if caExists && !caTrusted {
             result.append(ServiceBanner(
                 id: "ca-untrusted", status: .warning,
@@ -52,7 +48,7 @@ enum ServicesBannerBuilder {
                 ctaTitle: "Open TLS Settings", action: onOpenTLSSettings))
         }
 
-        // A service that exhausted its restart retries — needs a manual restart.
+        
         for snap in snapshots where snap.status == .error {
             result.append(ServiceBanner(
                 id: "error-\(snap.kind.rawValue)", status: .error,
@@ -61,9 +57,7 @@ enum ServicesBannerBuilder {
                 ctaTitle: "Restart", action: { onRestart(snap.kind) }))
         }
 
-        // Only services that are neither installed NOR installable are truly unavailable (e.g. MySQL
-        // has no published build yet). Installable engines (Redis/Postgres) get their own per-row
-        // Install button, so they don't need a banner.
+
         let unavailable = snapshots.filter { !$0.isInstalled && !$0.installable }.map(\.displayName)
         if !unavailable.isEmpty {
             result.append(ServiceBanner(

@@ -1,16 +1,9 @@
 import Foundation
 import Combine
 
-/// Single aggregation point for the Services view and the menu bar. Publishes one `ServiceSnapshot`
-/// per `ServiceKind`, refreshed by a sub-second health poll (design §1.2). It is a CONTROLLER over
-/// launchd jobs (and the DNS helper) — it never parents the processes, so services persist across
-/// app quit and this just reflects/derives their live state.
-///
-/// nginx + php-fpm are owned by `LocalServerController` (their lifecycle is driven by the site
-/// registry), so this delegates those two to it; the databases, Mailpit and dnsmasq are owned here.
 @MainActor
 public final class ServiceManager: ObservableObject {
-    /// Fixed display order (design §5.2 / wireframe).
+   
     public static let order: [ServiceKind] = [.nginx, .phpFpm, .dnsmasq, .mysql, .postgres, .redis, .mongodb, .mailpit]
 
     @Published public private(set) var snapshots: [ServiceSnapshot] = []
@@ -19,12 +12,12 @@ public final class ServiceManager: ObservableObject {
     private let dns: DNSAutomationService
     private let paths: AppSupportPaths
     private let agents: LaunchAgentManager
-    /// Independently-supervised services (databases, Mailpit, dnsmasq-proxy). nginx/php-fpm excluded.
+    
     private let services: [ServiceKind: ManagedService]
     private let restart = RestartPolicy()
     private var busy: Set<ServiceKind> = []
     private var pollTask: Task<Void, Never>?
-    /// On-demand DB engine install: catalog + downloader + per-kind progress/error/task.
+   
     private let catalog: ServiceBinaryCatalog
     private let downloader: RuntimeDownloader
     private var downloadFraction: [ServiceKind: Double] = [:]
@@ -51,11 +44,7 @@ public final class ServiceManager: ObservableObject {
         ]
         snapshots = Self.order.map { ServiceSnapshot(kind: $0, status: .stopped, detail: "", isInstalled: true) }
 
-        // nginx/php/dns status changes are driven by their own controllers (a toggle flips them
-        // synchronously). Mirror those into the published snapshots IMMEDIATELY instead of waiting up
-        // to one ~0.9s poll cycle — otherwise a Start/Stop tap looks unresponsive until the next poll
-        // (the reported "have to switch tabs and back" lag). `receive(on:)` defers the read until after
-        // the controller's @Published value has committed (objectWillChange fires pre-change).
+      
         server.objectWillChange
             .merge(with: dns.objectWillChange)
             .receive(on: DispatchQueue.main)
@@ -63,9 +52,6 @@ public final class ServiceManager: ObservableObject {
             .store(in: &cancellables)
     }
 
-    /// Refresh just the controller-owned rows (nginx/php-fpm web slice + dnsmasq) from their live
-    /// state — cheap, no network probe — so a toggle reflects instantly. The poll still owns the
-    /// DB/Mailpit rows and re-derives everything authoritatively each cycle.
     private func syncControllerSnapshots() {
         guard !snapshots.isEmpty else { return }
         replaceSnapshot(webSnapshot(.nginx, status: server.nginxStatus,
@@ -79,7 +65,7 @@ public final class ServiceManager: ObservableObject {
         }
     }
 
-    /// Begin the health poll. Safe to call once (idempotent).
+   
     public func startPolling(interval: TimeInterval = 0.9) {
         guard pollTask == nil else { return }
         pollTask = Task { [weak self] in
@@ -94,8 +80,7 @@ public final class ServiceManager: ObservableObject {
 
     // MARK: - Actions
 
-    /// Toggle a single service. nginx/php-fpm drive the whole web slice via the server controller;
-    /// the rest start/stop their own launchd job (or, for dnsmasq, the helper-owned DNS job).
+
     public func toggle(_ kind: ServiceKind) {
         let running = snapshot(kind)?.status == .running
         switch kind {
@@ -107,8 +92,6 @@ public final class ServiceManager: ObservableObject {
         }
     }
 
-    /// Restart a single service (overflow menu / error-banner CTA). nginx/php-fpm restart the web
-    /// slice via the server; the rest kickstart their launchd job.
     public func restart(_ kind: ServiceKind) {
         switch kind {
         case .nginx, .phpFpm:
@@ -119,20 +102,16 @@ public final class ServiceManager: ObservableObject {
         }
     }
 
-    /// Start the web slice + every installed database/Mailpit. dnsmasq is intentionally excluded —
-    /// it is helper-owned and toggled explicitly in Sites (so "Start all" never triggers a sudo prompt).
     public func startAll() {
         if !server.isRunning { server.start() }
         for kind in [ServiceKind.mysql, .postgres, .redis, .mongodb, .mailpit] {
-            // Skip a kind whose tree is mid-install: the downloader moves the dir before verifying its
-            // marker, so a concurrent start could launch from a half-moved tree.
+
             guard let svc = services[kind], svc.isInstalled, installTasks[kind] == nil else { continue }
             perform(kind) { try await svc.start() }
         }
     }
 
-    /// Stop the web slice + every database/Mailpit launchd job (boots them out so they stay down).
-    /// dnsmasq is left running (infrastructure, helper-owned).
+   
     public func stopAll() {
         if server.isRunning { server.stop() }
         for kind in [ServiceKind.mysql, .postgres, .redis, .mongodb, .mailpit] {
@@ -143,8 +122,6 @@ public final class ServiceManager: ObservableObject {
 
     // MARK: - On-demand engine install
 
-    /// Download + install a DB engine on demand (verified, into `runtimes/<engine>/<version>/`).
-    /// No-op if it's already installing or has no catalog release.
     public func install(_ kind: ServiceKind) {
         guard installTasks[kind] == nil, let release = catalog.availableRelease(kind) else { return }
         let marker = ServiceBinaryCatalog.marker(kind) ?? ""
@@ -181,15 +158,11 @@ public final class ServiceManager: ObservableObject {
         installTasks[kind] = nil
         downloadFraction[kind] = nil
         if let error { installError[kind] = error }
-        // The next poll recomputes the snapshot; the engine now resolves as installed on success.
+        
     }
 
     // MARK: - Reset data (unclean-shutdown escape hatch)
 
-    /// Stop a service and delete its on-disk data dir — the recovery path when a wedged datastore
-    /// (e.g. a stale `mongod.lock` after an unclean shutdown) keeps the job crash-looping. The data
-    /// is destroyed, so the caller must confirm first. Generic over kind; only surfaced in the UI for
-    /// MongoDB today. Stops BEFORE deleting so the dir isn't pulled out from under a live process.
     public func resetData(_ kind: ServiceKind) {
         guard let svc = services[kind] else { return }
         let paths = self.paths
@@ -199,8 +172,6 @@ public final class ServiceManager: ObservableObject {
         }
     }
 
-    /// Pure deletion of a service's data dir (`data/<kind>`). Separated so it's testable without a
-    /// live `ServiceManager`/launchd. Best-effort: a missing dir is a no-op.
     nonisolated public static func removeServiceData(_ kind: ServiceKind, paths: AppSupportPaths) {
         try? FileManager.default.removeItem(at: paths.serviceData(kind.rawValue))
     }
@@ -217,8 +188,7 @@ public final class ServiceManager: ObservableObject {
             default:      next.append(await independentSnapshot(kind))
             }
         }
-        // Only publish on a real change — @Published fires objectWillChange on every set, even an
-        // identical one, which would redraw the whole Services list ~1x/sec for nothing.
+      
         if next != snapshots { snapshots = next }
     }
 
@@ -236,20 +206,19 @@ public final class ServiceManager: ObservableObject {
                 installable: catalog.availableRelease(kind) != nil,
                 downloadFraction: downloadFraction[kind])
         }
-        // dnsmasq is helper-owned (no launchd label we control) — trust its probe directly.
+      
         if kind == .dnsmasq {
             let status = await svc.probe()
             return ServiceSnapshot(kind: kind, status: status, detail: svc.detail,
                                    isInstalled: true, isBusy: busy.contains(kind))
         }
-        // Only probe a loaded job — a stopped service skips the network probe so the poll stays <1s.
+     
         let status: ServiceStatus
         if !agents.isLoaded(kind.launchdLabel) {
             restart.reset(kind)
             status = .stopped
         } else {
-            // launchd keeps the job loaded across a crash + (throttled) auto-restart; the policy
-            // holds `starting` through that window and only escalates to `error` on a real storm.
+            
             let healthy = await svc.probe() == .running
             status = restart.record(kind, healthy: healthy).status
         }
@@ -275,15 +244,12 @@ public final class ServiceManager: ObservableObject {
         "\(kind.displayName) kept crashing on restart. Restart it manually or check its logs."
     }
 
-    /// Run a service action with a transient busy flag so the row shows a spinner mid-transition
-    /// (design §5.3) and the error surfaces on failure.
+   
     private func perform(_ kind: ServiceKind, _ action: @escaping @Sendable () async throws -> Void) {
         guard !busy.contains(kind) else { return }
         busy.insert(kind)
         restart.reset(kind)
-        // Publish the spinner immediately. `busy` alone isn't observed — the UI reads `snapshots`, which
-        // otherwise only rebuilds on the next health poll, so a DB toggle wouldn't show "loading" the
-        // way nginx/php do (those flip the @Published `server.isBusy` synchronously). Flip it here too.
+        
         setSnapshotBusy(kind, true)
         Task { [weak self] in
             var message: String?
@@ -293,14 +259,11 @@ public final class ServiceManager: ObservableObject {
                 self.busy.remove(kind)
                 self.setSnapshotBusy(kind, false, errorMessage: message)
             }
-            // Re-derive the real status NOW instead of waiting up to one ~0.9s poll cycle, so the
-            // button flips start↔stop the instant the action finishes (no laggy 2s gap after the spinner).
+            
             await self?.refresh()
         }
     }
 
-    /// Reflect a kind's busy/error transition into the published `snapshots` right away (the row's
-    /// spinner binds to `snapshot.isBusy`). No-op if the kind isn't in the current snapshot list.
     private func setSnapshotBusy(_ kind: ServiceKind, _ isBusy: Bool, errorMessage: String? = nil) {
         guard let idx = snapshots.firstIndex(where: { $0.kind == kind }) else { return }
         snapshots[idx].isBusy = isBusy

@@ -1,8 +1,7 @@
 import SwiftUI
 import KDWarmKit
 
-/// One monospaced log line with a severity gutter (design §5.9). Color is paired with the line text
-/// (selectable) — the gutter is advisory, never the only signal.
+
 struct LogLineRow: View {
     let line: LogLine
 

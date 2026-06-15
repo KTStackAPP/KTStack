@@ -1,8 +1,6 @@
 import Foundation
 
-/// Inspects a registered folder to derive how it should be served: document root, default
-/// domain, and site type (php / static / node). Pure value logic — no disk writes — so it is
-/// unit-testable against a temp dir.
+
 public struct SiteInspector {
     public struct Result: Equatable, Sendable {
         public let docroot: URL
@@ -10,7 +8,6 @@ public struct SiteInspector {
         public let type: SiteType
     }
 
-    /// Document-root candidates, in priority order. First existing dir wins; else the folder root.
     static let docrootCandidates = ["public", "web", "public_html"]
 
     public init() {}
@@ -33,8 +30,6 @@ public struct SiteInspector {
         return folder
     }
 
-    /// Classify by markers, checking the resolved docroot first then the folder root:
-    /// `index.php` → php; `package.json` (and no index.php) → node; otherwise static.
     private func classify(folder: URL, docroot: URL, fileManager: FileManager) -> SiteType {
         func has(_ name: String, in dir: URL) -> Bool {
             fileManager.fileExists(atPath: dir.appendingPathComponent(name).path)
@@ -48,7 +43,6 @@ public struct SiteInspector {
         return .staticSite
     }
 
-    /// Lowercase, hyphenate, strip anything but `[a-z0-9-]` — safe for a `.test` hostname label.
     public static func slug(_ raw: String) -> String {
         let lowered = raw.lowercased()
         var out = ""

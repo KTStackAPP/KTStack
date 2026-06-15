@@ -1,16 +1,13 @@
 import Foundation
 
-/// Mail models mirroring the Mailpit REST API (`/api/v1/...`). Decoded defensively — optional fields
-/// tolerate API shape drift across Mailpit versions.
 
 public struct MailAddress: Codable, Sendable, Hashable {
     public let Name: String
     public let Address: String
-    /// "Name <addr>" when a display name exists, else the bare address.
+
     public var display: String { Name.isEmpty ? Address : "\(Name) <\(Address)>" }
 }
 
-/// One row in the message list (`GET /api/v1/messages`).
 public struct MailSummary: Codable, Sendable, Identifiable, Hashable {
     public let ID: String
     public let Read: Bool
@@ -25,7 +22,6 @@ public struct MailSummary: Codable, Sendable, Identifiable, Hashable {
     public var date: Date? { MailDateFormat.parse(Created) }
 }
 
-/// The list envelope.
 public struct MailListResponse: Codable, Sendable {
     public let total: Int
     public let unread: Int
@@ -40,7 +36,6 @@ public struct MailAttachment: Codable, Sendable, Identifiable, Hashable {
     public var id: String { PartID }
 }
 
-/// A full message (`GET /api/v1/message/{id}`).
 public struct MailDetail: Codable, Sendable, Identifiable {
     public let ID: String
     public let From: MailAddress?
@@ -56,7 +51,6 @@ public struct MailDetail: Codable, Sendable, Identifiable {
     public var date: Date? { MailDateFormat.parse(Date) }
 }
 
-/// Mailpit timestamps are RFC3339 with fractional seconds + offset (e.g. 2026-06-11T21:24:34.473+07:00).
 enum MailDateFormat {
     private static let withFraction: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return f

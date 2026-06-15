@@ -1,11 +1,5 @@
 import Foundation
 
-/// Manages one php-fpm pool per ACTIVE PHP version (not per site) — the core of socket-per-pool
-/// isolation. Sites sharing a version share a pool + socket; a version with no sites has no pool.
-///
-/// Only versions whose binary is installed can start. PHP installs on demand (nothing is bundled),
-/// so `reconcile` returns the versions it could not start (missing binary) and the orchestrator warns
-/// without aborting the others — those sites serve once the user downloads that version.
 public final class PHPFPMPoolManager: @unchecked Sendable {
     private let paths: AppSupportPaths
     private let agents: LaunchAgentManager
@@ -29,12 +23,9 @@ public final class PHPFPMPoolManager: @unchecked Sendable {
         return ctl?.isRunning ?? false
     }
 
-    /// Bring the running pool set in line with `required`: stop pools no longer needed, start
-    /// pools for newly-required versions whose binary exists. Returns versions that were required
-    /// but could NOT start because their binary isn't installed (the user hasn't downloaded it yet).
     @discardableResult
     public func reconcile(required: Set<String>) throws -> [String] {
-        // Stop + drop pools that are no longer required.
+       
         for (version, ctl) in snapshot() where !required.contains(version) {
             ctl.stop()
             lock.lock(); pools[version] = nil; lock.unlock()
@@ -53,17 +44,12 @@ public final class PHPFPMPoolManager: @unchecked Sendable {
         return missing
     }
 
-    /// Restart one version's running pool in place so it re-reads its edited `php.ini`. No-op if that
-    /// version has no live pool (the edit applies on the next start).
+   
     public func reload(version: String) throws {
         guard let ctl = pool(for: version) else { return }
         try ctl.reload()
     }
 
-    /// Fully restart one version's running pool: bootout + re-bootstrap so the LATEST launchd spec
-    /// applies (e.g. a newly-added `PHP_INI_SCAN_DIR`) and the master re-execs — required to load or
-    /// unload an extension `.so` (`kickstart` keeps the old job definition; `dlopen`'d modules only
-    /// (un)load on a master restart). No-op if that version has no live pool.
     public func restart(version: String) throws {
         guard let ctl = pool(for: version) else { return }
         ctl.stop()

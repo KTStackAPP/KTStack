@@ -1,12 +1,11 @@
 import SwiftUI
 import KDWarmKit
 
-/// Dashboard shell: a `NavigationSplitView` whose sidebar is driven by `SidebarItem`
-/// and whose detail switches to one of the six section views (design-guidelines §5.6).
+
 struct DashboardWindow: View {
     static let windowID = "dashboard"
 
-    // Forwarded into the in-dashboard Settings pane (env-object lookup is reliable in a Window scene).
+   
     @EnvironmentObject private var preferences: AppPreferences
     @EnvironmentObject private var dns: DNSAutomationService
     @EnvironmentObject private var server: LocalServerController
@@ -15,10 +14,10 @@ struct DashboardWindow: View {
     @EnvironmentObject private var uninstaller: UninstallService
 
     @State private var selection: SidebarItem? = .sites
-    /// Deep-link target for the Logs view (a `LogSource.id`) set by a Services/Sites "Logs" action.
+
     @State private var logTarget: String?
 
-    /// Jump to the Logs view, optionally preselecting a source.
+    
     private func openLogs(_ sourceID: String?) {
         logTarget = sourceID
         selection = .logs
@@ -53,7 +52,6 @@ struct DashboardWindow: View {
     }
 }
 
-/// Top-level dashboard destinations (design-guidelines §5.6).
 enum SidebarItem: String, CaseIterable, Identifiable {
     case sites, services, runtimes, database, logs, mail, settings, about
 

@@ -1,12 +1,10 @@
 import SwiftUI
 import KDWarmKit
 
-/// Middle pane: the schema tree. Databases expand to their tables; picking a database loads its
-/// tables (lazily, off the main thread via the VM), and picking a table loads its first page. Views
-/// are badged so they read distinctly from base tables.
+
 struct SchemaTreeView: View {
     @EnvironmentObject private var vm: DatabaseViewModel
-    /// Which database rows are expanded. Local UI state — the VM owns *which* db is selected/loaded.
+    
     @State private var expanded: Set<String> = []
 
     var body: some View {
@@ -68,7 +66,7 @@ struct SchemaTreeView: View {
         .onTapGesture { Task { await vm.select(table: table) } }
     }
 
-    /// Expanding a database row selects it and triggers its table load (once); collapsing just hides.
+    
     private func expandedBinding(_ name: String) -> Binding<Bool> {
         Binding(
             get: { expanded.contains(name) },

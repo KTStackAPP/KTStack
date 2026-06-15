@@ -2,9 +2,7 @@ import SwiftUI
 import AppKit
 
 public extension Color {
-    /// KDWarm status palette (design-guidelines §3.2). Brand-owned and appearance-aware.
-    /// Everything else should prefer semantic system colors so Light / Dark /
-    /// Increase-Contrast come for free; only service/site state is defined here.
+
     enum KDStatus {
         public static let running = Color(kdLight: 0x1FAD66, dark: 0x30D158)
         public static let stopped = Color(kdLight: 0x8A8A8E, dark: 0x98989D)
@@ -16,8 +14,7 @@ public extension Color {
 }
 
 extension Color {
-    /// Builds a dynamic color that resolves per the effective NSAppearance, so the
-    /// status palette tracks Light/Dark without bundling an asset catalog entry.
+
     init(kdLight light: UInt32, dark: UInt32) {
         let dynamic = NSColor(name: nil) { appearance in
             let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua

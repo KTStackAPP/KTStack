@@ -1,12 +1,9 @@
 import Foundation
 import Combine
 
-/// Aggregates runtime state for the Runtimes view + menu-bar switcher: which versions are installed,
-/// in-flight downloads (determinate progress), and the global default per language. Owns the
-/// download lifecycle (start/cancel) and persists global defaults to `config/runtimes.json`.
 @MainActor
 public final class RuntimeManager: ObservableObject {
-    /// Live state of one language's download (absent when idle; kept with `error` set on failure).
+  
     public struct DownloadState: Sendable, Equatable {
         public var version: String
         public var received: Int64
@@ -59,7 +56,6 @@ public final class RuntimeManager: ObservableObject {
 
     // MARK: - Actions
 
-    /// Start (or restart after an error) a download. No-op if one is already in flight.
     public func install(_ release: RuntimeRelease) {
         guard !isDownloading(release.language) else { return }
         downloads[release.language] = DownloadState(version: release.version, received: 0, total: -1)
@@ -76,9 +72,7 @@ public final class RuntimeManager: ObservableObject {
                         self?.downloads[lang]?.total = progress.total
                     }
                 }
-                // Drop any cached `php -m` for this version: a same-version reinstall (e.g. upgrading to
-                // a rebuilt artifact with a wider extension set) keeps the installed list identical, so
-                // the card's extension display would otherwise stay stale until relaunch.
+           
                 if lang == .php { PHPModules.invalidate(version: version) }
                 await self?.finish(lang, error: nil)
             } catch is CancellationError {
@@ -89,26 +83,19 @@ public final class RuntimeManager: ObservableObject {
         }
     }
 
-    /// Cancel an in-flight download (removes any partial — the downloader leaves nothing behind).
     public func cancel(_ lang: RuntimeLanguage) {
         tasks[lang]?.cancel()
         tasks[lang] = nil
         downloads[lang] = nil
     }
 
-    /// Set the global default version for a language (used for new sites' PHP + child-proc PATH).
     public func setGlobalDefault(_ lang: RuntimeLanguage, _ version: String) {
         globalDefaults[lang] = version
         persistDefaults()
     }
 
-    /// Remove an installed runtime version. Stops any (possibly stale) php-fpm pool for the version,
-    /// deletes its binary tree + per-version config/launchd artifacts, reassigns the global default
-    /// to another installed version if it pointed here, then refreshes. Best-effort on the auxiliary
-    /// files (own, 0700) — the marker is the version dir, whose removal flips `isInstalled` to false.
-    /// The caller must guard against versions still referenced by sites; this only deletes files.
     public func uninstall(_ lang: RuntimeLanguage, _ version: String) {
-        // A mid-flight download is writing into this version's tree — cancel it before deleting.
+
         if downloads[lang]?.version == version, downloads[lang]?.error == nil { cancel(lang) }
 
         let fm = FileManager.default
@@ -124,11 +111,9 @@ public final class RuntimeManager: ObservableObject {
             PHPModules.invalidate(version: version)
         }
 
-        // Removing the version dir drops its marker binary → the catalog stops listing it.
         do { try fm.removeItem(at: paths.runtimeDir(lang.rawValue, version)) }
         catch { NSLog("KDWarm: uninstall \(lang.rawValue) \(version) failed: \(error.localizedDescription)") }
 
-        // Hand the global default to another installed version (or drop it if none remain).
         if globalDefaults[lang] == version {
             globalDefaults[lang] = catalog.installedVersions(lang).first { $0 != version }
             persistDefaults()

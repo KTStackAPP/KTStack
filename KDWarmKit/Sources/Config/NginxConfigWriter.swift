@@ -1,28 +1,15 @@
 import Foundation
 
-/// Renders a self-contained `nginx.conf` plus per-site vhosts.
-///
-/// Two load-bearing invariants, both proven by the Foundations Spike:
-///  1. Every vhost listens on the WILDCARD address `0.0.0.0:<port>`, NEVER a specific
-///     interface like `127.0.0.1:80`. A non-root process can bind the wildcard privileged
-///     port, but binding a specific interface returns EACCES and would need root. dnsmasq
-///     still resolves `*.test → 127.0.0.1`, so the wildcard listener is reachable over
-///     loopback with no privileges. `vhost(...)` enforces this; a unit test asserts it.
-///  2. The config is fully self-contained — no `include fastcgi_params;` / `mime.types`
-///     that would depend on files inside nginx's compiled prefix. Everything the relocated
-///     binary needs is emitted inline, so it runs from any install path.
+
 public struct NginxConfigWriter {
-    /// The only address the writer will ever emit. Binding a specific interface needs root.
+   
     public static let listenAddress = "0.0.0.0"
 
     public init() {}
 
-    /// Wrap a path in double quotes for an nginx directive. The app-support tree lives under
-    /// "Application Support" (contains a space), so EVERY emitted path must be quoted or nginx
-    /// whitespace-splits it (`pid /…/Application Support/… → "invalid number of arguments").
     static func q(_ path: String) -> String { "\"\(path)\"" }
 
-    /// Master `nginx.conf`. `daemon off;` is supplied by the controller via `-g`, not here.
+   
     public func masterConfig(paths: AppSupportPaths) -> String {
         """
         worker_processes auto;
@@ -56,8 +43,7 @@ public struct NginxConfigWriter {
         """
     }
 
-    /// Per-server `access_log`/`error_log` directives (empty when no paths given). Lets the Logs
-    /// viewer tail one site in isolation (Phase 8).
+
     public static func logDirectives(access: URL?, error: URL?) -> String {
         var lines: [String] = []
         if let access { lines.append("    access_log \(q(access.path));") }
@@ -65,7 +51,7 @@ public struct NginxConfigWriter {
         return lines.isEmpty ? "" : "\n" + lines.joined(separator: "\n")
     }
 
-    /// A single PHP-serving vhost. `port` defaults to 80; the host is always the wildcard.
+
     public func vhost(domain: String, root: URL, phpFpmSocket: URL, port: Int = 80,
                       accessLog: URL? = nil, errorLog: URL? = nil) -> String {
         """
@@ -107,9 +93,6 @@ public struct NginxConfigWriter {
         """
     }
 
-    /// A static vhost (plain HTML / a Node app's build output): `try_files` only, NO fastcgi —
-    /// routing a non-PHP site through PHP-FPM yields 502/blank. Used for `.staticSite` and, for
-    /// now, `.node` (a real `proxy_pass` to a Node port arrives in Phase 7).
     public func vhostStatic(domain: String, root: URL, port: Int = 80,
                             accessLog: URL? = nil, errorLog: URL? = nil) -> String {
         """
@@ -141,22 +124,17 @@ public struct NginxConfigWriter {
         }
     }
 
-    /// A domain must be dot-separated RFC-1123 labels (each starts/ends alphanumeric, may contain
-    /// hyphens). This blocks nginx directive-injection once Phase 3 lets the user type the domain
-    /// (`demo.test;\n}` can't break out of `server_name`/`listen`) AND rejects shapes nginx itself
-    /// would refuse — leading/trailing dots, `..`, leading/trailing hyphens.
+  
     public static func isValidDomain(_ domain: String) -> Bool {
         let label = "[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?"
         return domain.range(of: "^\(label)(\\.\(label))+$", options: .regularExpression) != nil
     }
 
-    /// Reject paths that could break out of the `root` directive (newlines, `;`, braces).
     public static func isSafePath(_ path: String) -> Bool {
         !path.isEmpty && path.rangeOfCharacter(from: CharacterSet(charactersIn: ";{}\n\r")) == nil
     }
 
-    /// Write the master config + one demo vhost to disk under `paths`. Validates the domain
-    /// and root path first — this writer is the substrate Phase 3 reuses for user-entered sites.
+  
     @discardableResult
     public func writeDemo(paths: AppSupportPaths,
                           domain: String,

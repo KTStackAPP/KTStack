@@ -1,16 +1,10 @@
 import Foundation
 
-/// A downloadable database engine build (Redis/PostgreSQL/MySQL). KDWarm ships lean — these are NOT
-/// bundled in the DMG; the user installs them on demand via the Services UI, the same verified
-/// download → checksum → extract path as the runtime manager. The artifact is a self-contained
-/// `<kind>-<version>/{bin,lib,share}` tree, so an engine runs from `runtimes/<kind>/<version>/`.
 public struct ServiceBinaryRelease: Sendable, Hashable, Identifiable {
     public let kind: ServiceKind
     public let version: String
     public let sha256: String
-    /// A direct upstream artifact URL, used when the engine is fetched straight from the vendor
-    /// (e.g. MongoDB's `fastdl.mongodb.org` tarball) instead of the project's self-host. When nil the
-    /// URL is derived from the self-host base + the `<kind>-<version>-<arch>.tar.gz` name.
+
     public let urlOverride: URL?
 
     public init(kind: ServiceKind, version: String, sha256: String, urlOverride: URL? = nil) {
@@ -25,17 +19,8 @@ public struct ServiceBinaryRelease: Sendable, Hashable, Identifiable {
     public var url: URL { urlOverride ?? ServiceBinaryCatalog.releaseBaseURL.appendingPathComponent(fileName) }
 }
 
-/// Installed-engine discovery + the on-demand download manifest for database services. Installed
-/// engines are found by scanning `runtimes/<kind>/<version>/` for the kind's marker executable; the
-/// manifest lists verified builds (real checksums from the build pipeline) — MySQL, Redis, Postgres,
-/// each Developer-ID signed + notarized.
 public struct ServiceBinaryCatalog: Sendable {
-    /// Where engine artifacts are hosted: the project's GitHub Releases download path (self-built,
-    /// relocatable Redis/Postgres — no upstream macOS drop-in exists). `appendingPathComponent(fileName)`
-    /// resolves to `…/releases/download/<tag>/<kind>-<version>-<arch>.tar.gz`. Overridable for tests /
-    /// a local mirror.
-    /// Immutable so no in-process code can repoint every engine download at an attacker URL (the
-    /// checksum is the integrity backstop, but the base URL should not be a writable global).
+   
     public static let releaseBaseURL =
         URL(string: "https://github.com/nguyenkhoi489/kd-warm/releases/download/binaries-v1")!
 
@@ -47,7 +32,7 @@ public struct ServiceBinaryCatalog: Sendable {
         #endif
     }
 
-    /// Verified engine builds (checksums emitted by `scripts/build-*-relocatable.sh`).
+   
     public static let manifest: [ServiceBinaryRelease] = [
         ServiceBinaryRelease(kind: .mysql, version: "9.6.0",
                              sha256: "e8bf680f8372a9cd4fab38b120753fef1ffb8980d8b5554d64c7186e671616b0"),
@@ -55,10 +40,7 @@ public struct ServiceBinaryCatalog: Sendable {
                              sha256: "b9e086c252492561e4a53820589cb893ad07bbd4b1c08f38fcf87836ad1cb6e9"),
         ServiceBinaryRelease(kind: .postgres, version: "17.10",
                              sha256: "2fc58f9f78376b79f5007bfbbd6f724f5f34d81cd429ef6b0c9696ad8617d698"),
-        // MongoDB Community Server, fetched directly from MongoDB's CDN (SSPL-1.0 — not re-hosted).
-        // The tarball is Developer-ID-signed + notarized by MongoDB; sha256 is the vendor-published
-        // hash for this exact patch (chains trust back to MongoDB). Version dir is "7.0"; the URL pins
-        // the exact patch — refresh both together when MongoDB rolls the 7.0.x line.
+      
         ServiceBinaryRelease(kind: .mongodb, version: "7.0",
                              sha256: "097af3e0486422fc5a3e2e3365d5f23ac53867a408d8eecfa1103c374a8c96de",
                              urlOverride: URL(string: "https://fastdl.mongodb.org/osx/mongodb-macos-arm64-7.0.37.tgz")!),
@@ -67,7 +49,6 @@ public struct ServiceBinaryCatalog: Sendable {
     private let paths: AppSupportPaths
     public init(paths: AppSupportPaths) { self.paths = paths }
 
-    /// Primary marker executable proving an engine is installed + runnable.
     public static func marker(_ kind: ServiceKind) -> String? {
         switch kind {
         case .redis:    return "bin/redis-server"
@@ -78,7 +59,6 @@ public struct ServiceBinaryCatalog: Sendable {
         }
     }
 
-    /// Newest installed version of `kind` (a version dir whose marker executable exists), or nil.
     public func installedVersion(_ kind: ServiceKind) -> String? {
         guard let marker = Self.marker(kind) else { return nil }
         let root = paths.runtimeLangRoot(kind.rawValue)
@@ -86,25 +66,23 @@ public struct ServiceBinaryCatalog: Sendable {
         guard let entries = try? fm.contentsOfDirectory(atPath: root.path) else { return nil }
         return entries
             .filter { fm.isExecutableFile(atPath: root.appendingPathComponent($0).appendingPathComponent(marker).path) }
-            // Numeric compare so "7.10" > "7.9" and "10.0" > "9.0" (lexicographic would mis-order).
+      
             .max { $0.compare($1, options: .numeric) == .orderedAscending }
     }
 
     public func isInstalled(_ kind: ServiceKind) -> Bool { installedVersion(kind) != nil }
 
-    /// Resolve an executable inside the installed version's tree (e.g. `bin/redis-server`, `bin/initdb`).
     public func binary(_ kind: ServiceKind, _ relPath: String) -> URL? {
         guard let version = installedVersion(kind) else { return nil }
         return paths.runtimeDir(kind.rawValue, version).appendingPathComponent(relPath)
     }
 
-    /// The release a user could install for `kind` (a manifest entry, when not already installed).
+  
     public func availableRelease(_ kind: ServiceKind) -> ServiceBinaryRelease? {
         guard !isInstalled(kind) else { return nil }
         return Self.manifest.first { $0.kind == kind }
     }
 
-    /// Destination dir for installing a release (`runtimes/<kind>/<version>`).
     public func installDir(_ release: ServiceBinaryRelease) -> URL {
         paths.runtimeDir(release.kind.rawValue, release.version)
     }

@@ -1,26 +1,21 @@
 import SwiftUI
 import KDWarmKit
 
-/// Runtimes dashboard (design wireframe `dashboard-runtimes`): a Bento grid of per-language cards
-/// (installed versions, Set default, inline install/progress) + an "Install Version…" sheet. Binds
-/// to `RuntimeManager` so installed/download state refreshes live.
+
 struct RuntimesSectionView: View {
     @EnvironmentObject private var runtimes: RuntimeManager
-    /// Read-only here: used to block removing a PHP version that registered sites still reference.
+   
     @EnvironmentObject private var server: LocalServerController
     @State private var showInstall = false
     @State private var editingIni: EditingIni?
     @State private var managingExt: EditingIni?
     @State private var pendingUninstall: PendingUninstall?
-    /// `php -m` per installed PHP version, loaded off-main (the probe runs the binary).
+ 
     @State private var phpExtensions: [String: [String]] = [:]
 
-    /// Identifiable wrapper so the editor sheet binds to which PHP version was tapped.
     private struct EditingIni: Identifiable { let version: String; var id: String { version } }
 
-    /// A remove request awaiting confirmation. `inUseBy` lists the site domains still on this version
-    /// (PHP only). Removal is ALLOWED even when in use — those sites fall back to another installed PHP
-    /// version — but the confirm spells out the consequence.
+    
     private struct PendingUninstall: Identifiable {
         let language: RuntimeLanguage
         let version: String
@@ -50,7 +45,6 @@ struct RuntimesSectionView: View {
         .task(id: runtimes.installed[.php] ?? []) { await loadPHPExtensions() }
     }
 
-    /// Build a request: note which sites still use this version (PHP) so the confirm can warn.
     private func requestUninstall(_ lang: RuntimeLanguage, _ version: String) {
         let inUse = lang == .php
             ? server.registry.sites.filter { $0.type == .php && $0.phpVersion == version }.map(\.domain)
@@ -79,14 +73,13 @@ struct RuntimesSectionView: View {
             secondaryButton: .cancel())
     }
 
-    /// Remove the runtime, then re-apply web config so PHP sites that used it re-route to their
-    /// fallback version (no lingering 502 against a now-deleted pool socket).
+
     private func performUninstall(_ p: PendingUninstall) {
         runtimes.uninstall(p.language, p.version)
         if p.language == .php { server.reconcileAfterRuntimeChange() }
     }
 
-    /// Probe `php -m` for each installed PHP version off the main thread, then publish the map.
+
     private func loadPHPExtensions() async {
         let versions = runtimes.installed[.php] ?? []
         let map = await Task.detached(priority: .utility) {

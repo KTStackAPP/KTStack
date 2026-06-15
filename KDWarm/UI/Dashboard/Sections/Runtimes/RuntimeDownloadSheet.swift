@@ -1,9 +1,7 @@
 import SwiftUI
 import KDWarmKit
 
-/// "Install Version…" sheet (design §5.8): pick a downloadable runtime release and install it with
-/// determinate progress + cancel. Reuses `RuntimeManager` state, so a download started here shows the
-/// same progress on the matching Bento card.
+
 struct RuntimeDownloadSheet: View {
     @EnvironmentObject private var runtimes: RuntimeManager
     @Environment(\.dismiss) private var dismiss

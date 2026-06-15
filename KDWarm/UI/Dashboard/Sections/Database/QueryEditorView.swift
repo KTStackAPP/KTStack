@@ -1,9 +1,6 @@
 import SwiftUI
 import KDWarmKit
 
-/// Right-pane "Query" tab: a plain monospace SQL editor + Run, with the result grid below. Syntax
-/// highlighting is deferred to a later polish pass — M1 ships the plain editor. Renders the grid only
-/// for a query result (`resultSource == .query`) so a table-browse result doesn't bleed across tabs.
 struct QueryEditorView: View {
     @EnvironmentObject private var vm: DatabaseViewModel
     @State private var sql = "SELECT 1"
@@ -28,7 +25,6 @@ struct QueryEditorView: View {
         }
     }
 
-    /// True while the VM holds a destructive statement awaiting confirmation.
     private var dangerousBinding: Binding<Bool> {
         Binding(get: { vm.pendingDangerousSQL != nil },
                 set: { if !$0 { vm.cancelDangerousSQL() } })

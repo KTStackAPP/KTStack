@@ -1,9 +1,6 @@
 import Foundation
 import Combine
 
-/// View-facing store for the Mail catcher: polls Mailpit for the message list, loads a selected
-/// message's detail, and deletes messages. Reachability tracks whether Mailpit is up so the view can
-/// show a "start Mailpit" empty state vs the list.
 @MainActor
 public final class MailStore: ObservableObject {
     @Published public private(set) var messages: [MailSummary] = []
@@ -33,7 +30,6 @@ public final class MailStore: ObservableObject {
 
     public func stopPolling() { pollTask?.cancel(); pollTask = nil }
 
-    /// Reload the message list. Preserves the selection; drops detail if the message vanished.
     public func refresh() async {
         do {
             let resp = try await client.list()
@@ -50,8 +46,6 @@ public final class MailStore: ObservableObject {
         }
     }
 
-    /// Select + load a message's full detail. Cancels any in-flight detail load so a fast re-select
-    /// can't land an older message's detail after the newer one (last-write-wins out of order).
     public func select(_ id: String) {
         selectedID = id
         detail = nil

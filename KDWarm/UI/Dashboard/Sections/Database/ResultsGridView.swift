@@ -2,14 +2,7 @@ import SwiftUI
 import AppKit
 import KDWarmKit
 
-/// Renders a `QueryResult` in an AppKit `NSTableView` — SwiftUI's `Table` can't take columns that
-/// are only known at runtime. Columns are rebuilt only when the column set changes; rows reload on
-/// every new result. View-based cells reuse a single identifier so a few hundred rows scroll
-/// smoothly. A `.null` cell renders as a muted "NULL" placeholder, distinct from an empty string,
-/// and a `.blob` shows its byte-length summary rather than mangling raw bytes into text.
-///
-/// Optional `selectedRow`/`onDoubleClick` drive row editing on a single-table browse; the SQL runner
-/// omits them (read-only, no selection).
+
 struct ResultsGridView: NSViewRepresentable {
     let result: QueryResult
     var selectedRow: Binding<Int?>? = nil
@@ -52,8 +45,7 @@ struct ResultsGridView: NSViewRepresentable {
 
         init(result: QueryResult) { self.result = result }
 
-        /// Reload for a new result, rebuilding columns only when the column set actually changed
-        /// (re-running the same query keeps the existing columns, so just the rows refresh).
+      
         func apply(_ newResult: QueryResult) {
             let columnsChanged = newResult.columns != result.columns
             result = newResult
@@ -86,8 +78,7 @@ struct ResultsGridView: NSViewRepresentable {
             let field = (tableView.makeView(withIdentifier: identifier, owner: self) as? NSTextField)
                 ?? Self.makeCell(identifier: identifier)
 
-            // `.null` returns nil from `displayText` — surface it as a styled placeholder so a SQL
-            // NULL reads differently from a text cell whose value is the empty string or "NULL".
+          
             if let text = result.rows[row][columnIndex].displayText {
                 field.stringValue = text
                 field.textColor = .labelColor

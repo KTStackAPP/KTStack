@@ -1,21 +1,17 @@
 import Foundation
 
-/// Pluggable liveness probes mapped to a `ServiceStatus`. Each probe is cheap enough to poll
-/// sub-second (design §1.2): a TCP connect, a unix-socket connect, or an HTTP HEAD/GET.
 public enum HealthProbe: Sendable {
-    /// Connect to `127.0.0.1:<port>` — used for nginx/MySQL/Postgres/Redis.
+
     case tcp(port: Int)
-    /// `connect()` a unix domain socket — used for PHP-FPM pools.
+
     case unixSocket(URL)
-    /// Expect an HTTP response (any status) from a loopback URL — used for Mailpit's :8025 UI.
+
     case http(URL)
 }
 
 public struct HealthChecker: Sendable {
     public init() {}
 
-    /// Run a probe with a short timeout. Returns `.running` on success, `.stopped` on a clean
-    /// "nothing listening", `.warning` on an ambiguous/timeout result.
     public func check(_ probe: HealthProbe, timeout: TimeInterval = 0.8) async -> ServiceStatus {
         switch probe {
         case .tcp(let port):       return Self.tcpConnect(host: "127.0.0.1", port: port, timeout: timeout) ? .running : .stopped
@@ -31,7 +27,7 @@ public struct HealthChecker: Sendable {
         guard fd >= 0 else { return false }
         defer { close(fd) }
 
-        // Non-blocking connect bounded by `select`, so a dead port fails fast instead of hanging.
+       
         let flags = fcntl(fd, F_GETFL, 0)
         _ = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
 
@@ -97,7 +93,6 @@ public struct HealthChecker: Sendable {
         }
     }
 
-    // `fd_set` has no public Swift initializer helpers; these mirror the C macros for one fd.
     private static func fdZero(_ set: inout fd_set) {
         set.fds_bits = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)

@@ -1,14 +1,8 @@
 import Foundation
 
-/// Privileged helper entry point. Stands up the Mach-service XPC listener; every incoming
-/// connection is gated by `HelperSignatureValidator` (audit-token + pinned code requirement)
-/// before the DNS surface is exported. On the dev/ad-hoc build (no Team ID) the validator trusts
-/// nobody, so the helper accepts no connections — the live privileged path is gated on Phase 9 signing.
-/// Bumped to 0.2.0: the DNS XPC methods are now TLD-parameterized and `setTLD` was added
-/// (configurable TLD). The app reconciles against this version after a helper update.
+
 let helperBundleVersion = "0.2.0"
 
-/// The exported XPC object — thin delegation to `HelperDNSManager`. The whole privileged surface.
 final class HelperService: NSObject, HelperXPCProtocol {
     private let dns = HelperDNSManager()
     private let ca = HelperCAManager()

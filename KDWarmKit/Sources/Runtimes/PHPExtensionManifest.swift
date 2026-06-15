@@ -1,19 +1,10 @@
 import Foundation
 
-/// Static data for `PHPExtensionCatalog`: the extension descriptors (built-in + optional) and the
-/// download manifest of optional `.so` builds. Kept separate from the catalog logic so the data table
-/// stays easy to scan and refresh as the build pipeline (scripts/release/build-php-extensions.sh)
-/// re-publishes artifacts.
 extension PHPExtensionCatalog {
 
-    /// All extensions KDWarm models. Built-ins are compiled into the static base (status-only); the
-    /// `optional` set ships as an installable `.so` layer. The built-in list mirrors the base
-    /// `EXTENSIONS` in scripts/build-php-static.sh — keep them in sync when the base build changes.
+
     public static let descriptors: [PHPExtension] = optionalDescriptors + builtInDescriptors
 
-    /// Installable shared extensions, verified end-to-end by Phase 1 (build → relocatability gate →
-    /// `php -m` load). xdebug is a Zend extension; swoole is an async CLI runtime, not a per-site fpm
-    /// extension (the UI should label it accordingly).
     static let optionalDescriptors: [PHPExtension] = [
         PHPExtension(id: "apcu", displayName: "APCu", type: .cache,
                      summary: "In-memory user-data cache (APC User Cache)."),
@@ -30,8 +21,6 @@ extension PHPExtensionCatalog {
                      summary: "MongoDB driver (ext-mongodb, libmongoc/libbson) — for MongoDB from PHP/Laravel."),
     ]
 
-    /// Compiled into the static base — shown read-only in the manager. Mirrors the base build's
-    /// extension matrix (status-only; no install/uninstall).
     static let builtInDescriptors: [PHPExtension] = [
         ("fileinfo", "Fileinfo", PHPExtensionType.utility), ("opcache", "OPcache", .opcode),
         ("memcached", "Memcached", .cache), ("redis", "Redis", .cache), ("exif", "EXIF", .graphics),
@@ -45,9 +34,6 @@ extension PHPExtensionCatalog {
     ].map { PHPExtension(id: $0.0, displayName: $0.1, type: $0.2, summary: "Compiled into the base PHP.",
                          isBuiltIn: true) }
 
-    /// Optional `.so` download manifest — one entry per (ext, php-version), produced + published by
-    /// Phase 1 (scripts/release/build-php-extensions.sh → publish-artifacts.sh @ binaries-v1). swoole
-    /// has no 8.1 build (Swoole 6 does not compile on PHP 8.1). Refresh sha256 when artifacts re-publish.
     public static let manifest: [PHPExtensionRelease] = [
         ext("apcu", "8.4", "947bbeda839c114981fd5de64ecd5eb56fdf48effefd62ca62649cc50f7f3f14"),
         ext("apcu", "8.3", "9c471be1a86e2f5e0816d2f38a50df0812ddbf91fe7f60daa93e56bd77982024"),
@@ -68,8 +54,7 @@ extension PHPExtensionCatalog {
         ext("mongodb", "8.1", "795037d3ddc8a77dea1149dc19a89278dbbff2cfcec83d689e683c48bdde9a04"),
     ]
 
-    /// Build a release whose URL follows the published artifact convention
-    /// `…/releases/download/binaries-v1/php-ext-<ext>-<ver>-arm64.tar.gz`.
+   
     private static func ext(_ id: String, _ version: String, _ sha256: String) -> PHPExtensionRelease {
         PHPExtensionRelease(
             extID: id, phpVersion: version,

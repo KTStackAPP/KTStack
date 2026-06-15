@@ -4,19 +4,11 @@ import NIOCore
 import NIOPosix
 import NIOSSL
 
-/// `RelationalDriver` over MySQLNIO. Each call opens one short-lived connection on the shared
-/// event-loop group, runs its statement off the main thread via `MySQLTextQueryCommand` (so column
-/// headers survive a zero-row result), maps the result to the typed `QueryResult`, and closes. A
-/// pool layers on later; the connect + map path proven in the spike is the kept core.
-///
-/// The managed loopback engine is on-demand: before connecting to it, a missing install surfaces
-/// `engineNotInstalled` and a refused socket surfaces `engineNotRunning`, so the UI distinguishes
-/// "never installed" from "down" from "auth failed" instead of one opaque failure.
+
 public struct MySQLDriver: RelationalDriver {
     public let kind: DatabaseKind = .mysql
 
-    // Non-private so the CRUD extension (`MySQLDriver+CRUD.swift`) can reach them; still internal to
-    // the framework, never part of the public API.
+
     let profile: ConnectionProfile
     let password: String?
     let catalog: ServiceBinaryCatalog
@@ -43,8 +35,7 @@ public struct MySQLDriver: RelationalDriver {
     }
 
     public func listTables(database: String) async throws -> [TableInfo] {
-        // `information_schema.TABLES.TABLE_TYPE` is 'BASE TABLE' or 'VIEW'; the schema name is bound
-        // as a literal (not an identifier) so it's a normal escaped string, not `quoteIdent` territory.
+        
         let sql = """
         SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES \
         WHERE TABLE_SCHEMA = \(try MySQLErrorMapper.quoteLiteral(database)) ORDER BY TABLE_NAME
@@ -58,7 +49,7 @@ public struct MySQLDriver: RelationalDriver {
     }
 
     public func columns(database: String, table: String) async throws -> [ColumnInfo] {
-        // COLUMN_KEY = 'PRI' marks a primary-key column (composite keys → multiple PRI rows).
+       
         let sql = """
         SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT \
         FROM information_schema.COLUMNS \
@@ -125,11 +116,7 @@ public struct MySQLDriver: RelationalDriver {
         } catch {
             throw MySQLErrorMapper.map(error, isManaged: profile.isManaged)
         }
-        // Read-only is enforced by the SERVER, not the client: the session default makes every
-        // subsequent transaction (each autocommitted statement included) READ ONLY, so an INSERT/
-        // UPDATE/DELETE fails server-side even if the UI guard is bypassed. The client toggle only
-        // drives this flag. Close the connection if the setting can't be applied — never hand back a
-        // connection a read-only profile could still write through.
+        
         if profile.readOnly {
             do {
                 _ = try await connection.simpleQuery("SET SESSION TRANSACTION READ ONLY").get()
@@ -141,8 +128,7 @@ public struct MySQLDriver: RelationalDriver {
         return connection
     }
 
-    /// The managed engine is on-demand: if its profile is selected but no engine is installed, fail
-    /// with `engineNotInstalled` up front rather than letting the connect attempt time out opaquely.
+
     func preflightManagedEngine() throws {
         guard profile.isManaged else { return }
         guard catalog.isInstalled(.mysql) else {
@@ -150,12 +136,7 @@ public struct MySQLDriver: RelationalDriver {
         }
     }
 
-    /// TLS per the profile's mode. `disable` sends plaintext; every other mode encrypts. `require` and
-    /// `verifyFull` fail closed — they keep certificate verification on, so a remote/prod host can't be
-    /// reached over an unverified (MITM-able) channel; `verifyFull` additionally checks the hostname.
-    /// Only `prefer` skips verification, accepting the managed engine's self-signed loopback cert
-    /// (which can't chain to a public root). The default mode is host-derived (`TLSMode.defaultMode`):
-    /// loopback → `prefer`, everything else → `verifyFull`.
+    
     private func tlsConfiguration() -> TLSConfiguration? {
         var config = TLSConfiguration.makeClientConfiguration()
         switch profile.tlsMode {

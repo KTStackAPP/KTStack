@@ -1,7 +1,5 @@
 import Foundation
 
-/// A language runtime KDWarm can manage. PHP is bundled (staged from the app Resources into the
-/// runtimes layout); Node + the on-demand languages are downloaded into the same layout.
 public enum RuntimeLanguage: String, CaseIterable, Sendable, Identifiable, Hashable {
     case php, node, python, go, ruby, java
 
@@ -25,12 +23,8 @@ public enum RuntimeLanguage: String, CaseIterable, Sendable, Identifiable, Hasha
         }
     }
 
-    /// No runtime ships in the DMG — every language (PHP included) installs on demand from the hosted
-    /// GitHub Release, keeping the app lean. Drives the card's "On-demand" badge.
     public var isBundled: Bool { false }
 
-    /// Relative path (within a `runtimes/<lang>/<version>/` dir) of the executable that proves the
-    /// version is installed and runnable.
     public var executableRelPath: String {
         switch self {
         case .php:    return "bin/php-fpm"
@@ -43,8 +37,6 @@ public enum RuntimeLanguage: String, CaseIterable, Sendable, Identifiable, Hasha
     }
 }
 
-/// A downloadable runtime build: an official archive URL + its expected SHA-256. Arch-specific
-/// (arm64 here); a universal/x86_64 manifest layer is added when upstream lacks arm64 builds.
 public struct RuntimeRelease: Sendable, Hashable, Identifiable {
     public let language: RuntimeLanguage
     public let version: String
@@ -61,14 +53,10 @@ public struct RuntimeRelease: Sendable, Hashable, Identifiable {
     }
 }
 
-/// Installed-runtime discovery + the static download manifest. Installed versions are found by
-/// scanning `runtimes/<lang>/<version>/` for the language's marker executable; the manifest lists
-/// verified official builds (real URLs + checksums) for on-demand install.
 public struct RuntimeCatalog: Sendable {
     private let paths: AppSupportPaths
     public init(paths: AppSupportPaths) { self.paths = paths }
 
-    /// Installed versions of `lang`, sorted — a version counts only if its marker binary is present.
     public func installedVersions(_ lang: RuntimeLanguage) -> [String] {
         let root = paths.runtimeLangRoot(lang.rawValue)
         let fm = FileManager.default
@@ -83,19 +71,13 @@ public struct RuntimeCatalog: Sendable {
         installedVersions(lang).contains(version)
     }
 
-    /// Downloadable builds for `lang` (excludes already-installed versions).
     public func availableReleases(_ lang: RuntimeLanguage) -> [RuntimeRelease] {
         let installed = Set(installedVersions(lang))
         return Self.manifest.filter { $0.language == lang && !installed.contains($0.version) }
     }
 
-    /// Verified official builds (arm64 / Apple Silicon). Pinned versions — the manifest is versioned
-    /// and refreshed as upstream releases move; a stale URL surfaces as a download failure (retryable).
-    /// Ruby/Java have no entries yet (shown as on-demand with nothing to install until added).
     public static let manifest: [RuntimeRelease] = [
-        // Self-built, relocatable, Developer-ID-signed + notarized static PHP (php.net ships source
-        // only — no upstream macOS binary). Hosted on the project's GitHub Releases. Every version,
-        // incl. the default 8.4, installs on demand from here — nothing is bundled in the DMG.
+
         RuntimeRelease(language: .php, version: "8.4",
                        url: "https://github.com/nguyenkhoi489/kd-warm/releases/download/binaries-v1/php-8.4-arm64.tar.gz",
                        sha256: "a1de72d30e3ef6f065528156a98a683a5d11f891a43f36043b6fbc877c9d84fb"),

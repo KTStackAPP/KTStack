@@ -1,7 +1,5 @@
 import Foundation
 
-/// Thin async REST client for Mailpit (`/api/v1`). Loopback-only (the bundled Mailpit binds
-/// 127.0.0.1), so no auth. Used by the Mail view to list/read/delete caught messages.
 public struct MailpitClient: Sendable {
     public struct APIError: LocalizedError {
         public let status: Int
@@ -18,7 +16,7 @@ public struct MailpitClient: Sendable {
         self.session = URLSession(configuration: cfg)
     }
 
-    /// Newest messages first (Mailpit returns them in reverse-chronological order).
+   
     public func list(limit: Int = 200) async throws -> MailListResponse {
         try await get("/messages?limit=\(limit)")
     }
@@ -27,10 +25,9 @@ public struct MailpitClient: Sendable {
         try await get("/message/\(id)")
     }
 
-    /// Raw RFC822 source URL (opened in the browser / "view raw").
     public func rawURL(id: String) -> URL { baseURL.appendingPathComponent("message/\(id)/raw") }
 
-    /// Delete specific messages (empty = delete all — Mailpit's documented semantics).
+
     public func delete(ids: [String]) async throws {
         var req = URLRequest(url: baseURL.appendingPathComponent("messages"))
         req.httpMethod = "DELETE"
@@ -57,7 +54,6 @@ public struct MailpitClient: Sendable {
         return data
     }
 
-    /// Build a URL for an API path that may include a query string (which `appendingPathComponent` escapes).
     private func url(_ path: String) -> URL {
         URL(string: baseURL.absoluteString + path) ?? baseURL
     }

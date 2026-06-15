@@ -1,13 +1,10 @@
 import Foundation
 
-/// Supervises an on-demand-installed `redis-server` as a user LaunchAgent that persists across app
-/// quit. Binds loopback only (dev-insecure default); data + RDB snapshots live under app-support.
 public final class RedisController: ManagedService, @unchecked Sendable {
     public let kind = ServiceKind.redis
     public var detail: String { ":6379" }
     public var logsURL: URL? { paths.serviceLog("redis") }
-    /// Derived from the SAME resolved binary `start()` will launch, so a wrong path can't report
-    /// "installed" yet fail to start.
+
     public var isInstalled: Bool {
         guard let binary else { return false }
         return FileManager.default.isExecutableFile(atPath: binary.path)
@@ -16,7 +13,7 @@ public final class RedisController: ManagedService, @unchecked Sendable {
     private let paths: AppSupportPaths
     private let runner: LaunchdServiceRunner
     private let catalog: ServiceBinaryCatalog
-    /// Resolved from the on-demand install location (`runtimes/redis/<version>/bin/redis-server`).
+   
     private var binary: URL? { catalog.binary(.redis, "bin/redis-server") }
 
     public init(paths: AppSupportPaths, agents: LaunchAgentManager) {
@@ -41,8 +38,7 @@ public final class RedisController: ManagedService, @unchecked Sendable {
     public func probe() async -> ServiceStatus { isInstalled ? await runner.probe() : .stopped }
 
     private func writeConfig() throws {
-        // Quote paths: the app-support path contains a space ("Application Support"), and Redis splits
-        // an unquoted directive value on whitespace → "wrong number of arguments" on `dir`/`logfile`.
+       
         let config = """
         bind 127.0.0.1
         port 6379

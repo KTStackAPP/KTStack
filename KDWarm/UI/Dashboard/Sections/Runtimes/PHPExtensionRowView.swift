@@ -1,9 +1,7 @@
 import SwiftUI
 import KDWarmKit
 
-/// One extension row in the manager sheet: status icon · name + type tag + summary · action. Built-ins
-/// are status-only ("Built-in"); optional extensions show Install (with progress) / Uninstall, plus a
-/// load-failure warning when an installed `.so` did not initialize.
+
 struct PHPExtensionRowView: View {
     let ext: PHPExtension
     let status: PHPExtensionStatus

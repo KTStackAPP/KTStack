@@ -1,16 +1,8 @@
 import Foundation
 import Security
 
-/// Validates that an incoming XPC connection comes from the genuine KDWarm app, using the peer's
-/// audit token + a pinned code-signing requirement (`HelperIdentity.clientRequirement`).
-///
-/// Deferred-live: the dev/ad-hoc build has no Team ID, so `hasSigningIdentity` is false and EVERY
-/// caller is refused — the helper performs no privileged work until Phase 9 configures Developer
-/// ID signing. The audit-token + `SecCode` path below is the real release implementation, exercised
-/// once a Team ID exists. (Audit token, not PID, so there is no PID-reuse race.)
 enum HelperSignatureValidator {
-    /// NSXPCConnection exposes `auditToken` as SPI (not in public headers). Bridge to it through an
-    /// `@objc` protocol — the standard technique for race-free peer validation.
+
     @objc private protocol AuditTokenProvider {
         var auditToken: audit_token_t { get }
     }

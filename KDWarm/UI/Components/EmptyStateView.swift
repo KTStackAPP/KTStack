@@ -1,8 +1,7 @@
 import SwiftUI
 import KDWarmKit
 
-/// Reusable empty state (design-guidelines §5.8): large muted SF Symbol + one-line
-/// guidance + an optional primary action button.
+
 struct EmptyStateView: View {
     let symbol: String
     let title: String

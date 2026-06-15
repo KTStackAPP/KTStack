@@ -1,14 +1,10 @@
 import SwiftUI
 import KDWarmKit
 
-/// Services dashboard (design §5.5, wireframe `dashboard-services`): a live list of all seven
-/// services with status pills + per-service toggle/restart, a Start all / Stop all toolbar, and the
-/// consolidated error/remediation banners. Binds to the `ServiceManager` health poll so status
-/// refreshes sub-second without manual refresh.
 struct ServicesSectionView: View {
-    /// Lets a banner CTA jump to another dashboard section (e.g. CA-untrusted → Settings).
+
     var onNavigate: (SidebarItem) -> Void = { _ in }
-    /// Opens the Logs view, optionally preselecting this service's log source.
+
     var onOpenLogs: (String?) -> Void = { _ in }
 
     @EnvironmentObject private var services: ServiceManager
@@ -16,9 +12,7 @@ struct ServicesSectionView: View {
 
     private let paths = AppSupportPaths()
 
-    // Cached CA-trust state. Computing it spawns `/usr/bin/security` (reads the whole System keychain),
-    // so it must NEVER run inline in `body` — it would fork a subprocess on the main thread on every
-    // render and make the tab stutter. Refreshed off-main on a slow loop while the view is visible.
+    
     @State private var caExists = false
     @State private var caTrusted = false
 
@@ -57,9 +51,7 @@ struct ServicesSectionView: View {
         .task { await refreshCATrustLoop() }
     }
 
-    /// Recompute CA-trust off the main thread on a slow cadence while the view is on screen. The
-    /// `.task` is cancelled when the view disappears, so there's no background keychain polling when
-    /// the user is on another tab.
+
     private func refreshCATrustLoop() async {
         let caCert = paths.caRootCert
         while !Task.isCancelled {
@@ -92,7 +84,7 @@ struct ServicesSectionView: View {
         services.snapshots.filter { $0.status == .running }.count
     }
 
-    /// Map a service to its primary log source id (nil = open Logs without a preselection).
+
     private static func logSourceID(for kind: ServiceKind) -> String? {
         switch kind {
         case .nginx:    return "nginx-error"

@@ -1,9 +1,6 @@
 import SwiftUI
 import KDWarmKit
 
-/// Edit one PHP version's managed `php.ini` (the Laragon "Edit php.ini" affordance, scoped per
-/// installed version). Save rewrites the file (keeping a `.bak`) and reloads only that version's
-/// php-fpm pool; if the reload fails the user can revert to the backup. Reset restores the template.
 struct PHPIniEditorSheet: View {
     let version: String
     @EnvironmentObject private var server: LocalServerController
@@ -59,7 +56,7 @@ struct PHPIniEditorSheet: View {
         let store = self.store
         let version = self.version
         Task {
-            // Parse-check before touching the live file so a broken ini never reaches the pool.
+
             if let problem = await Task.detached(priority: .userInitiated, operation: {
                 store.validate(version: version, contents: candidate)
             }).value {
@@ -79,8 +76,7 @@ struct PHPIniEditorSheet: View {
                 isSaving = false
                 dismiss()
             } catch {
-                // Reload failed — roll the live file back to the last good content and reload again so
-                // the pool comes back up rather than crash-looping on the rejected ini.
+               
                 _ = try? store.restoreBackup(version: version)
                 try? await server.reloadPHPPool(version: version)
                 self.error = "Reload failed; reverted to the previous php.ini.\n\(error.localizedDescription)"
@@ -90,7 +86,7 @@ struct PHPIniEditorSheet: View {
     }
 
     private func reset() {
-        // Restore the template into the editor; the user still has to Save to apply + reload it.
+      
         text = PHPIniTemplate.default
         error = nil
     }

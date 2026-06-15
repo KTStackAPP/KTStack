@@ -1,10 +1,6 @@
 import SwiftUI
 import KDWarmKit
 
-/// The Laragon-style per-version extension manager. Lists built-in (status-only) + optional
-/// (install/uninstall) extensions for one PHP version, wired to `PHPExtensionsModel`. Install/uninstall
-/// restarts that version's php-fpm pool so the `.so` actually (un)loads; uninstall is confirmed because
-/// sites using the extension will error until they stop relying on it.
 struct PHPExtensionsSheet: View {
     let version: String
     @EnvironmentObject private var server: LocalServerController
@@ -56,7 +52,7 @@ struct PHPExtensionsSheet: View {
     }
 
     private func reloadPool(_ version: String) async throws {
-        try await server.restartPHPPool(version: version)   // full restart so the .so actually (un)loads
+        try await server.restartPHPPool(version: version)  
     }
 
     private func uninstallAlert(_ ext: PHPExtension) -> Alert {

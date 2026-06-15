@@ -1,11 +1,8 @@
 import Foundation
 
-/// Incrementally tails a log file: backfills the last slice on open, then emits appended lines as the
-/// file grows (a `DispatchSource` vnode watch on the fd), and transparently reopens on rotation
-/// (rename/delete) or truncation. Never loads the whole file — backfill is capped to a tail window —
-/// so a 10k+ line log stays cheap.
+
 public final class LogTailReader: @unchecked Sendable {
-    /// Emitted on the reader's private queue. Backfill arrives first (one batch), then live appends.
+   
     public var onLines: (@Sendable ([String]) -> Void)?
 
     private let url: URL
@@ -32,17 +29,16 @@ public final class LogTailReader: @unchecked Sendable {
 
     private func open() {
         teardown()
-        // Open the fd manually so a SINGLE owner (the dispatch source's cancel handler) closes it.
-        // A `FileHandle(forReadingFrom:)` would also close on dealloc → double-close of the same fd.
+       
         let fd = Darwin.open(url.path, O_RDONLY)
         guard fd >= 0 else {
-            scheduleReopen()               // file not created yet (service not started) — poll for it
+            scheduleReopen()
             return
         }
         let fh = FileHandle(fileDescriptor: fd, closeOnDealloc: false)
         handle = fh
         let size = (try? fh.seekToEnd()) ?? 0
-        // Backfill: read only the tail window, drop the leading partial line for alignment.
+        
         let start = size > UInt64(backfillBytes) ? size - UInt64(backfillBytes) : 0
         try? fh.seek(toOffset: start)
         let data = (try? fh.readToEnd()) ?? Data()
@@ -50,7 +46,7 @@ public final class LogTailReader: @unchecked Sendable {
         var text = String(decoding: data, as: UTF8.self)
         if start > 0, let nl = text.firstIndex(of: "\n") { text = String(text[text.index(after: nl)...]) }
         emit(text, isBackfill: true)
-        beginMonitoring(fd: fd)            // cancel handler is the sole closer of this fd
+        beginMonitoring(fd: fd)
     }
 
     private func beginMonitoring(fd: Int32) {
@@ -64,24 +60,23 @@ public final class LogTailReader: @unchecked Sendable {
 
     private func handleEvent(_ mask: DispatchSource.FileSystemEvent) {
         if mask.contains(.delete) || mask.contains(.rename) || mask.contains(.link) {
-            open()                          // rotated/replaced → reattach to the new file from its start
+            open()
             return
         }
         guard let fh = handle else { return }
         let size = (try? fh.seekToEnd()) ?? 0
-        if size < offset { offset = 0 }     // truncated in place
+        if size < offset { offset = 0 }
         try? fh.seek(toOffset: offset)
         let data = (try? fh.readToEnd()) ?? Data()
         offset = (try? fh.offset()) ?? offset
         emit(String(decoding: data, as: UTF8.self), isBackfill: false)
     }
 
-    /// Split into complete lines, carrying any trailing partial line to the next read.
     private func emit(_ chunk: String, isBackfill: Bool) {
         guard !chunk.isEmpty else { return }
         let combined = partial + chunk
         var lines = combined.components(separatedBy: "\n")
-        partial = lines.removeLast()        // last element is the (possibly empty) trailing partial
+        partial = lines.removeLast()
         let complete = lines.filter { !$0.isEmpty }
         guard !complete.isEmpty else { return }
         onLines?(complete)
@@ -97,7 +92,7 @@ public final class LogTailReader: @unchecked Sendable {
 
     private func teardown() {
         reopenTimer?.cancel(); reopenTimer = nil
-        source?.cancel(); source = nil      // cancel handler closes the fd
+        source?.cancel(); source = nil    
         handle = nil
         offset = 0; partial = ""
     }

@@ -1,23 +1,15 @@
 import Foundation
 
-/// Resolves a project's desired runtime versions from marker files (no global fallback here — the
-/// caller layers the global default on top). Precedence, highest first:
-///   `.kdwarmrc`  (TOML-ish: `php = "8.3"`, `node = "22"`)
-///   per-language fallback: `.php-version` / `.nvmrc` / `.python-version`
-///
-/// `.kdwarmrc` is project-controlled = untrusted: values are returned verbatim as strings and MUST
-/// be validated/clamped against the installed set by the caller before anything is executed.
 public struct VersionResolver: Sendable {
     public init() {}
 
-    /// All versions a project pins via marker files (languages with no marker are absent).
     public func versions(forProjectAt dir: URL) -> [RuntimeLanguage: String] {
         var result: [RuntimeLanguage: String] = [:]
         let rc = Self.parseKDWarmRC(readFile(dir, ".kdwarmrc"))
         for lang in RuntimeLanguage.allCases {
             if let v = rc[lang.rawValue], !v.isEmpty { result[lang] = v }
         }
-        // Per-language fallbacks (only when not already set by .kdwarmrc).
+      
         merge(&result, .php, fromFile: readFile(dir, ".php-version"))
         merge(&result, .node, fromFile: readFile(dir, ".nvmrc"))
         merge(&result, .python, fromFile: readFile(dir, ".python-version"))
@@ -28,8 +20,6 @@ public struct VersionResolver: Sendable {
         versions(forProjectAt: dir)[lang]
     }
 
-    /// Parse the `.kdwarmrc` key/value lines. Tolerant: `key = "value"`, `key=value`, `#` comments.
-    /// Pure (no I/O) so it is unit-tested directly.
     public static func parseKDWarmRC(_ text: String) -> [String: String] {
         var map: [String: String] = [:]
         for raw in text.split(separator: "\n") {

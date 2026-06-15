@@ -2,11 +2,6 @@ import Foundation
 import Combine
 import CryptoKit
 
-/// App-side orchestration of the local root CA: generate (via mkcert), install into the trust
-/// stores, and query trust state. On the dev build the live path is `mkcert -install` (it
-/// self-elevates for the System Keychain and writes Firefox/NSS when present). The signed Phase 9
-/// path routes the System-Keychain install through the helper (`installRootCA`, public cert only);
-/// the helper surface is already in place.
 @MainActor
 public final class CATrustService: ObservableObject {
     public enum Status: Equatable, Sendable {
@@ -37,13 +32,11 @@ public final class CATrustService: ObservableObject {
         status = Self.isTrustedInSystemKeychain(caCert: paths.caRootCert) ? .trusted : .untrusted
     }
 
-    /// Generate (if needed) + install the CA into the trust stores. Idempotent.
     public func install() { run { try self.runner.install() } }
 
-    /// Remove the CA's trust (browsers warn again). Leaves CA material on disk for cheap re-trust.
+   
     public func untrust() { run { try self.runner.uninstall() } }
 
-    /// Ensure the CA exists AND is trusted — used before minting the first secured site's leaf.
     public func ensureTrusted() throws {
         if !isTrusted { try runner.install() }
     }
@@ -64,7 +57,6 @@ public final class CATrustService: ObservableObject {
 
     // MARK: - Trust query
 
-    /// True if the CA cert's SHA-1 appears among the System Keychain's certificates.
     public nonisolated static func isTrustedInSystemKeychain(caCert: URL) -> Bool {
         guard let pem = try? Data(contentsOf: caCert),
               let der = CertMinter.pemToDER(pem) else { return false }

@@ -1,9 +1,7 @@
 import SwiftUI
 import KDWarmKit
 
-/// Global PHP + Node version switchers for the menu-bar dropdown (design §5.2). Each is a `Menu`
-/// listing the installed versions; picking one sets the global default via `RuntimeManager`.
-/// The same switch is also available in the Runtimes view (design Open-Q#2: both surfaces).
+
 struct MenuBarVersionSwitcher: View {
     @EnvironmentObject private var runtimes: RuntimeManager
 

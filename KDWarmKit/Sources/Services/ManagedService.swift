@@ -1,9 +1,5 @@
 import Foundation
 
-/// The seven services the Service Manager supervises. Each value is the single source of truth
-/// for a service's identity: its UI label/symbol, its primary port, and its launchd label.
-/// PHP-FPM is one logical service here even though it runs one launchd job per active PHP version
-/// internally — the Services view shows a single aggregated PHP-FPM row.
 public enum ServiceKind: String, CaseIterable, Sendable, Hashable {
     case nginx, phpFpm, dnsmasq, mysql, postgres, redis, mongodb, mailpit
 
@@ -33,7 +29,6 @@ public enum ServiceKind: String, CaseIterable, Sendable, Hashable {
         }
     }
 
-    /// Primary TCP port shown in the status pill (nil = no single port, e.g. PHP-FPM sockets).
     public var defaultPort: Int? {
         switch self {
         case .nginx:    return 443
@@ -46,8 +41,7 @@ public enum ServiceKind: String, CaseIterable, Sendable, Hashable {
         case .mailpit:  return 8025
         }
     }
-
-    /// The binary name staged under `bin/` (nil for services without a single bundled binary).
+    
     public var binaryName: String? {
         switch self {
         case .nginx:    return "nginx"
@@ -61,32 +55,25 @@ public enum ServiceKind: String, CaseIterable, Sendable, Hashable {
         }
     }
 
-    /// launchd label for the service's primary job. PHP-FPM pools append `.<version>`.
     public var launchdLabel: String { "com.kdwarm.\(rawValue)" }
 }
 
-/// A long-running service the app supervises through launchd (it controls the job; it is not the
-/// process parent, so services persist across app quit). Concrete controllers conform per service.
 public protocol ManagedService: AnyObject, Sendable {
     var kind: ServiceKind { get }
-    /// Pill text when running (port, version…). The aggregator falls back to a status label.
+   
     var detail: String { get }
-    /// `logsURL` for the Logs viewer (Phase 8). Nil until the service has produced a log.
+    
     var logsURL: URL? { get }
-    /// Whether the backing binary is staged. Un-bundled services (DBs awaiting a build pipeline)
-    /// report `false` and surface a "Not installed" row instead of a failed start.
+
     var isInstalled: Bool { get }
 
     func start() async throws
     func stop() async throws
     func restart() async throws
-    /// Live health probe → status. Cheap enough to poll sub-second (design §1.2).
+   
     func probe() async -> ServiceStatus
 }
 
-/// Immutable, `Sendable` view of one service for the UI. `ServiceManager` publishes an array of
-/// these; SwiftUI rows bind to them. Color never carries meaning alone — `status.symbolName`
-/// pairs with it (design §3.2 / WCAG 1.4.1).
 public struct ServiceSnapshot: Identifiable, Sendable, Hashable {
     public let kind: ServiceKind
     public var status: ServiceStatus
@@ -94,9 +81,9 @@ public struct ServiceSnapshot: Identifiable, Sendable, Hashable {
     public var isInstalled: Bool
     public var isBusy: Bool
     public var errorMessage: String?
-    /// A not-installed engine that CAN be downloaded on demand (a catalog release exists).
+  
     public var installable: Bool
-    /// Download progress (0…1) while an on-demand install is in flight; nil otherwise.
+
     public var downloadFraction: Double?
 
     public var id: ServiceKind { kind }

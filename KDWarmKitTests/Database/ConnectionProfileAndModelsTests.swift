@@ -1,9 +1,7 @@
 import XCTest
 @testable import KDWarmKit
 
-/// Engine-free coverage of the Phase 2 model contracts: the `Cell` display mapping, `QueryResult`
-/// column/row shape, and the `ConnectionProfile` Codable round-trip whose key invariant is that no
-/// password ever reaches the JSON store.
+
 final class ConnectionProfileAndModelsTests: XCTestCase {
 
     // MARK: - Cell

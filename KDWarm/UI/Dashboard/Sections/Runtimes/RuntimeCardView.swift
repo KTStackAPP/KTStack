@@ -1,9 +1,7 @@
 import SwiftUI
 import KDWarmKit
 
-/// One Bento card for a language (design wireframe `dashboard-runtimes`): header with icon + name +
-/// bundled/on-demand badge, the installed versions (each with a Global tag / Set-default action),
-/// inline determinate download progress, and Install buttons for available releases.
+
 struct RuntimeCardView: View {
     let language: RuntimeLanguage
     let installed: [String]
@@ -13,14 +11,13 @@ struct RuntimeCardView: View {
     let onSetDefault: (String) -> Void
     let onInstall: (RuntimeRelease) -> Void
     let onCancel: () -> Void
-    /// Remove an installed version (the parent guards against versions still in use, then confirms).
+   
     let onUninstall: (String) -> Void
-    /// Per-version "Edit php.ini" action. Non-nil only for PHP (the only stack with a managed ini).
+    
     var onEditIni: ((String) -> Void)? = nil
-    /// Per-version "Extensions…" action (the optional-extension manager). Non-nil only for PHP.
+    
     var onManageExtensions: ((String) -> Void)? = nil
-    /// Compiled-in extensions per installed version (`php -m`), shown read-only. PHP only; empty
-    /// while still loading or for non-PHP cards.
+
     var extensions: [String: [String]] = [:]
 
     var body: some View {

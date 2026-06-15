@@ -1,16 +1,13 @@
 import SwiftUI
 import KDWarmKit
 
-/// Left pane: the connection picker. Lists the always-present managed engine first, then saved
-/// profiles, and fires `DatabaseViewModel.select(profile:)` on tap. The live connection state shows
-/// inline on the selected row so "connecting"/"failed" is visible where the user picked.
+
 struct ConnectionSidebarView: View {
     @EnvironmentObject private var store: ConnectionStore
     @EnvironmentObject private var vm: DatabaseViewModel
     @State private var sheet: SheetMode?
 
-    /// Which form the add/edit sheet is showing. `Identifiable` so `.sheet(item:)` rebinds when the
-    /// edited profile changes.
+
     enum SheetMode: Identifiable {
         case add
         case edit(ConnectionProfile)
@@ -56,7 +53,6 @@ struct ConnectionSidebarView: View {
         }
     }
 
-    /// Edit/Delete are only meaningful for saved profiles — the synthetic managed engine has neither.
     @ViewBuilder
     private func rowMenu(_ profile: ConnectionProfile) -> some View {
         if !profile.isManaged {

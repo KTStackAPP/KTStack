@@ -2,14 +2,7 @@ import Foundation
 import MySQLNIO
 import NIOCore
 
-/// One text-protocol query whose column headers survive a zero-row result. MySQLNIO's public
-/// `simpleQuery`/`query` both attach column definitions to each `MySQLRow`, so an empty result
-/// (`WHERE 1=0`, empty table, filtered join) drops every header — the grid then can't tell
-/// "no matching rows" from "nothing ran". The wire protocol always sends the column-definition
-/// packets *before* any row, so this command keeps them in `columns` regardless of row count.
-///
-/// Mirrors MySQLNIO's own `MySQLSimpleQueryCommand` state machine (the only correct way to drive
-/// `COM_QUERY` over the text protocol); the single deviation is retaining `columns` for the caller.
+
 final class MySQLTextQueryCommand: MySQLCommand, @unchecked Sendable {
     private enum State {
         case ready
@@ -44,7 +37,7 @@ final class MySQLTextQueryCommand: MySQLCommand, @unchecked Sendable {
 
         switch state {
         case .ready:
-            // A bare OK with no result set (INSERT/UPDATE/DDL) — no columns, no rows.
+            
             if packet.isOK {
                 state = .done
                 return MySQLCommandState(done: true)
@@ -56,13 +49,12 @@ final class MySQLTextQueryCommand: MySQLCommand, @unchecked Sendable {
         case .columns(let remaining):
             let column = try packet.decode(MySQLProtocol.ColumnDefinition41.self, capabilities: capabilities)
             columns.append(column)
-            // Columns are now captured independently of how many rows follow (possibly zero).
+            
             state = columns.count == numericCast(remaining) ? .rows : .columns(remaining: remaining)
             return MySQLCommandState()
 
         case .rows:
-            // With CLIENT_DEPRECATE_EOF negotiated the terminator is an OK packet; older servers
-            // send EOF. Either ends the result set.
+
             guard !packet.isEOF, !packet.isOK else {
                 state = .done
                 return MySQLCommandState(done: true)

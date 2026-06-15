@@ -1,12 +1,5 @@
 import Foundation
 
-/// Watches each REGISTERED site folder for changes and fires a debounced callback so the site
-/// can be re-inspected (docroot/index/type may have shifted). It does NOT scan `~/Sites/WWW` for
-/// NEW folders — sites enter the registry only via explicit "Add Site".
-///
-/// Implementation: a per-folder `DispatchSource` vnode watch (write/rename/delete on the folder
-/// inode) with a debounce. This covers the top-level markers inspection relies on (`public/`,
-/// `index.php`, `package.json`); FSEvents-style recursion isn't needed for type detection.
 public final class RegisteredSiteWatcher: @unchecked Sendable {
     private final class Watch {
         let source: DispatchSourceFileSystemObject
@@ -19,14 +12,12 @@ public final class RegisteredSiteWatcher: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.kdwarm.site-watcher")
     private var watches: [String: Watch] = [:]   // keyed by folder path
 
-    /// Called (debounced) with the folder URL whose contents changed.
     public var onChange: (@Sendable (URL) -> Void)?
 
     public init(debounce: TimeInterval = 0.5) {
         self.debounce = debounce
     }
 
-    /// Re-arm the watch set to exactly `folders`: drop watches no longer wanted, add new ones.
     public func watch(_ folders: [URL]) {
         queue.sync {
             let wanted = Set(folders.map(\.path))
@@ -48,7 +39,6 @@ public final class RegisteredSiteWatcher: @unchecked Sendable {
 
     deinit { stop() }
 
-    // Must be called on `queue`.
     private func arm(_ folder: URL) {
         let fd = open(folder.path, O_EVTONLY)
         guard fd >= 0 else { return }
@@ -63,7 +53,7 @@ public final class RegisteredSiteWatcher: @unchecked Sendable {
         source.resume()
     }
 
-    // On `queue`: debounce per folder, then fire on a background queue.
+   
     private func scheduleCallback(_ folder: URL) {
         guard let watch = watches[folder.path] else { return }
         watch.pending?.cancel()

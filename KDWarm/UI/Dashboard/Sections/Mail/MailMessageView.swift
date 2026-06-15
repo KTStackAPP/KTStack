@@ -2,9 +2,7 @@ import SwiftUI
 import AppKit
 import KDWarmKit
 
-/// Embedded message viewer: headers, an HTML / Plain tab switch (HTML in the sandboxed `MailHTMLView`),
-/// attachments list, and delete / view-raw actions. Defaults to the Plain tab (safer for untrusted
-/// mail); HTML is opt-in per message.
+
 struct MailMessageView: View {
     let detail: MailDetail
     let onDelete: () -> Void
@@ -95,7 +93,7 @@ struct MailMessageView: View {
 }
 
 private extension String {
-    /// Crude tag strip for a plain-text fallback when a message is HTML-only.
+
     var strippingTags: String {
         replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
             .replacingOccurrences(of: "&nbsp;", with: " ")

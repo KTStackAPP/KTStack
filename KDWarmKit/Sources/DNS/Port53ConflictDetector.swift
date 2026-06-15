@@ -1,8 +1,5 @@
 import Foundation
 
-/// Detects whether another process already holds `127.0.0.1:53` before DNS automation starts
-/// dnsmasq — the common case being a competing dev tool (Herd/Valet/own dnsmasq). Surfaces a
-/// named, actionable conflict instead of a raw bind failure.
 public struct Port53ConflictDetector {
     public struct Conflict: Equatable, Sendable {
         public let process: String
@@ -11,8 +8,6 @@ public struct Port53ConflictDetector {
 
     public init() {}
 
-    /// Returns a named conflict if a FOREIGN process holds UDP :53, else nil (our own dnsmasq is
-    /// not a conflict).
     public func check() -> Conflict? {
         guard let owner = Self.udp53Owner(), !Self.isOwn(owner) else { return nil }
         return Conflict(process: owner, message: Self.message(for: owner))
@@ -31,7 +26,6 @@ public struct Port53ConflictDetector {
         }
     }
 
-    /// First command LISTENing/owning UDP :53 via lsof, or nil.
     static func udp53Owner() -> String? {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")

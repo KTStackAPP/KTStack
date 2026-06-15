@@ -8,15 +8,12 @@ struct KDWarmApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     init() {
-        // Don't let macOS restore the Settings/Dashboard windows at launch: a restored window's
-        // body can evaluate before the AppDelegate's @EnvironmentObjects are attached, which traps
-        // SwiftUI's @EnvironmentObject lookup. This menu-bar utility has no need to reopen windows.
+
         UserDefaults.standard.register(defaults: ["NSQuitAlwaysKeepsWindows": false])
     }
 
     var body: some Scene {
-        // Menu-bar entry. `.window` style gives a real SwiftUI canvas so status pills
-        // and toggles render per the design (a plain `.menu` cannot host them).
+        
         MenuBarExtra("KTStack", image: "MenuBarGlyph") {
             MenuBarContentView()
                 .environmentObject(appDelegate.server)
@@ -26,7 +23,7 @@ struct KDWarmApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        // Dashboard window, opened on demand from the menu-bar footer.
+        
         Window("KTStack Dashboard", id: DashboardWindow.windowID) {
             DashboardWindow()
                 .environmentObject(appDelegate.preferences)
@@ -56,58 +53,45 @@ struct KDWarmApp: App {
     }
 }
 
-/// Owns the accessory-app launch posture and restores it as windows close.
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    /// The single persisted-preferences layer (sites root + dev TLD). Read once at launch by the
-    /// server + DNS service below — a change takes effect on the next launch (TLD additionally
-    /// reconciles root DNS up front via Settings).
+   
     @MainActor lazy var preferences = AppPreferences()
 
-    /// The live nginx + php-fpm orchestrator, shared with the menu bar and dashboard.
-    /// Binaries are staged from the bundle's `Resources/bin` into app-support on first start.
+ 
     @MainActor lazy var server: LocalServerController = {
         LocalServerController(bundleBinDir: Self.bundleBinDir, tld: preferences.tld)
     }()
 
-    /// Configurable-TLD DNS automation (helper when signed; sudo fallback otherwise).
     @MainActor lazy var dns = DNSAutomationService(
         bundledDnsmasq: Self.bundleBinDir.appendingPathComponent("dnsmasq"),
         tld: preferences.tld)
 
-    /// Aggregates all services (nginx/php-fpm via the server; DBs/Mailpit/dnsmasq) for the Services
-    /// view + menu bar, polling their health sub-second.
     @MainActor lazy var services: ServiceManager = {
         let manager = ServiceManager(server: server, dns: dns)
         manager.startPolling()
         return manager
     }()
 
-    /// Runtime versions: bundled PHP (staged into runtimes/) + on-demand Node/Python/Go downloads.
+ 
     @MainActor lazy var runtimes = RuntimeManager()
 
-    /// Mailpit message store for the Mail catcher view (polls the local Mailpit REST API).
+   
     @MainActor lazy var mail = MailStore()
 
-    /// Sparkle auto-updater (background appcast checks + manual "Check for Updates…").
     @MainActor lazy var updater = UpdaterController()
 
-    /// Full uninstall / reset orchestrator (Settings → Uninstall).
     @MainActor lazy var uninstaller = UninstallService(
         paths: AppSupportPaths(), dns: dns,
         mkcertBinary: Self.bundleBinDir.appendingPathComponent("mkcert"))
 
-    /// Local root CA trust (mkcert) for HTTPS `*.test`.
     @MainActor lazy var caTrust = CATrustService(
         paths: AppSupportPaths(), mkcertBinary: Self.bundleBinDir.appendingPathComponent("mkcert"))
 
-    /// Saved database connection profiles (managed engine is synthetic + always listed). Persists to
-    /// `config/database/connections.json`; passwords live in the Keychain, never in this JSON.
     @MainActor lazy var connectionStore = ConnectionStore(
         storeURL: AppSupportPaths().config
             .appendingPathComponent("database", isDirectory: true)
             .appendingPathComponent("connections.json"))
 
-    /// Drives the Database section: owns the live driver + selection chain + result state.
     @MainActor lazy var databaseViewModel = DatabaseViewModel()
 
     private static var bundleBinDir: URL {
@@ -116,7 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Start as a menu-bar-only accessory: no Dock icon, no default window.
+       
         NSApp.setActivationPolicy(.accessory)
         NotificationCenter.default.addObserver(
             self,
@@ -124,14 +108,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             name: NSWindow.willCloseNotification,
             object: nil)
         registerHelperIfSigned()
-        // Touch the service manager so its health poll starts immediately — this also reattaches the
-        // status of any launchd services left running by a previous session.
+       
         _ = services
     }
 
-    /// Register the SMAppService daemon — but only on a real signed build. The dev/ad-hoc build
-    /// has no Team ID, so the daemon can't be trusted/approved; DNS uses the sudo fallback there.
-    /// Live registration + the approval flow are validated in Phase 9 (signing/notarization).
+    
     private func registerHelperIfSigned() {
         guard HelperIdentity.hasSigningIdentity else {
             NSLog("KDWarm: SMAppService helper registration deferred (no signing identity).")
@@ -144,25 +125,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // Tear down the shared database event-loop group BEFORE the engines are booted out, so any
-        // in-flight DB connection closes cleanly against a still-live server. `shutdown()` is async
-        // and this handler is synchronous, so block until it finishes — bounded, the group runs one
-        // thread and its completion lands off the main thread (no deadlock).
+
         let dbShutdown = DispatchSemaphore(value: 0)
         Task.detached {
             try? await EventLoopProvider.shared.shutdown()
             dbShutdown.signal()
         }
         dbShutdown.wait()
-        // Quit stops every KDWarm service (nginx, php-fpm, databases, Mailpit) + the folder watcher,
-        // so nothing keeps running after the app exits. `shutdownForQuit` boots out the launchd jobs
-        // synchronously, so the handler waits for a clean DB shutdown before the process dies.
+       
         MainActor.assumeIsolated { server.shutdownForQuit() }
     }
 
     @objc private func windowWillClose(_ note: Notification) {
-        // Defer until after the window is gone, then drop back to accessory if no
-        // ordinary windows remain — excluding the window that is closing now.
+
         let closingWindow = note.object as? NSWindow
         DispatchQueue.main.async {
             AppActivationPolicy.restoreAccessoryIfNoWindows(excluding: closingWindow)

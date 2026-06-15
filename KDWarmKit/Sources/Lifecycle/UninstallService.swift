@@ -2,10 +2,7 @@ import Foundation
 import Combine
 import ServiceManagement
 
-/// Full uninstall / reset: removes KDWarm's entire footprint so the machine is left clean.
-/// Order matters — untrust the CA and disable DNS BEFORE deleting the app-support tree (those steps
-/// read material from it). Root-scoped removals (resolver, System-Keychain CA) go through the same
-/// helper / sudo-fallback paths the install used; everything else is user-scoped.
+
 @MainActor
 public final class UninstallService: ObservableObject {
     public enum State: Equatable { case idle, running, done, failed(String) }
@@ -25,16 +22,12 @@ public final class UninstallService: ObservableObject {
         self.agents = LaunchAgentManager(paths: paths)
     }
 
-    /// Run the full reset. Idempotent-ish: safe to run on an already-clean machine (each step no-ops).
     public func uninstall() {
         guard state != .running else { return }
         state = .running
         log = []
         record("Starting uninstall…")
 
-        // Kick off DNS disable (helper / sudo fallback). It runs in its own task; we verify the
-        // resolver is actually gone at the end rather than optimistically claiming success here
-        // (a cancelled sudo prompt would otherwise leave /etc/resolver/test behind silently).
         dns.disable()
         record("Removing .\(dns.tld) DNS resolver…")
 
@@ -59,8 +52,7 @@ public final class UninstallService: ObservableObject {
                 }
             } catch { failure = error.localizedDescription }
 
-            // The DNS removal is the one async/privileged step that can be cancelled — verify it.
-            // Check the resolver for the LIVE TLD (configurable), not a hardcoded `.test`.
+ 
             let resolverLeft = FileManager.default.fileExists(atPath: DNSConstants.resolverPath(for: resolverTLD))
 
             await MainActor.run {
@@ -83,8 +75,6 @@ public final class UninstallService: ObservableObject {
 
     private func record(_ message: String) { log.append(message) }
 
-    /// Best-effort SMAppService daemon unregister — only meaningful on a signed build where the
-    /// helper was actually registered (the dev/ad-hoc build never registers it).
     private nonisolated static func unregisterDaemonIfSigned() {
         guard HelperIdentity.hasSigningIdentity, #available(macOS 13.0, *) else { return }
         try? SMAppService.daemon(plistName: "com.kdwarm.helper.plist").unregister()

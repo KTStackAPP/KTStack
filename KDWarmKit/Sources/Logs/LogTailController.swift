@@ -1,9 +1,7 @@
 import Foundation
 import Combine
 
-/// View-facing controller for the Logs viewer: owns the tail reader + ring buffer for the selected
-/// source and publishes the (filtered) lines. `isLive` drives auto-scroll-to-tail in the view; the
-/// tail keeps buffering regardless, so toggling live back on jumps to the latest without data loss.
+
 @MainActor
 public final class LogTailController: ObservableObject {
     @Published public private(set) var lines: [LogLine] = []
@@ -19,7 +17,6 @@ public final class LogTailController: ObservableObject {
         self.store = LogLineStore(capacity: capacity)
     }
 
-    /// Switch to a new source (or nil to clear). Stops the old tail, resets the buffer, starts anew.
     public func select(_ source: LogSource?) {
         reader?.stop()
         reader = nil
@@ -36,10 +33,7 @@ public final class LogTailController: ObservableObject {
         r.start()
     }
 
-    /// Empty the view AND the on-disk log file. Truncates via a separate handle (ftruncate keeps the
-    /// inode) so a service writing in append mode keeps logging to the same file — never an atomic
-    /// replace, which would orphan the writer's open fd. The tail reader resets its offset on the
-    /// resulting shrink (see `LogTailReader`), so live tailing continues from the now-empty file.
+    
     public func clear() {
         if let url = currentSourceURL, let fh = try? FileHandle(forWritingTo: url) {
             try? fh.truncate(atOffset: 0)

@@ -1,15 +1,12 @@
 import Foundation
 
-/// Supervises an on-demand-installed `postgres` as a user LaunchAgent that persists across app quit. First run
-/// runs `initdb` (trust auth, no password) into an app-support datadir — a documented dev-only
-/// default. Listens on loopback only; the unix socket lives under `run/`.
 public final class PostgreSQLController: ManagedService, @unchecked Sendable {
     public let kind = ServiceKind.postgres
     public var detail: String { ":5432" }
     public var logsURL: URL? { paths.serviceLog("postgres") }
-    /// Installed when the on-demand tree contains both `postgres` (the catalog marker) and `initdb`.
+    
     public var isInstalled: Bool {
-        guard let initdb else { return false }    // non-nil only when the postgres marker is present
+        guard let initdb else { return false }
         return FileManager.default.isExecutableFile(atPath: initdb.path)
     }
 
@@ -40,7 +37,7 @@ public final class PostgreSQLController: ManagedService, @unchecked Sendable {
     }
     public func probe() async -> ServiceStatus { isInstalled ? await runner.probe() : .stopped }
 
-    /// `PG_VERSION` is initdb's completion sentinel.
+   
     private func initializeIfNeeded(initdb: URL) throws {
         try ServiceInitializer.ensureDir(dataDir)
         guard !ServiceInitializer.isInitialized(dataDir, marker: "PG_VERSION") else { return }
@@ -51,7 +48,7 @@ public final class PostgreSQLController: ManagedService, @unchecked Sendable {
     }
 
     private func spec(binary: URL) -> LaunchAgentSpec {
-        // `-k <run>` puts the unix socket under run/; `listen_addresses` binds loopback TCP only.
+      
         LaunchAgentSpec(
             label: kind.launchdLabel,
             programArguments: [

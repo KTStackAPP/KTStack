@@ -1,8 +1,7 @@
 import SwiftUI
 import KDWarmKit
 
-/// Trust / Untrust the local root CA + show its trust state. Installing a local root CA is a trust
-/// decision, so the copy says so and removal is one click.
+
 struct TLSSettingsView: View {
     @ObservedObject var caTrust: CATrustService
 
