@@ -37,6 +37,9 @@ final class DatabaseViewModelTests: XCTestCase {
 
         func columns(database: String, table: String) async throws -> [ColumnInfo] { columnsResult }
 
+        var indexesResult: [IndexInfo] = []
+        func indexes(database: String, table: String) async throws -> [IndexInfo] { indexesResult }
+
         func query(_ sql: String, database: String?) async throws -> QueryResult {
             if let queryShouldThrow { throw queryShouldThrow }
             return QueryResult(columns: [ColumnMeta(name: "n")], rows: [[.int(1)]])
@@ -215,6 +218,37 @@ final class DatabaseViewModelTests: XCTestCase {
         await vm.runSQL("DELETE FROM t", confirmed: true)
         XCTAssertNil(vm.pendingDangerousSQL)         // cleared once confirmed
         XCTAssertNotNil(vm.result)
+    }
+
+    // MARK: - Read-only gates write/DDL/import paths
+
+    func testReadOnlyConnectionRefusesDDL() async {
+        let driver = StubDriver(tag: "a")
+        let vm = makeVM(driver)
+        let ro = ConnectionProfile(name: "ro", kind: .mysql, host: "db.example.com", port: 3306,
+                                   user: "u", database: "d", readOnly: true)
+        await vm.select(profile: ro)
+        await vm.select(database: "db_a")
+        await vm.select(table: TableInfo(name: "users"))
+        vm.prepareDropTable()
+        XCTAssertNotNil(vm.pendingDDL)        // staging is allowed (composition is pure)
+        await vm.confirmDDL()
+        XCTAssertEqual(vm.ddlError, "This connection is read-only.")   // running is refused
+    }
+
+    func testReadOnlyConnectionRefusesImport() async {
+        let driver = StubDriver(tag: "a")
+        let vm = makeVM(driver)
+        let ro = ConnectionProfile(name: "ro", kind: .mysql, host: "db.example.com", port: 3306,
+                                   user: "u", database: "d", readOnly: true)
+        await vm.select(profile: ro)
+        let dummy = FileManager.default.temporaryDirectory.appendingPathComponent("x.sql")
+        await vm.importDatabase(into: "target", from: dummy)
+        if case .failed(let message) = vm.dumpStatus {
+            XCTAssertTrue(message.contains("read-only"))
+        } else {
+            XCTFail("expected a read-only failure status")
+        }
     }
 
     func testStaleConnectResultIsDiscarded() async {

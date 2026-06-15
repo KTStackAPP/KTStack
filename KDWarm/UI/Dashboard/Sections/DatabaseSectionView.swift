@@ -1,17 +1,15 @@
 import SwiftUI
 import KDWarmKit
 
-/// The Database dashboard section: a three-pane browser (connections | schema | data/query) over
-/// `DatabaseViewModel`. Read-focused for M1 — browse paginated rows and run arbitrary SQL; row
-/// editing arrives in the row-CRUD phase. When a connection fails because the managed engine is
-/// absent or stopped, the right pane routes to the install/start flow instead of a dead-end error.
 struct DatabaseSectionView: View {
     @EnvironmentObject private var vm: DatabaseViewModel
     @EnvironmentObject private var services: ServiceManager
     @State private var rightTab: RightTab = .data
+    @State private var showingImportExport = false
 
     enum RightTab: String, CaseIterable, Identifiable {
         case data = "Data"
+        case structure = "Structure"
         case query = "Query"
         var id: String { rawValue }
     }
@@ -27,6 +25,7 @@ struct DatabaseSectionView: View {
             }
         }
         .navigationTitle("Database")
+        .sheet(isPresented: $showingImportExport) { ImportExportSheet() }
     }
 
     private var toolbar: some View {
@@ -34,10 +33,15 @@ struct DatabaseSectionView: View {
             Text(vm.selectedProfile?.name ?? "No connection").font(KDFont.headline)
             connectionStatus
             Spacer()
+            Button { showingImportExport = true } label: {
+                Image(systemName: "square.and.arrow.up.on.square")
+            }
+            .help("Import / Export…")
+            .disabled(vm.connection != .connected || vm.selectedDatabase == nil)
             Picker("", selection: $rightTab) {
                 ForEach(RightTab.allCases) { Text($0.rawValue).tag($0) }
             }
-            .pickerStyle(.segmented).labelsHidden().frame(width: 160)
+            .pickerStyle(.segmented).labelsHidden().frame(width: 220)
             .disabled(vm.connection != .connected)
         }
         .padding(KDSpacing.space3)
@@ -67,8 +71,9 @@ struct DatabaseSectionView: View {
         switch vm.connection {
         case .connected:
             switch rightTab {
-            case .data:  TableDataView()
-            case .query: QueryEditorView()
+            case .data:      TableDataView()
+            case .structure: TableStructureView()
+            case .query:     QueryEditorView()
             }
         case .connecting:
             ProgressView("Connecting…").frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -81,8 +86,6 @@ struct DatabaseSectionView: View {
         }
     }
 
-    /// Route engine-not-installed/not-running to the existing service install/start flow rather than
-    /// surfacing a bare "connection refused". Other failures (auth, TLS) offer a plain retry.
     @ViewBuilder
     private func failureGate(_ error: DatabaseError) -> some View {
         switch error {

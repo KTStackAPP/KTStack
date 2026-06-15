@@ -1,7 +1,6 @@
 import Foundation
 
-/// A schema (catalog) on a server — MySQL "database", PostgreSQL "schema". Names only; tables are
-/// fetched lazily so opening a server with hundreds of schemas doesn't eagerly introspect each.
+
 public struct DatabaseInfo: Sendable, Hashable, Identifiable {
     public let name: String
     public var id: String { name }
@@ -9,8 +8,7 @@ public struct DatabaseInfo: Sendable, Hashable, Identifiable {
     public init(name: String) { self.name = name }
 }
 
-/// A table (or view) within a schema. `isView` lets the UI badge views and skip row-edit affordances
-/// the relational CRUD phase only grants to base tables.
+
 public struct TableInfo: Sendable, Hashable, Identifiable {
     public let name: String
     public let isView: Bool
@@ -22,10 +20,6 @@ public struct TableInfo: Sendable, Hashable, Identifiable {
     }
 }
 
-/// One column's introspected metadata. `isPrimaryKey` is the per-column flag; a table's full primary
-/// key is the ordered set of columns where this is true (composite keys are common — the row-edit
-/// phase keys UPDATEs on every PK column, not a single `id`). `dataType` is the engine's own type
-/// name (e.g. `varchar(255)`, `bigint unsigned`) shown verbatim in the structure view.
 public struct ColumnInfo: Sendable, Hashable, Identifiable {
     public let name: String
     public let dataType: String
@@ -46,8 +40,39 @@ public struct ColumnInfo: Sendable, Hashable, Identifiable {
 }
 
 public extension Array where Element == ColumnInfo {
-    /// The table's primary-key columns in declaration order — the key set the row-edit phase builds
-    /// UPDATE/DELETE predicates from. Empty when the table has no PK (edits then fall back to a
-    /// full-row match, decided in the CRUD phase).
+
     var primaryKeyColumns: [ColumnInfo] { filter(\.isPrimaryKey) }
+}
+
+/// One index on a table — grouped from per-column rows so a multi-column index lists every member.
+public struct IndexInfo: Sendable, Hashable, Identifiable {
+    public let name: String
+    public let columns: [String]
+    public let isUnique: Bool
+
+    public var id: String { name }
+
+    public init(name: String, columns: [String], isUnique: Bool) {
+        self.name = name
+        self.columns = columns
+        self.isUnique = isUnique
+    }
+}
+
+/// A column spec used to compose DDL (CREATE TABLE / ADD COLUMN). Distinct from `ColumnInfo`
+/// (which describes an existing column): `type` is a raw SQL type string the dialect sanitizes.
+public struct ColumnDefinition: Sendable, Hashable, Identifiable {
+    public let name: String
+    public let type: String
+    public let isNullable: Bool
+    public let isPrimaryKey: Bool
+
+    public var id: String { name }
+
+    public init(name: String, type: String, isNullable: Bool = true, isPrimaryKey: Bool = false) {
+        self.name = name
+        self.type = type
+        self.isNullable = isNullable
+        self.isPrimaryKey = isPrimaryKey
+    }
 }
