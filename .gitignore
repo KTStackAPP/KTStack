@@ -99,6 +99,8 @@ worktrees/
 
 plans/
 
+plans/*
+
 docs/
 
 release-manifest.json
