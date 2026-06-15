@@ -51,6 +51,13 @@ final class ServiceManagementTests: XCTestCase {
         // Crash-only restart: a clean bootout (exit 0) must NOT be relaunched.
         let keepAlive = plist?["KeepAlive"] as? [String: Any]
         XCTAssertEqual(keepAlive?["SuccessfulExit"] as? Bool, false)
+        XCTAssertEqual(plist?["ThrottleInterval"] as? Int, 10)
+    }
+
+    func testStrayProcessReaperExcludesSelfAndUnknownPaths() {
+        XCTAssertTrue(StrayProcessReaper.pids(matching: "/no/such/binary-\(UUID().uuidString)").isEmpty)
+        let ownExecutable = ProcessInfo.processInfo.arguments[0]
+        XCTAssertFalse(StrayProcessReaper.pids(matching: ownExecutable).contains(getpid()))
     }
 
     func testLaunchAgentGuiDomainUsesCurrentUID() {

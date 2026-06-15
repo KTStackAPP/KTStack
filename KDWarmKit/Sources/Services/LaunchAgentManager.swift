@@ -56,6 +56,7 @@ public struct LaunchAgentManager: Sendable {
             "ProgramArguments": spec.programArguments,
             "RunAtLoad": spec.runAtLoad,
             "ProcessType": "Interactive",
+            "ThrottleInterval": 10,
         ]
         if let wd = spec.workingDirectory { dict["WorkingDirectory"] = wd }
         if !spec.environment.isEmpty { dict["EnvironmentVariables"] = spec.environment }

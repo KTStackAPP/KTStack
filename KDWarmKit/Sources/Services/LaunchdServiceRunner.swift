@@ -26,8 +26,9 @@ public struct LaunchdServiceRunner: Sendable {
 
     public func start(spec: LaunchAgentSpec) async throws {
         try verifyBinarySignature(spec)
+        if agents.isLoaded(label), await isHealthy() { return }
+        reapStrayInstances(spec)
         if agents.isLoaded(label) {
-            if await isHealthy() { return }
             try agents.kickstart(label)
         } else {
             switch preflight.firstConflict(in: preflightPorts) {
@@ -51,6 +52,11 @@ public struct LaunchdServiceRunner: Sendable {
 
     public func probe() async -> ServiceStatus { await health.check(probe) }
 
+
+    private func reapStrayInstances(_ spec: LaunchAgentSpec) {
+        guard let program = spec.programArguments.first else { return }
+        StrayProcessReaper.terminate(StrayProcessReaper.pids(matching: program))
+    }
 
     private func verifyBinarySignature(_ spec: LaunchAgentSpec) throws {
         guard let path = spec.programArguments.first else { return }
