@@ -12,6 +12,13 @@ packages:
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
     from: "2.6.0"
+  # Pure-Swift MySQL driver (NIO). No system libmysqlclient / C dylib → links statically into
+  # the framework, so the bundle stays notarize-clean. TLS rides swift-nio-ssl's vendored
+  # BoringSSL (also static), not the system OpenSSL. Pinned via `from:`; the generated
+  # Package.resolved is ephemeral like the rest of the XcodeGen-built project.
+  mysql-nio:
+    url: https://github.com/vapor/mysql-nio
+    from: "1.9.0"
 
 settings:
   base:
@@ -47,6 +54,9 @@ targets:
     platform: macOS
     sources:
       - path: KDWarmKit/Sources
+    dependencies:
+      - package: mysql-nio
+        product: MySQLNIO
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kdwarm.kit
