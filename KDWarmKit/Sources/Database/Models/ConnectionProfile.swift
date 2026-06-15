@@ -111,5 +111,18 @@ public struct ConnectionProfile: Codable, Sendable, Identifiable, Equatable {
         tlsMode: .disable,
         readOnly: false)
 
-    public var isManaged: Bool { id == Self.managedMySQL.id || id == Self.managedPostgres.id }
+    public static let managedMongo = ConnectionProfile(
+        id: UUID(uuidString: "00000000-0000-0000-0000-000000000003")!,
+        name: "MongoDB (managed)",
+        kind: .mongodb,
+        host: "127.0.0.1",
+        port: 27017,
+        user: "",
+        database: "admin",
+        tlsMode: .disable,
+        readOnly: false)
+
+    public var isManaged: Bool {
+        id == Self.managedMySQL.id || id == Self.managedPostgres.id || id == Self.managedMongo.id
+    }
 }

@@ -3,6 +3,7 @@ import KDWarmKit
 
 struct DatabaseSectionView: View {
     @EnvironmentObject private var vm: DatabaseViewModel
+    @EnvironmentObject private var documentVM: DocumentViewModel
     @EnvironmentObject private var services: ServiceManager
     @State private var rightTab: RightTab = .data
     @State private var showingImportExport = false
@@ -14,14 +15,20 @@ struct DatabaseSectionView: View {
         var id: String { rawValue }
     }
 
+    private var isDocumentTrack: Bool { documentVM.selectedProfile != nil }
+
     var body: some View {
         VStack(spacing: 0) {
             toolbar
             Divider()
             HSplitView {
                 ConnectionSidebarView()
-                SchemaTreeView()
-                rightPane.frame(minWidth: 360)
+                if isDocumentTrack {
+                    DocumentSectionContent()
+                } else {
+                    SchemaTreeView()
+                    rightPane.frame(minWidth: 360)
+                }
             }
         }
         .navigationTitle("Database")
@@ -30,25 +37,59 @@ struct DatabaseSectionView: View {
 
     private var toolbar: some View {
         HStack(spacing: KDSpacing.space3) {
-            Text(vm.selectedProfile?.name ?? "No connection").font(KDFont.headline)
+            Text(activeProfileName).font(KDFont.headline)
             connectionStatus
             Spacer()
-            Button { showingImportExport = true } label: {
-                Image(systemName: "square.and.arrow.up.on.square")
+            if !isDocumentTrack {
+                Button { showingImportExport = true } label: {
+                    Image(systemName: "square.and.arrow.up.on.square")
+                }
+                .help("Import / Export…")
+                .disabled(vm.connection != .connected || vm.selectedDatabase == nil)
+                Picker("", selection: $rightTab) {
+                    ForEach(RightTab.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented).labelsHidden().frame(width: 220)
+                .disabled(vm.connection != .connected)
             }
-            .help("Import / Export…")
-            .disabled(vm.connection != .connected || vm.selectedDatabase == nil)
-            Picker("", selection: $rightTab) {
-                ForEach(RightTab.allCases) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented).labelsHidden().frame(width: 220)
-            .disabled(vm.connection != .connected)
         }
         .padding(KDSpacing.space3)
     }
 
+    private var activeProfileName: String {
+        (isDocumentTrack ? documentVM.selectedProfile : vm.selectedProfile)?.name ?? "No connection"
+    }
+
     @ViewBuilder
     private var connectionStatus: some View {
+        if isDocumentTrack {
+            documentConnectionStatus
+        } else {
+            relationalConnectionStatus
+        }
+    }
+
+    @ViewBuilder
+    private var documentConnectionStatus: some View {
+        switch documentVM.connection {
+        case .connecting:
+            HStack(spacing: KDSpacing.space1) {
+                ProgressView().controlSize(.small)
+                Text("Connecting…").font(KDFont.footnote).foregroundStyle(.secondary)
+            }
+        case .connected:
+            Label("Connected", systemImage: "checkmark.circle.fill")
+                .font(KDFont.footnote).foregroundStyle(.green)
+        case .failed:
+            Label("Disconnected", systemImage: "exclamationmark.triangle.fill")
+                .font(KDFont.footnote).foregroundStyle(.orange)
+        case .idle:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var relationalConnectionStatus: some View {
         switch vm.connection {
         case .connecting:
             HStack(spacing: KDSpacing.space1) {

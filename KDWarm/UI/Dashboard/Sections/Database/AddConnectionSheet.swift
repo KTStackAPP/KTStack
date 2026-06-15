@@ -22,8 +22,7 @@ struct AddConnectionSheet: View {
     @State private var test: TestState = .idle
     @State private var importingFile = false
 
-    /// Engines the connection editor can create. MongoDB is a separate (document) track.
-    private static let engines: [DatabaseKind] = [.mysql, .postgres, .sqlite]
+    private static let engines: [DatabaseKind] = [.mysql, .postgres, .sqlite, .mongodb]
 
     enum TestState: Equatable {
         case idle, testing, ok
@@ -126,9 +125,10 @@ struct AddConnectionSheet: View {
         if kind == .sqlite {
             return !filePath.trimmingCharacters(in: .whitespaces).isEmpty
         }
-        return !host.trimmingCharacters(in: .whitespaces).isEmpty
-            && !user.trimmingCharacters(in: .whitespaces).isEmpty
-            && (Int(port).map { (1...65535).contains($0) } ?? false)
+        let portValid = Int(port).map { (1...65535).contains($0) } ?? false
+        let hostValid = !host.trimmingCharacters(in: .whitespaces).isEmpty
+        let userValid = kind == .mongodb || !user.trimmingCharacters(in: .whitespaces).isEmpty
+        return hostValid && userValid && portValid
     }
 
     private func engineLabel(_ kind: DatabaseKind) -> String {
@@ -144,7 +144,8 @@ struct AddConnectionSheet: View {
         switch kind {
         case .postgres: return "5432"
         case .mysql:    return "3306"
-        default:        return ""
+        case .mongodb:  return "27017"
+        case .sqlite:   return ""
         }
     }
 
@@ -185,7 +186,10 @@ struct AddConnectionSheet: View {
         let pwd = effectivePassword
         test = .testing
         Task { @MainActor in
-            guard let driver = DatabaseViewModel.defaultDriver(profile, pwd) else {
+            let driver: DatabaseDriver? = profile.kind == .mongodb
+                ? DocumentViewModel.defaultDriver(profile, pwd)
+                : DatabaseViewModel.defaultDriver(profile, pwd)
+            guard let driver else {
                 test = .failed("Unsupported engine")
                 return
             }

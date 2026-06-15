@@ -1,12 +1,7 @@
 import Foundation
 
 
-public protocol RelationalDriver: Sendable {
-
-    var kind: DatabaseKind { get }
-
-    func ping() async throws
-
+public protocol RelationalDriver: DatabaseDriver {
 
     func listDatabases() async throws -> [DatabaseInfo]
 

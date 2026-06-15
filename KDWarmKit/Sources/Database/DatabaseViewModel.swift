@@ -103,6 +103,17 @@ public final class DatabaseViewModel: ObservableObject {
     // MARK: - Connection
 
 
+    public func deselect() {
+        generation += 1
+        connection = .idle
+        selectedProfile = nil
+        driver = nil
+        databases = []; tables = []; selectedDatabase = nil; selectedTable = nil
+        result = nil; resultError = nil; resultSource = .none
+        currentColumns = []; currentIndexes = []
+        pageOffset = 0; hasMorePages = false; isBusy = false
+    }
+
     public func select(profile: ConnectionProfile) async {
         let token = beginOperation()
         selectedProfile = profile

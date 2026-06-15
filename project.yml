@@ -30,6 +30,12 @@ packages:
   GRDB.swift:
     url: https://github.com/groue/GRDB.swift
     from: "7.0.0"
+  # Pure-Swift MongoDB driver (NIO). No libmongoc / system dylib (unlike mongo-swift-driver) → links
+  # statically into the framework, keeping the bundle notarize-clean. BSON arrives transitively and
+  # supplies the extended-JSON codec the document UI renders with.
+  MongoKitten:
+    url: https://github.com/orlandos-nl/MongoKitten
+    from: "7.0.0"
 
 settings:
   base:
@@ -72,6 +78,10 @@ targets:
         product: PostgresNIO
       - package: GRDB.swift
         product: GRDB
+      - package: MongoKitten
+        product: MongoKitten
+      - package: MongoKitten
+        product: MongoCore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kdwarm.kit

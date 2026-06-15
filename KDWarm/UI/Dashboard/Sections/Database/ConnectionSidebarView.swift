@@ -5,6 +5,7 @@ import KDWarmKit
 struct ConnectionSidebarView: View {
     @EnvironmentObject private var store: ConnectionStore
     @EnvironmentObject private var vm: DatabaseViewModel
+    @EnvironmentObject private var documentVM: DocumentViewModel
     @State private var sheet: SheetMode?
 
 
@@ -40,7 +41,7 @@ struct ConnectionSidebarView: View {
                 ForEach(store.allProfiles) { profile in
                     row(profile)
                         .contentShape(Rectangle())
-                        .onTapGesture { Task { await vm.select(profile: profile) } }
+                        .onTapGesture { Task { await select(profile) } }
                         .contextMenu { rowMenu(profile) }
                 }
             }
@@ -50,6 +51,16 @@ struct ConnectionSidebarView: View {
         .sheet(item: $sheet) { mode in
             AddConnectionSheet(editing: mode.editingProfile)
                 .environmentObject(store)
+        }
+    }
+
+    private func select(_ profile: ConnectionProfile) async {
+        if profile.kind == .mongodb {
+            vm.deselect()
+            await documentVM.select(profile: profile)
+        } else {
+            documentVM.deselect()
+            await vm.select(profile: profile)
         }
     }
 
@@ -63,9 +74,9 @@ struct ConnectionSidebarView: View {
 
     @ViewBuilder
     private func row(_ profile: ConnectionProfile) -> some View {
-        let isSelected = vm.selectedProfile?.id == profile.id
+        let isSelected = selectedProfileID == profile.id
         HStack(spacing: KDSpacing.space2) {
-            Image(systemName: profile.kind == .mysql ? "cylinder.split.1x2" : "cylinder")
+            Image(systemName: icon(for: profile.kind))
                 .foregroundStyle(isSelected ? Color.accentColor : .secondary)
             VStack(alignment: .leading, spacing: 1) {
                 Text(profile.name).font(KDFont.body)
@@ -73,22 +84,54 @@ struct ConnectionSidebarView: View {
                     .font(KDFont.footnote).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
-            if isSelected { stateIcon }
+            if isSelected { stateIcon(for: profile) }
         }
         .padding(.vertical, KDSpacing.space1)
     }
 
-    @ViewBuilder
-    private var stateIcon: some View {
-        switch vm.connection {
-        case .connecting:
-            ProgressView().controlSize(.small)
-        case .connected:
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-        case .failed:
-            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-        case .idle:
-            EmptyView()
+    private var selectedProfileID: ConnectionProfile.ID? {
+        vm.selectedProfile?.id ?? documentVM.selectedProfile?.id
+    }
+
+    private func icon(for kind: DatabaseKind) -> String {
+        switch kind {
+        case .mysql:    return "cylinder.split.1x2"
+        case .mongodb:  return "doc.text"
+        case .postgres, .sqlite: return "cylinder"
         }
+    }
+
+    @ViewBuilder
+    private func stateIcon(for profile: ConnectionProfile) -> some View {
+        if profile.kind == .mongodb {
+            stateIcon(connecting: documentVM.connection == .connecting,
+                      connected: documentVM.connection == .connected,
+                      failed: isFailed(documentVM.connection))
+        } else {
+            stateIcon(connecting: vm.connection == .connecting,
+                      connected: vm.connection == .connected,
+                      failed: isFailed(vm.connection))
+        }
+    }
+
+    @ViewBuilder
+    private func stateIcon(connecting: Bool, connected: Bool, failed: Bool) -> some View {
+        if connecting {
+            ProgressView().controlSize(.small)
+        } else if connected {
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+        } else if failed {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+        }
+    }
+
+    private func isFailed(_ connection: DatabaseViewModel.Connection) -> Bool {
+        if case .failed = connection { return true }
+        return false
+    }
+
+    private func isFailed(_ connection: DocumentViewModel.Connection) -> Bool {
+        if case .failed = connection { return true }
+        return false
     }
 }

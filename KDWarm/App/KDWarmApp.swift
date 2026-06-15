@@ -37,6 +37,7 @@ struct KDWarmApp: App {
                 .environmentObject(appDelegate.uninstaller)
                 .environmentObject(appDelegate.connectionStore)
                 .environmentObject(appDelegate.databaseViewModel)
+                .environmentObject(appDelegate.documentViewModel)
         }
         .defaultSize(width: 920, height: 600)
         .windowResizability(.contentMinSize)
@@ -93,6 +94,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .appendingPathComponent("connections.json"))
 
     @MainActor lazy var databaseViewModel = DatabaseViewModel()
+
+    @MainActor lazy var documentViewModel = DocumentViewModel()
 
     private static var bundleBinDir: URL {
         Bundle.main.resourceURL?.appendingPathComponent("bin", isDirectory: true)
