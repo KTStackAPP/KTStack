@@ -6,20 +6,34 @@ public struct NginxTunnelVhostWriter {
     public init() {}
 
     public func vhost(site: Site, port: Int, phpFpmSocket: URL?,
-                      accessLog: URL? = nil, errorLog: URL? = nil) -> String {
+                      accessLog: URL? = nil, errorLog: URL? = nil,
+                      publicHost: String? = nil) -> String {
         let root = URL(fileURLWithPath: site.docroot)
         let routing = phpFpmSocket.map { phpRouting(socket: $0) } ?? staticRouting()
         let index = phpFpmSocket == nil ? "index.html index.htm" : "index.php index.html"
+        let rewrite = publicHostRewrite(localDomain: site.domain, publicHost: publicHost)
         return """
         server {
             listen \(Self.listenAddress):\(port);
             server_name _;
             root \(NginxConfigWriter.q(root.path));
-            index \(index);\(NginxConfigWriter.logDirectives(access: accessLog, error: errorLog))
+            index \(index);\(NginxConfigWriter.logDirectives(access: accessLog, error: errorLog))\(rewrite)
 
         \(routing)
         }
         """
+    }
+
+    private func publicHostRewrite(localDomain: String, publicHost: String?) -> String {
+        guard let publicHost, !publicHost.isEmpty else { return "" }
+        let lines = [
+            "sub_filter_once off;",
+            "sub_filter_types *;",
+            "sub_filter \"https://\(localDomain)\" \"https://\(publicHost)\";",
+            "sub_filter \"http://\(localDomain)\" \"https://\(publicHost)\";",
+            "sub_filter \"//\(localDomain)\" \"//\(publicHost)\";",
+        ]
+        return "\n" + lines.map { "    " + $0 }.joined(separator: "\n")
     }
 
     private func phpRouting(socket: URL) -> String {

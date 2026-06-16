@@ -66,6 +66,27 @@ final class NginxTunnelVhostWriterTests: XCTestCase {
         XCTAssertTrue(v.contains("try_files $uri $uri/ =404;"))
         XCTAssertFalse(v.contains("fastcgi_pass"))
     }
+
+    func testTunnelVhostOmitsSubFilterWithoutPublicHost() {
+        let site = Site(name: "App", path: "/site", docroot: "/site/public",
+                        domain: "app.test", phpVersion: "8.4", type: .php, secure: true)
+        let v = writer.vhost(site: site, port: 45125,
+                             phpFpmSocket: URL(fileURLWithPath: "/run/php-fpm-8.4.sock"))
+        XCTAssertFalse(v.contains("sub_filter"))
+    }
+
+    func testTunnelVhostRewritesLocalDomainToPublicHost() {
+        let site = Site(name: "App", path: "/site", docroot: "/site/public",
+                        domain: "app.test", phpVersion: "8.4", type: .php, secure: true)
+        let v = writer.vhost(site: site, port: 45126,
+                             phpFpmSocket: URL(fileURLWithPath: "/run/php-fpm-8.4.sock"),
+                             publicHost: "demo.trycloudflare.com")
+        XCTAssertTrue(v.contains("sub_filter_once off;"))
+        XCTAssertTrue(v.contains("sub_filter_types *;"))
+        XCTAssertTrue(v.contains("sub_filter \"https://app.test\" \"https://demo.trycloudflare.com\";"))
+        XCTAssertTrue(v.contains("sub_filter \"http://app.test\" \"https://demo.trycloudflare.com\";"))
+        XCTAssertTrue(v.contains("sub_filter \"//app.test\" \"//demo.trycloudflare.com\";"))
+    }
 }
 
 final class MkcertAndCertMinterTests: XCTestCase {

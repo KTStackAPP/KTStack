@@ -48,6 +48,7 @@ cd "$SRC"
     --with-http_v2_module \
     --with-http_realip_module \
     --with-http_gzip_static_module \
+    --with-http_sub_module \
     --with-cc-opt="-arch ${ARCH} -I$SSL_PREFIX/include -I$PCRE_PREFIX/include" \
     --with-ld-opt="-arch ${ARCH} -L$STATICLIBS" >/dev/null
 echo "=== make ==="

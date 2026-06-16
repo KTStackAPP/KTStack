@@ -87,7 +87,10 @@ public actor TunnelController {
             try? await Task.sleep(nanoseconds: 400_000_000)
         }
         try? launch.bootout(label)
-        if !userStopped { onStatus(.error("URL not received within \(Int(Self.parseTimeout))s.")) }
+        if !userStopped {
+            onStatus(.error(connectivityDiagnosis()
+                ?? "URL not received within \(Int(Self.parseTimeout))s."))
+        }
     }
 
     private func probeThenPublish(url: URL, localDomain: String,
@@ -116,8 +119,29 @@ public actor TunnelController {
         }
         try? launch.bootout(label)
         if !userStopped {
-            onStatus(.error("Tunnel URL did not become reachable within \(Int(Self.probeTimeout))s. Check DNS/network and share again."))
+            onStatus(.error(connectivityDiagnosis()
+                ?? "Tunnel URL did not become reachable within \(Int(Self.probeTimeout))s. Check DNS/network and share again."))
         }
+    }
+
+    private func connectivityDiagnosis() -> String? {
+        guard let data = try? Data(contentsOf: logURL),
+              let log = String(data: data, encoding: .utf8) else { return nil }
+        return Self.connectivityDiagnosis(log: log)
+    }
+
+    static func connectivityDiagnosis(log: String) -> String? {
+        let blocked = ["QUIC connection failed",
+                       "HTTP/2 connection is blocked or unreachable",
+                       "Environment has critical failures",
+                       "Allow outbound QUIC traffic on port 7844"]
+        if blocked.contains(where: log.contains) {
+            return "Cloudflare edge unreachable — your network appears to block cloudflared (QUIC/UDP 7844 or outbound TCP 7844). Try another network, or allow outbound port 7844."
+        }
+        if log.contains("i/o timeout") || log.contains("no such host") {
+            return "Cloudflare edge unreachable — DNS or network connectivity to the tunnel edge failed. Check your internet connection and share again."
+        }
+        return nil
     }
 
     private func ensureLabelFree() async {

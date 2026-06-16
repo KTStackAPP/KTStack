@@ -3,6 +3,20 @@ import Combine
 
 @MainActor
 public final class TunnelManager: ObservableObject {
+    private enum PreparationError: LocalizedError {
+        case originPortNotListening(Int)
+        case nginxRecoveryFailed(Int, String)
+
+        var errorDescription: String? {
+            switch self {
+            case .originPortNotListening(let port):
+                return "Nginx did not start listening on tunnel origin port \(port). Restart local services and try sharing again."
+            case .nginxRecoveryFailed(let port, let message):
+                return "Nginx could not activate tunnel origin port \(port): \(message)"
+            }
+        }
+    }
+
     @Published public private(set) var sessions: [UUID: TunnelSession] = [:]
 
     public var ttl: TimeInterval = 30 * 60
@@ -108,14 +122,20 @@ public final class TunnelManager: ObservableObject {
         }
         do {
             if Task.isCancelled { clearStart(siteID); return }
-            let originPort = try prepareTunnelVhost(for: site)
+            let originPort = try await prepareTunnelVhost(for: site)
             if Task.isCancelled { clearStart(siteID); return }
             let binary = try await provisioner.ensureInstalled { _ in }
             if Task.isCancelled { clearStart(siteID); return }
             let controller = TunnelController(paths: paths, siteID: siteID)
             controllers[siteID] = controller
             await controller.start(binary: binary, originPort: originPort, localDomain: site.domain) { [weak self] status in
-                Task { @MainActor [weak self] in self?.updateStatus(siteID, status) }
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    if case let .active(url) = status, let host = url.host {
+                        self.applyPublicHost(site: site, port: originPort, publicHost: host)
+                    }
+                    self.updateStatus(siteID, status)
+                }
             }
             startTasks[siteID] = nil
         } catch is CancellationError {
@@ -141,15 +161,60 @@ public final class TunnelManager: ObservableObject {
         sessions[siteID] = nil
     }
 
-    private func prepareTunnelVhost(for site: Site) throws -> Int {
+    private func prepareTunnelVhost(for site: Site) async throws -> Int {
         let port = selectTunnelPort(site.id)
+        try writeTunnelVhost(site: site, port: port, publicHost: nil)
+        try await activateTunnelVhost(port: port)
+        return port
+    }
+
+    private func writeTunnelVhost(site: Site, port: Int, publicHost: String?) throws {
         let socket = site.type == .php ? paths.phpFpmSocket(generator.effectivePHPVersion(site.phpVersion)) : nil
         let config = tunnelWriter.vhost(site: site, port: port, phpFpmSocket: socket,
                                         accessLog: paths.siteAccessLog(site.domain),
-                                        errorLog: paths.siteErrorLog(site.domain))
+                                        errorLog: paths.siteErrorLog(site.domain),
+                                        publicHost: publicHost)
         try config.write(to: tunnelVhostURL(site.id), atomically: true, encoding: .utf8)
-        try nginx.reload()
-        return port
+    }
+
+    private func applyPublicHost(site: Site, port: Int, publicHost: String) {
+        guard nginx.supportsResponseBodyRewrite() else { return }
+        guard FileManager.default.fileExists(atPath: tunnelVhostURL(site.id).path) else { return }
+        guard (try? writeTunnelVhost(site: site, port: port, publicHost: publicHost)) != nil else { return }
+        try? nginx.reload()
+    }
+
+    private func activateTunnelVhost(port: Int) async throws {
+        do {
+            try nginx.reload()
+            if await waitForTunnelPort(port) { return }
+        } catch {
+            try await restartNginxForTunnelPort(port, originalError: error)
+            return
+        }
+
+        try await restartNginxForTunnelPort(port, originalError: PreparationError.originPortNotListening(port))
+    }
+
+    private func restartNginxForTunnelPort(_ port: Int, originalError: Error) async throws {
+        do {
+            try nginx.restart()
+            if await waitForTunnelPort(port) { return }
+            throw PreparationError.originPortNotListening(port)
+        } catch {
+            let message = [originalError.localizedDescription, error.localizedDescription]
+                .filter { !$0.isEmpty }
+                .joined(separator: " | ")
+            throw PreparationError.nginxRecoveryFailed(port, message)
+        }
+    }
+
+    private func waitForTunnelPort(_ port: Int) async -> Bool {
+        for _ in 0..<20 {
+            if case .inUse = preflight.check(port: port) { return true }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        return false
     }
 
     private func removeTunnelVhost(_ siteID: UUID) {

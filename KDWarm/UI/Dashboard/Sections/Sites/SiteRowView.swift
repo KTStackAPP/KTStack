@@ -115,8 +115,13 @@ struct SiteRowView: View {
         case .error(let message):
             HStack(spacing: 4) {
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Color.KDStatus.error)
+                Text(message)
+                    .font(KDFont.footnote)
+                    .foregroundStyle(Color.KDStatus.error)
+                    .lineLimit(2)
+                    .help(message)
                 Button { onToggleShare(true) } label: { Image(systemName: "arrow.clockwise") }
-                    .buttonStyle(.borderless).help(message)
+                    .buttonStyle(.borderless).help("Share again")
             }
         }
     }

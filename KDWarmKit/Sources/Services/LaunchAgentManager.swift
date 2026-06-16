@@ -7,6 +7,7 @@ public struct LaunchAgentSpec: Sendable, Equatable {
     public let environment: [String: String]
     public let stdoutPath: String?
     public let stderrPath: String?
+    public let fileDescriptorLimit: Int?
 
     public let keepAliveOnCrash: Bool
     public let runAtLoad: Bool
@@ -17,6 +18,7 @@ public struct LaunchAgentSpec: Sendable, Equatable {
                 environment: [String: String] = [:],
                 stdoutPath: String? = nil,
                 stderrPath: String? = nil,
+                fileDescriptorLimit: Int? = nil,
                 keepAliveOnCrash: Bool = true,
                 runAtLoad: Bool = true) {
         self.label = label
@@ -25,6 +27,7 @@ public struct LaunchAgentSpec: Sendable, Equatable {
         self.environment = environment
         self.stdoutPath = stdoutPath
         self.stderrPath = stderrPath
+        self.fileDescriptorLimit = fileDescriptorLimit
         self.keepAliveOnCrash = keepAliveOnCrash
         self.runAtLoad = runAtLoad
     }
@@ -62,6 +65,11 @@ public struct LaunchAgentManager: Sendable {
         if !spec.environment.isEmpty { dict["EnvironmentVariables"] = spec.environment }
         if let out = spec.stdoutPath { dict["StandardOutPath"] = out }
         if let err = spec.stderrPath { dict["StandardErrorPath"] = err }
+        if let limit = spec.fileDescriptorLimit {
+            let limits = ["NumberOfFiles": limit]
+            dict["SoftResourceLimits"] = limits
+            dict["HardResourceLimits"] = limits
+        }
    
         if spec.keepAliveOnCrash { dict["KeepAlive"] = ["SuccessfulExit": false] }
         return try PropertyListSerialization.data(fromPropertyList: dict, format: .xml, options: 0)

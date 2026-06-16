@@ -67,4 +67,28 @@ final class TunnelModelsTests: XCTestCase {
                                                       localDomain: "app.test"),
                        .ready)
     }
+
+    func testDiagnosisReportsBlockedEdgeFromCloudflaredLog() {
+        let log = """
+        INF Requesting new quick Tunnel on trycloudflare.com...
+        INF |  UDP Connectivity  region1.v2.argotunnel.com  FAIL    QUIC connection failed
+        INF |  SUMMARY: Environment has critical failures.
+        """
+        let message = TunnelController.connectivityDiagnosis(log: log)
+        XCTAssertNotNil(message)
+        XCTAssertTrue(message?.contains("7844") ?? false)
+    }
+
+    func testDiagnosisReportsDNSFailure() {
+        let log = "ERR Failed to fetch features error=\"lookup cfd.argotunnel.com: i/o timeout\""
+        XCTAssertEqual(TunnelController.connectivityDiagnosis(log: log)?.isEmpty, false)
+    }
+
+    func testDiagnosisStaysNilForHealthyLog() {
+        let log = """
+        INF Registered tunnel connection connIndex=0 location=sin22 protocol=http2
+        INF Your quick Tunnel has been created!
+        """
+        XCTAssertNil(TunnelController.connectivityDiagnosis(log: log))
+    }
 }

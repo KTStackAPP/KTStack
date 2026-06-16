@@ -40,8 +40,9 @@ KTStack includes per-site Cloudflare Tunnel sharing for quick public previews. F
 The tunnel path is built for local web apps that care about their public host:
 
 - Each shared site gets a dedicated loopback Nginx tunnel vhost.
-- Requests keep the public `trycloudflare.com` host instead of being rewritten to the local `.test` domain.
-- PHP/FastCGI receives forwarded HTTPS metadata, so generated CSS, JS, redirects, and child links stay on the public tunnel URL.
+- PHP/FastCGI receives forwarded HTTPS metadata so apps that derive their base URL from the request host generate public links.
+- Once the public URL is known, the tunnel vhost rewrites absolute references to the local `.test` domain into the `trycloudflare.com` host in response bodies (HTML/CSS/JS), so assets and child links stay on the public URL even when the app stores its canonical URL locally. This rewrite requires the bundled Nginx to be built with `http_sub_module` and degrades gracefully (no rewrite) on older builds.
+- When the network blocks `cloudflared` (outbound QUIC/UDP or TCP on port 7844), sharing reports an explicit "Cloudflare edge unreachable" error instead of a generic timeout.
 - Tunnel sessions auto-expire after the app-defined TTL and stale tunnel vhosts are cleaned up when jobs are reaped.
 
 This is meant for temporary review links, device testing, and quick client previews. It is not a replacement for production hosting.

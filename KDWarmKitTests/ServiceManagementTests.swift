@@ -41,7 +41,8 @@ final class ServiceManagementTests: XCTestCase {
             programArguments: ["/bin/redis-server", "/etc/redis.conf"],
             workingDirectory: "/data/redis",
             stdoutPath: "/logs/redis.log",
-            stderrPath: "/logs/redis.log")
+            stderrPath: "/logs/redis.log",
+            fileDescriptorLimit: 8192)
         let data = try mgr.plistData(for: spec)
         let plist = try PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any]
         XCTAssertEqual(plist?["Label"] as? String, "com.kdwarm.redis")
@@ -52,6 +53,32 @@ final class ServiceManagementTests: XCTestCase {
         let keepAlive = plist?["KeepAlive"] as? [String: Any]
         XCTAssertEqual(keepAlive?["SuccessfulExit"] as? Bool, false)
         XCTAssertEqual(plist?["ThrottleInterval"] as? Int, 10)
+        let softLimits = plist?["SoftResourceLimits"] as? [String: Any]
+        let hardLimits = plist?["HardResourceLimits"] as? [String: Any]
+        XCTAssertEqual(softLimits?["NumberOfFiles"] as? Int, 8192)
+        XCTAssertEqual(hardLimits?["NumberOfFiles"] as? Int, 8192)
+    }
+
+    func testNginxReloadReportsCommandFailure() throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("kdwarm-nginx-reload-\(UUID().uuidString)", isDirectory: true)
+        let p = AppSupportPaths(root: root)
+        try p.ensureDirectoryTree()
+        let script = p.nginxBinary
+        let contents = """
+        #!/bin/sh
+        echo reload failed >&2
+        exit 7
+        """
+        try contents.write(to: script, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let nginx = NginxController(paths: p, agents: LaunchAgentManager(paths: p))
+        XCTAssertThrowsError(try nginx.reload()) { error in
+            XCTAssertTrue(error.localizedDescription.contains("exit code 7"))
+            XCTAssertTrue(error.localizedDescription.contains("reload failed"))
+        }
     }
 
     func testStrayProcessReaperExcludesSelfAndUnknownPaths() {
