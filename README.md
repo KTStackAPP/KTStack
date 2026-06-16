@@ -33,6 +33,19 @@ Current release: `0.5.2` (`CURRENT_PROJECT_VERSION` `11`).
 | Public sharing | Per-site Cloudflare Tunnel share links through `trycloudflare.com` |
 | Updates | Sparkle integration is wired in; release signing/notarization scripts live under `scripts/release/` |
 
+## Cloudflare Tunnel Sharing
+
+KTStack includes per-site Cloudflare Tunnel sharing for quick public previews. From the Sites dashboard, share a local project and KTStack starts a `cloudflared` tunnel that returns a temporary `trycloudflare.com` URL.
+
+The tunnel path is built for local web apps that care about their public host:
+
+- Each shared site gets a dedicated loopback Nginx tunnel vhost.
+- Requests keep the public `trycloudflare.com` host instead of being rewritten to the local `.test` domain.
+- PHP/FastCGI receives forwarded HTTPS metadata, so generated CSS, JS, redirects, and child links stay on the public tunnel URL.
+- Tunnel sessions auto-expire after the app-defined TTL and stale tunnel vhosts are cleaned up when jobs are reaped.
+
+This is meant for temporary review links, device testing, and quick client previews. It is not a replacement for production hosting.
+
 ## Screenshots
 
 The images below are real project UI captures stored in this repository under `assets/readme/`.
@@ -143,4 +156,3 @@ assets/readme/          Tracked images used by this README
 - Runtime downloads are checksum-verified through the manifest in `RuntimeCatalog`.
 - MongoDB is fetched on demand and not redistributed inside the app bundle.
 - DMG files, generated Xcode projects, plans, docs scratch output, and local agent state are ignored by default.
-
