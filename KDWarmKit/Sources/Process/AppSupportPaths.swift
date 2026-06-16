@@ -16,6 +16,7 @@ public struct AppSupportPaths: Sendable {
 
     public var bin: URL              { dir("bin") }
     public var runtimes: URL         { dir("runtimes") }          // Phase 7
+    public var tools: URL            { dir("tools") }
     public var config: URL           { dir("config") }
     public var nginxConfigDir: URL   { config.appendingPathComponent("nginx", isDirectory: true) }
     public var sitesEnabled: URL     { nginxConfigDir.appendingPathComponent("sites-enabled", isDirectory: true) }
@@ -44,7 +45,7 @@ public struct AppSupportPaths: Sendable {
     }
 
     public var allDirectories: [URL] {
-        [root, bin, runtimes, config, nginxConfigDir, sitesEnabled, phpFpmConfigDir, phpConfigDir,
+        [root, bin, runtimes, tools, config, nginxConfigDir, sitesEnabled, phpFpmConfigDir, phpConfigDir,
          sitesConfigDir, caDir, certsDir, run, logs, logsSites, sites, data, launchAgents]
     }
 
@@ -70,6 +71,11 @@ public struct AppSupportPaths: Sendable {
         launchAgents.appendingPathComponent("\(label).plist")
     }
 
+    public func tunnelLabel(_ siteID: String) -> String { "com.kdwarm.tunnel.\(siteID)" }
+    public func tunnelLog(_ siteID: String) -> URL {
+        logs.appendingPathComponent("tunnel-\(siteID).log")
+    }
+
     public func binary(_ name: String) -> URL { bin.appendingPathComponent(name) }
 
     // MARK: Binaries (staged copies)
@@ -88,6 +94,14 @@ public struct AppSupportPaths: Sendable {
     
     public func runtimeBin(_ lang: String, _ version: String) -> URL {
         runtimeDir(lang, version).appendingPathComponent("bin", isDirectory: true)
+    }
+
+    public func toolsDir(_ name: String) -> URL {
+        tools.appendingPathComponent(name, isDirectory: true)
+    }
+
+    public func toolVersionDir(_ name: String, _ version: String) -> URL {
+        toolsDir(name).appendingPathComponent(version, isDirectory: true)
     }
 
 
@@ -112,6 +126,8 @@ public struct AppSupportPaths: Sendable {
 
     public var caRootCert: URL { caDir.appendingPathComponent("rootCA.pem") }
     public var caRootKey: URL  { caDir.appendingPathComponent("rootCA-key.pem") }
+    public var catchAllCert: URL { caDir.appendingPathComponent("catchall-cert.pem") }
+    public var catchAllKey: URL  { caDir.appendingPathComponent("catchall-key.pem") }
     public func siteCertDir(_ name: String) -> URL { certsDir.appendingPathComponent(name, isDirectory: true) }
     public func siteCert(_ name: String) -> URL { siteCertDir(name).appendingPathComponent("cert.pem") }
     public func siteKey(_ name: String) -> URL { siteCertDir(name).appendingPathComponent("key.pem") }

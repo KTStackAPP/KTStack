@@ -10,6 +10,7 @@ public final class LocalServerController: ObservableObject {
 
     public let httpPort = 80
     public let registry: SiteRegistry
+    public var onSitesChanged: (([Site]) -> Void)?
    
     nonisolated private let tld: String
 
@@ -177,6 +178,7 @@ public final class LocalServerController: ObservableObject {
     // MARK: - Reconcile
 
     private func onRegistryChanged() {
+        onSitesChanged?(registry.sites)
         guard isRunning else { refreshWatches(); return }
         guard !isBusy else { pendingReconcile = true; return }
         reconcile()

@@ -9,10 +9,11 @@ struct SitesSectionView: View {
     @EnvironmentObject private var server: LocalServerController
     @EnvironmentObject private var dns: DNSAutomationService
     @EnvironmentObject private var preferences: AppPreferences
+    @EnvironmentObject private var tunnels: TunnelManager
 
     var body: some View {
         SitesContent(server: server, registry: server.registry, dns: dns,
-                     preferences: preferences, onOpenLogs: onOpenLogs)
+                     preferences: preferences, tunnels: tunnels, onOpenLogs: onOpenLogs)
     }
 }
 
@@ -21,6 +22,7 @@ private struct SitesContent: View {
     @ObservedObject var registry: SiteRegistry
     @ObservedObject var dns: DNSAutomationService
     @ObservedObject var preferences: AppPreferences
+    @ObservedObject var tunnels: TunnelManager
     var onOpenLogs: (String?) -> Void
     @State private var showAddSheet = false
     @State private var showScanSheet = false
@@ -83,7 +85,11 @@ private struct SitesContent: View {
                         onEditDomain: { try registry.editDomain(site, to: $0) },
                         onSetVersion: { registry.setPHPVersion(site, to: $0) },
                         onSetSecure: { server.setSiteSecure(site, $0) },
-                        onOpenLogs: { onOpenLogs("site-\(site.domain)-access") })
+                        onOpenLogs: { onOpenLogs("site-\(site.domain)-access") },
+                        shareStatus: tunnels.session(site.id)?.status ?? .idle,
+                        onToggleShare: { on in
+                            if on { tunnels.start(site: site) } else { tunnels.stop(site: site.id) }
+                        })
                     Divider()
                 }
             }

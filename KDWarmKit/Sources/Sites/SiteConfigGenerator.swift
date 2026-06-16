@@ -42,7 +42,10 @@ public struct SiteConfigGenerator {
     @discardableResult
     public func generate(sites: [Site], port: Int = 80) throws -> Bool {
         var changed = false
-        changed = try writeIfChanged(writer.masterConfig(paths: paths), to: paths.nginxConf) || changed
+        let secureCatchAll = sites.contains { $0.secure && certPresent(for: $0) }
+        if secureCatchAll { try NginxCatchAllCert(paths: paths).ensure() }
+        changed = try writeIfChanged(writer.masterConfig(paths: paths, secureCatchAll: secureCatchAll),
+                                     to: paths.nginxConf) || changed
 
         var registeredFiles = Set<String>()
         for site in sites where NginxConfigWriter.isValidDomain(site.domain) {
@@ -78,8 +81,6 @@ public struct SiteConfigGenerator {
     public func poolVersions(for sites: [Site]) -> Set<String> {
         Set(sites.filter { $0.type == .php }.map { effectivePHPVersion($0.phpVersion) })
     }
-
-    // MARK: - Private
 
     private func writeIfChanged(_ content: String, to url: URL) throws -> Bool {
         if let existing = try? String(contentsOf: url, encoding: .utf8), existing == content {
