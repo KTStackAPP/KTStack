@@ -45,7 +45,7 @@ public enum TunnelOrigin {
     }
 
     public static func cloudflaredArguments(port: Int) -> [String] {
-        ["tunnel", "--url", url(port: port), "--no-autoupdate"]
+        ["tunnel", "--protocol", "http2", "--url", url(port: port), "--no-autoupdate"]
     }
 }
 

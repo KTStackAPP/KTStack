@@ -114,7 +114,7 @@ public final class TunnelManager: ObservableObject {
             if Task.isCancelled { clearStart(siteID); return }
             let controller = TunnelController(paths: paths, siteID: siteID)
             controllers[siteID] = controller
-            await controller.start(binary: binary, originPort: originPort) { [weak self] status in
+            await controller.start(binary: binary, originPort: originPort, localDomain: site.domain) { [weak self] status in
                 Task { @MainActor [weak self] in self?.updateStatus(siteID, status) }
             }
             startTasks[siteID] = nil

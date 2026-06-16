@@ -87,4 +87,16 @@ final class TunnelManagerTests: XCTestCase {
 
         XCTAssertFalse(FileManager.default.fileExists(atPath: stale.path))
     }
+
+    func testProbeRejectsAnyTestDomainRedirect() {
+        let decision = TunnelController.probeDecision(statusCode: 302,
+                                                      locationHost: "other.test",
+                                                      publicHost: "demo.trycloudflare.com",
+                                                      localDomain: "app.test")
+        guard case .failed(let message) = decision else {
+            XCTFail("Expected failed redirect decision, got \(decision)")
+            return
+        }
+        XCTAssertTrue(message.contains("other.test"))
+    }
 }

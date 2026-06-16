@@ -1,6 +1,12 @@
 import Foundation
 
 public actor TunnelController {
+    enum ProbeDecision: Equatable {
+        case pending
+        case ready
+        case failed(String)
+    }
+
     private let paths: AppSupportPaths
     private let label: String
     private let logURL: URL
@@ -10,6 +16,11 @@ public actor TunnelController {
     private var userStopped = false
     private var cancelled = false
     private var logOffset: UInt64 = 0
+
+    private struct ProbeResult: Sendable {
+        let statusCode: Int
+        let location: URL?
+    }
 
     private static let parseTimeout: TimeInterval = 30
     private static let probeTimeout: TimeInterval = 60
@@ -22,7 +33,7 @@ public actor TunnelController {
         self.launch = LaunchAgentManager(paths: paths)
     }
 
-    public func start(binary: URL, originPort: Int,
+    public func start(binary: URL, originPort: Int, localDomain: String,
                       onStatus: @escaping @Sendable (TunnelStatus) -> Void) async {
         if cancelled { return }
         userStopped = false
@@ -46,7 +57,7 @@ public actor TunnelController {
             onStatus(.error(error.localizedDescription))
             return
         }
-        monitor = Task { await self.awaitURL(onStatus: onStatus) }
+        monitor = Task { await self.awaitURL(localDomain: localDomain, onStatus: onStatus) }
     }
 
     public func stop() {
@@ -57,7 +68,7 @@ public actor TunnelController {
         try? launch.bootout(label)
     }
 
-    private func awaitURL(onStatus: @escaping @Sendable (TunnelStatus) -> Void) async {
+    private func awaitURL(localDomain: String, onStatus: @escaping @Sendable (TunnelStatus) -> Void) async {
         let deadline = Date().addingTimeInterval(Self.parseTimeout)
         var buffer = ""
         var poll = 0
@@ -65,7 +76,7 @@ public actor TunnelController {
             if Task.isCancelled || userStopped { return }
             buffer += readNewLogBytes()
             if let url = TrycloudflareURL.first(in: buffer) {
-                await probeThenPublish(url: url, onStatus: onStatus)
+                await probeThenPublish(url: url, localDomain: localDomain, onStatus: onStatus)
                 return
             }
             poll += 1
@@ -79,14 +90,22 @@ public actor TunnelController {
         if !userStopped { onStatus(.error("URL not received within \(Int(Self.parseTimeout))s.")) }
     }
 
-    private func probeThenPublish(url: URL, onStatus: @escaping @Sendable (TunnelStatus) -> Void) async {
+    private func probeThenPublish(url: URL, localDomain: String,
+                                  onStatus: @escaping @Sendable (TunnelStatus) -> Void) async {
         let deadline = Date().addingTimeInterval(Self.probeTimeout)
         var poll = 0
         while Date() < deadline {
             if Task.isCancelled || userStopped { return }
-            if let code = await Self.httpStatus(of: url), !Self.edgeErrorCodes.contains(code) {
+            switch await Self.probeDecision(for: Self.httpProbe(of: url), publicURL: url, localDomain: localDomain) {
+            case .ready:
                 if !userStopped { onStatus(.active(url)) }
                 return
+            case .failed(let message):
+                try? launch.bootout(label)
+                if !userStopped { onStatus(.error(message)) }
+                return
+            case .pending:
+                break
             }
             poll += 1
             if poll % 5 == 0, !launch.isLoadedNow(label) {
@@ -95,7 +114,10 @@ public actor TunnelController {
             }
             try? await Task.sleep(nanoseconds: 1_000_000_000)
         }
-        if !userStopped { onStatus(.active(url)) }
+        try? launch.bootout(label)
+        if !userStopped {
+            onStatus(.error("Tunnel URL did not become reachable within \(Int(Self.probeTimeout))s. Check DNS/network and share again."))
+        }
     }
 
     private func ensureLabelFree() async {
@@ -116,19 +138,56 @@ public actor TunnelController {
         return String(data: data, encoding: .utf8) ?? ""
     }
 
-    private static func httpStatus(of url: URL) async -> Int? {
+    static func probeDecision(statusCode: Int?, locationHost: String?,
+                              publicHost: String?, localDomain: String) -> ProbeDecision {
+        guard let statusCode else { return .pending }
+        if Self.edgeErrorCodes.contains(statusCode) { return .pending }
+        if (300..<400).contains(statusCode),
+           let locationHost,
+           locationHost == localDomain || locationHost.hasSuffix(".test") {
+            return .failed("Tunnel reached the site, but it redirects to local URL \(locationHost). Disable the local-domain redirect or update the app URL before sharing.")
+        }
+        if let locationHost, let publicHost,
+           (300..<400).contains(statusCode), locationHost != publicHost {
+            return .failed("Tunnel reached the site, but it redirects to \(locationHost).")
+        }
+        return .ready
+    }
+
+    private static func probeDecision(for result: ProbeResult?, publicURL: URL,
+                                      localDomain: String) -> ProbeDecision {
+        probeDecision(statusCode: result?.statusCode,
+                      locationHost: result?.location?.host,
+                      publicHost: publicURL.host,
+                      localDomain: localDomain)
+    }
+
+    private static func httpProbe(of url: URL) async -> ProbeResult? {
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
         request.timeoutInterval = 8
         request.cachePolicy = .reloadIgnoringLocalCacheData
         let config = URLSessionConfiguration.ephemeral
-        let session = URLSession(configuration: config)
+        let delegate = NoRedirectDelegate()
+        let session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
         defer { session.finishTasksAndInvalidate() }
         do {
             let (_, response) = try await session.data(for: request)
-            return (response as? HTTPURLResponse)?.statusCode
+            guard let response = response as? HTTPURLResponse else { return nil }
+            let location = response.value(forHTTPHeaderField: "Location")
+                .flatMap { URL(string: $0, relativeTo: url)?.absoluteURL }
+            return ProbeResult(statusCode: response.statusCode, location: location)
         } catch {
             return nil
         }
+    }
+}
+
+private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate {
+    func urlSession(_ session: URLSession, task: URLSessionTask,
+                    willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest,
+                    completionHandler: @escaping (URLRequest?) -> Void) {
+        completionHandler(nil)
     }
 }

@@ -22,7 +22,7 @@ final class TunnelModelsTests: XCTestCase {
 
     func testArgumentsUseDedicatedLoopbackOrigin() {
         let args = TunnelOrigin.cloudflaredArguments(port: 45123)
-        XCTAssertEqual(args, ["tunnel", "--url", "http://127.0.0.1:45123", "--no-autoupdate"])
+        XCTAssertEqual(args, ["tunnel", "--protocol", "http2", "--url", "http://127.0.0.1:45123", "--no-autoupdate"])
         XCTAssertFalse(args.contains("--no-tls-verify"))
     }
 
@@ -40,5 +40,31 @@ final class TunnelModelsTests: XCTestCase {
         XCTAssertTrue(TunnelStatus.active(url).isBusy)
         XCTAssertFalse(TunnelStatus.idle.isBusy)
         XCTAssertFalse(TunnelStatus.error("x").isBusy)
+    }
+
+    func testProbeKeepsDNSFailuresPending() {
+        XCTAssertEqual(TunnelController.probeDecision(statusCode: nil, locationHost: nil,
+                                                      publicHost: "demo.trycloudflare.com",
+                                                      localDomain: "app.test"),
+                       .pending)
+    }
+
+    func testProbeRejectsRedirectBackToLocalDomain() {
+        let decision = TunnelController.probeDecision(statusCode: 301,
+                                                      locationHost: "app.test",
+                                                      publicHost: "demo.trycloudflare.com",
+                                                      localDomain: "app.test")
+        guard case .failed(let message) = decision else {
+            XCTFail("Expected failed redirect decision, got \(decision)")
+            return
+        }
+        XCTAssertTrue(message.contains("redirects to local URL app.test"))
+    }
+
+    func testProbeAcceptsReachablePublicResponse() {
+        XCTAssertEqual(TunnelController.probeDecision(statusCode: 200, locationHost: nil,
+                                                      publicHost: "demo.trycloudflare.com",
+                                                      localDomain: "app.test"),
+                       .ready)
     }
 }
