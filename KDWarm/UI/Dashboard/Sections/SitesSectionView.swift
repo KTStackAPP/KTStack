@@ -26,6 +26,16 @@ private struct SitesContent: View {
     var onOpenLogs: (String?) -> Void
     @State private var showAddSheet = false
     @State private var showScanSheet = false
+    @State private var searchText = ""
+
+    private var filteredSites: [Site] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return registry.sites }
+        return registry.sites.filter {
+            $0.domain.localizedCaseInsensitiveContains(query)
+                || $0.name.localizedCaseInsensitiveContains(query)
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -39,6 +49,10 @@ private struct SitesContent: View {
                     actionTitle: "Add Site…"
                 ) { showAddSheet = true }
             } else {
+                if registry.sites.count > 8 {
+                    searchField
+                    Divider()
+                }
                 list
             }
             if let error = server.lastError {
@@ -72,10 +86,37 @@ private struct SitesContent: View {
         .padding(KDSpacing.space2)
     }
 
+    private var searchField: some View {
+        HStack(spacing: KDSpacing.space2) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            TextField("Search sites by name or domain", text: $searchText)
+                .textFieldStyle(.plain)
+            if !searchText.isEmpty {
+                Button { searchText = "" } label: { Image(systemName: "xmark.circle.fill") }
+                    .buttonStyle(.borderless).foregroundStyle(.secondary)
+            }
+        }
+        .padding(KDSpacing.space2)
+    }
+
+    @ViewBuilder
     private var list: some View {
+        if filteredSites.isEmpty {
+            EmptyStateView(
+                symbol: "magnifyingglass",
+                title: "No matching sites",
+                message: "No site matches “\(searchText)”.",
+                actionTitle: "Clear Search"
+            ) { searchText = "" }
+        } else {
+            siteScroll
+        }
+    }
+
+    private var siteScroll: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                ForEach(registry.sites) { site in
+                ForEach(filteredSites) { site in
                     SiteRowView(
                         site: site,
                         availableVersions: server.availableVersions,
