@@ -10,7 +10,7 @@ public struct NginxConfigWriter {
     static func q(_ path: String) -> String { "\"\(path)\"" }
 
    
-    public func masterConfig(paths: AppSupportPaths) -> String {
+    public func masterConfig(paths: AppSupportPaths, secureCatchAll: Bool = false) -> String {
         """
         worker_processes auto;
         pid \(Self.q(paths.nginxPid.path));
@@ -38,9 +38,32 @@ public struct NginxConfigWriter {
             sendfile on;
             keepalive_timeout 65;
 
+        \(catchAllServers(paths: paths, secure: secureCatchAll))
             include \(Self.q(paths.sitesEnabled.path + "/*.conf"));
         }
         """
+    }
+
+    func catchAllServers(paths: AppSupportPaths, secure: Bool) -> String {
+        var blocks = """
+            server {
+                listen \(Self.listenAddress):80 default_server;
+                server_name _;
+                return 444;
+            }
+        """
+        if secure {
+            blocks += "\n\n" + """
+            server {
+                listen \(Self.listenAddress):443 ssl default_server;
+                server_name _;
+                ssl_certificate \(Self.q(paths.catchAllCert.path));
+                ssl_certificate_key \(Self.q(paths.catchAllKey.path));
+                return 444;
+            }
+        """
+        }
+        return blocks
     }
 
 

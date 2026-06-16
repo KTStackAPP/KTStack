@@ -100,9 +100,20 @@ public struct LaunchAgentManager: Sendable {
         Self.loadedCache.contains(label)
     }
 
+    public func isLoadedNow(_ label: String) -> Bool {
+        Self.loadedCache.containsNow(label)
+    }
+
    
     public func bootoutAll() {
         for label in Self.loadedLabels() {
+            try? run("bootout", ["\(Self.guiDomain)/\(label)"])
+        }
+        Self.loadedCache.invalidate()
+    }
+
+    public func bootout(matchingPrefix prefix: String) {
+        for label in Self.loadedLabels() where label.hasPrefix(prefix) {
             try? run("bootout", ["\(Self.guiDomain)/\(label)"])
         }
         Self.loadedCache.invalidate()

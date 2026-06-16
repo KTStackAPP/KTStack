@@ -38,6 +38,7 @@ struct KDWarmApp: App {
                 .environmentObject(appDelegate.connectionStore)
                 .environmentObject(appDelegate.databaseViewModel)
                 .environmentObject(appDelegate.documentViewModel)
+                .environmentObject(appDelegate.tunnels)
         }
         .defaultSize(width: 920, height: 600)
         .windowResizability(.contentMinSize)
@@ -107,6 +108,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor lazy var documentViewModel = DocumentViewModel()
 
+    @MainActor lazy var tunnels = TunnelManager()
+
     private static var bundleBinDir: URL {
         Bundle.main.resourceURL?.appendingPathComponent("bin", isDirectory: true)
             ?? Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/bin", isDirectory: true)
@@ -121,8 +124,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             name: NSWindow.willCloseNotification,
             object: nil)
         registerHelperIfSigned()
-       
+
         _ = services
+        tunnels.reapStaleJobs()
+        server.onSitesChanged = { [tunnels] sites in tunnels.reconcile(sites: sites) }
     }
 
     
@@ -146,7 +151,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         dbShutdown.wait()
        
-        MainActor.assumeIsolated { server.shutdownForQuit() }
+        MainActor.assumeIsolated {
+            tunnels.shutdownAll()
+            server.shutdownForQuit()
+        }
     }
 
     @objc private func windowWillClose(_ note: Notification) {

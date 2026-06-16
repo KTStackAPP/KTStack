@@ -13,14 +13,19 @@ struct SiteRowView: View {
     let onSetVersion: (String) -> Void
     let onSetSecure: (Bool) -> Void
     let onOpenLogs: () -> Void
+    let shareStatus: TunnelStatus
+    let onToggleShare: (Bool) -> Void
 
     @State private var domainDraft: String
     @State private var domainError: String?
+    @State private var showShareConfirm = false
+    @State private var didCopy = false
 
     init(site: Site, availableVersions: [String], canOpen: Bool,
          onOpen: @escaping () -> Void, onRemove: @escaping () -> Void,
          onEditDomain: @escaping (String) throws -> Void, onSetVersion: @escaping (String) -> Void,
-         onSetSecure: @escaping (Bool) -> Void, onOpenLogs: @escaping () -> Void) {
+         onSetSecure: @escaping (Bool) -> Void, onOpenLogs: @escaping () -> Void,
+         shareStatus: TunnelStatus = .idle, onToggleShare: @escaping (Bool) -> Void = { _ in }) {
         self.site = site
         self.availableVersions = availableVersions
         self.canOpen = canOpen
@@ -30,6 +35,8 @@ struct SiteRowView: View {
         self.onSetVersion = onSetVersion
         self.onSetSecure = onSetSecure
         self.onOpenLogs = onOpenLogs
+        self.shareStatus = shareStatus
+        self.onToggleShare = onToggleShare
         _domainDraft = State(initialValue: site.domain)
     }
 
@@ -62,6 +69,8 @@ struct SiteRowView: View {
                 .toggleStyle(.switch).controlSize(.mini).labelsHidden()
                 .help("Serve over HTTPS with a locally-trusted certificate")
 
+            shareControl
+
             Button("Open", action: onOpen).disabled(!canOpen)
 
             Menu {
@@ -79,6 +88,53 @@ struct SiteRowView: View {
         .padding(.vertical, KDSpacing.space2)
         .padding(.horizontal, KDSpacing.space2)
         .onChange(of: site.domain) { new in domainDraft = new; domainError = nil }
+        .confirmationDialog("Expose “\(site.name)” publicly?", isPresented: $showShareConfirm) {
+            Button("Expose Publicly", role: .destructive) { onToggleShare(true) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("\(site.domain) → \(site.docroot)\n\nA public trycloudflare.com URL will forward to this site. "
+                + "Debug pages, profilers, and .env-backed secrets could be exposed to anyone with the link. "
+                + "The tunnel auto-stops after 30 minutes.")
+        }
+    }
+
+    @ViewBuilder
+    private var shareControl: some View {
+        switch shareStatus {
+        case .idle, .expired:
+            Button { showShareConfirm = true } label: {
+                Image(systemName: "antenna.radiowaves.left.and.right")
+            }
+            .buttonStyle(.borderless)
+            .help(shareStatus == .expired ? "Tunnel expired — share again" : "Share via public tunnel")
+        case .starting:
+            ProgressView().controlSize(.small)
+        case .active(let url):
+            HStack(spacing: 4) {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .foregroundStyle(Color.KDStatus.warning)
+                Text(url.host ?? url.absoluteString).font(KDFont.footnote).lineLimit(1)
+                Button { copy(url) } label: {
+                    Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+                }.buttonStyle(.borderless).help("Copy public URL")
+                Button { onToggleShare(false) } label: {
+                    Image(systemName: "stop.circle")
+                }.buttonStyle(.borderless).help("Stop sharing")
+            }
+        case .error(let message):
+            HStack(spacing: 4) {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Color.KDStatus.error)
+                Button { showShareConfirm = true } label: { Image(systemName: "arrow.clockwise") }
+                    .buttonStyle(.borderless).help(message)
+            }
+        }
+    }
+
+    private func copy(_ url: URL) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(url.absoluteString, forType: .string)
+        didCopy = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { didCopy = false }
     }
 
     private var phpVersionMenu: some View {
