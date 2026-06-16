@@ -20,6 +20,7 @@ public final class ServiceManager: ObservableObject {
    
     private let catalog: ServiceBinaryCatalog
     private let downloader: RuntimeDownloader
+    private let metricsSampler = ServiceMetricsSampler()
     private var downloadFraction: [ServiceKind: Double] = [:]
     private var installError: [ServiceKind: String] = [:]
     private var installTasks: [ServiceKind: Task<Void, Never>] = [:]
@@ -111,12 +112,20 @@ public final class ServiceManager: ObservableObject {
         }
     }
 
-   
+
     public func stopAll() {
         if server.isRunning { server.stop() }
         for kind in [ServiceKind.mysql, .postgres, .redis, .mongodb, .mailpit] {
             guard let svc = services[kind], installTasks[kind] == nil else { continue }
             perform(kind) { try await svc.stop() }
+        }
+    }
+
+    public func restartAll() {
+        server.restart()
+        for kind in [ServiceKind.mysql, .postgres, .redis, .mongodb, .mailpit] {
+            guard let svc = services[kind], svc.isInstalled, installTasks[kind] == nil else { continue }
+            perform(kind) { try await svc.restart() }
         }
     }
 
@@ -188,7 +197,13 @@ public final class ServiceManager: ObservableObject {
             default:      next.append(await independentSnapshot(kind))
             }
         }
-      
+
+        let metrics = await metricsSampler.sample()
+        for index in next.indices where next[index].status == .running {
+            next[index].cpuPercent = metrics[next[index].kind]?.cpuPercent
+            next[index].memoryBytes = metrics[next[index].kind]?.memoryBytes
+        }
+
         if next != snapshots { snapshots = next }
     }
 

@@ -86,9 +86,21 @@ public struct ServiceSnapshot: Identifiable, Sendable, Hashable {
 
     public var downloadFraction: Double?
 
+    public var cpuPercent: Double?
+
+    public var memoryBytes: Int64?
+
     public var id: ServiceKind { kind }
     public var displayName: String { kind.displayName }
     public var symbolName: String { kind.symbolName }
+
+    public var metricsText: String? {
+        guard status == .running else { return nil }
+        var parts: [String] = []
+        if let cpuPercent { parts.append(String(format: "CPU %.1f%%", cpuPercent)) }
+        if let memoryBytes { parts.append("\(memoryBytes / 1_048_576) MB") }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
 
     public init(kind: ServiceKind,
                 status: ServiceStatus,
@@ -97,7 +109,9 @@ public struct ServiceSnapshot: Identifiable, Sendable, Hashable {
                 isBusy: Bool = false,
                 errorMessage: String? = nil,
                 installable: Bool = false,
-                downloadFraction: Double? = nil) {
+                downloadFraction: Double? = nil,
+                cpuPercent: Double? = nil,
+                memoryBytes: Int64? = nil) {
         self.kind = kind
         self.status = status
         self.detail = detail
@@ -106,5 +120,7 @@ public struct ServiceSnapshot: Identifiable, Sendable, Hashable {
         self.errorMessage = errorMessage
         self.installable = installable
         self.downloadFraction = downloadFraction
+        self.cpuPercent = cpuPercent
+        self.memoryBytes = memoryBytes
     }
 }

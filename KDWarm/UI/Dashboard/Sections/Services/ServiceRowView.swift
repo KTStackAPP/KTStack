@@ -19,25 +19,35 @@ struct ServiceRowView: View {
     private var canResetData: Bool { snapshot.kind == .mongodb && snapshot.status == .error }
 
     var body: some View {
-        HStack(spacing: KDSpacing.space2) {
+        HStack(spacing: KDSpacing.space3) {
             Image(systemName: snapshot.symbolName)
-                .frame(width: 20)
+                .frame(width: 24)
                 .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 1) {
-                Text(snapshot.displayName).font(KDFont.body)
+                Text(snapshot.displayName).font(KDFont.body).fontWeight(.medium)
                 Text(secondaryText)
-                    .font(KDFont.footnote)
-                    .foregroundStyle(.tertiary)
+                    .font(.system(.footnote, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
-            Spacer()
+            Spacer(minLength: KDSpacing.space2)
+            if let metrics = snapshot.metricsText {
+                Text(metrics)
+                    .font(KDFont.footnote)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
             StatusPill(snapshot.status, text: pillText)
+
+            restartButton
 
             trailingControl
 
             overflowMenu
         }
-        .padding(.vertical, KDSpacing.space1)
-        .padding(.horizontal, KDSpacing.space2)
+        .padding(.vertical, KDSpacing.space3)
+        .padding(.horizontal, KDSpacing.space4)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(snapshot.displayName), \(snapshot.status.label), \(pillText)")
@@ -50,6 +60,21 @@ struct ServiceRowView: View {
         }
     }
 
+
+    private var canRestart: Bool {
+        canToggle && snapshot.isInstalled && snapshot.status == .running
+    }
+
+    private var restartButton: some View {
+        Button(action: onRestart) {
+            Image(systemName: "arrow.clockwise")
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(.secondary)
+        .disabled(!canRestart)
+        .help("Restart \(snapshot.displayName)")
+        .accessibilityLabel("Restart \(snapshot.displayName)")
+    }
 
     @ViewBuilder
     private var trailingControl: some View {
@@ -75,8 +100,8 @@ struct ServiceRowView: View {
     }
 
     private var pillText: String {
-        snapshot.isInstalled ? (snapshot.detail.isEmpty ? snapshot.status.label : snapshot.detail)
-                             : "Not installed"
+        guard snapshot.isInstalled else { return "Not installed" }
+        return snapshot.status == .warning ? "Degraded" : snapshot.status.label
     }
 
     private var secondaryText: String {
@@ -89,8 +114,6 @@ struct ServiceRowView: View {
 
     private var overflowMenu: some View {
         Menu {
-            Button("Restart", systemImage: "arrow.clockwise", action: onRestart)
-                .disabled(!canToggle || !snapshot.isInstalled || snapshot.status != .running)
             Button("Open Logs", systemImage: "text.alignleft", action: onOpenLogs)
                 .disabled(snapshot.kind == .dnsmasq)
             if canResetData {
@@ -110,14 +133,14 @@ private extension ServiceKind {
 
     var subtitle: String {
         switch self {
-        case .nginx:    return "Reverse proxy · HTTP/HTTPS"
-        case .phpFpm:   return "FastCGI pools (managed with web server)"
-        case .dnsmasq:  return "*.test resolver (via helper)"
-        case .mysql:    return "Database · 127.0.0.1"
-        case .postgres: return "Database · 127.0.0.1"
-        case .redis:    return "Cache · 127.0.0.1"
-        case .mongodb:  return "Document DB · 127.0.0.1"
-        case .mailpit:  return "Mail catcher · SMTP :1025"
+        case .nginx:    return "Reverse proxy · ports 80, 443"
+        case .phpFpm:   return "FastCGI pools · managed with web server"
+        case .dnsmasq:  return "*.test resolver · port 53 · privileged helper"
+        case .mysql:    return "Database · port 3306"
+        case .postgres: return "Database · port 5432"
+        case .redis:    return "Cache · port 6379"
+        case .mongodb:  return "Document DB · port 27017"
+        case .mailpit:  return "Mail catcher · SMTP 1025 · web 8025"
         }
     }
 }
