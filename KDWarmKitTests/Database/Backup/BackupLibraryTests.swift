@@ -80,6 +80,25 @@ final class BackupLibraryTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: importedFile), "app")
     }
 
+    /// Single-file portable archive: export to `.ktbackup` → import the file (not a folder).
+    func testExportAsKtbackupArchiveAndImportFile() async throws {
+        let provider = StubBackupProvider()
+        let original = try await library.create(kind: .mysql, profile: .managedMySQL,
+                                                 databases: ["app", "blog"], using: provider, password: nil)
+        let exportURL = root.appendingPathComponent("export.ktbackup")
+        try library.export(original, to: exportURL)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: exportURL.path))
+        var isDir: ObjCBool = false
+        FileManager.default.fileExists(atPath: exportURL.path, isDirectory: &isDir)
+        XCTAssertFalse(isDir.boolValue, "Portable export must be a single file, not a directory")
+
+        try library.delete(original)
+        let imported = try library.importSet(from: exportURL)
+        XCTAssertEqual(Set(imported.databases), ["app", "blog"])
+        let importedAppFile = paths.backupSetDir(imported.id).appendingPathComponent("app.stub")
+        XCTAssertEqual(try String(contentsOf: importedAppFile), "app")
+    }
+
     // MARK: - F8: filesystem path safety
 
     func testSafeArtifactURLRejectsDotDot() {

@@ -148,7 +148,11 @@ struct BackupLibraryView<VM: AnyObject>: View {
 
     private func exportSet(_ set: BackupSet) {
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = "\(set.profileName)-\(set.id.uuidString.prefix(8))"
+        panel.allowedContentTypes = [
+            .init(filenameExtension: BackupLibrary.portableExtension) ?? .data
+        ]
+        panel.nameFieldStringValue =
+            "\(set.profileName)-\(set.id.uuidString.prefix(8)).\(BackupLibrary.portableExtension)"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         onExport(set, url)
     }
@@ -156,8 +160,13 @@ struct BackupLibraryView<VM: AnyObject>: View {
     private func importSet() {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
-        panel.canChooseFiles = false
+        panel.canChooseFiles = true
         panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [
+            .init(filenameExtension: BackupLibrary.portableExtension) ?? .data,
+            .zip, .folder
+        ]
+        panel.message = "Choose a .\(BackupLibrary.portableExtension) archive or a backup set folder."
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do { _ = try session.library.importSet(from: url); reload() }
         catch { onImportFailed(error.localizedDescription) }

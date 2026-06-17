@@ -76,6 +76,12 @@ public struct BackupLibrary: Sendable {
 
     // MARK: - Export / Import (machine migration)
 
+    /// Filename extension used for the single-file portable archive (zip of the set directory).
+    public static let portableExtension = "ktbackup"
+
+    /// Export to a single archive file (`.ktbackup` = zip of the set directory). Folder destinations
+    /// stay supported as a fallback — older user habits + scripted backups — so the destination URL
+    /// type controls the format.
     public func export(_ set: BackupSet, to destination: URL) throws {
         let source = paths.backupSetDir(set.id)
         guard fileManager.fileExists(atPath: source.path) else {
@@ -84,14 +90,25 @@ public struct BackupLibrary: Sendable {
         if fileManager.fileExists(atPath: destination.path) {
             try fileManager.removeItem(at: destination)
         }
-        try fileManager.copyItem(at: source, to: destination)
+        if destination.pathExtension.lowercased() == Self.portableExtension
+            || destination.pathExtension.lowercased() == "zip" {
+            try Self.zipDirectory(source, to: destination)
+        } else {
+            try fileManager.copyItem(at: source, to: destination)
+        }
     }
 
     @discardableResult
     public func importSet(from source: URL) throws -> BackupSet {
-        let metaURL = source.appendingPathComponent("meta.json")
+        let directory = try Self.resolveImportDirectory(source, fileManager: fileManager)
+        defer {
+            if directory.url != source {
+                try? fileManager.removeItem(at: directory.cleanupRoot)
+            }
+        }
+        let metaURL = directory.url.appendingPathComponent("meta.json")
         guard let set = try? loadMeta(metaURL) else {
-            throw DatabaseError.connection("The selected folder isn't a valid backup set.")
+            throw DatabaseError.connection("The selected backup isn't a valid backup set.")
         }
         let id = UUID()
         let imported = BackupSet(
@@ -104,13 +121,80 @@ public struct BackupLibrary: Sendable {
         if fileManager.fileExists(atPath: destination.path) {
             try fileManager.removeItem(at: destination)
         }
-        try fileManager.copyItem(at: source, to: destination)
+        try fileManager.copyItem(at: directory.url, to: destination)
         try writeMeta(imported, in: destination)
         var manifest = reconcileManifest()
         manifest.removeAll { $0.id == id }
         manifest.append(imported)
         try commitManifest(manifest)
         return imported
+    }
+
+    /// `.url` is the directory the importer reads from; `.cleanupRoot` is what should be deleted
+    /// after import (the temp extract folder for archives, ignored for raw directories).
+    struct ImportDirectory {
+        let url: URL
+        let cleanupRoot: URL
+    }
+
+    static func resolveImportDirectory(_ source: URL, fileManager: FileManager) throws -> ImportDirectory {
+        var isDir: ObjCBool = false
+        guard fileManager.fileExists(atPath: source.path, isDirectory: &isDir) else {
+            throw DatabaseError.connection("Backup not found at \(source.lastPathComponent).")
+        }
+        if isDir.boolValue {
+            return ImportDirectory(url: source, cleanupRoot: source)
+        }
+        let extractRoot = fileManager.temporaryDirectory
+            .appendingPathComponent("kdwarm-import-\(UUID().uuidString)", isDirectory: true)
+        try fileManager.createDirectory(at: extractRoot, withIntermediateDirectories: true)
+        do {
+            try unzipFile(source, into: extractRoot)
+        } catch {
+            try? fileManager.removeItem(at: extractRoot)
+            throw error
+        }
+        let entries = ((try? fileManager.contentsOfDirectory(atPath: extractRoot.path)) ?? [])
+            .filter { !$0.hasPrefix(".") }
+        guard entries.count == 1 else {
+            try? fileManager.removeItem(at: extractRoot)
+            throw DatabaseError.connection("Backup archive doesn't have the expected layout.")
+        }
+        return ImportDirectory(
+            url: extractRoot.appendingPathComponent(entries[0], isDirectory: true),
+            cleanupRoot: extractRoot)
+    }
+
+    /// Use `ditto -c -k --keepParent` so the archive's single top-level entry is the set directory —
+    /// matches the import flow's "single top-level dir" expectation. `ditto` ships with macOS so
+    /// no third-party dependency is added.
+    static func zipDirectory(_ source: URL, to destination: URL) throws {
+        try runProcess("/usr/bin/ditto",
+                       args: ["-c", "-k", "--keepParent", source.path, destination.path],
+                       label: "ditto")
+    }
+
+    static func unzipFile(_ source: URL, into destination: URL) throws {
+        try runProcess("/usr/bin/ditto",
+                       args: ["-x", "-k", source.path, destination.path],
+                       label: "ditto")
+    }
+
+    private static func runProcess(_ executable: String, args: [String], label: String) throws {
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: executable)
+        proc.arguments = args
+        let errPipe = Pipe()
+        proc.standardError = errPipe
+        proc.standardOutput = FileHandle.nullDevice
+        try proc.run()
+        let err = errPipe.fileHandleForReading.readDataToEndOfFile()
+        proc.waitUntilExit()
+        guard proc.terminationStatus == 0 else {
+            let message = String(data: err, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            throw DatabaseError.connection("\(label) failed: \(message)")
+        }
     }
 
     // MARK: - Manifest persistence
