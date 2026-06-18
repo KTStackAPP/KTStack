@@ -70,6 +70,9 @@ struct DatabaseSectionView: View {
                 onExport: { documentVM.exportBackup($0, to: $1, session: backupSession) },
                 onImportFailed: { documentVM.failBackupStatus("Import failed: \($0)") },
                 onInstallTools: nil,
+                onRestoreAll: { set in
+                    Task { _ = await documentVM.restoreAllDatabases(set, session: backupSession) }
+                },
                 restoreSheet: { set in
                     AnyView(RestoreSheet(set: set, isReadOnly: documentVM.isReadOnlyConnection) { db, target in
                         _ = await documentVM.restoreBackup(set, database: db, target: target,
@@ -98,6 +101,9 @@ struct DatabaseSectionView: View {
                 onExport: { vm.exportBackup($0, to: $1, session: backupSession) },
                 onImportFailed: { vm.failBackupStatus("Import failed: \($0)") },
                 onInstallTools: installToolsAction(for: vm.selectedProfile?.kind),
+                onRestoreAll: { set in
+                    Task { _ = await vm.restoreAllDatabases(set, session: backupSession) }
+                },
                 restoreSheet: { set in
                     AnyView(RestoreSheet(set: set, isReadOnly: vm.isReadOnlyConnection) { db, target in
                         _ = await vm.restoreBackup(set, database: db, target: target,

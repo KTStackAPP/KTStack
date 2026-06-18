@@ -70,6 +70,31 @@ public extension DocumentViewModel {
         }
     }
 
+    func restoreAllDatabases(_ set: BackupSet, session: BackupSession) async -> Bool {
+        guard let profile = selectedProfile else { return false }
+        guard !isReadOnlyConnection else {
+            backupStatus = .failed("This connection is read-only; restore is disabled.")
+            return false
+        }
+        var succeeded = 0
+        for database in set.databases {
+            backupStatus = .running("Restoring \(database) (\(succeeded + 1)/\(set.databases.count))…")
+            do {
+                try await session.restore(set: set, database: database, profile: profile,
+                                           password: passwordFor(profile), target: .overwrite)
+                succeeded += 1
+            } catch {
+                backupStatus = .failed("Failed restoring \(database): \(Self.asDatabaseError(error).message)")
+                return false
+            }
+        }
+        backupStatus = .done("Restored \(succeeded) databases.")
+        if let refreshed = try? await driver?.listDatabases() {
+            databases = refreshed
+        }
+        return true
+    }
+
     func restoreBackup(_ set: BackupSet, database: String, target: RestoreTarget,
                        session: BackupSession) async -> Bool {
         guard let profile = selectedProfile else { return false }

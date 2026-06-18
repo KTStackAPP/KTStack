@@ -5,8 +5,11 @@ import Foundation
 /// `confirmDDL()`. Composition errors land in `ddlError` rather than emitting half-formed SQL.
 public extension DatabaseViewModel {
 
-    /// The dialect for the active connection (defaults to MySQL before one is selected).
     private var ddlDialect: SQLDialect { SQLDialect.forKind(selectedProfile?.kind ?? .mysql) }
+
+    public var canDropDatabase: Bool {
+        selectedProfile?.kind == .mysql || selectedProfile?.kind == .postgres
+    }
 
     // MARK: - Structure
 
@@ -39,6 +42,23 @@ public extension DatabaseViewModel {
         stageDDL {
             let (db, table) = try requireTable()
             return try ddlDialect.dropColumn(schema: db, table: table, column: column)
+        }
+    }
+
+    func prepareDropDatabase(_ name: String) {
+        stageDDL { try ddlDialect.dropDatabase(name) }
+    }
+
+    func confirmDropDatabase(_ name: String) async {
+        guard let sql = pendingDDL else { return }
+        pendingDDL = nil
+        guard !isReadOnlyConnection else { ddlError = "This connection is read-only."; return }
+        await runSQL(sql, confirmed: true)
+        if resultError == nil {
+            if let refreshed = try? await driver?.listDatabases() {
+                databases = refreshed
+            }
+            if selectedDatabase == name { clearSelectedDatabase() }
         }
     }
 

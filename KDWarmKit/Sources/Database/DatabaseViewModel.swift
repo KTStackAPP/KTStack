@@ -119,6 +119,14 @@ public final class DatabaseViewModel: ObservableObject {
         pageOffset = 0; hasMorePages = false; isBusy = false
     }
 
+    func clearSelectedDatabase() {
+        selectedDatabase = nil
+        tables = []; selectedTable = nil
+        result = nil; resultError = nil; resultSource = .none
+        currentColumns = []; currentIndexes = []
+        schemaCatalog = .empty
+    }
+
     public func select(profile: ConnectionProfile) async {
         let token = beginOperation()
         selectedProfile = profile

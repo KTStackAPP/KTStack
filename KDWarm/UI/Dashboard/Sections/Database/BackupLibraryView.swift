@@ -23,10 +23,12 @@ struct BackupLibraryView<VM: AnyObject>: View {
     let onExport: @MainActor (BackupSet, URL) -> Void
     let onImportFailed: @MainActor (String) -> Void
     let onInstallTools: (@MainActor () -> Void)?
+    let onRestoreAll: @MainActor (BackupSet) -> Void
     let restoreSheet: (BackupSet) -> AnyView
 
     @State private var sets: [BackupSet] = []
     @State private var restoringSet: BackupSet?
+    @State private var confirmingRestoreAllSet: BackupSet?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -39,6 +41,17 @@ struct BackupLibraryView<VM: AnyObject>: View {
         .frame(width: 560, height: 480)
         .onAppear { reload() }
         .sheet(item: $restoringSet) { set in restoreSheet(set) }
+        .alert("Restore All Databases?",
+               isPresented: .init(get: { confirmingRestoreAllSet != nil },
+                                  set: { _ in confirmingRestoreAllSet = nil }),
+               presenting: confirmingRestoreAllSet) { set in
+            Button("Restore All \(set.databases.count) Databases", role: .destructive) {
+                onRestoreAll(set)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { set in
+            Text("This will overwrite all \(set.databases.count) databases in \"\(set.profileName)\" with their backup versions. Data added after this backup was created will be lost.")
+        }
     }
 
     private var header: some View {
@@ -137,6 +150,10 @@ struct BackupLibraryView<VM: AnyObject>: View {
             Menu("Actions") {
                 Button("Restore…") { restoringSet = set }
                     .disabled(activeProfileKind != set.kind || isReadOnlyConnection)
+                if set.databases.count > 1 {
+                    Button("Restore All Databases…") { confirmingRestoreAllSet = set }
+                        .disabled(activeProfileKind != set.kind || isReadOnlyConnection)
+                }
                 Button("Export…") { exportSet(set) }
                 Button("Reveal in Finder") { revealInFinder(set) }
                 Divider()

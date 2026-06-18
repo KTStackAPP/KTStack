@@ -18,6 +18,10 @@ struct SchemaTreeView: View {
     var importExportHelp = "Import / Export"
     var importExportSystemImage = "square.and.arrow.up.on.square"
 
+    @State private var ddlSheet: DDLActionSheet.Mode?
+    @State private var sidebarDDLActive = false
+    @State private var confirmDropDb: DatabaseInfo?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: KDSpacing.space2) {
@@ -44,6 +48,20 @@ struct SchemaTreeView: View {
             content
         }
         .frame(minWidth: 180, idealWidth: 220)
+        .sheet(item: $ddlSheet) { DDLActionSheet(mode: $0) }
+        .alert("Run this SQL?",
+               isPresented: .init(get: { vm.pendingDDL != nil && sidebarDDLActive },
+                                  set: { if !$0 { cancelSidebarDDL() } }),
+               presenting: vm.pendingDDL) { _ in
+            Button("Run", role: .destructive) { confirmSidebarDDL() }
+            Button("Cancel", role: .cancel) { cancelSidebarDDL() }
+        } message: { Text($0) }
+        .alert("DDL error",
+               isPresented: .init(get: { vm.ddlError != nil && sidebarDDLActive },
+                                  set: { if !$0 { vm.clearDDLError(); sidebarDDLActive = false } }),
+               presenting: vm.ddlError) { _ in
+            Button("OK", role: .cancel) { vm.clearDDLError(); sidebarDDLActive = false }
+        } message: { Text($0) }
     }
 
     @ViewBuilder
@@ -116,6 +134,21 @@ struct SchemaTreeView: View {
             if vm.selectedDatabase != db.name { vm.selectDatabaseDeferred(db.name) }
             onSelectDatabase()
         }
+        .contextMenu {
+            if vm.selectedDatabase != db.name {
+                Button("Select") {
+                    vm.selectDatabaseDeferred(db.name)
+                    onSelectDatabase()
+                }
+                Divider()
+            }
+            Button("Drop Database…", role: .destructive) {
+                confirmDropDb = db
+                sidebarDDLActive = true
+                vm.prepareDropDatabase(db.name)
+            }
+            .disabled(vm.isReadOnlyConnection || !vm.canDropDatabase)
+        }
     }
 
     @ViewBuilder
@@ -138,6 +171,42 @@ struct SchemaTreeView: View {
                 onSelectDatabase()
             }
         }
+        .contextMenu {
+            if !table.isView && !vm.isReadOnlyConnection {
+                Button("Add Column…") {
+                    Task {
+                        await vm.select(table: table)
+                        sidebarDDLActive = true
+                        ddlSheet = .addColumn
+                    }
+                }
+                Divider()
+                Button("Drop Table…", role: .destructive) {
+                    Task {
+                        await vm.select(table: table)
+                        sidebarDDLActive = true
+                        vm.prepareDropTable()
+                    }
+                }
+            }
+        }
+    }
+
+    private func confirmSidebarDDL() {
+        sidebarDDLActive = false
+        if let db = confirmDropDb {
+            let name = db.name
+            confirmDropDb = nil
+            Task { await vm.confirmDropDatabase(name) }
+        } else {
+            Task { await vm.confirmDDL() }
+        }
+    }
+
+    private func cancelSidebarDDL() {
+        vm.cancelDDL()
+        sidebarDDLActive = false
+        confirmDropDb = nil
     }
 }
 

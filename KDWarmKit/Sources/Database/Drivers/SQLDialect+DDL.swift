@@ -19,6 +19,10 @@ public extension SQLDialect {
         return "CREATE TABLE \(qualified) (\(defs.joined(separator: ", ")))"
     }
 
+    func dropDatabase(_ name: String) throws -> String {
+        "DROP DATABASE \(try quoteIdent(name))"
+    }
+
     func dropTable(schema: String, table: String) throws -> String {
         "DROP TABLE \(try qualifiedTable(schema: schema, table: table))"
     }
