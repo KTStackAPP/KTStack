@@ -1,5 +1,5 @@
 KDWarm — Third-Party Notices
-Generated: 2026-06-18T10:09:32Z
+Generated: 2026-06-18T10:53:56Z
 KDWarm is distributed free of charge as open-source software.
 
 == Redistributed components ==
