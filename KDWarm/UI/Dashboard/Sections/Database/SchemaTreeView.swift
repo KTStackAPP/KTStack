@@ -27,6 +27,10 @@ struct SchemaTreeView: View {
             HStack(spacing: KDSpacing.space2) {
                 Text("Schema")
                     .font(KDFont.footnote).foregroundStyle(.secondary)
+                if vm.isBusy {
+                    ProgressView()
+                        .controlSize(.small)
+                }
                 Spacer(minLength: 0)
                 SchemaHeaderButton(systemImage: "externaldrive.badge.timemachine",
                                    help: backupsHelp,

@@ -150,7 +150,7 @@ extension DatabaseViewModel {
         "Query \(queryTabs.count + 1)"
     }
 
-    private func recordQueryHistory(_ sql: String) {
+    func recordQueryHistory(_ sql: String) {
         try? historyStore.record(sql: sql,
                                  connectionLabel: selectedProfile?.name ?? "Unknown connection",
                                  database: selectedDatabase)

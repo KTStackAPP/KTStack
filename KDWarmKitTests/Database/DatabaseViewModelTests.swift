@@ -10,21 +10,27 @@ final class DatabaseViewModelTests: XCTestCase {
         let kind: DatabaseKind = .mysql
         let tag: String
         var databasesDelay: Duration = .zero
+        var databasesResult: [DatabaseInfo]
+        var queryDelay: Duration = .zero
         var queryShouldThrow: DatabaseError?
         var columnsResult: [ColumnInfo] = []
         var writeShouldThrow: DatabaseError?
+        private(set) var queryCalls: [(sql: String, database: String?)] = []
         private(set) var paginateCalls: [(database: String, table: String, limit: Int, offset: Int)] = []
         private(set) var insertCalls: [[ColumnValue]] = []
         private(set) var updateCalls: [(values: [ColumnValue], key: [ColumnValue])] = []
         private(set) var deleteCalls: [[ColumnValue]] = []
 
-        init(tag: String) { self.tag = tag }
+        init(tag: String) {
+            self.tag = tag
+            self.databasesResult = [DatabaseInfo(name: "db_\(tag)")]
+        }
 
         func ping() async throws {}
 
         func listDatabases() async throws -> [DatabaseInfo] {
             if databasesDelay > .zero { try? await Task.sleep(for: databasesDelay) }
-            return [DatabaseInfo(name: "db_\(tag)")]
+            return databasesResult
         }
 
         func listTables(database: String) async throws -> [TableInfo] {
@@ -40,6 +46,8 @@ final class DatabaseViewModelTests: XCTestCase {
         func foreignKeys(database: String) async throws -> [ForeignKeyRelation] { foreignKeysResult }
 
         func query(_ sql: String, database: String?) async throws -> QueryResult {
+            if queryDelay > .zero { try? await Task.sleep(for: queryDelay) }
+            queryCalls.append((sql, database))
             if let queryShouldThrow { throw queryShouldThrow }
             return QueryResult(columns: [ColumnMeta(name: "n")], rows: [[.int(1)]])
         }
@@ -245,6 +253,47 @@ final class DatabaseViewModelTests: XCTestCase {
         await vm.runSQL("DELETE FROM t", confirmed: true)
         XCTAssertNil(vm.pendingDangerousSQL)         // cleared once confirmed
         XCTAssertNotNil(vm.result)
+    }
+
+    func testConfirmDropDatabaseShowsBusyAndRefreshesDatabases() async {
+        let driver = StubDriver(tag: "a")
+        driver.databasesResult = [DatabaseInfo(name: "db_a"), DatabaseInfo(name: "keep")]
+        driver.queryDelay = .milliseconds(80)
+        let vm = makeVM(driver)
+        await vm.select(profile: .managedMySQL)
+        await vm.select(database: "db_a")
+        vm.prepareDropDatabase("db_a")
+
+        driver.databasesResult = [DatabaseInfo(name: "keep")]
+        async let drop: Void = vm.confirmDropDatabase("db_a")
+        try? await Task.sleep(for: .milliseconds(10))
+        XCTAssertTrue(vm.isBusy)
+        await drop
+
+        XCTAssertFalse(vm.isBusy)
+        XCTAssertNil(vm.ddlError)
+        XCTAssertNil(vm.pendingDDL)
+        XCTAssertEqual(driver.queryCalls.map(\.sql), ["DROP DATABASE `db_a`"])
+        XCTAssertEqual(driver.queryCalls.map(\.database), ["db_a"])
+        XCTAssertEqual(vm.databases.map(\.name), ["keep"])
+        XCTAssertNil(vm.selectedDatabase)
+    }
+
+    func testConfirmDropDatabaseSurfacesDDLError() async {
+        let driver = StubDriver(tag: "a")
+        driver.queryShouldThrow = .syntax("cannot drop database")
+        let vm = makeVM(driver)
+        await vm.select(profile: .managedMySQL)
+        await vm.select(database: "db_a")
+        vm.prepareDropDatabase("db_a")
+
+        await vm.confirmDropDatabase("db_a")
+
+        XCTAssertFalse(vm.isBusy)
+        XCTAssertEqual(vm.ddlError, DatabaseError.syntax("cannot drop database").message)
+        XCTAssertNil(vm.pendingDDL)
+        XCTAssertEqual(vm.databases.map(\.name), ["db_a"])
+        XCTAssertEqual(vm.selectedDatabase, "db_a")
     }
 
     // MARK: - Read-only gates write/DDL/import paths

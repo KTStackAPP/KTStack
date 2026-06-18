@@ -1,8 +1,5 @@
 import Foundation
 
-/// Table-structure browsing and DDL. DDL always follows compose → show → confirm: a `prepare…` call
-/// only stages SQL in `pendingDDL` (the UI shows it verbatim); nothing reaches the server until
-/// `confirmDDL()`. Composition errors land in `ddlError` rather than emitting half-formed SQL.
 public extension DatabaseViewModel {
 
     private var ddlDialect: SQLDialect { SQLDialect.forKind(selectedProfile?.kind ?? .mysql) }
@@ -11,9 +8,6 @@ public extension DatabaseViewModel {
         selectedProfile?.kind == .mysql || selectedProfile?.kind == .postgres
     }
 
-    // MARK: - Structure
-
-    /// Load columns (if not already loaded) plus indexes for the selected table.
     func loadStructure() async {
         guard let driver, let database = selectedDatabase, let table = selectedTable else {
             currentIndexes = []
@@ -24,8 +18,6 @@ public extension DatabaseViewModel {
         }
         currentIndexes = (try? await driver.indexes(database: database, table: table.name)) ?? []
     }
-
-    // MARK: - DDL composition (staged, not run)
 
     func prepareCreateTable(name: String, columns: [ColumnDefinition]) {
         stageDDL { try ddlDialect.createTable(schema: requireDatabase(), table: name, columns: columns) }
@@ -53,13 +45,11 @@ public extension DatabaseViewModel {
         guard let sql = pendingDDL else { return }
         pendingDDL = nil
         guard !isReadOnlyConnection else { ddlError = "This connection is read-only."; return }
-        await runSQL(sql, confirmed: true)
-        if resultError == nil {
-            if let refreshed = try? await driver?.listDatabases() {
-                databases = refreshed
-            }
-            if selectedDatabase == name { clearSelectedDatabase() }
+        guard await runConfirmedDDL(sql) else { return }
+        if let refreshed = try? await driver?.listDatabases() {
+            databases = refreshed
         }
+        if selectedDatabase == name { clearSelectedDatabase() }
     }
 
     func prepareDropTable() {
@@ -73,27 +63,19 @@ public extension DatabaseViewModel {
 
     func clearDDLError() { ddlError = nil }
 
-    /// Run the staged DDL through the shared SQL runner (confirmed, so the destructive guard is
-    /// bypassed — the user already saw and confirmed the exact statement), then refresh the schema.
     func confirmDDL() async {
         guard let sql = pendingDDL else { return }
         pendingDDL = nil
-        // Defense-in-depth: the UI hides DDL actions on a read-only connection, but refuse here too
-        // so a staged statement can never run against a connection the user marked read-only.
         guard !isReadOnlyConnection else {
             ddlError = "This connection is read-only."
             return
         }
-        await runSQL(sql, confirmed: true)
-        if resultError == nil {
-            if let database = selectedDatabase {
-                tables = (try? await driver?.listTables(database: database)) ?? tables
-            }
-            await loadStructure()
+        guard await runConfirmedDDL(sql) else { return }
+        if let database = selectedDatabase {
+            tables = (try? await driver?.listTables(database: database)) ?? tables
         }
+        await loadStructure()
     }
-
-    // MARK: - Helpers
 
     private func stageDDL(_ build: () throws -> String) {
         do {
@@ -102,6 +84,22 @@ public extension DatabaseViewModel {
         } catch {
             pendingDDL = nil
             ddlError = Self.asDatabaseError(error).message
+        }
+    }
+
+    private func runConfirmedDDL(_ sql: String) async -> Bool {
+        guard let driver else { return false }
+        isBusy = true
+        ddlError = nil
+        defer { isBusy = false }
+        do {
+            _ = try await driver.query(sql, database: selectedDatabase)
+            recordQueryHistory(sql)
+            return true
+        } catch {
+            recordQueryHistory(sql)
+            ddlError = Self.asDatabaseError(error).message
+            return false
         }
     }
 
