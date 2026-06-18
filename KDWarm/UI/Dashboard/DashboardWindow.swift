@@ -54,6 +54,7 @@ struct DashboardWindow: View {
                             .navigationTitle("Settings")
         case .about:    AboutSettingsView().navigationTitle("About")
         case .database: DatabaseSectionView()
+        case .dumps:    DumpsPanelView()
         }
     }
 }
@@ -74,14 +75,14 @@ enum SidebarSection: String, CaseIterable, Identifiable {
     var items: [SidebarItem] {
         switch self {
         case .manage:  return [.sites, .services, .runtimes, .database]
-        case .inspect: return [.logs, .mail]
+        case .inspect: return [.logs, .mail, .dumps]
         case .app:     return [.settings, .about]
         }
     }
 }
 
 enum SidebarItem: String, CaseIterable, Identifiable {
-    case sites, services, runtimes, database, logs, mail, settings, about
+    case sites, services, runtimes, database, logs, mail, dumps, settings, about
 
     var id: String { rawValue }
 
@@ -93,6 +94,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .database: return "Database"
         case .logs:     return "Logs"
         case .mail:     return "Mail"
+        case .dumps:    return "Dumps"
         case .settings: return "Settings"
         case .about:    return "About"
         }
@@ -106,6 +108,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .database: return "cylinder.split.1x2"
         case .logs:     return "text.alignleft"
         case .mail:     return "envelope"
+        case .dumps:    return "ladybug"
         case .settings: return "gearshape"
         case .about:    return "info.circle"
         }

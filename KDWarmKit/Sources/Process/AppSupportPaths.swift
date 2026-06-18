@@ -117,6 +117,8 @@ public struct AppSupportPaths: Sendable {
     public var composerPhar: URL { toolsDir("composer").appendingPathComponent("composer.phar") }
     public var wpCliPhar: URL    { toolsDir("wp-cli").appendingPathComponent("wp-cli.phar") }
 
+    public var dumpsPrependFile: URL { config.appendingPathComponent("php-vardumper-prepend.php") }
+
 
     public var phpRuntimesRoot: URL { runtimeLangRoot("php") }
     public func phpFpmBinary(version: String) -> URL {
