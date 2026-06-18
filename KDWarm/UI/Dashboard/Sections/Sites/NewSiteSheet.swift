@@ -48,6 +48,11 @@ final class NewSiteModel: ObservableObject {
 
     func cancel() { task?.cancel() }
 
+    func reset() {
+        error = nil
+        events = []
+    }
+
     private func buildInstaller(request: NewSiteRequest, php: URL, paths: AppSupportPaths) async throws -> SiteInstaller {
         switch request.kind {
         case .wordpress:
@@ -79,7 +84,7 @@ struct NewSiteSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: KDSpacing.space3) {
             Text("New Site").font(KDFont.title)
-            if model.installing || model.finished {
+            if model.installing || model.finished || model.error != nil {
                 SiteInstallProgressView(events: model.events, error: model.error)
             } else {
                 form
@@ -130,6 +135,9 @@ struct NewSiteSheet: View {
                 Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
             } else if model.installing {
                 Button("Cancel") { model.cancel() }
+            } else if model.error != nil {
+                Button("Back") { model.reset() }.keyboardShortcut(.cancelAction)
+                Button("Try Again") { create() }.keyboardShortcut(.defaultAction)
             } else {
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
                 Button("Create Site") { create() }
