@@ -163,7 +163,8 @@ struct SchemaHeaderButton: View {
         .help(help)
         .accessibilityLabel(help)
         .onHover { hovering = $0 }
-        .overlay(alignment: .bottom) {
+        .zIndex(hovering ? 100 : 0)
+        .overlay(alignment: .top) {
             if hovering {
                 Text(help)
                     .font(.system(size: 11))
@@ -176,10 +177,10 @@ struct SchemaHeaderButton: View {
                             .stroke(Color.primary.opacity(0.12), lineWidth: 1)
                     )
                     .fixedSize()
-                    .offset(y: 28)
+                    .offset(y: -30)
                     .shadow(color: .black.opacity(0.18), radius: 8, y: 4)
                     .allowsHitTesting(false)
-                    .zIndex(20)
+                    .zIndex(200)
             }
         }
     }
