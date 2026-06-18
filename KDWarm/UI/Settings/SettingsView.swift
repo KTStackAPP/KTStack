@@ -82,6 +82,7 @@ struct SettingsView: View {
                 Button("Check for Updates…") { updater.checkForUpdates() }
                     .disabled(!updater.canCheckForUpdates)
             }
+            ShellIntegrationView()
             Section("Uninstall") {
                 Text("Removes all KTStack services, the .\(preferences.tld) DNS resolver, the local CA trust, and all app data, runtimes and databases.")
                     .font(KDFont.footnote).foregroundStyle(.secondary)

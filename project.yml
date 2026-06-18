@@ -43,8 +43,8 @@ settings:
     ONLY_ACTIVE_ARCH: "YES"
     SWIFT_VERSION: "5.0"
     MACOSX_DEPLOYMENT_TARGET: "13.0"
-    MARKETING_VERSION: "0.6.2"
-    CURRENT_PROJECT_VERSION: "21"
+    MARKETING_VERSION: "0.6.3"
+    CURRENT_PROJECT_VERSION: "22"
     # Local builds sign ad-hoc; real Developer ID + notarization arrives in Phase 9.
     CODE_SIGN_STYLE: Manual
     CODE_SIGN_IDENTITY: "-"
@@ -114,6 +114,12 @@ targets:
         link: false
         copy:
           destination: executables
+      # Tiny CLI the shell shims exec to resolve per-project runtime versions. Shares the
+      # resolver core source with KDWarmKit so terminal and web pick the same PHP version.
+      - target: ktstack-resolve
+        link: false
+        copy:
+          destination: executables
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kdwarm.app
@@ -145,6 +151,25 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kdwarm.helper
+        CODE_SIGN_ENTITLEMENTS: entitlements/helper.entitlements
+        ENABLE_HARDENED_RUNTIME: "YES"
+
+  # Shell-shim resolver CLI. Compiles the resolver core files from KDWarmKit directly (same
+  # pattern as KDWarmHelper) so the per-project version logic is single-sourced between the
+  # terminal shims and the app's php-fpm pool selection.
+  ktstack-resolve:
+    type: tool
+    platform: macOS
+    sources:
+      - path: KDWarmResolve
+      - path: KDWarmKit/Sources/Process/AppSupportPaths.swift
+      - path: KDWarmKit/Sources/Runtimes/VersionResolver.swift
+      - path: KDWarmKit/Sources/Runtimes/RuntimeCatalog.swift
+      - path: KDWarmKit/Sources/Shell/ProjectVersionResolver.swift
+      - path: KDWarmKit/Sources/Shell/ShellRuntimeBinResolver.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kdwarm.resolve
         CODE_SIGN_ENTITLEMENTS: entitlements/helper.entitlements
         ENABLE_HARDENED_RUNTIME: "YES"
 

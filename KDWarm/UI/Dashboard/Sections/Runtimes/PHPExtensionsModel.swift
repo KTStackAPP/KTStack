@@ -39,6 +39,7 @@ final class PHPExtensionsModel: ObservableObject {
             return (installed, onDisk)
         }.value
         rows = PHPExtensionCatalog.descriptors
+            .filter { $0.id != "xdebug" }
             .map { Row(ext: $0, status: catalog.status($0, phpVersion: version,
                                                         installed: installed, soOnDisk: onDisk[$0.id] ?? false)) }
             .sorted { a, b in

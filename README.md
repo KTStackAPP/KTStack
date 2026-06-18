@@ -1,55 +1,54 @@
 # KTStack
 
-Native macOS local development stack for PHP sites, databases, mail testing, logs, and on-demand language runtimes.
+Native macOS local development environment for PHP, Node.js, Python and Go.
 
-KTStack is the public product name. The source tree and bundle identifiers still use `KDWarm` internally so existing installs, application-support data, and launchd jobs keep working.
+Run local websites with trusted HTTPS, automatic `.test` domains, databases, mail testing, logs, and public sharing — all from a native SwiftUI application.
 
-<p align="center">
-  <img src="KDWarm/Resources/Assets.xcassets/AppIcon.appiconset/icon_256.png" alt="KTStack app icon" width="128">
-</p>
+> Open-source alternative to Laravel Herd, Valet and Laragon for macOS.
 
 ![KTStack Sites dashboard](assets/readme/dashboard-sites.png)
 
-## What It Does
+## Features
 
-KTStack runs a local development environment directly on macOS, without Docker as the default runtime path. It manages the services and config needed to open projects at local `.test` domains, use trusted local HTTPS, inspect logs, catch outgoing mail, and browse local databases from a native SwiftUI app.
+* ✅ Automatic `.test` domains
+* ✅ Trusted local HTTPS
+* ✅ Nginx + PHP-FPM management
+* ✅ PHP 8.1 / 8.3 / 8.4
+* ✅ Node.js, Python and Go runtimes
+* ✅ MySQL, PostgreSQL, Redis and MongoDB
+* ✅ Built-in Mailpit
+* ✅ Per-site log viewer
+* ✅ Cloudflare Tunnel sharing
+* ✅ Native SwiftUI interface
+* ❌ No Docker required
 
-Current release: `0.5.2` (`CURRENT_PROJECT_VERSION` `11`).
+---
 
-## Current Feature Set
+## Why KTStack?
 
-| Area | Status |
-| --- | --- |
-| Native app | Menu-bar SwiftUI app named `KTStack.app` |
-| Local sites | Park/import sites under a configurable sites root, default `.test` domains |
-| HTTPS | Local TLS vhosts and certificates via the app-managed TLS flow |
-| Web server | Nginx vhost generation and PHP-FPM pool generation |
-| PHP | On-demand PHP `8.1`, `8.3`, `8.4` runtime releases |
-| Other runtimes | On-demand Node.js `22.22.3`, Python `3.12.13`, Go `1.26.4` |
-| Services | Nginx, PHP-FPM, dnsmasq, MySQL, PostgreSQL, Redis, MongoDB, Mailpit |
-| Database UI | MySQL, PostgreSQL, SQLite, and MongoDB connection flows |
-| Mail | Mailpit-backed message list and message preview inside the app |
-| Logs | Per-service and per-site log viewer |
-| Public sharing | Per-site Cloudflare Tunnel share links through `trycloudflare.com` |
-| Updates | Sparkle integration is wired in; release signing/notarization scripts live under `scripts/release/` |
+Setting up a local development environment on macOS often means combining multiple tools:
 
-## Cloudflare Tunnel Sharing
+* Web server
+* PHP runtime manager
+* Database services
+* Local HTTPS certificates
+* DNS configuration
+* Mail testing
+* Public preview links
 
-KTStack includes per-site Cloudflare Tunnel sharing for quick public previews. From the Sites dashboard, share a local project and KTStack starts a `cloudflared` tunnel that returns a temporary `trycloudflare.com` URL.
+KTStack brings all of those pieces together into a single native application.
 
-The tunnel path is built for local web apps that care about their public host:
+Create a site and instantly access:
 
-- Each shared site gets a dedicated loopback Nginx tunnel vhost.
-- PHP/FastCGI receives the site's own local host plus forwarded HTTPS metadata, so apps with a hardcoded canonical URL (WordPress, Laravel) serve the page instead of redirecting back to the `.test` domain.
-- Once the public URL is known, the tunnel vhost rewrites absolute references to the local `.test` domain into the `trycloudflare.com` host in response bodies (HTML/CSS/JS), so assets and child links stay on the public URL. This rewrite requires the bundled Nginx to be built with `http_sub_module` and degrades gracefully (no rewrite) on older builds. Redirect `Location` headers are not rewritten, so deep links that 301 to an absolute local URL still need an app-side base-URL fix.
-- When the network blocks `cloudflared` (outbound QUIC/UDP or TCP on port 7844), sharing reports an explicit "Cloudflare edge unreachable" error instead of a generic timeout.
-- Tunnel sessions auto-expire after the app-defined TTL and stale tunnel vhosts are cleaned up when jobs are reaped.
+```text
+https://my-project.test
+```
 
-This is meant for temporary review links, device testing, and quick client previews. It is not a replacement for production hosting.
+with HTTPS, databases, logs, and mail testing already configured.
+
+---
 
 ## Screenshots
-
-The images below are real project UI captures stored in this repository under `assets/readme/`.
 
 ### Sites
 
@@ -67,46 +66,82 @@ The images below are real project UI captures stored in this repository under `a
 
 ![Menu bar dropdown](assets/readme/menubar-dropdown.png)
 
-## How It Works
+---
 
-KTStack keeps application data under:
+## Current Feature Set
+
+| Area           | Status                                                              |
+| -------------- | ------------------------------------------------------------------- |
+| Native app     | Menu-bar SwiftUI app                                                |
+| Local sites    | Park/import sites with automatic `.test` domains                    |
+| HTTPS          | Trusted local TLS certificates                                      |
+| Web server     | Nginx virtual hosts and PHP-FPM pools                               |
+| PHP            | On-demand PHP 8.1 / 8.3 / 8.4                                       |
+| Other runtimes | Node.js, Python, Go                                                 |
+| Services       | Nginx, PHP-FPM, dnsmasq, MySQL, PostgreSQL, Redis, MongoDB, Mailpit |
+| Database UI    | MySQL, PostgreSQL, SQLite, MongoDB                                  |
+| Mail           | Mailpit integration                                                 |
+| Logs           | Per-service and per-site log viewer                                 |
+| Sharing        | Cloudflare Tunnel public links                                      |
+| Updates        | Sparkle auto-update support                                         |
+
+---
+
+## Cloudflare Tunnel Sharing
+
+KTStack can expose a local site through a temporary `trycloudflare.com` URL.
+
+Useful for:
+
+* Client reviews
+* Mobile device testing
+* QA verification
+* Temporary demos
+
+KTStack automatically creates a dedicated tunnel vhost and forwards the correct host and HTTPS metadata so frameworks like Laravel and WordPress behave correctly behind the tunnel.
+
+---
+
+## Architecture
+
+Application data is stored under:
 
 ```text
 ~/Library/Application Support/KDWarm/
 ```
 
-The main pieces are:
+Core components:
 
-| Component | Purpose |
-| --- | --- |
-| `KTStack.app` | Native macOS menu-bar application |
-| `KDWarmKit` | Shared framework for service, runtime, site, tunnel, database, mail, and log logic |
-| `KDWarmHelper` | Privileged helper target used by the DNS automation path |
-| `project.yml` | XcodeGen source of truth for the generated Xcode project |
+| Component    | Purpose                  |
+| ------------ | ------------------------ |
+| KTStack.app  | Native macOS application |
+| KDWarmKit    | Core framework           |
+| KDWarmHelper | Privileged helper        |
+| project.yml  | XcodeGen source of truth |
 
-The generated `KDWarm.xcodeproj` is intentionally ignored. Regenerate it from `project.yml`.
+---
 
 ## Local Development
 
 Requirements:
 
-- macOS 13 or newer
-- Xcode
-- XcodeGen
+* macOS 13+
+* Xcode
+* XcodeGen
 
-Install XcodeGen if needed:
+Install XcodeGen:
 
 ```bash
 brew install xcodegen
 ```
 
-Generate the project:
+Generate project:
 
 ```bash
 xcodegen generate
 ```
 
-Run the framework tests:
+Run tests:
 
 ```bash
 xcodebuild \
@@ -116,7 +151,7 @@ xcodebuild \
   test
 ```
 
-Build the app:
+Build:
 
 ```bash
 xcodebuild \
@@ -127,33 +162,45 @@ xcodebuild \
   build
 ```
 
-## Build A DMG
+---
 
-After a Release build, pass the built `.app` to the release script:
+## Build DMG
 
 ```bash
 scripts/release/build-dmg.sh \
   ~/Library/Developer/Xcode/DerivedData/KDWarm-*/Build/Products/Release/KTStack.app \
-  ./KTStack-0.5.2.dmg
+  ./KTStack.dmg
 ```
 
-The script creates a compressed DMG with `KTStack.app` and an `/Applications` symlink. Developer ID signing and notarization are separate release steps; helper scripts are in `scripts/release/`.
+---
 
 ## Repository Layout
 
 ```text
-KDWarm/                 Native app target and app resources
-KDWarmKit/Sources/      Core framework code
-KDWarmHelper/           Privileged helper target
-KDWarmKitTests/         XCTest suite for framework logic
-scripts/                Build, runtime, release, and utility scripts
-spikes/                 Local experiments and feasibility probes
-assets/readme/          Tracked images used by this README
+KDWarm/                 Application target
+KDWarmKit/Sources/      Core framework
+KDWarmHelper/           Privileged helper
+KDWarmKitTests/         Unit tests
+scripts/                Build & release scripts
+spikes/                 Experiments
+assets/readme/          README assets
 ```
+
+---
 
 ## Notes
 
-- The app is currently macOS-only.
-- Runtime downloads are checksum-verified through the manifest in `RuntimeCatalog`.
-- MongoDB is fetched on demand and not redistributed inside the app bundle.
-- DMG files, generated Xcode projects, plans, docs scratch output, and local agent state are ignored by default.
+* macOS only
+* Runtime downloads are checksum verified
+* MongoDB is installed on demand
+* Generated projects and local artifacts are ignored
+
+---
+
+## Project Status
+
+KTStack is an active side project built to explore Swift, SwiftUI, macOS development, local infrastructure tooling, and developer experience.
+
+Feedback, issues, and pull requests are welcome.
+
+⭐ If KTStack helps your workflow, consider starring the repository.

@@ -31,6 +31,13 @@ public final class UninstallService: ObservableObject {
         dns.disable()
         record("Removing .\(dns.tld) DNS resolver…")
 
+        do {
+            try ShellPathManager(paths: paths).disable()
+            record("Removed shell PATH integration.")
+        } catch {
+            record("Shell PATH cleanup warning: \(error.localizedDescription)")
+        }
+
         let agents = self.agents, mkcert = self.mkcert, root = paths.root, resolverTLD = dns.tld
         Task.detached(priority: .userInitiated) { [weak self] in
             agents.bootoutAll()

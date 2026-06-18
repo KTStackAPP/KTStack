@@ -94,6 +94,25 @@ public struct RuntimeDownloader: Sendable {
         return dest
     }
 
+    @discardableResult
+    public func downloadVerifiedFile(url: URL, sha256: String, to dest: URL,
+                                     onProgress: @escaping @Sendable (Progress) -> Void = { _ in }) async throws -> URL {
+        try Self.requireHTTPS(url)
+        let coordinator = DownloadCoordinator { received, total in
+            onProgress(Progress(received: received, total: total))
+        }
+        let temp = try await coordinator.download(url)
+        defer { try? FileManager.default.removeItem(at: temp) }
+        try Task.checkCancellation()
+        try ChecksumVerifier.verify(temp, expected: sha256)
+        let fm = FileManager.default
+        try fm.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }
+        try fm.moveItem(at: temp, to: dest)
+        Self.stripQuarantine(dest)
+        return dest
+    }
+
     private static func stripQuarantine(_ dir: URL) {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")

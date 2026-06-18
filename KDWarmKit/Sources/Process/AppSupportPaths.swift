@@ -15,6 +15,7 @@ public struct AppSupportPaths: Sendable {
     // MARK: Directories
 
     public var bin: URL              { dir("bin") }
+    public var shimBinDir: URL       { dir("shims") }
     public var runtimes: URL         { dir("runtimes") }          // Phase 7
     public var tools: URL            { dir("tools") }
     public var config: URL           { dir("config") }
@@ -111,6 +112,9 @@ public struct AppSupportPaths: Sendable {
     public func toolVersionDir(_ name: String, _ version: String) -> URL {
         toolsDir(name).appendingPathComponent(version, isDirectory: true)
     }
+
+    public var composerPhar: URL { toolsDir("composer").appendingPathComponent("composer.phar") }
+    public var wpCliPhar: URL    { toolsDir("wp-cli").appendingPathComponent("wp-cli.phar") }
 
 
     public var phpRuntimesRoot: URL { runtimeLangRoot("php") }

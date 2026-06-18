@@ -23,6 +23,10 @@ struct PHPExtensionsSheet: View {
             .padding(KDSpacing.space3)
             Divider()
 
+            XdebugToggleView(version: version, reloadPool: reloadPool)
+                .padding(KDSpacing.space3)
+            Divider()
+
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(model.rows) { row in
