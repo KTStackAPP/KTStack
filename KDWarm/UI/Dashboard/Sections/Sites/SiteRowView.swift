@@ -143,6 +143,7 @@ struct SiteRowView: View {
             Button { copy(url) } label: {
                 Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
             }.buttonStyle(.borderless).help("Copy public URL")
+            TunnelQRCodeButton(url: url)
             Button { onToggleShare(false) } label: {
                 Image(systemName: "stop.circle")
             }.buttonStyle(.borderless).help("Stop sharing")
