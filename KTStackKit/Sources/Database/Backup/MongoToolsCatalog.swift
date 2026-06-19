@@ -26,7 +26,7 @@ public struct MongoToolsCatalog: Sendable {
     public static let pinned = MongoToolsRelease(
         version: "100.10.0",
         sha256ByArch: [
-            "arm64":  "PENDING_arm64_MONGO_TOOLS_SHA256",
+            "arm64":  "946177e469ef8744bd36aa38809926beb3c97a56e4c1d637dc052a1f18f57515",
             "x86_64": "PENDING_x86_64_MONGO_TOOLS_SHA256",
         ],
         urlByArch: [
