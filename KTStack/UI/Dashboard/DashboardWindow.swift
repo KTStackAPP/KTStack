@@ -49,7 +49,7 @@ struct DashboardWindow: View {
         switch item {
         case .sites:    KTSitesScreen(onOpenLogs: openLogs)
         case .services: KTServicesScreen(onNavigate: { selection = $0 }, onOpenLogs: openLogs)
-        case .runtimes: RuntimesSectionView()
+        case .runtimes: KTRuntimesScreen()
         case .logs:     LogsSectionView(targetSourceID: logTarget)
         case .mail:     MailSectionView()
         case .settings: SettingsView(preferences: preferences, dns: dns, server: server,
