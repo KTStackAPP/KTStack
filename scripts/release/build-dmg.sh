@@ -6,7 +6,7 @@
 # Usage: scripts/release/build-dmg.sh <path-to-.app> [out.dmg]
 set -euo pipefail
 APP="${1:?usage: build-dmg.sh <path-to-.app> [out.dmg]}"
-# Product name follows the .app bundle (survives a rebrand — no hardcoded "KDWarm" to drift).
+# Product name follows the .app bundle (survives a rebrand — no hardcoded "KTStack" to drift).
 NAME="$(basename "$APP" .app)"
 VER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")" \
     || { echo "could not read CFBundleShortVersionString from $APP" >&2; exit 1; }

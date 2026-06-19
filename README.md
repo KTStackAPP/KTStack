@@ -107,7 +107,7 @@ KTStack automatically creates a dedicated tunnel vhost and forwards the correct 
 Application data is stored under:
 
 ```text
-~/Library/Application Support/KDWarm/
+~/Library/Application Support/KTStack/
 ```
 
 Core components:
@@ -115,8 +115,8 @@ Core components:
 | Component    | Purpose                  |
 | ------------ | ------------------------ |
 | KTStack.app  | Native macOS application |
-| KDWarmKit    | Core framework           |
-| KDWarmHelper | Privileged helper        |
+| KTStackKit    | Core framework           |
+| KTStackHelper | Privileged helper        |
 | project.yml  | XcodeGen source of truth |
 
 ---
@@ -145,8 +145,8 @@ Run tests:
 
 ```bash
 xcodebuild \
-  -project KDWarm.xcodeproj \
-  -scheme KDWarmKit-Tests \
+  -project KTStack.xcodeproj \
+  -scheme KTStackKit-Tests \
   -destination 'platform=macOS' \
   test
 ```
@@ -155,8 +155,8 @@ Build:
 
 ```bash
 xcodebuild \
-  -project KDWarm.xcodeproj \
-  -scheme KDWarm \
+  -project KTStack.xcodeproj \
+  -scheme KTStack \
   -destination 'platform=macOS' \
   -configuration Release \
   build
@@ -168,7 +168,7 @@ xcodebuild \
 
 ```bash
 scripts/release/build-dmg.sh \
-  ~/Library/Developer/Xcode/DerivedData/KDWarm-*/Build/Products/Release/KTStack.app \
+  ~/Library/Developer/Xcode/DerivedData/KTStack-*/Build/Products/Release/KTStack.app \
   ./KTStack.dmg
 ```
 
@@ -180,10 +180,10 @@ Release signing and notarization playbook:
 ## Repository Layout
 
 ```text
-KDWarm/                 Application target
-KDWarmKit/Sources/      Core framework
-KDWarmHelper/           Privileged helper
-KDWarmKitTests/         Unit tests
+KTStack/                 Application target
+KTStackKit/Sources/      Core framework
+KTStackHelper/           Privileged helper
+KTStackKitTests/         Unit tests
 scripts/                Build & release scripts
 spikes/                 Experiments
 assets/readme/          README assets

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Publish the self-built, relocatable runtime/engine artifacts (PHP, Redis, Postgres) to a GitHub
 # Release so the in-app on-demand installer can download them. php.net / Redis / Postgres ship no
-# relocatable macOS arm64 drop-in, so KDWarm builds its own (scripts/build-*.sh) and hosts them here;
+# relocatable macOS arm64 drop-in, so KTStack builds its own (scripts/build-*.sh) and hosts them here;
 # the manifests in RuntimeCatalog.swift / ServiceBinaryCatalog.swift point at this Release's assets.
 #
 # Idempotent: re-running re-uploads (--clobber) the listed assets to the same tag.
@@ -15,7 +15,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 ROOT="$PWD"
 
-REPO="nguyenkhoi489/kd-warm"
+REPO="KTStackAPP/KTStack"
 TAG="${1:-binaries-v1}"; shift || true
 ART_DIR="$ROOT/.build-cache/artifacts"
 
@@ -53,8 +53,8 @@ if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
 else
   echo "Creating release $TAG."
   gh release create "$TAG" --repo "$REPO" \
-    --title "KDWarm runtime binaries ($TAG)" \
-    --notes "Self-built, relocatable macOS arm64 runtime/engine artifacts (PHP, Redis, Postgres) for KDWarm's on-demand installer. Each .tar.gz has a matching .sha256." \
+    --title "KTStack runtime binaries ($TAG)" \
+    --notes "Self-built, relocatable macOS arm64 runtime/engine artifacts (PHP, Redis, Postgres) for KTStack's on-demand installer. Each .tar.gz has a matching .sha256." \
     --latest=false
 fi
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build a relocatable PostgreSQL (server + initdb) from source and produce an on-demand artifact
 # (tar.gz + sha256). PostgreSQL ships on-demand (installed via the UI), so this does NOT copy into
-# KDWarm/Resources/bin — it stages a self-contained postgres-<ver>/ tree (bin + lib + share) that a
+# KTStack/Resources/bin — it stages a self-contained postgres-<ver>/ tree (bin + lib + share) that a
 # release host serves and the downloader extracts into runtimes/postgres/<ver>/.
 #
 # Relocatability: postgres locates its support files (share/, lib/) relative to the executable

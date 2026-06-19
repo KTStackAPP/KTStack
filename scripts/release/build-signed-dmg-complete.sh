@@ -8,7 +8,7 @@ echo "🔨 KTStack Complete DMG Build & Sign Pipeline"
 echo "=============================================="
 
 DEV_ID="${DEV_ID:-Developer ID Application: PHONG DA TRADING SERVICES COMPANY LIMITED (44452PW7V3)}"
-KEYCHAIN_PROFILE="${KEYCHAIN_PROFILE:-kdwarm-notary}"
+KEYCHAIN_PROFILE="${KEYCHAIN_PROFILE:-ktstack-notary}"
 
 echo "ℹ️  Using identity: $DEV_ID"
 echo "ℹ️  Keychain profile: $KEYCHAIN_PROFILE"
@@ -25,8 +25,8 @@ xcodegen generate
 
 echo ""
 echo "🏗️  Step 2: Build app (Release)"
-xcodebuild -project KDWarm.xcodeproj \
-    -scheme KDWarm \
+xcodebuild -project KTStack.xcodeproj \
+    -scheme KTStack \
     -configuration Release \
     -destination 'platform=macOS' \
     -derivedDataPath .build-xcode \

@@ -28,7 +28,7 @@ ROOT="$PWD"
 
 PHP_VER="${PHP_VER:-8.4}"
 ARCH="${ARCH:-$(uname -m)}"                    # arm64 | x86_64 (spc target token below)
-OUT="${OUT:-$ROOT/KDWarm/Resources/bin}"
+OUT="${OUT:-$ROOT/KTStack/Resources/bin}"
 BUILD="${BUILD:-$ROOT/.build-cache/php-$ARCH-$PHP_VER}" # per-version scratch (gitignored) — must NOT
                                                        # be shared across versions or a stale buildroot
                                                        # leaks the wrong PHP into the artifact.
@@ -56,7 +56,7 @@ SHARED_EXTENSIONS="${SHARED_EXTENSIONS:-apcu,imagick,xdebug,grpc,swoole,mongodb}
 
 # Where the ext artifacts will be hosted — used only to bake a resolvable download URL into the
 # manifest fragment Phase 2's catalog consumes. Keep in sync with scripts/release/publish-artifacts.sh.
-EXT_REPO="${EXT_REPO:-nguyenkhoi489/kd-warm}"
+EXT_REPO="${EXT_REPO:-KTStackAPP/KTStack}"
 EXT_TAG="${EXT_TAG:-binaries-v1}"
 
 echo "=== static-php-cli build — PHP ${PHP_VER} (${ARCH}) ==="

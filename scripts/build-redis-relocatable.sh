@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build a relocatable redis-server from source and produce BOTH:
-#   1) a dev copy in KDWarm/Resources/bin/redis-server (so Phase 6's RedisController runs live), and
-#   2) an on-demand artifact tar.gz + sha256 in .build-cache/artifacts/ (KDWarm ships lean — DBs are
+#   1) a dev copy in KTStack/Resources/bin/redis-server (so Phase 6's RedisController runs live), and
+#   2) an on-demand artifact tar.gz + sha256 in .build-cache/artifacts/ (KTStack ships lean — DBs are
 #      installed through the UI, not bundled; the artifact is what a release host serves).
 #
 # Relocatability: a default redis `make` links only system libs (/usr/lib, /System) + libSystem —
@@ -18,7 +18,7 @@ ROOT="$PWD"
 
 REDIS_VER="${REDIS_VER:-7.4.2}"
 ARCH="${ARCH:-$(uname -m)}"
-OUT="${OUT:-$ROOT/KDWarm/Resources/bin}"
+OUT="${OUT:-$ROOT/KTStack/Resources/bin}"
 ARTIFACTS="${ARTIFACTS:-$ROOT/.build-cache/artifacts}"
 BUILD="${BUILD:-$ROOT/.build-cache/redis-$ARCH}"
 

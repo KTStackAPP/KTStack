@@ -1,6 +1,6 @@
-name: KDWarm
+name: KTStack
 options:
-  bundleIdPrefix: com.kdwarm
+  bundleIdPrefix: com.ktstack
   deploymentTarget:
     macOS: "13.0"
   createIntermediateGroups: true
@@ -54,23 +54,23 @@ settings:
 
 schemes:
   # Test scheme so `xcodebuild test` can drive the framework's logic tests without an app host.
-  KDWarmKit-Tests:
+  KTStackKit-Tests:
     build:
       targets:
-        KDWarmKit: all
-        KDWarmKitTests: [test]
+        KTStackKit: all
+        KTStackKitTests: [test]
     test:
       targets:
-        - KDWarmKitTests
+        - KTStackKitTests
 
 targets:
   # Shared framework: design tokens + models + the XPC contract, linked by the app
   # (and, from Phase 4, the privileged helper) so model types stay single-sourced.
-  KDWarmKit:
+  KTStackKit:
     type: framework
     platform: macOS
     sources:
-      - path: KDWarmKit/Sources
+      - path: KTStackKit/Sources
     dependencies:
       - package: mysql-nio
         product: MySQLNIO
@@ -84,49 +84,49 @@ targets:
         product: MongoCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.kdwarm.kit
+        PRODUCT_BUNDLE_IDENTIFIER: com.ktstack.kit
         DEFINES_MODULE: "YES"
         SKIP_INSTALL: "YES"
         GENERATE_INFOPLIST_FILE: "YES"
         ENABLE_HARDENED_RUNTIME: "YES"
 
-  # Menu-bar accessory app (no Dock icon at idle). UI only — logic lives in KDWarmKit.
-  KDWarm:
+  # Menu-bar accessory app (no Dock icon at idle). UI only — logic lives in KTStackKit.
+  KTStack:
     type: application
     platform: macOS
     sources:
-      - path: KDWarm
+      - path: KTStack
         excludes:
           - "Resources/bin/**"
       # Folder reference so the vendored binaries keep their `bin/` subdirectory in the
       # bundle (Contents/Resources/bin/), which is where BinaryStager reads them from.
       # The contents are build artifacts produced by scripts/build-*.sh (gitignored).
-      - path: KDWarm/Resources/bin
+      - path: KTStack/Resources/bin
         type: folder
         buildPhase: resources
     dependencies:
-      - target: KDWarmKit
+      - target: KTStackKit
         embed: true
       - package: Sparkle
       # Build-order + copy only (no linking); lands in Contents/MacOS so Phase 4's
       # SMAppService daemon plist can reference it. Empty stub for now.
-      - target: KDWarmHelper
+      - target: KTStackHelper
         link: false
         copy:
           destination: executables
       # Tiny CLI the shell shims exec to resolve per-project runtime versions. Shares the
-      # resolver core source with KDWarmKit so terminal and web pick the same PHP version.
+      # resolver core source with KTStackKit so terminal and web pick the same PHP version.
       - target: ktstack-resolve
         link: false
         copy:
           destination: executables
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.kdwarm.app
-        # Display/product name is KTStack (the app is KTStack.app); the Xcode TARGET + bundle id stay
-        # "KDWarm"/com.kdwarm.* internally so existing installs, data dir, and launchd jobs keep working.
+        PRODUCT_BUNDLE_IDENTIFIER: com.ktstack.app
+        # Legacy com.kdwarm.* installs (data dir, launchd jobs, keychain, defaults) are carried over
+        # once at first launch by LegacyKDWarmMigration.
         PRODUCT_NAME: KTStack
-        INFOPLIST_FILE: KDWarm/Resources/Info.plist
+        INFOPLIST_FILE: KTStack/Resources/Info.plist
         GENERATE_INFOPLIST_FILE: "NO"
         CODE_SIGN_ENTITLEMENTS: entitlements/app.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -138,51 +138,51 @@ targets:
   # registration gated on Developer ID signing (Phase 9). Compiles the SHARED XPC + DNS files
   # directly (separate process from the app → no @objc-protocol clash) so identity/requirement
   # constants are single-sourced and can't drift.
-  KDWarmHelper:
+  KTStackHelper:
     type: tool
     platform: macOS
     sources:
-      - path: KDWarmHelper
+      - path: KTStackHelper
         excludes:
-          - "com.kdwarm.helper.plist"   # embedded in the app bundle, not compiled into the tool
-      - path: KDWarmKit/Sources/XPC/HelperXPCProtocol.swift
-      - path: KDWarmKit/Sources/XPC/HelperIdentityConstants.swift
-      - path: KDWarmKit/Sources/DNS/DNSConstants.swift
+          - "com.ktstack.helper.plist"   # embedded in the app bundle, not compiled into the tool
+      - path: KTStackKit/Sources/XPC/HelperXPCProtocol.swift
+      - path: KTStackKit/Sources/XPC/HelperIdentityConstants.swift
+      - path: KTStackKit/Sources/DNS/DNSConstants.swift
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.kdwarm.helper
+        PRODUCT_BUNDLE_IDENTIFIER: com.ktstack.helper
         CODE_SIGN_ENTITLEMENTS: entitlements/helper.entitlements
         ENABLE_HARDENED_RUNTIME: "YES"
 
-  # Shell-shim resolver CLI. Compiles the resolver core files from KDWarmKit directly (same
-  # pattern as KDWarmHelper) so the per-project version logic is single-sourced between the
+  # Shell-shim resolver CLI. Compiles the resolver core files from KTStackKit directly (same
+  # pattern as KTStackHelper) so the per-project version logic is single-sourced between the
   # terminal shims and the app's php-fpm pool selection.
   ktstack-resolve:
     type: tool
     platform: macOS
     sources:
-      - path: KDWarmResolve
-      - path: KDWarmKit/Sources/Process/AppSupportPaths.swift
-      - path: KDWarmKit/Sources/Runtimes/VersionResolver.swift
-      - path: KDWarmKit/Sources/Runtimes/RuntimeCatalog.swift
-      - path: KDWarmKit/Sources/Shell/ProjectVersionResolver.swift
-      - path: KDWarmKit/Sources/Shell/ShellRuntimeBinResolver.swift
+      - path: KTStackResolve
+      - path: KTStackKit/Sources/Process/AppSupportPaths.swift
+      - path: KTStackKit/Sources/Runtimes/VersionResolver.swift
+      - path: KTStackKit/Sources/Runtimes/RuntimeCatalog.swift
+      - path: KTStackKit/Sources/Shell/ProjectVersionResolver.swift
+      - path: KTStackKit/Sources/Shell/ShellRuntimeBinResolver.swift
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.kdwarm.resolve
+        PRODUCT_BUNDLE_IDENTIFIER: com.ktstack.resolve
         CODE_SIGN_ENTITLEMENTS: entitlements/helper.entitlements
         ENABLE_HARDENED_RUNTIME: "YES"
 
   # Logic tests for the framework (config writers, paths, pool/preflight). Runs without an
-  # app host — pure XCTest against KDWarmKit.
-  KDWarmKitTests:
+  # app host — pure XCTest against KTStackKit.
+  KTStackKitTests:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - path: KDWarmKitTests
+      - path: KTStackKitTests
     dependencies:
-      - target: KDWarmKit
+      - target: KTStackKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.kdwarm.kit.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.ktstack.kit.tests
         GENERATE_INFOPLIST_FILE: "YES"

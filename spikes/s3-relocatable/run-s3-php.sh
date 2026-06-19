@@ -11,7 +11,7 @@ cd "$(dirname "$0")"
 PHP_VER="${PHP_VER:-8.4.8}"
 TARBALL="php-${PHP_VER}-cli-macos-aarch64.tar.gz"
 URL="https://dl.static-php.dev/static-php-cli/common/${TARBALL}"
-STAGE="$PWD/staging"            # simulated ~/Library/Application Support/KDWarm/runtimes
+STAGE="$PWD/staging"            # simulated ~/Library/Application Support/KTStack/runtimes
 MOVED="$PWD/staging-MOVED"      # where we relocate it to
 
 rm -rf "$STAGE" "$MOVED"

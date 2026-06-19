@@ -1,6 +1,6 @@
-KDWarm — Third-Party Notices
+KTStack — Third-Party Notices
 Generated: 2026-06-19T01:39:24Z
-KDWarm is distributed free of charge as open-source software.
+KTStack is distributed free of charge as open-source software.
 
 == Redistributed components ==
 - nginx
@@ -38,7 +38,7 @@ KDWarm is distributed free of charge as open-source software.
     Source:  https://github.com/sparkle-project/Sparkle
 
 == Written offer of source (GPL / SSPL components) ==
-For the following components, KDWarm provides the complete corresponding source code.
+For the following components, KTStack provides the complete corresponding source code.
 The exact upstream version + build recipe for each is in scripts/build-*-relocatable.sh and
 scripts/build-php-versions.sh; request a copy at the project repository or the contact below.
   - dnsmasq

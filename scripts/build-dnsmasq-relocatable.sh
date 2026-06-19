@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Build a relocatable dnsmasq and vendor it into KDWarm/Resources/bin.
+# Build a relocatable dnsmasq and vendor it into KTStack/Resources/bin.
 #
 # dnsmasq has no third-party dependencies — it links only the system libc/libresolv — so the
 # built binary is already relocatable (otool shows only /usr/lib + /System). The privileged
 # helper (Phase 4) runs it as a launchd daemon bound to 127.0.0.1:53 with `address=/.test/127.0.0.1`.
 #
 # Arch scope: host arch (arm64). Universal is assembled in Phase 9 via lipo.
-# Output: KDWarm/Resources/bin/dnsmasq
+# Output: KTStack/Resources/bin/dnsmasq
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
 
 DNSMASQ_VER="${DNSMASQ_VER:-2.90}"
 ARCH="${ARCH:-$(uname -m)}"
-OUT="${OUT:-$ROOT/KDWarm/Resources/bin}"
+OUT="${OUT:-$ROOT/KTStack/Resources/bin}"
 BUILD="${BUILD:-$ROOT/.build-cache/dnsmasq-$ARCH}"
 SRC="$BUILD/dnsmasq-${DNSMASQ_VER}"
 

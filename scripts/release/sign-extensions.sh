@@ -10,7 +10,7 @@
 # same-Team signing IS the defense against a third party dropping a `.so`.
 #
 # Re-signing changes each `.so`'s sha256 → the tar.gz is re-packaged and its hash re-emitted; bump
-# those into KDWarmKit/Sources/Runtimes/PHPExtensionManifest.swift, notarize each artifact, publish
+# those into KTStackKit/Sources/Runtimes/PHPExtensionManifest.swift, notarize each artifact, publish
 # --clobber, then rebuild the app (same gotcha as the runtime artifacts — see the signing guide §4).
 #
 # Run AFTER scripts/release/build-php-extensions.sh has produced .build-cache/php-arm64-<ver>/ext-collect.
@@ -23,7 +23,7 @@ source "$ROOT/scripts/lib-relocatable.sh"
 DEV_ID="${DEV_ID:?set DEV_ID to your 'Developer ID Application: …' identity}"
 ARCH="${ARCH:-$(uname -m)}"
 ARTIFACTS="${ARTIFACTS:-$ROOT/.build-cache/artifacts}"
-EXT_REPO="${EXT_REPO:-nguyenkhoi489/kd-warm}"
+EXT_REPO="${EXT_REPO:-KTStackAPP/KTStack}"
 EXT_TAG="${EXT_TAG:-binaries-v1}"
 VERSIONS=("$@")
 [[ ${#VERSIONS[@]} -eq 0 ]] && VERSIONS=(8.4 8.3 8.1)
@@ -60,6 +60,6 @@ echo "=== re-signed manifest — bump these sha256 into PHPExtensionManifest.swi
 cat "$MANIFEST"
 echo ""
 echo "=== then notarize each + publish (clobber), like the runtime artifacts (guide §4) ==="
-echo "for f in $ARTIFACTS/php-ext-*-$ARCH.tar.gz; do xcrun notarytool submit \"\$f\" --keychain-profile kdwarm-notary --wait; done"
+echo "for f in $ARTIFACTS/php-ext-*-$ARCH.tar.gz; do xcrun notarytool submit \"\$f\" --keychain-profile ktstack-notary --wait; done"
 PUB=(); for f in "$ARTIFACTS"/php-ext-*-"$ARCH".tar.gz; do [[ -e "$f" ]] && PUB+=("$(basename "$f")"); done
 echo "scripts/release/publish-artifacts.sh binaries-v1 ${PUB[*]}"

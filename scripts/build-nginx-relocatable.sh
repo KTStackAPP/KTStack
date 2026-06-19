@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-# Build a relocatable, TLS-capable nginx and vendor it into KDWarm/Resources/bin.
+# Build a relocatable, TLS-capable nginx and vendor it into KTStack/Resources/bin.
 #
 # Relocatability technique (proven by the Foundations Spike, s3-relocatable/run-s3-nginx.sh):
 # static-link OpenSSL + PCRE2 so no Homebrew Cellar dylib paths leak into the binary; let
 # zlib resolve to the always-present system /usr/lib/libz. nginx bakes its prefix at compile
-# time, but KDWarm always launches it with a runtime `-p <app-support>` override, so the
+# time, but KTStack always launches it with a runtime `-p <app-support>` override, so the
 # baked prefix is irrelevant — the binary runs from any install path.
 #
 # Arch scope: builds for the HOST arch by default (arm64 on Apple Silicon). The universal
 # release binary is assembled in Phase 9 (packaging) by building each arch into a separate
 # OUT_DIR and `lipo -create`-ing them; this script exposes ARCH + OUT so that step can drive it.
 #
-# Output: KDWarm/Resources/bin/nginx (single-arch here; lipo'd to universal in Phase 9).
+# Output: KTStack/Resources/bin/nginx (single-arch here; lipo'd to universal in Phase 9).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
 
 NGX_VER="${NGX_VER:-1.27.4}"
 ARCH="${ARCH:-$(uname -m)}"                       # arm64 | x86_64
-OUT="${OUT:-$ROOT/KDWarm/Resources/bin}"          # final vendor dir
+OUT="${OUT:-$ROOT/KTStack/Resources/bin}"          # final vendor dir
 BUILD="${BUILD:-$ROOT/.build-cache/nginx-$ARCH}"  # scratch (gitignored)
 
 SSL_PREFIX="$(brew --prefix openssl@3)"

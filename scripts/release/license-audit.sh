@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Generate NOTICES.txt: attribution + license identifiers for every redistributed component, plus a
-# written offer of source for the copyleft ones (GPL/SSPL). KDWarm is distributed free / open-source,
+# written offer of source for the copyleft ones (GPL/SSPL). KTStack is distributed free / open-source,
 # so GPL/SSPL redistribution is compatible — this file satisfies the attribution + source-offer
 # obligation. Runnable now (does not need signing). Edit the table below as the bundled set changes.
 set -euo pipefail
@@ -25,9 +25,9 @@ COMPONENTS=(
 SOURCE_OFFER=("dnsmasq" "MySQL (mysqld)" "Redis (>=7)")
 
 {
-  echo "KDWarm — Third-Party Notices"
+  echo "KTStack — Third-Party Notices"
   echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  echo "KDWarm is distributed free of charge as open-source software."
+  echo "KTStack is distributed free of charge as open-source software."
   echo
   echo "== Redistributed components =="
   for row in "${COMPONENTS[@]}"; do
@@ -36,7 +36,7 @@ SOURCE_OFFER=("dnsmasq" "MySQL (mysqld)" "Redis (>=7)")
   done
   echo
   echo "== Written offer of source (GPL / SSPL components) =="
-  echo "For the following components, KDWarm provides the complete corresponding source code."
+  echo "For the following components, KTStack provides the complete corresponding source code."
   echo "The exact upstream version + build recipe for each is in scripts/build-*-relocatable.sh and"
   echo "scripts/build-php-versions.sh; request a copy at the project repository or the contact below."
   for c in "${SOURCE_OFFER[@]}"; do echo "  - $c"; done

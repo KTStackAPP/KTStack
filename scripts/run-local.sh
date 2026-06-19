@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build + run KDWarm.app locally for testing WITHOUT a Developer ID. A Hardened-Runtime app with
+# Build + run KTStack.app locally for testing WITHOUT a Developer ID. A Hardened-Runtime app with
 # ad-hoc-signed embedded frameworks fails library validation, so after building we re-sign the app
 # ad-hoc with `disable-library-validation` (local test ONLY — the release build uses a real
 # Developer ID via scripts/release/sign-all-binaries.sh and does not need this).
@@ -8,13 +8,13 @@ cd "$(dirname "$0")/.."
 
 echo "=== regenerate project + build (Release) ==="
 xcodegen generate >/dev/null
-xcodebuild -project KDWarm.xcodeproj -scheme KDWarm -configuration Release \
-    -destination 'platform=macOS' build >/tmp/kdwarm-build.log 2>&1 \
-    || { echo "build failed — see /tmp/kdwarm-build.log"; tail -20 /tmp/kdwarm-build.log; exit 1; }
+xcodebuild -project KTStack.xcodeproj -scheme KTStack -configuration Release \
+    -destination 'platform=macOS' build >/tmp/ktstack-build.log 2>&1 \
+    || { echo "build failed — see /tmp/ktstack-build.log"; tail -20 /tmp/ktstack-build.log; exit 1; }
 
-APP="$(find "$HOME/Library/Developer/Xcode/DerivedData"/KDWarm-*/Build/Products/Release \
-    -maxdepth 1 -name KDWarm.app | head -1)"
-[[ -d "$APP" ]] || { echo "KDWarm.app not found"; exit 1; }
+APP="$(find "$HOME/Library/Developer/Xcode/DerivedData"/KTStack-*/Build/Products/Release \
+    -maxdepth 1 -name KTStack.app | head -1)"
+[[ -d "$APP" ]] || { echo "KTStack.app not found"; exit 1; }
 echo "app: $APP"
 
 echo "=== re-sign ad-hoc for local run (disable-library-validation) ==="
@@ -27,19 +27,19 @@ cat > "$ENT" <<'EOF'
   <key>com.apple.security.cs.disable-library-validation</key><true/>
 </dict></plist>
 EOF
-codesign --force --sign - "$APP/Contents/Frameworks/KDWarmKit.framework"
+codesign --force --sign - "$APP/Contents/Frameworks/KTStackKit.framework"
 codesign --force --sign - --deep "$APP/Contents/Frameworks/Sparkle.framework"
 codesign --force --sign - --options runtime --entitlements "$ENT" "$APP"
 rm -f "$ENT"
 
 # A previous crash can leave a window-restoration state that re-opens (and re-crashes) a window.
-rm -rf "$HOME/Library/Saved Application State/com.kdwarm.app.savedState" 2>/dev/null || true
+rm -rf "$HOME/Library/Saved Application State/com.ktstack.app.savedState" 2>/dev/null || true
 
 echo "=== launch ==="
-pkill -f "KDWarm.app/Contents/MacOS/KDWarm" 2>/dev/null || true
+pkill -f "KTStack.app/Contents/MacOS/KTStack" 2>/dev/null || true
 sleep 1
 open "$APP"
 sleep 3
-pgrep -f "KDWarm.app/Contents/MacOS/KDWarm" >/dev/null \
-    && echo "✅ KDWarm is running — look for the bolt icon in the menu bar." \
-    || { echo "❌ not running — last crash:"; ls -t "$HOME/Library/Logs/DiagnosticReports"/KDWarm*.ips 2>/dev/null | head -1; }
+pgrep -f "KTStack.app/Contents/MacOS/KTStack" >/dev/null \
+    && echo "✅ KTStack is running — look for the bolt icon in the menu bar." \
+    || { echo "❌ not running — last crash:"; ls -t "$HOME/Library/Logs/DiagnosticReports"/KTStack*.ips 2>/dev/null | head -1; }

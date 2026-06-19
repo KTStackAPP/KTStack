@@ -1,4 +1,4 @@
-# KDWarm — Changelog
+# KTStack — Changelog
 
 ## [Unreleased] — 2026-06-18 — Create Site Installer Fixes
 
@@ -11,15 +11,15 @@
 - **Drop Database context menu** — right-click Drop Database now opens typed-name confirmation, keeps Run disabled until the database name matches, executes the drop against the profile database, shows loading/error state, closes on success, and refreshes the schema tree.
 
 ### Testing
-- `xcodebuild -project KDWarm.xcodeproj -scheme KDWarm -destination 'platform=macOS' -configuration Debug build` — build succeeded.
-- `xcodebuild -project KDWarm.xcodeproj -scheme KDWarmKit-Tests -destination 'platform=macOS' test` — 548 tests, 30 skipped, 0 failures.
-- `xcodebuild -project KDWarm.xcodeproj -scheme KDWarm -destination 'platform=macOS' -configuration Debug build` — build succeeded.
-- `xcodebuild -project KDWarm.xcodeproj -scheme KDWarmKit-Tests -destination 'platform=macOS' -only-testing:KDWarmKitTests/SiteRegistryTests -only-testing:KDWarmKitTests/SiteRemovalCoordinatorTests test` — 13 tests, 0 failures.
-- `xcodebuild -project KDWarm.xcodeproj -scheme KDWarmKit-Tests -destination 'platform=macOS' test` — 534 tests, 30 skipped, 0 failures.
-- `xcodebuild -project KDWarm.xcodeproj -scheme KDWarm -destination 'platform=macOS' -configuration Debug build` — build succeeded.
+- `xcodebuild -project KTStack.xcodeproj -scheme KTStack -destination 'platform=macOS' -configuration Debug build` — build succeeded.
+- `xcodebuild -project KTStack.xcodeproj -scheme KTStackKit-Tests -destination 'platform=macOS' test` — 548 tests, 30 skipped, 0 failures.
+- `xcodebuild -project KTStack.xcodeproj -scheme KTStack -destination 'platform=macOS' -configuration Debug build` — build succeeded.
+- `xcodebuild -project KTStack.xcodeproj -scheme KTStackKit-Tests -destination 'platform=macOS' -only-testing:KTStackKitTests/SiteRegistryTests -only-testing:KTStackKitTests/SiteRemovalCoordinatorTests test` — 13 tests, 0 failures.
+- `xcodebuild -project KTStack.xcodeproj -scheme KTStackKit-Tests -destination 'platform=macOS' test` — 534 tests, 30 skipped, 0 failures.
+- `xcodebuild -project KTStack.xcodeproj -scheme KTStack -destination 'platform=macOS' -configuration Debug build` — build succeeded.
 - `bash -n scripts/build-php-static.sh` — syntax passed.
-- `xcodebuild -project KDWarm.xcodeproj -scheme KDWarmKit-Tests -destination 'platform=macOS' -only-testing:KDWarmKitTests/DatabaseViewModelTests test` — 22 tests, 0 failures.
-- `xcodebuild -project KDWarm.xcodeproj -scheme KDWarm -destination 'platform=macOS' -configuration Debug build` — build succeeded.
+- `xcodebuild -project KTStack.xcodeproj -scheme KTStackKit-Tests -destination 'platform=macOS' -only-testing:KTStackKitTests/DatabaseViewModelTests test` — 22 tests, 0 failures.
+- `xcodebuild -project KTStack.xcodeproj -scheme KTStack -destination 'platform=macOS' -configuration Debug build` — build succeeded.
 
 ## [0.6.9] — 2026-06-18
 
@@ -42,8 +42,8 @@
 - **Tunnel cleanup** — stale `tunnel-*.conf` vhosts removed when stale launchd jobs are reaped.
 
 ### Testing
-- `xcodebuild -project KDWarm.xcodeproj -scheme KDWarmKit-Tests -destination 'platform=macOS' test` — 530 tests, 30 skipped, 0 failures.
-- `xcodebuild -project KDWarm.xcodeproj -scheme KDWarm -destination 'platform=macOS' build` — build succeeded.
+- `xcodebuild -project KTStack.xcodeproj -scheme KTStackKit-Tests -destination 'platform=macOS' test` — 530 tests, 30 skipped, 0 failures.
+- `xcodebuild -project KTStack.xcodeproj -scheme KTStack -destination 'platform=macOS' build` — build succeeded.
 
 ---
 
@@ -54,7 +54,7 @@
 - **MongoDB driver** (`MongoDriver`, MongoKitten — pure Swift, no libmongoc) — connect/list databases & collections / paginated `find` with JSON filter / `aggregate` (server-side `$limit`) / insert·update·delete / create·drop collection. Per-operation connect with `MongoCluster` disconnect; managed-engine preflight maps not-installed/not-running like the SQL drivers; read-only connections reject all writes. Managed MongoDB profile (loopback, no-auth, :27017) always in the sidebar.
 - **Document track UI** — separate from the relational grid: `CollectionTreeView` (databases → collections, create/drop via context menu), `DocumentListView` (paginated JSON cards, JSON filter bar), `DocumentEditorView` (validated JSON insert/edit). `DatabaseSectionView` routes relational vs document by connection kind; one shared connection sidebar drives both `DatabaseViewModel` and the new `DocumentViewModel`.
 - **BSON↔JSON mapper** (`MongoJSONMapper`) — extended-JSON-style hints for ObjectId/Date/Binary/Timestamp (round-trip) and Decimal128 (display-only; BSON 8.x exposes no public string initializer). Documents cross the NIO→@MainActor boundary as the `Sendable` `DocumentRecord`; no BSON types leak into the VM or UI.
-- **Tests** — `MongoJSONMapperTests` + `DocumentViewModelTests` (CI-blocking, engine-free); `MongoDriverIntegrationTests` (opt-in `KDWARM_DB_IT=1`, validated against MongoDB 7.0). Suite: 318 pass, 28 skipped, 0 failures.
+- **Tests** — `MongoJSONMapperTests` + `DocumentViewModelTests` (CI-blocking, engine-free); `MongoDriverIntegrationTests` (opt-in `KTSTACK_DB_IT=1`, validated against MongoDB 7.0). Suite: 318 pass, 28 skipped, 0 failures.
 
 ### Changed
 - **project.yml** — added `MongoKitten` + `MongoCore` (link statically; `otool -L` confirms no new dylib).
@@ -65,7 +65,7 @@
 - **PostgreSQL driver** (`PostgresDriver`, PostgresNIO) — connect/browse/SQL/CRUD/structure for managed + external PostgreSQL. Browse-level "database" maps to a PG schema; server-side read-only via `default_transaction_read_only`; write guard via transaction + `RETURNING 1`. Managed PG profile (loopback, trust auth, no TLS) always in the sidebar.
 - **SQLite driver** (`SQLiteDriver`, GRDB.swift) — file-based connections via a file picker; full browse/SQL/CRUD/structure using GRDB's vendored engine and PRAGMA introspection; read-only opens the file read-only.
 - **Engine picker** in `AddConnectionSheet` (MySQL / PostgreSQL / SQLite) — host form vs SQLite file picker.
-- **Tests** — `SQLiteDriverTests` + `SQLDialectMultiEngineTests` (CI-blocking, engine-free); `PostgresDriverIntegrationTests` (opt-in `KDWARM_DB_IT=1`). Suite: 287 pass, 24 skipped, 0 failures.
+- **Tests** — `SQLiteDriverTests` + `SQLDialectMultiEngineTests` (CI-blocking, engine-free); `PostgresDriverIntegrationTests` (opt-in `KTSTACK_DB_IT=1`). Suite: 287 pass, 24 skipped, 0 failures.
 
 ### Changed
 - **SQLDialect** is now a per-kind strategy: identifier quoting + placeholder style (`?` for MySQL/SQLite, `$N` for PostgreSQL). MySQL output unchanged.
@@ -86,7 +86,7 @@
 
 ### Changed
 - **DashboardWindow** — `.database` promoted from DEBUG harness to shipped sidebar item with "cylinder.split.1x2" icon.
-- **UI hierarchy** — Database views in KDWarm app target; ViewModel + driver logic in KDWarmKit (7 unit tests).
+- **UI hierarchy** — Database views in KTStack app target; ViewModel + driver logic in KTStackKit (7 unit tests).
 
 ### Phase 4: Row CRUD + Destructive Guard (M2a)
 
@@ -138,9 +138,9 @@ Table structure browsing, DDL (create/alter/drop), and database/table import-exp
 
 ### Testing
 - **Phase 3:** `DatabaseViewModelTests` — 7 unit tests covering state machine transitions, pagination, async invariants.
-- **Phase 4:** `SQLDialectDMLTests` — 7 tests (parameterized INSERT/UPDATE/DELETE, identifier quoting, keyless-write refusal). `DestructiveGuardTests` — 7 tests (flag detection). `DatabaseViewModel CRUD tests` — edit state, insert/update/delete row ops. `MySQLDriverCRUDTests` — optional integration suite (gated on `KDWARM_DB_IT=1`).
+- **Phase 4:** `SQLDialectDMLTests` — 7 tests (parameterized INSERT/UPDATE/DELETE, identifier quoting, keyless-write refusal). `DestructiveGuardTests` — 7 tests (flag detection). `DatabaseViewModel CRUD tests` — edit state, insert/update/delete row ops. `MySQLDriverCRUDTests` — optional integration suite (gated on `KTSTACK_DB_IT=1`).
 - **Build status:** 236 logic tests pass, 13 skipped (integration).
-- All existing tests pass; integration suite gated on `KDWARM_DB_IT=1`.
+- All existing tests pass; integration suite gated on `KTSTACK_DB_IT=1`.
 
 ---
 
