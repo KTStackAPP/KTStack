@@ -14,9 +14,12 @@ struct KTDashboardShell<Content: View>: View {
                       siteCount: siteCount,
                       serverStatus: serverStatus,
                       version: version)
-            content()
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .background(KTColor.contentBg)
+            VStack(spacing: 0) {
+                Color.clear.frame(height: KTMetric.trafficLightInset - 18)
+                content()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(KTColor.contentBg)
         }
         .frame(minWidth: 720, minHeight: 460)
         .ignoresSafeArea(.container, edges: .top)
