@@ -44,7 +44,7 @@ struct KTNewSiteForm: View {
                 VStack(alignment: .leading, spacing: 7) {
                     fieldBox {
                         smallTile(KTIconTint.code) { KTSiteGlyph(kind: .code, size: 15, color: KTIconTint.code.fg) }
-                        TextField("my-site", text: $name).textFieldStyle(.plain).font(.system(size: 14.5)).foregroundStyle(KTColor.ink)
+                        TextField("my-site", text: $name).textFieldStyle(.plain).font(.jbMono(14.5)).foregroundStyle(KTColor.ink)
                     }
                     helper("This will be used as the folder name and site label.")
                 }
@@ -69,7 +69,7 @@ struct KTNewSiteForm: View {
                 VStack(alignment: .leading, spacing: 7) {
                     fieldBox {
                         Image(systemName: "lock").font(.system(size: 14, weight: .regular)).foregroundStyle(KTColor.muted)
-                        Text(adminPassword).font(.system(size: 14, design: .monospaced)).foregroundStyle(KTColor.ink)
+                        Text(adminPassword).font(.jbMono(14)).foregroundStyle(KTColor.ink)
                         Spacer(minLength: 0)
                         iconButton("arrow.clockwise") { adminPassword = KTNewSiteForm.randomPassword() }
                         iconButton("doc.on.doc") {
@@ -118,9 +118,9 @@ struct KTNewSiteForm: View {
                 KTButton(title: "Try Again", kind: .primary) { create() }
             } else {
                 Text("Resolves at ")
-                    .font(.system(size: 12.5)).foregroundColor(KTColor.muted)
+                    .font(.jbMono(12.5)).foregroundColor(KTColor.muted)
                 + Text(domain.isEmpty ? "" : domain)
-                    .font(.system(size: 12.5, weight: .semibold, design: .monospaced)).foregroundColor(KTColor.accent)
+                    .font(.jbMono(12.5, .semibold)).foregroundColor(KTColor.accent)
                 Spacer()
                 KTButton(title: "Cancel", kind: .secondary) { onClose() }
                 KTButton(title: "Create Site", systemImage: "plus", kind: .primary) { create() }
@@ -146,7 +146,7 @@ struct KTNewSiteForm: View {
 
     private func row<V: View>(_ label: String, topAligned: Bool = false, @ViewBuilder content: () -> V) -> some View {
         HStack(alignment: topAligned ? .top : .center, spacing: 16) {
-            Text(label).font(.system(size: 14.5, weight: .semibold)).foregroundStyle(KTColor.ink)
+            Text(label).font(.jbMono(14.5, .semibold)).foregroundStyle(KTColor.ink)
                 .frame(width: 138, alignment: .leading)
                 .padding(.top, topAligned ? 10 : 0)
             content()
@@ -168,7 +168,7 @@ struct KTNewSiteForm: View {
         return KTDropdown(width: width, options: options) {
             HStack(spacing: 11) {
                 lead
-                Text(value).font(.system(size: 14.5, weight: .medium)).foregroundStyle(KTColor.ink)
+                Text(value).font(.jbMono(14.5, .medium)).foregroundStyle(KTColor.ink)
                 Spacer()
                 Image(systemName: "chevron.down").font(.system(size: 11, weight: .bold)).foregroundStyle(KTColor.muted)
             }
@@ -185,7 +185,7 @@ struct KTNewSiteForm: View {
     }
 
     private var phpBadge: some View {
-        Text("php").font(.system(size: 10, weight: .heavy)).foregroundStyle(.white)
+        Text("php").font(.jbMono(10, .bold)).foregroundStyle(.white)
             .padding(.vertical, 3).padding(.horizontal, 7)
             .background(Capsule().fill(Color(hex: 0x777BB3)))
     }
@@ -199,14 +199,14 @@ struct KTNewSiteForm: View {
     }
 
     private func helper(_ text: String) -> some View {
-        Text(text).font(.system(size: 12.5)).foregroundStyle(KTColor.muted)
+        Text(text).font(.jbMono(12.5)).foregroundStyle(KTColor.muted)
     }
 
     private func advancedToggle(_ title: String, _ subtitle: String, _ binding: Binding<Bool>) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(KTColor.ink)
-                Text(subtitle).font(.system(size: 12.5)).foregroundStyle(KTColor.muted)
+                Text(title).font(.jbMono(14, .semibold)).foregroundStyle(KTColor.ink)
+                Text(subtitle).font(.jbMono(12.5)).foregroundStyle(KTColor.muted)
             }
             Spacer()
             KTToggle(isOn: binding.wrappedValue) { binding.wrappedValue.toggle() }

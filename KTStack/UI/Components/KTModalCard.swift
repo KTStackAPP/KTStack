@@ -40,7 +40,7 @@ struct KTModalCard<Content: View>: View {
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(KTType.modalTitle).foregroundStyle(KTColor.ink)
-                Text(subtitle).font(.system(size: 13.5)).foregroundStyle(Color(hex: 0x8E8E93))
+                Text(subtitle).font(.jbMono(13.5)).foregroundStyle(Color(hex: 0x8E8E93))
             }
             Spacer(minLength: 30)
         }

@@ -8,7 +8,7 @@ struct KTSettingsGroup<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title.uppercased())
-                .font(.system(size: 12, weight: .bold)).tracking(0.5)
+                .font(.jbMono(12, .bold)).tracking(0.5)
                 .foregroundStyle(KTColor.muted)
                 .padding(.bottom, 9)
             VStack(spacing: 0) { content() }
@@ -29,9 +29,9 @@ struct KTSettingsRow<Trailing: View>: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(KTColor.ink)
+                Text(title).font(.jbMono(14, .semibold)).foregroundStyle(KTColor.ink)
                 if let subtitle {
-                    Text(subtitle).font(.system(size: 12.5)).foregroundStyle(KTColor.muted)
+                    Text(subtitle).font(.jbMono(12.5)).foregroundStyle(KTColor.muted)
                 }
             }
             Spacer(minLength: 12)
@@ -51,7 +51,7 @@ struct KTSettingsMenuValue: View {
     var body: some View {
         HStack(spacing: 7) {
             Text(text)
-                .font(.system(size: 13, weight: mono ? .semibold : .medium, design: mono ? .monospaced : .default))
+                .font(.jbMono(13, mono ? .semibold : .medium))
                 .foregroundStyle(mono ? KTColor.ink2 : KTColor.ink)
             Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold)).foregroundStyle(KTColor.muted)
         }
@@ -67,7 +67,7 @@ struct KTSettingsValuePill: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 13, weight: .semibold, design: mono ? .monospaced : .default))
+            .font(.jbMono(13, .semibold))
             .foregroundStyle(KTColor.ink2)
             .padding(.horizontal, 12).padding(.vertical, 7)
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(KTColor.fieldBg))
@@ -84,7 +84,7 @@ struct KTSettingsTextButton: View {
 
     var body: some View {
         Button(action: action) {
-            Text(title).font(.system(size: 13, weight: .medium))
+            Text(title).font(.jbMono(13, .medium))
                 .foregroundStyle(danger ? KTColor.danger : KTColor.ink)
                 .padding(.horizontal, 14).padding(.vertical, 7)
                 .background(RoundedRectangle(cornerRadius: 9, style: .continuous)

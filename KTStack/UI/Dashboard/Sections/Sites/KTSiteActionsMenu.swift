@@ -73,11 +73,11 @@ private struct KTActionRow: View {
                     .foregroundStyle(danger ? KTColor.danger : KTColor.ink2)
                     .frame(width: 18)
                 Text(title)
-                    .font(.system(size: 13.5))
+                    .font(.jbMono(13.5))
                     .foregroundStyle(danger ? KTColor.danger : KTColor.ink)
                 Spacer(minLength: 12)
                 if !shortcut.isEmpty {
-                    Text(shortcut).font(.system(size: 12.5)).foregroundStyle(KTColor.faint)
+                    Text(shortcut).font(.jbMono(12.5)).foregroundStyle(KTColor.faint)
                 }
             }
             .padding(.horizontal, 10).padding(.vertical, 7)

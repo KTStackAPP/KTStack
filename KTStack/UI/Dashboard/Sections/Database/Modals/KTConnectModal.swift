@@ -83,7 +83,7 @@ struct KTConnectModal: View {
             HStack(spacing: 14) {
                 KTModalLabeledRow(label: "Host") { KTModalField(placeholder: "127.0.0.1", text: $host, mono: true) }
                 HStack(spacing: 10) {
-                    Text("Port").font(.system(size: 13.5, weight: .semibold)).foregroundStyle(KTColor.ink)
+                    Text("Port").font(.jbMono(13.5, .semibold)).foregroundStyle(KTColor.ink)
                     KTModalField(placeholder: "3306", text: $port, mono: true).frame(width: 90)
                 }
             }
@@ -91,7 +91,7 @@ struct KTConnectModal: View {
             HStack(spacing: 14) {
                 KTModalLabeledRow(label: "Username") { KTModalField(placeholder: "root", text: $user, mono: true) }
                 HStack(spacing: 10) {
-                    Text("Password").font(.system(size: 13.5, weight: .semibold)).foregroundStyle(KTColor.ink)
+                    Text("Password").font(.jbMono(13.5, .semibold)).foregroundStyle(KTColor.ink)
                     KTModalField(placeholder: "••••••", text: $password, isSecure: true)
                 }
             }
@@ -103,7 +103,7 @@ struct KTConnectModal: View {
             Button(action: runTest) {
                 HStack(spacing: 7) {
                     Image(systemName: "arrow.right").font(.system(size: 12, weight: .semibold))
-                    Text("Test Connection").font(.system(size: 13.5, weight: .medium))
+                    Text("Test Connection").font(.jbMono(13.5, .medium))
                 }
                 .foregroundStyle(KTColor.ink)
                 .padding(.horizontal, 16).padding(.vertical, 10)
@@ -117,7 +117,7 @@ struct KTConnectModal: View {
             Spacer()
             HStack(spacing: 10) {
                 Button(action: onClose) {
-                    Text("Cancel").font(.system(size: 14, weight: .medium)).foregroundStyle(KTColor.ink)
+                    Text("Cancel").font(.jbMono(14, .medium)).foregroundStyle(KTColor.ink)
                         .padding(.horizontal, 20).padding(.vertical, 10)
                         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white))
                         .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(KTColor.btnBorder, lineWidth: 0.5))
@@ -125,7 +125,7 @@ struct KTConnectModal: View {
                 }
                 .buttonStyle(.plain).keyboardShortcut(.cancelAction)
                 Button(action: connect) {
-                    Text("Connect").font(.system(size: 14, weight: .semibold)).foregroundStyle(.white)
+                    Text("Connect").font(.jbMono(14, .semibold)).foregroundStyle(.white)
                         .padding(.horizontal, 22).padding(.vertical, 10)
                         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(KTColor.accentGradient))
                         .contentShape(Rectangle())
@@ -144,11 +144,11 @@ struct KTConnectModal: View {
             ProgressView().controlSize(.small)
         } else if let error = testError {
             Label(error, systemImage: "exclamationmark.triangle.fill")
-                .font(.system(size: 12.5)).foregroundStyle(KTColor.danger).lineLimit(1)
+                .font(.jbMono(12.5)).foregroundStyle(KTColor.danger).lineLimit(1)
         } else if tested {
             HStack(spacing: 6) {
                 Image(systemName: "checkmark").font(.system(size: 12, weight: .bold))
-                Text("Connection successful").font(.system(size: 13, weight: .semibold))
+                Text("Connection successful").font(.jbMono(13, .semibold))
             }
             .foregroundStyle(KTColor.online)
         }
@@ -249,7 +249,7 @@ struct KTConnectModal: View {
 struct KTSecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .medium))
+            .font(.jbMono(13, .medium))
             .foregroundStyle(KTColor.ink)
             .padding(.horizontal, 16).padding(.vertical, 9)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white))

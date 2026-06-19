@@ -114,10 +114,10 @@ struct SettingsView: View {
 
     private var localTLDField: some View {
         HStack(spacing: 1) {
-            Text(".").font(.system(size: 13, weight: .semibold, design: .monospaced)).foregroundStyle(KTColor.ink2)
+            Text(".").font(.jbMono(13, .semibold)).foregroundStyle(KTColor.ink2)
             TextField("test", text: $tldDraft)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                .font(.jbMono(13, .semibold))
                 .foregroundStyle(KTColor.ink2)
                 .frame(width: 88)
                 .onSubmit(commitTLD)
@@ -269,7 +269,7 @@ struct SettingsView: View {
                                              @ViewBuilder _ content: () -> Content) -> some View {
         VStack(spacing: 0) {
             HStack {
-                Text(title).font(.system(size: 15, weight: .semibold)).foregroundStyle(KTColor.ink)
+                Text(title).font(.jbMono(15, .semibold)).foregroundStyle(KTColor.ink)
                 Spacer()
                 Button("Done", action: onDone).keyboardShortcut(.defaultAction)
             }

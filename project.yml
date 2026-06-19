@@ -98,10 +98,16 @@ targets:
       - path: KTStack
         excludes:
           - "Resources/bin/**"
+          - "Resources/fonts/**"
       # Folder reference so the vendored binaries keep their `bin/` subdirectory in the
       # bundle (Contents/Resources/bin/), which is where BinaryStager reads them from.
       # The contents are build artifacts produced by scripts/build-*.sh (gitignored).
       - path: KTStack/Resources/bin
+        type: folder
+        buildPhase: resources
+      # Bundled JetBrains Mono faces, kept in a fonts/ subdirectory so Info.plist's
+      # ATSApplicationFontsPath can auto-activate them at launch.
+      - path: KTStack/Resources/fonts
         type: folder
         buildPhase: resources
     dependencies:

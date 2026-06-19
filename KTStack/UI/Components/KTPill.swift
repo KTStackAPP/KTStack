@@ -6,7 +6,7 @@ struct KTPill: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 12.5, weight: .semibold))
+            .font(.jbMono(12.5, .semibold))
             .foregroundStyle(Color(hex: 0x8E8E93))
             .padding(.vertical, 3)
             .padding(.horizontal, 10)
@@ -21,7 +21,7 @@ struct KTBadge: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 11.5, weight: .semibold))
+            .font(.jbMono(11.5, .semibold))
             .foregroundStyle(tint.fg)
             .padding(.vertical, 3)
             .padding(.horizontal, 9)

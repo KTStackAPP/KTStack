@@ -18,7 +18,7 @@ struct KTBackupRow: View {
             }
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 9) {
-                    Text(title).font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundStyle(KTColor.ink)
+                    Text(title).font(.jbMono(14, .semibold)).foregroundStyle(KTColor.ink)
                     KTBadge(text: isFull ? "Full" : "Single",
                             tint: isFull ? KTTint(fg: KTColor.accent, bg: Color(hex: 0xEAF1FF)) : KTTint(fg: KTColor.ink3, bg: KTColor.pillBg),
                             radius: 6)
@@ -27,7 +27,7 @@ struct KTBackupRow: View {
             }
             Spacer(minLength: 8)
             Button(action: onRestore) {
-                Text("Restore").font(.system(size: 13, weight: .medium)).foregroundStyle(KTColor.accent)
+                Text("Restore").font(.jbMono(13, .medium)).foregroundStyle(KTColor.accent)
                     .padding(.vertical, 7).padding(.horizontal, 14)
                     .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.white))
                     .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color(hex: 0xBFD4FF), lineWidth: 0.5))

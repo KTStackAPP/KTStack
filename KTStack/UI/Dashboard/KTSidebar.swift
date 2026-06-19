@@ -36,7 +36,7 @@ struct KTSidebar: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .shadow(color: Color(hex: 0x140F28, opacity: 0.4), radius: 4, y: 3)
             Text("KTStack")
-                .font(.system(size: 16, weight: .bold))
+                .font(.jbMono(16, .bold))
                 .foregroundStyle(KTColor.ink)
             Spacer(minLength: 0)
         }

@@ -36,7 +36,7 @@ struct KTEditorStructureTab: View {
         HStack(spacing: 0) {
             ForEach(Array(columns.enumerated()), id: \.offset) { index, title in
                 Text(title)
-                    .font(.system(size: 12.5, weight: .semibold))
+                    .font(.jbMono(12.5, .semibold))
                     .foregroundStyle(KTColor.ink3)
                     .padding(.horizontal, 16).padding(.vertical, 9)
                     .frame(width: widths[index], alignment: .leading)
@@ -50,11 +50,11 @@ struct KTEditorStructureTab: View {
     private func rows(_ widths: [CGFloat]) -> some View {
         ForEach(vm.currentColumns) { column in
             HStack(spacing: 0) {
-                cell(column.name, width: widths[0], font: .system(size: 13, weight: .semibold, design: .monospaced), color: KTColor.ink)
-                cell(column.dataType, width: widths[1], font: .system(size: 13, design: .monospaced), color: Color(hex: 0x8B5CF6))
-                cell(column.isNullable ? "YES" : "NO", width: widths[2], font: .system(size: 13), color: KTColor.ink3)
+                cell(column.name, width: widths[0], font: .jbMono(13, .semibold), color: KTColor.ink)
+                cell(column.dataType, width: widths[1], font: .jbMono(13), color: Color(hex: 0x8B5CF6))
+                cell(column.isNullable ? "YES" : "NO", width: widths[2], font: .jbMono(13), color: KTColor.ink3)
                 keyCell(column, width: widths[3])
-                cell(column.defaultValue ?? "—", width: widths[4], font: .system(size: 13, design: .monospaced), color: KTColor.muted)
+                cell(column.defaultValue ?? "—", width: widths[4], font: .jbMono(13), color: KTColor.muted)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .overlay(alignment: .bottom) { Rectangle().fill(KTColor.sepFaint).frame(height: 0.5) }
@@ -72,7 +72,7 @@ struct KTEditorStructureTab: View {
         HStack {
             if column.isPrimaryKey {
                 Text("PK")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.jbMono(11, .bold))
                     .foregroundStyle(KTColor.accent)
                     .padding(.horizontal, 7).padding(.vertical, 2)
                     .background(Capsule().fill(Color(hex: 0xEAF1FF)))
@@ -87,7 +87,7 @@ struct KTEditorStructureTab: View {
     private func placeholder(_ message: String) -> some View {
         VStack(spacing: 6) {
             Image(systemName: "list.bullet.rectangle").font(.system(size: 42, weight: .light)).foregroundStyle(KTColor.faint)
-            Text(message).font(.system(size: 13)).foregroundStyle(KTColor.muted)
+            Text(message).font(.jbMono(13)).foregroundStyle(KTColor.muted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

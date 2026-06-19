@@ -20,12 +20,12 @@ struct MailSectionView: View {
         HStack(spacing: 12) {
             Text("Mail").font(KTType.screenTitle).tracking(KTType.screenTitleTracking).foregroundStyle(KTColor.ink)
             Text("Mailpit · :8025")
-                .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Color(hex: 0x8E8E93))
+                .font(.jbMono(12.5, .semibold)).foregroundStyle(Color(hex: 0x8E8E93))
                 .padding(.horizontal, 10).padding(.vertical, 3)
                 .background(Capsule().fill(KTColor.pillBg))
             Spacer()
             Button(action: { mail.deleteAll() }) {
-                Text("Clear inbox").font(.system(size: 13, weight: .medium)).foregroundStyle(KTColor.danger)
+                Text("Clear inbox").font(.jbMono(13, .medium)).foregroundStyle(KTColor.danger)
                     .padding(.horizontal, 14).padding(.vertical, 7)
                     .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.white))
                     .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(KTColor.dangerBorder, lineWidth: 0.5))
@@ -66,7 +66,7 @@ struct MailSectionView: View {
 
     private var listEmptyHint: some View {
         Text("No messages yet.\nSend mail from a site to :1025.")
-            .font(.system(size: 12.5)).foregroundStyle(KTColor.muted).multilineTextAlignment(.center)
+            .font(.jbMono(12.5)).foregroundStyle(KTColor.muted).multilineTextAlignment(.center)
     }
 
     @ViewBuilder
@@ -79,8 +79,8 @@ struct MailSectionView: View {
             } else {
                 VStack(spacing: 6) {
                     Image(systemName: "envelope.open").font(.system(size: 42, weight: .light)).foregroundStyle(KTColor.faint)
-                    Text("No message selected").font(.system(size: 16, weight: .semibold)).foregroundStyle(KTColor.ink3)
-                    Text("Pick a message from the list to read it.").font(.system(size: 13)).foregroundStyle(KTColor.muted)
+                    Text("No message selected").font(.jbMono(16, .semibold)).foregroundStyle(KTColor.ink3)
+                    Text("Pick a message from the list to read it.").font(.jbMono(13)).foregroundStyle(KTColor.muted)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -109,17 +109,17 @@ struct MailListRow: View {
                 MailAvatar(name: senderName)
                 VStack(alignment: .leading, spacing: 1) {
                     HStack(spacing: 6) {
-                        Text(senderName).font(.system(size: 13.5, weight: .semibold))
+                        Text(senderName).font(.jbMono(13.5, .semibold))
                             .foregroundStyle(KTColor.ink).lineLimit(1)
                         Spacer(minLength: 4)
                         if let date = summary.date {
                             Text(date.formatted(date: .omitted, time: .shortened))
-                                .font(.system(size: 11.5)).foregroundStyle(KTColor.muted)
+                                .font(.jbMono(11.5)).foregroundStyle(KTColor.muted)
                         }
                     }
                     Text(summary.Subject.isEmpty ? "(no subject)" : summary.Subject)
-                        .font(.system(size: 13)).foregroundStyle(KTColor.ink2).lineLimit(1)
-                    Text(summary.Snippet).font(.system(size: 12)).foregroundStyle(KTColor.muted).lineLimit(1)
+                        .font(.jbMono(13)).foregroundStyle(KTColor.ink2).lineLimit(1)
+                    Text(summary.Snippet).font(.jbMono(12)).foregroundStyle(KTColor.muted).lineLimit(1)
                 }
             }
             .padding(.horizontal, 10).padding(.vertical, 9)
@@ -152,7 +152,7 @@ struct MailAvatar: View {
 
     var body: some View {
         Text(initial)
-            .font(.system(size: 13, weight: .bold))
+            .font(.jbMono(13, .bold))
             .foregroundStyle(tint.fg)
             .frame(width: 34, height: 34)
             .background(Circle().fill(tint.bg))

@@ -28,14 +28,14 @@ struct DumpsPanelView: View {
         HStack(spacing: 12) {
             Text("Dumps").font(KTType.screenTitle).tracking(KTType.screenTitleTracking).foregroundStyle(KTColor.ink)
             Text("\(model.events.count) captured")
-                .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Color(hex: 0x8E8E93))
+                .font(.jbMono(12.5, .semibold)).foregroundStyle(Color(hex: 0x8E8E93))
                 .padding(.horizontal, 10).padding(.vertical, 3)
                 .background(Capsule().fill(KTColor.pillBg))
             Spacer()
             captureToggle
             autoScrollToggle
             Button(action: { model.clear() }) {
-                Text("Clear all").font(.system(size: 13, weight: .medium)).foregroundStyle(KTColor.ink)
+                Text("Clear all").font(.jbMono(13, .medium)).foregroundStyle(KTColor.ink)
                     .padding(.horizontal, 14).padding(.vertical, 7)
                     .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.white))
                     .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(KTColor.btnBorder, lineWidth: 0.5))
@@ -56,7 +56,7 @@ struct DumpsPanelView: View {
                     Circle().fill(model.enabled ? KTColor.runDot : KTColor.stopDot).frame(width: 7, height: 7)
                 }
                 Text(model.enabled ? "Capturing" : "Capture off")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.jbMono(13, .semibold))
                     .foregroundStyle(model.enabled ? KTColor.online : KTColor.ink2)
             }
             .padding(.horizontal, 14).padding(.vertical, 8)
@@ -118,10 +118,10 @@ struct DumpsPanelView: View {
             HStack(spacing: 10) {
                 typeChip(event.root)
                 Text(event.sourceDisplay)
-                    .font(.system(size: 13, weight: .semibold, design: .monospaced)).foregroundStyle(KTColor.ink2)
+                    .font(.jbMono(13, .semibold)).foregroundStyle(KTColor.ink2)
                 Spacer()
                 Text(Self.timeFormatter.string(from: event.timestamp))
-                    .font(.system(size: 12, design: .monospaced)).foregroundStyle(KTColor.muted)
+                    .font(.jbMono(12)).foregroundStyle(KTColor.muted)
             }
             .padding(.horizontal, 16).padding(.vertical, 11)
             .background(Color(hex: 0xFAFAFC))
@@ -138,7 +138,7 @@ struct DumpsPanelView: View {
     private func typeChip(_ node: DumpNode) -> some View {
         let info = typeInfo(node)
         return Text(info.0)
-            .font(.system(size: 11, weight: .bold))
+            .font(.jbMono(11, .bold))
             .foregroundStyle(info.1.fg)
             .padding(.horizontal, 8).padding(.vertical, 3)
             .background(Capsule().fill(info.1.bg))
@@ -157,8 +157,8 @@ struct DumpsPanelView: View {
         VStack(spacing: 6) {
             Image(systemName: icon).font(.system(size: 42, weight: .light))
                 .foregroundStyle(danger ? KTColor.danger : KTColor.faint)
-            Text(title).font(.system(size: 16, weight: .semibold)).foregroundStyle(KTColor.ink3)
-            Text(message).font(.system(size: 13)).foregroundStyle(KTColor.muted).multilineTextAlignment(.center)
+            Text(title).font(.jbMono(16, .semibold)).foregroundStyle(KTColor.ink3)
+            Text(message).font(.jbMono(13)).foregroundStyle(KTColor.muted).multilineTextAlignment(.center)
         }
         .padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
     }

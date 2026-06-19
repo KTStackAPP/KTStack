@@ -12,7 +12,7 @@ struct KTSearchField: View {
                 .foregroundStyle(KTColor.muted)
             TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
-                .font(.system(size: 14))
+                .font(.jbMono(14))
                 .foregroundStyle(KTColor.ink)
             if !text.isEmpty {
                 Button { text = "" } label: {

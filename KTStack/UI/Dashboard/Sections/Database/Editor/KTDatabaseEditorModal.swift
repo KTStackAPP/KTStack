@@ -75,7 +75,7 @@ struct KTDatabaseEditorModal: View {
                 Image(systemName: "cylinder.split.1x2").font(.system(size: 15, weight: .medium))
             }
             Text(schemaName)
-                .font(.system(size: 16, weight: .bold, design: .monospaced))
+                .font(.jbMono(16, .bold))
                 .foregroundStyle(KTColor.ink)
             connectionBadge
             Spacer()
@@ -97,18 +97,18 @@ struct KTDatabaseEditorModal: View {
         case .connected:
             HStack(spacing: 6) {
                 Image(systemName: "checkmark.circle").font(.system(size: 13, weight: .semibold))
-                Text("Connected").font(.system(size: 13, weight: .semibold))
+                Text("Connected").font(.jbMono(13, .semibold))
             }
             .foregroundStyle(KTColor.online)
         case .connecting:
             HStack(spacing: 6) {
                 ProgressView().controlSize(.small)
-                Text("Connecting…").font(.system(size: 13)).foregroundStyle(KTColor.muted)
+                Text("Connecting…").font(.jbMono(13)).foregroundStyle(KTColor.muted)
             }
         default:
             HStack(spacing: 6) {
                 Image(systemName: "exclamationmark.triangle").font(.system(size: 13))
-                Text("Disconnected").font(.system(size: 13))
+                Text("Disconnected").font(.jbMono(13))
             }
             .foregroundStyle(KTColor.danger)
         }

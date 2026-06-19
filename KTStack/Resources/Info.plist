@@ -26,6 +26,8 @@
 	<true/>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>ATSApplicationFontsPath</key>
+	<string>fonts</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 KTStack — free / open-source.</string>
 	<!-- Sparkle auto-update. SUPublicEDKey is the EdDSA public key; its private counterpart lives

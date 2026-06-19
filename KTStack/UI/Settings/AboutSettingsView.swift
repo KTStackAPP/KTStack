@@ -15,16 +15,16 @@ struct AboutSettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             appIcon
-            Text("KTStack").font(.system(size: 24, weight: .bold)).tracking(-0.6).foregroundStyle(KTColor.ink)
+            Text("KTStack").font(.jbMono(24, .bold)).tracking(-0.6).foregroundStyle(KTColor.ink)
                 .padding(.top, 20)
-            Text(versionLine).font(.system(size: 14)).foregroundStyle(Color(hex: 0x8E8E93)).padding(.top, 6)
+            Text(versionLine).font(.jbMono(14)).foregroundStyle(Color(hex: 0x8E8E93)).padding(.top, 6)
             Text("A blazing-fast local development environment for macOS. Run unlimited sites, switch PHP & Node versions instantly, and inspect everything in one place.")
-                .font(.system(size: 15)).foregroundStyle(KTColor.ink2)
+                .font(.jbMono(15)).foregroundStyle(KTColor.ink2)
                 .multilineTextAlignment(.center).lineSpacing(4).frame(maxWidth: 420).padding(.top, 18)
             checkButton.padding(.top, 24)
             linkRow.padding(.top, 26)
-            Text("© 2026 KTStack. Built with care in Hanoi.")
-                .font(.system(size: 12)).foregroundStyle(Color(hex: 0xB0B0B8)).padding(.top, 34)
+            Text("© 2026 KTStack. Built with ❤️ by Nguyên Khôi")
+                .font(.jbMono(12)).foregroundStyle(Color(hex: 0xB0B0B8)).padding(.top, 34)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(40)
@@ -41,10 +41,9 @@ struct AboutSettingsView: View {
 
     private var checkButton: some View {
         Button { updater.checkForUpdates() } label: {
-            Text("Check for Updates").font(.system(size: 14, weight: .semibold)).foregroundStyle(.white)
+            Text("Check for Updates").font(.jbMono(14, .semibold)).foregroundStyle(.white)
                 .padding(.horizontal, 22).padding(.vertical, 11)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(KTColor.accentGradient))
-                .shadow(color: KTColor.accent.opacity(0.55), radius: 5, y: 4)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -65,7 +64,7 @@ struct AboutSettingsView: View {
         Button {
             if let target = URL(string: url) { NSWorkspace.shared.open(target) }
         } label: {
-            Text(title).font(.system(size: 13.5, weight: .medium)).foregroundStyle(KTColor.accent)
+            Text(title).font(.jbMono(13.5, .medium)).foregroundStyle(KTColor.accent)
         }
         .buttonStyle(.plain)
     }

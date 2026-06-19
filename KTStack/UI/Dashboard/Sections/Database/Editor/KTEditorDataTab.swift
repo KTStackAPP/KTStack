@@ -44,11 +44,11 @@ struct KTEditorDataTab: View {
                 Image(systemName: table.isView ? "eye" : "tablecells")
                     .font(.system(size: 14)).foregroundStyle(Color(hex: 0x86868F))
                 Text(table.name)
-                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                    .font(.jbMono(14, .semibold))
                     .foregroundStyle(KTColor.ink)
                 if let result = vm.result, vm.isTableBrowse {
                     Text("· \(rowCountLabel(result))")
-                        .font(.system(size: 12.5)).foregroundStyle(KTColor.muted)
+                        .font(.jbMono(12.5)).foregroundStyle(KTColor.muted)
                 }
                 Spacer()
                 pager
@@ -56,7 +56,7 @@ struct KTEditorDataTab: View {
                     rowActions
                 }
             } else {
-                Text("Select a table to begin").font(.system(size: 13)).foregroundStyle(KTColor.muted)
+                Text("Select a table to begin").font(.jbMono(13)).foregroundStyle(KTColor.muted)
                 Spacer()
             }
         }
@@ -72,7 +72,7 @@ struct KTEditorDataTab: View {
             Button { editor = .insert } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "plus").font(.system(size: 11, weight: .bold))
-                    Text("Add Row").font(.system(size: 12.5, weight: .medium))
+                    Text("Add Row").font(.jbMono(12.5, .medium))
                 }
                 .foregroundStyle(KTColor.ink2)
                 .padding(.horizontal, 12).padding(.vertical, 6)
@@ -114,7 +114,7 @@ struct KTEditorDataTab: View {
     private func footer(_ result: QueryResult) -> some View {
         HStack(spacing: 8) {
             Text("Showing rows \(vm.pageOffset + 1)–\(vm.pageOffset + result.rowCount)\(vm.hasMorePages ? " · more available" : "")")
-                .font(.system(size: 12)).foregroundStyle(KTColor.muted)
+                .font(.jbMono(12)).foregroundStyle(KTColor.muted)
             Spacer()
         }
         .padding(.horizontal, 16).padding(.vertical, 8)
@@ -126,10 +126,10 @@ struct KTEditorDataTab: View {
             Image(systemName: "tablecells")
                 .font(.system(size: 60, weight: .ultraLight)).foregroundStyle(KTColor.faint)
             Text("No table selected")
-                .font(.system(size: 20, weight: .bold)).foregroundStyle(Color(hex: 0x86868F))
+                .font(.jbMono(20, .bold)).foregroundStyle(Color(hex: 0x86868F))
                 .padding(.top, 20)
             Text("Pick a table in the schema tree to browse its rows.")
-                .font(.system(size: 14)).foregroundStyle(Color(hex: 0xA8A8B0))
+                .font(.jbMono(14)).foregroundStyle(Color(hex: 0xA8A8B0))
                 .padding(.top, 6)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -138,8 +138,8 @@ struct KTEditorDataTab: View {
     private func messageState(icon: String, title: String, message: String) -> some View {
         VStack(spacing: 6) {
             Image(systemName: icon).font(.system(size: 42, weight: .light)).foregroundStyle(KTColor.faint)
-            Text(title).font(.system(size: 16, weight: .semibold)).foregroundStyle(KTColor.ink3)
-            Text(message).font(.system(size: 13)).foregroundStyle(KTColor.muted).multilineTextAlignment(.center)
+            Text(title).font(.jbMono(16, .semibold)).foregroundStyle(KTColor.ink3)
+            Text(message).font(.jbMono(13)).foregroundStyle(KTColor.muted).multilineTextAlignment(.center)
         }
         .padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
     }

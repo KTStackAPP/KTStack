@@ -29,15 +29,15 @@ struct KTConfirmModal: View {
                 Image(systemName: danger ? "trash" : "arrow.clockwise").font(.system(size: 22, weight: .medium))
             }
             Text(title)
-                .font(.system(size: 18, weight: .bold)).foregroundStyle(KTColor.ink)
+                .font(.jbMono(18, .bold)).foregroundStyle(KTColor.ink)
                 .padding(.top, 16)
             Text(message)
-                .font(.system(size: 13.5)).foregroundStyle(Color(hex: 0x8E8E93))
+                .font(.jbMono(13.5)).foregroundStyle(Color(hex: 0x8E8E93))
                 .multilineTextAlignment(.center).lineSpacing(2)
                 .padding(.top, 7)
             HStack(spacing: 10) {
                 Button(action: onCancel) {
-                    Text("Cancel").font(.system(size: 14, weight: .medium)).foregroundStyle(KTColor.ink)
+                    Text("Cancel").font(.jbMono(14, .medium)).foregroundStyle(KTColor.ink)
                         .frame(maxWidth: .infinity).padding(.vertical, 11)
                         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white))
                         .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(KTColor.btnBorder, lineWidth: 0.5))
@@ -45,7 +45,7 @@ struct KTConfirmModal: View {
                 }
                 .buttonStyle(.plain)
                 Button(action: onConfirm) {
-                    Text(okLabel).font(.system(size: 14, weight: .semibold)).foregroundStyle(.white)
+                    Text(okLabel).font(.jbMono(14, .semibold)).foregroundStyle(.white)
                         .frame(maxWidth: .infinity).padding(.vertical, 11)
                         .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .fill(danger ? AnyShapeStyle(KTColor.danger) : AnyShapeStyle(KTColor.accentGradient)))

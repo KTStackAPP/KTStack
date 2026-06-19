@@ -251,7 +251,7 @@ struct SchemaHeaderButton: View {
         .overlay(alignment: .bottom) {
             if hovering {
                 Text(help)
-                    .font(.system(size: 11))
+                    .font(.jbMono(11))
                     .foregroundStyle(.primary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)

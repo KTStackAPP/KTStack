@@ -98,7 +98,7 @@ struct KTEditorERTab: View {
     private func card(_ node: ERTableNode, tint: KTTint) -> some View {
         VStack(spacing: 0) {
             Text(node.table)
-                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .font(.jbMono(12, .bold))
                 .foregroundStyle(tint.fg)
                 .padding(.horizontal, 12).padding(.vertical, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -122,11 +122,11 @@ struct KTEditorERTab: View {
         let isFK = node.foreignKeyColumns.contains(column)
         return HStack(spacing: 4) {
             Text(column)
-                .font(.system(size: 12, weight: isPK ? .bold : .regular, design: .monospaced))
+                .font(.jbMono(12, isPK ? .bold : .regular))
                 .foregroundStyle(isPK ? KTColor.ink : KTColor.ink2)
                 .lineLimit(1)
             if isFK {
-                Text("· FK").font(.system(size: 11, design: .monospaced)).foregroundStyle(KTColor.muted)
+                Text("· FK").font(.jbMono(11)).foregroundStyle(KTColor.muted)
             }
             Spacer(minLength: 0)
         }
@@ -138,9 +138,9 @@ struct KTEditorERTab: View {
         VStack(spacing: 6) {
             Image(systemName: "rectangle.connected.to.line.below")
                 .font(.system(size: 42, weight: .light)).foregroundStyle(KTColor.faint)
-            Text("No tables").font(.system(size: 16, weight: .semibold)).foregroundStyle(KTColor.ink3)
+            Text("No tables").font(.jbMono(16, .semibold)).foregroundStyle(KTColor.ink3)
             Text("Select a database with tables to see its ER diagram.")
-                .font(.system(size: 13)).foregroundStyle(KTColor.muted)
+                .font(.jbMono(13)).foregroundStyle(KTColor.muted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -169,7 +169,7 @@ struct KTEditorERTab: View {
             zoomButton("minus") { zoom = max(0.25, zoom / 1.2) }
             Button { zoom = 1; pan = .zero } label: {
                 Text("\(Int((zoom * 100).rounded()))%")
-                    .font(.system(size: 12, weight: .medium).monospacedDigit())
+                    .font(.jbMono(12, .medium).monospacedDigit())
                     .foregroundStyle(KTColor.ink2)
                     .frame(minWidth: 44, minHeight: 26)
             }

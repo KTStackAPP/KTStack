@@ -19,7 +19,7 @@ struct KTStatusLabel: View {
         HStack(spacing: 7) {
             KTDot(color: running ? KTColor.runDot : KTColor.stopDot)
             Text(running ? runningText : stoppedText)
-                .font(.system(size: 13, weight: .medium))
+                .font(.jbMono(13, .medium))
                 .foregroundStyle(running ? KTColor.runText : KTColor.stopText)
         }
     }

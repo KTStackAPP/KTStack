@@ -44,7 +44,7 @@ private struct KTDropdownRow: View {
                     .foregroundStyle(KTColor.accent)
                     .opacity(option.active ? 1 : 0)
                     .frame(width: 14)
-                Text(option.label).font(.system(size: 13)).foregroundStyle(KTColor.ink).lineLimit(1)
+                Text(option.label).font(.jbMono(13)).foregroundStyle(KTColor.ink).lineLimit(1)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 10).padding(.vertical, 7)
@@ -65,7 +65,7 @@ struct KTDropdownChevronLabel: View {
     var body: some View {
         HStack(spacing: 7) {
             Text(text)
-                .font(.system(size: 13, weight: mono ? .semibold : .medium, design: mono ? .monospaced : .default))
+                .font(.jbMono(13, mono ? .semibold : .medium))
                 .foregroundStyle(mono ? KTColor.ink2 : KTColor.ink)
             Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold)).foregroundStyle(KTColor.muted)
         }

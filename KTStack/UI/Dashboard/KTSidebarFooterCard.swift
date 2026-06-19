@@ -10,10 +10,10 @@ struct KTSidebarFooterCard: View {
             KTDot(color: dotColor)
             VStack(alignment: .leading, spacing: 1) {
                 Text("Server \(status.label)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.jbMono(13, .semibold))
                     .foregroundStyle(KTColor.ink)
                 Text("v\(version)")
-                    .font(.system(size: 11.5))
+                    .font(.jbMono(11.5))
                     .foregroundStyle(KTColor.muted)
             }
             Spacer(minLength: 0)

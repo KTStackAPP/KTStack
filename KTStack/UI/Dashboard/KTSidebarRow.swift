@@ -16,11 +16,11 @@ struct KTSidebarRow: View {
                     .font(.system(size: 15, weight: .regular))
                     .frame(width: 18, height: 18)
                 Text(item.title)
-                    .font(.system(size: 13.5, weight: isActive ? .semibold : .medium))
+                    .font(.jbMono(13.5, isActive ? .semibold : .medium))
                 Spacer(minLength: 6)
                 if let badge {
                     Text("\(badge)")
-                        .font(.system(size: 11.5, weight: .semibold))
+                        .font(.jbMono(11.5, .semibold))
                         .foregroundStyle(isActive ? KTColor.accent : KTColor.muted)
                         .padding(.vertical, 2)
                         .padding(.horizontal, 7)

@@ -40,7 +40,7 @@ struct LogsSectionView: View {
             Spacer()
             sourceMenu
             Button(action: { tail.clear() }) {
-                Text("Clear").font(.system(size: 13, weight: .medium)).foregroundStyle(KTColor.ink)
+                Text("Clear").font(.jbMono(13, .medium)).foregroundStyle(KTColor.ink)
                     .padding(.horizontal, 14).padding(.vertical, 7)
                     .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.white))
                     .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(KTColor.btnBorder, lineWidth: 0.5))
@@ -68,10 +68,10 @@ struct LogsSectionView: View {
             HStack(spacing: 7) {
                 if tail.isLive {
                     Circle().fill(KTColor.runDot).frame(width: 7, height: 7)
-                    Text("Following").font(.system(size: 13, weight: .semibold)).foregroundStyle(KTColor.online)
+                    Text("Following").font(.jbMono(13, .semibold)).foregroundStyle(KTColor.online)
                 } else {
                     Image(systemName: "pause.fill").font(.system(size: 10, weight: .bold)).foregroundStyle(KTColor.ink3)
-                    Text("Paused").font(.system(size: 13, weight: .medium)).foregroundStyle(KTColor.ink2)
+                    Text("Paused").font(.jbMono(13, .medium)).foregroundStyle(KTColor.ink2)
                 }
             }
             .padding(.horizontal, 14).padding(.vertical, 8)
@@ -113,11 +113,11 @@ struct LogsSectionView: View {
     private func logRow(_ line: LogLine) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(severityLabel(line.severity))
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .font(.jbMono(10, .bold))
                 .foregroundStyle(severityColor(line.severity))
                 .frame(width: 42, alignment: .leading)
             Text(line.text)
-                .font(.system(size: 12.5, design: .monospaced))
+                .font(.jbMono(12.5))
                 .foregroundStyle(Color(hex: 0xD4D4DA))
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -144,8 +144,8 @@ struct LogsSectionView: View {
     private func emptyPanel(_ title: String, _ message: String) -> some View {
         VStack(spacing: 6) {
             Image(systemName: "text.alignleft").font(.system(size: 42, weight: .light)).foregroundStyle(KTColor.faint)
-            Text(title).font(.system(size: 16, weight: .semibold)).foregroundStyle(KTColor.ink3)
-            Text(message).font(.system(size: 13)).foregroundStyle(KTColor.muted).multilineTextAlignment(.center)
+            Text(title).font(.jbMono(16, .semibold)).foregroundStyle(KTColor.ink3)
+            Text(message).font(.jbMono(13)).foregroundStyle(KTColor.muted).multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

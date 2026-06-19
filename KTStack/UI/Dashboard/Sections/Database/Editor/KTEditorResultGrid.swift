@@ -44,7 +44,7 @@ struct KTEditorResultGrid: View {
         HStack(spacing: 0) {
             ForEach(Array(result.columns.enumerated()), id: \.offset) { index, column in
                 Text(column.name)
-                    .font(.system(size: 12.5, weight: .semibold, design: .monospaced))
+                    .font(.jbMono(12.5, .semibold))
                     .foregroundStyle(KTColor.ink3)
                     .lineLimit(1)
                     .padding(.horizontal, 14).padding(.vertical, 9)
@@ -86,14 +86,14 @@ struct KTEditorResultGrid: View {
     private func cellView(_ cell: Cell) -> some View {
         if let text = cell.displayText {
             Text(text)
-                .font(.system(size: 13, design: .monospaced))
+                .font(.jbMono(13))
                 .foregroundStyle(KTColor.ink2)
                 .lineLimit(1)
                 .textSelection(.enabled)
                 .padding(.horizontal, 14).padding(.vertical, 8)
         } else {
             Text("NULL")
-                .font(.system(size: 12.5, design: .monospaced).italic())
+                .font(.jbMono(12.5).italic())
                 .foregroundStyle(KTColor.faint)
                 .padding(.horizontal, 14).padding(.vertical, 8)
         }

@@ -29,7 +29,7 @@ struct KTDatabaseRow: View {
             }
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 9) {
-                    Text(name).font(.system(size: 14.5, weight: .semibold, design: .monospaced)).foregroundStyle(KTColor.ink)
+                    Text(name).font(.jbMono(14.5, .semibold)).foregroundStyle(KTColor.ink)
                     KTBadge(text: KTDatabaseVisuals.engineLabel(kind), tint: KTEngineTint.of(kind.rawValue), radius: 6)
                 }
                 HStack(spacing: 7) {

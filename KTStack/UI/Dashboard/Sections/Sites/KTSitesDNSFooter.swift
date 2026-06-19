@@ -11,8 +11,8 @@ struct KTSitesDNSFooter: View {
                 Image(systemName: "checkmark.shield").font(.system(size: 14, weight: .medium))
             }
             VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(KTColor.ink)
-                Text(subtitle).font(.system(size: 12)).foregroundStyle(KTColor.muted)
+                Text(title).font(.jbMono(13, .semibold)).foregroundStyle(KTColor.ink)
+                Text(subtitle).font(.jbMono(12)).foregroundStyle(KTColor.muted)
             }
             Spacer()
             if dns.isBusy {

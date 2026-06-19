@@ -27,7 +27,7 @@ struct KTSitesHeader: View {
             Button(action: onNewSite) {
                 HStack(spacing: 7) {
                     Image(systemName: "plus").font(.system(size: 13, weight: .bold))
-                    Text("New Site").font(.system(size: 13, weight: .semibold))
+                    Text("New Site").font(.jbMono(13, .semibold))
                 }
                 .foregroundStyle(.white)
                 .padding(.vertical, 9)
@@ -55,6 +55,5 @@ struct KTSitesHeader: View {
         }
         .background(KTColor.accentGradient)
         .clipShape(RoundedRectangle(cornerRadius: KTRadius.button, style: .continuous))
-        .shadow(color: KTColor.accent.opacity(0.5), radius: 6, y: 2)
     }
 }

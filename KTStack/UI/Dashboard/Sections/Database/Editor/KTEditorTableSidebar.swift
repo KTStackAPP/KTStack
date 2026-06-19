@@ -27,7 +27,7 @@ struct KTEditorTableSidebar: View {
     private var header: some View {
         HStack(spacing: 8) {
             Text("TABLES")
-                .font(.system(size: 12.5, weight: .bold))
+                .font(.jbMono(12.5, .bold))
                 .foregroundStyle(KTColor.ink3)
                 .frame(maxWidth: .infinity, alignment: .leading)
             iconButton("arrow.clockwise", action: onRefresh)
@@ -52,7 +52,7 @@ struct KTEditorTableSidebar: View {
             Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(KTColor.muted)
             TextField("Filter tables…", text: $filter)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .font(.jbMono(13))
                 .foregroundStyle(KTColor.ink)
         }
         .padding(.horizontal, 11).padding(.vertical, 7)
@@ -80,7 +80,7 @@ struct KTEditorTableSidebar: View {
                     .font(.system(size: 13))
                     .foregroundStyle(active ? KTColor.accent : KTColor.muted)
                 Text(table.name)
-                    .font(.system(size: 13, weight: active ? .semibold : .regular))
+                    .font(.jbMono(13, active ? .semibold : .regular))
                     .foregroundStyle(active ? KTColor.accent : KTColor.ink2)
                     .lineLimit(1)
                 Spacer(minLength: 0)

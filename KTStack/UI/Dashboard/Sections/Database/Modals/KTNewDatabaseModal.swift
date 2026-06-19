@@ -40,7 +40,7 @@ struct KTNewDatabaseModal: View {
     }
 
     private func fieldLabel(_ text: String) -> some View {
-        Text(text).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(KTColor.ink2)
+        Text(text).font(.jbMono(12.5, .semibold)).foregroundStyle(KTColor.ink2)
             .padding(.bottom, 7)
     }
 
@@ -48,7 +48,7 @@ struct KTNewDatabaseModal: View {
         HStack(spacing: 10) {
             Spacer()
             Button(action: onClose) {
-                Text("Cancel").font(.system(size: 14, weight: .medium)).foregroundStyle(KTColor.ink)
+                Text("Cancel").font(.jbMono(14, .medium)).foregroundStyle(KTColor.ink)
                     .padding(.horizontal, 20).padding(.vertical, 10)
                     .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white))
                     .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(KTColor.btnBorder, lineWidth: 0.5))
@@ -58,7 +58,7 @@ struct KTNewDatabaseModal: View {
             .keyboardShortcut(.cancelAction)
             Button(action: create) {
                 Text(submitting ? "Creating…" : "Create")
-                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(.white)
+                    .font(.jbMono(14, .semibold)).foregroundStyle(.white)
                     .padding(.horizontal, 22).padding(.vertical, 10)
                     .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(KTColor.accentGradient))
                     .contentShape(Rectangle())

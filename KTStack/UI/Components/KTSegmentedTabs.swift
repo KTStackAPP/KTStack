@@ -22,7 +22,7 @@ struct KTSegmentedTabs<Value: Hashable>: View {
                 let active = item.value == selection
                 Button { selection = item.value } label: {
                     Text(item.label)
-                        .font(.system(size: fontSize, weight: active ? .semibold : .medium))
+                        .font(.jbMono(fontSize, active ? .semibold : .medium))
                         .foregroundStyle(active ? KTColor.ink : KTColor.ink3)
                         .padding(.vertical, vPad)
                         .padding(.horizontal, hPad)

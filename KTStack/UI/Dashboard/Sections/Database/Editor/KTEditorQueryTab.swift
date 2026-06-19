@@ -45,7 +45,7 @@ struct KTEditorQueryTab: View {
                 Spacer()
                 if let result = vm.activeQueryTab?.result {
                     Text("\(result.rowCount) rows · \(result.columns.count) cols")
-                        .font(.system(size: 12.5)).foregroundStyle(KTColor.muted)
+                        .font(.jbMono(12.5)).foregroundStyle(KTColor.muted)
                 }
             }
         }
@@ -57,12 +57,11 @@ struct KTEditorQueryTab: View {
         Button { Task { await vm.runActiveQueryTab() } } label: {
             HStack(spacing: 7) {
                 Image(systemName: "play.fill").font(.system(size: 11))
-                Text("Run Query").font(.system(size: 13, weight: .semibold))
+                Text("Run Query").font(.jbMono(13, .semibold))
             }
             .foregroundStyle(.white)
             .padding(.horizontal, 16).padding(.vertical, 8)
             .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(KTColor.accentGradient))
-            .shadow(color: KTColor.accent.opacity(0.5), radius: 3, y: 2)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -85,8 +84,8 @@ struct KTEditorQueryTab: View {
     private func messageState(icon: String, title: String, message: String) -> some View {
         VStack(spacing: 6) {
             Image(systemName: icon).font(.system(size: 42, weight: .light)).foregroundStyle(KTColor.faint)
-            Text(title).font(.system(size: 16, weight: .semibold)).foregroundStyle(KTColor.ink3)
-            Text(message).font(.system(size: 13)).foregroundStyle(KTColor.muted).multilineTextAlignment(.center)
+            Text(title).font(.jbMono(16, .semibold)).foregroundStyle(KTColor.ink3)
+            Text(message).font(.jbMono(13)).foregroundStyle(KTColor.muted).multilineTextAlignment(.center)
         }
         .padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -99,7 +98,7 @@ struct KTEditorQueryTab: View {
 private struct SecondaryQueryButton: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .medium))
+            .font(.jbMono(13, .medium))
             .foregroundStyle(KTColor.ink2)
             .padding(.horizontal, 14).padding(.vertical, 8)
             .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.white))

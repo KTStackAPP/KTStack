@@ -25,7 +25,7 @@ struct KTServiceRow: View {
             }
             Spacer(minLength: 8)
             if let metrics = snapshot.metricsText {
-                Text(metrics).font(.system(size: 12)).monospacedDigit().foregroundStyle(KTColor.muted)
+                Text(metrics).font(.jbMono(12)).monospacedDigit().foregroundStyle(KTColor.muted)
             }
             statusLabel.frame(width: 104, alignment: .leading)
             restartButton
@@ -48,7 +48,7 @@ struct KTServiceRow: View {
     private var statusLabel: some View {
         HStack(spacing: 7) {
             KTDot(color: dotColor)
-            Text(pillText).font(.system(size: 13, weight: .medium)).foregroundStyle(textColor)
+            Text(pillText).font(.jbMono(13, .medium)).foregroundStyle(textColor)
         }
     }
 

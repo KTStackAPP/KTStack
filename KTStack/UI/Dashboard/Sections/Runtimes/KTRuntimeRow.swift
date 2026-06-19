@@ -52,7 +52,7 @@ struct KTRuntimeRow: View {
             switch state {
             case .active:
                 Text("Default")
-                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(KTColor.online)
+                    .font(.jbMono(13, .semibold)).foregroundStyle(KTColor.online)
                     .padding(.vertical, 8).padding(.horizontal, 16)
                     .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(KTColor.onlineBg))
                 phpMenu

@@ -24,7 +24,7 @@ struct KTRuntimesScreen: View {
         VStack(alignment: .leading, spacing: 0) {
             header.padding(.horizontal, KTSpacing.screenGutter).padding(.top, 18)
             Text("Install and switch language versions per site.")
-                .font(.system(size: 13.5)).foregroundStyle(Color(hex: 0x8E8E93))
+                .font(.jbMono(13.5)).foregroundStyle(Color(hex: 0x8E8E93))
                 .padding(.horizontal, KTSpacing.screenGutter).padding(.top, 6)
 
             ScrollView {

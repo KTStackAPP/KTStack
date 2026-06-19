@@ -16,7 +16,7 @@ struct KTEngineCard: View {
                     Image(systemName: "cylinder.split.1x2").font(.system(size: 14, weight: .medium))
                 }
                 Text(name)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.jbMono(13, .semibold))
                     .foregroundStyle(KTColor.ink)
                     .lineLimit(1)
                 Spacer(minLength: 0)

@@ -9,7 +9,7 @@ struct LogLineRow: View {
         HStack(alignment: .top, spacing: KDSpacing.space2) {
             Rectangle().fill(gutterColor).frame(width: 3)
             Text(line.text)
-                .font(.system(size: 11, design: .monospaced))
+                .font(.jbMono(11))
                 .foregroundStyle(textColor)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)

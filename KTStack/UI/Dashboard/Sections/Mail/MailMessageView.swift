@@ -30,17 +30,17 @@ struct MailMessageView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(detail.Subject.isEmpty ? "(no subject)" : detail.Subject)
-                .font(.system(size: 18, weight: .bold)).tracking(-0.3).foregroundStyle(KTColor.ink).lineLimit(2)
+                .font(.jbMono(18, .bold)).tracking(-0.3).foregroundStyle(KTColor.ink).lineLimit(2)
             HStack(spacing: 8) {
                 MailAvatar(name: senderName)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(senderName).font(.system(size: 13, weight: .semibold)).foregroundStyle(KTColor.ink)
-                    Text(detail.From?.Address ?? "").font(.system(size: 12)).foregroundStyle(KTColor.muted)
+                    Text(senderName).font(.jbMono(13, .semibold)).foregroundStyle(KTColor.ink)
+                    Text(detail.From?.Address ?? "").font(.jbMono(12)).foregroundStyle(KTColor.muted)
                 }
                 Spacer()
                 if let date = detail.date {
                     Text(date.formatted(date: .abbreviated, time: .shortened))
-                        .font(.system(size: 12)).foregroundStyle(KTColor.muted)
+                        .font(.jbMono(12)).foregroundStyle(KTColor.muted)
                 }
                 iconButton("doc.plaintext") { NSWorkspace.shared.open(rawURL) }
                 iconButton("trash", tint: KTColor.danger, action: onDelete)
@@ -78,7 +78,7 @@ struct MailMessageView: View {
         } else {
             ScrollView {
                 Text(detail.Text ?? detail.HTML?.strippingTags ?? "(empty)")
-                    .font(.system(size: 13.5, design: .monospaced))
+                    .font(.jbMono(13.5))
                     .foregroundStyle(KTColor.ink2)
                     .lineSpacing(4)
                     .textSelection(.enabled)
@@ -92,13 +92,13 @@ struct MailMessageView: View {
 
     private func attachmentsList(_ attachments: [MailAttachment]) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Attachments (\(attachments.count))").font(.system(size: 12, weight: .semibold)).foregroundStyle(KTColor.ink3)
+            Text("Attachments (\(attachments.count))").font(.jbMono(12, .semibold)).foregroundStyle(KTColor.ink3)
             ForEach(attachments) { a in
                 HStack(spacing: 8) {
                     Image(systemName: "paperclip").font(.system(size: 11)).foregroundStyle(KTColor.muted)
-                    Text(a.FileName).font(.system(size: 12.5)).foregroundStyle(KTColor.ink2)
+                    Text(a.FileName).font(.jbMono(12.5)).foregroundStyle(KTColor.ink2)
                     Text(ByteCountFormatter().string(fromByteCount: Int64(a.Size)))
-                        .font(.system(size: 12)).foregroundStyle(KTColor.muted)
+                        .font(.jbMono(12)).foregroundStyle(KTColor.muted)
                 }
             }
         }

@@ -18,7 +18,7 @@ struct KTModalField: View {
             }
         }
         .textFieldStyle(.plain)
-        .font(.system(size: 14, design: mono ? .monospaced : .default))
+        .font(.jbMono(14))
         .foregroundStyle(KTColor.ink)
         .focused($focused)
         .padding(.horizontal, 13).padding(.vertical, 10)
@@ -42,7 +42,7 @@ struct KTModalLabeledRow<Content: View>: View {
     var body: some View {
         HStack(spacing: 14) {
             Text(label)
-                .font(.system(size: 13.5, weight: .semibold))
+                .font(.jbMono(13.5, .semibold))
                 .foregroundStyle(KTColor.ink)
                 .frame(width: labelWidth, alignment: .leading)
             content()
