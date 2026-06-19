@@ -9,18 +9,25 @@ struct KTButton: View {
     let title: String
     var systemImage: String?
     var kind: KTButtonKind = .secondary
+    var isLoading: Bool = false
     let action: () -> Void
 
     @State private var hovering = false
 
     var body: some View {
-        Button(action: action) {
+        Button(action: { if !isLoading { action() } }) {
             HStack(spacing: 7) {
-                if let systemImage {
+                if isLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                        .scaleEffect(0.7)
+                        .frame(width: 13, height: 13)
+                        .tint(foreground)
+                } else if let systemImage {
                     Image(systemName: systemImage)
                         .font(.system(size: 12.5, weight: .semibold))
                 }
-                Text(title).font(.system(size: 12.5, weight: weight))
+                Text(title).font(.jbMono(12.5, weight))
             }
             .foregroundStyle(foreground)
             .padding(.vertical, kind == .primary ? 8 : 7)
@@ -28,8 +35,8 @@ struct KTButton: View {
             .background(background)
             .overlay(border)
             .clipShape(RoundedRectangle(cornerRadius: KTRadius.button, style: .continuous))
-            .shadow(color: shadowColor, radius: kind == .primary ? 6 : 0, x: 0, y: kind == .primary ? 2 : 0)
             .brightness(hovering && kind == .primary ? 0.04 : 0)
+            .opacity(isLoading ? 0.7 : 1)
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
@@ -65,7 +72,4 @@ struct KTButton: View {
         }
     }
 
-    private var shadowColor: Color {
-        kind == .primary ? KTColor.accent.opacity(0.5) : .clear
-    }
 }

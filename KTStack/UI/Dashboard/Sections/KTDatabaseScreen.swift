@@ -15,6 +15,7 @@ struct KTDatabaseScreen: View {
     @State private var backupSets: [BackupSet] = []
     @State private var showImportExport = false
     @State private var restoringSet: BackupSet?
+    @State private var backingUpAll = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -51,8 +52,9 @@ struct KTDatabaseScreen: View {
             KTButton(title: "Connect", systemImage: "link", kind: .secondary) { overlay.connectPresented = true }
             KTButton(title: "Import", systemImage: "square.and.arrow.down", kind: .secondary) { showImportExport = true }
                 .disabled(vm.connection != .connected || !(vm.canDump || vm.canManualImport))
-            KTButton(title: "Backup All", systemImage: "tray.and.arrow.down", kind: .secondary) { backupAll() }
-                .disabled(vm.connection != .connected)
+            KTButton(title: backingUpAll ? "Backing up…" : "Backup All", systemImage: "tray.and.arrow.down",
+                     kind: .secondary, isLoading: backingUpAll) { backupAll() }
+                .disabled(vm.connection != .connected || backingUpAll)
             KTButton(title: "New Database", systemImage: "plus", kind: .primary) { overlay.newDatabasePresented = true }
                 .disabled(vm.connection != .connected || !vm.canCreateDatabase)
         }
@@ -104,10 +106,11 @@ struct KTDatabaseScreen: View {
     private var backupsTab: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
-                Text("\(backupSets.count) backups").font(.system(size: 13)).foregroundStyle(Color(hex: 0x8E8E93))
+                Text("\(backupSets.count) backups").font(.jbMono(13)).foregroundStyle(Color(hex: 0x8E8E93))
                 Spacer()
-                KTButton(title: "Backup All Now", systemImage: "tray.and.arrow.down", kind: .primary) { backupAll() }
-                    .disabled(vm.connection != .connected)
+                KTButton(title: backingUpAll ? "Backing up…" : "Backup All Now", systemImage: "tray.and.arrow.down",
+                         kind: .primary, isLoading: backingUpAll) { backupAll() }
+                    .disabled(vm.connection != .connected || backingUpAll)
             }
             .padding(.bottom, 14)
             if backupSets.isEmpty {
@@ -135,8 +138,8 @@ struct KTDatabaseScreen: View {
     private var connectionGate: some View {
         VStack(spacing: 10) {
             Image(systemName: "cylinder.split.1x2").font(.system(size: 46, weight: .light)).foregroundStyle(KTColor.faint)
-            Text(gateTitle).font(.system(size: 17, weight: .semibold)).foregroundStyle(KTColor.ink3)
-            Text(gateMessage).font(.system(size: 13)).foregroundStyle(KTColor.muted).multilineTextAlignment(.center)
+            Text(gateTitle).font(.jbMono(17, .semibold)).foregroundStyle(KTColor.ink3)
+            Text(gateMessage).font(.jbMono(13)).foregroundStyle(KTColor.muted).multilineTextAlignment(.center)
             KTButton(title: "Connect", systemImage: "link", kind: .primary) { overlay.connectPresented = true }.padding(.top, 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -155,8 +158,8 @@ struct KTDatabaseScreen: View {
     private func emptyState(icon: String, title: String, message: String) -> some View {
         VStack(spacing: 6) {
             Image(systemName: icon).font(.system(size: 46, weight: .light)).foregroundStyle(KTColor.faint)
-            Text(title).font(.system(size: 17, weight: .semibold)).foregroundStyle(KTColor.ink3)
-            Text(message).font(.system(size: 13)).foregroundStyle(KTColor.muted)
+            Text(title).font(.jbMono(17, .semibold)).foregroundStyle(KTColor.ink3)
+            Text(message).font(.jbMono(13)).foregroundStyle(KTColor.muted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -183,9 +186,12 @@ struct KTDatabaseScreen: View {
     }
 
     private func backupAll() {
+        guard !backingUpAll else { return }
+        backingUpAll = true
         Task {
             let set = await vm.backupAllDatabases(session: session)
             reloadBackups()
+            backingUpAll = false
             if set != nil { overlay.toast("Backup complete") }
         }
     }
