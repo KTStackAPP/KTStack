@@ -18,6 +18,7 @@ struct KTDatabaseScreen: View {
     @State private var restoringSet: BackupSet?
     @State private var pendingDeleteBackup: BackupSet?
     @State private var showEditor = false
+    @StateObject private var toast = KTToastCenter()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -27,28 +28,71 @@ struct KTDatabaseScreen: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(KTColor.contentBg)
-        .sheet(isPresented: $showConnect) { AddConnectionSheet(editing: nil) }
-        .sheet(isPresented: $showNewDatabase) { CreateDatabaseSheet() }
         .sheet(isPresented: $showImportExport) { ImportExportSheet() }
         .sheet(item: $restoringSet) { set in
             RestoreSheet(set: set, isReadOnly: vm.isReadOnlyConnection) { db, target in
                 _ = await vm.restoreBackup(set, database: db, target: target, session: session)
             }
         }
-        .alert(item: $pendingDeleteBackup) { set in
-            Alert(title: Text("Delete backup?"),
-                  message: Text("Permanently delete this backup. This cannot be undone."),
-                  primaryButton: .destructive(Text("Delete")) { vm.deleteBackup(set, session: session); reloadBackups() },
-                  secondaryButton: .cancel())
-        }
         .task { await autoConnectIfNeeded(); reloadBackups() }
-        .overlay {
-            if showEditor {
-                KTDatabaseEditorModal(onClose: { showEditor = false })
-                    .transition(.opacity)
-            }
-        }
+        .overlay { editorOverlay }
+        .overlay { connectOverlay }
+        .overlay { newDatabaseOverlay }
+        .overlay { confirmDeleteOverlay }
         .animation(.easeOut(duration: 0.15), value: showEditor)
+        .animation(.easeOut(duration: 0.15), value: showConnect)
+        .animation(.easeOut(duration: 0.15), value: showNewDatabase)
+        .animation(.easeOut(duration: 0.15), value: pendingDeleteBackup)
+        .ktToast(toast)
+    }
+
+    @ViewBuilder
+    private var editorOverlay: some View {
+        if showEditor {
+            KTDatabaseEditorModal(onClose: { showEditor = false }).transition(.opacity)
+        }
+    }
+
+    @ViewBuilder
+    private var connectOverlay: some View {
+        if showConnect {
+            KTConnectModal(onClose: { showConnect = false },
+                           onConnected: { name in
+                               showConnect = false
+                               reloadBackups()
+                               toast.show("Connected to \(name)")
+                           })
+                .transition(.opacity)
+        }
+    }
+
+    @ViewBuilder
+    private var newDatabaseOverlay: some View {
+        if showNewDatabase {
+            KTNewDatabaseModal(onClose: { showNewDatabase = false },
+                               onCreated: { name in
+                                   showNewDatabase = false
+                                   toast.show("Database “\(name)” created")
+                               })
+                .transition(.opacity)
+        }
+    }
+
+    @ViewBuilder
+    private var confirmDeleteOverlay: some View {
+        if let set = pendingDeleteBackup {
+            KTConfirmModal(title: "Delete backup?",
+                           message: "Permanently delete this backup. This cannot be undone.",
+                           okLabel: "Delete", danger: true,
+                           onCancel: { pendingDeleteBackup = nil },
+                           onConfirm: {
+                               vm.deleteBackup(set, session: session)
+                               pendingDeleteBackup = nil
+                               reloadBackups()
+                               toast.show("Backup deleted")
+                           })
+                .transition(.opacity)
+        }
     }
 
     private var header: some View {
@@ -181,11 +225,19 @@ struct KTDatabaseScreen: View {
     }
 
     private func backup(_ name: String) {
-        Task { _ = await vm.backupDatabase(name, session: session); reloadBackups() }
+        Task {
+            let set = await vm.backupDatabase(name, session: session)
+            reloadBackups()
+            if set != nil { toast.show("Backed up “\(name)”") }
+        }
     }
 
     private func backupAll() {
-        Task { _ = await vm.backupAllDatabases(session: session); reloadBackups() }
+        Task {
+            let set = await vm.backupAllDatabases(session: session)
+            reloadBackups()
+            if set != nil { toast.show("Backup complete") }
+        }
     }
 
     private func exportSQL(_ name: String) {
