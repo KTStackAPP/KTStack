@@ -13,27 +13,28 @@ struct DashboardWindow: View {
     @EnvironmentObject private var updater: UpdaterController
     @EnvironmentObject private var uninstaller: UninstallService
 
-    @State private var selection: SidebarItem? = .sites
+    @State private var selection: SidebarItem = .sites
 
     @State private var logTarget: String?
 
-    
+
     private func openLogs(_ sourceID: String?) {
         logTarget = sourceID
         selection = .logs
     }
 
     var body: some View {
-        NavigationSplitView {
-            DashboardSidebarView(
-                selection: $selection,
-                siteCount: server.registry.sites.count,
-                serverStatus: sidebarServerStatus)
-                .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 280)
-        } detail: {
-            detail(for: selection ?? .sites)
+        KTDashboardShell(
+            selection: $selection,
+            siteCount: server.registry.sites.count,
+            serverStatus: sidebarServerStatus,
+            version: versionText) {
+            detail(for: selection)
         }
-        .frame(minWidth: 720, minHeight: 460)
+    }
+
+    private var versionText: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0"
     }
 
     private var sidebarServerStatus: ServiceStatus {
@@ -106,11 +107,11 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         switch self {
         case .sites:    return "globe"
         case .services: return "server.rack"
-        case .runtimes: return "cpu"
+        case .runtimes: return "cube"
         case .database: return "cylinder.split.1x2"
         case .logs:     return "text.alignleft"
         case .mail:     return "envelope"
-        case .dumps:    return "ladybug"
+        case .dumps:    return "curlybraces"
         case .settings: return "gearshape"
         case .about:    return "info.circle"
         }
