@@ -50,6 +50,45 @@ public extension DatabaseViewModel {
 
     func clearDumpStatus() { dumpStatus = .idle }
 
+    func targetDatabaseExists(_ name: String) async -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let profile = selectedProfile, !trimmed.isEmpty else { return false }
+        switch profile.kind {
+        case .mysql:
+            guard let driver else { return false }
+            let names = (try? await driver.listDatabases().map(\.name)) ?? []
+            return names.contains(trimmed)
+        case .postgres:
+            return (try? await PostgresBackupProvider().databaseExists(
+                profile: profile, password: passwordFor(profile), database: trimmed)) ?? false
+        case .sqlite, .mongodb:
+            return false
+        }
+    }
+
+    func importSQLite(from input: URL, into target: RestoreTarget) async {
+        guard let profile = selectedProfile, profile.kind == .sqlite else { return }
+        guard !isReadOnlyConnection else {
+            dumpStatus = .failed("This connection is read-only; importing is disabled.")
+            return
+        }
+        dumpStatus = .running
+        do {
+            try await SQLiteBackupProvider().restore(profile: profile, password: passwordFor(profile),
+                                                     from: input, into: target)
+            switch target {
+            case .overwrite:
+                let name = URL(fileURLWithPath: profile.filePath ?? profile.database).lastPathComponent
+                dumpStatus = .done("Imported \(input.lastPathComponent) into \(name).")
+                if selectedDatabase != nil { await select(database: SQLiteDriver.mainDatabase) }
+            case .newDatabase(let path):
+                dumpStatus = .done("Saved \(input.lastPathComponent) to \(URL(fileURLWithPath: path).lastPathComponent).")
+            }
+        } catch {
+            dumpStatus = .failed(Self.asDatabaseError(error).message)
+        }
+    }
+
     func exportResultCSV(to output: URL) {
         guard let result else { return }
         exportResultCSV(result, to: output)
@@ -112,7 +151,7 @@ public extension DatabaseViewModel {
             if let driver, let refreshed = try? await driver.listDatabases() {
                 databases = refreshed
             }
-            if selectedDatabase == database {
+            if profile.kind != .sqlite, databases.contains(where: { $0.name == database }) {
                 await select(database: database)
             }
         } catch {

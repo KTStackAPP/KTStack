@@ -26,6 +26,14 @@ public struct PostgresBackupProvider: BackupProvider {
         try await createDatabase(database, profile: profile, passwordFile: passwordFile)
     }
 
+    public func databaseExists(profile: ConnectionProfile, password: String?,
+                               database: String) async throws -> Bool {
+        try DumpService.validateIdentifier(database, label: "database")
+        let passwordFile = try runner.writePasswordFile(password)
+        defer { if let passwordFile { try? FileManager.default.removeItem(at: passwordFile) } }
+        return try await databaseExists(database, profile: profile, passwordFile: passwordFile)
+    }
+
     public func importManual(profile: ConnectionProfile, password: String?,
                              from artifactURL: URL, database: String,
                              replaceExisting: Bool) async throws {

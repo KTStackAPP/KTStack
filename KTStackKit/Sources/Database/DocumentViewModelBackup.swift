@@ -137,6 +137,13 @@ public extension DocumentViewModel {
 
     func clearBackupStatus() { backupStatus = .idle }
 
+    func targetDatabaseExists(_ name: String) async -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let driver else { return false }
+        let names = (try? await driver.listDatabases().map(\.name)) ?? databases.map(\.name)
+        return names.contains(trimmed)
+    }
+
     func failBackupStatus(_ message: String) { backupStatus = .failed(message) }
 
     func importDatabase(into database: String, from input: URL, replaceExisting: Bool) async {

@@ -11,10 +11,17 @@ struct ImportExportSheet: View {
     @State private var tab: Tab = .import
     @State private var exportTable: String = wholeDatabase
     @State private var importFile: URL?
+    @State private var targetName: String = ""
+    @State private var sqliteMode: SQLiteImportMode = .overwrite
+    @State private var sqliteNewPath: URL?
+    @State private var pendingExists = false
+    @State private var isResolvingTarget = false
+    @State private var didInitTarget = false
     @State private var confirmingImport = false
 
     private static let wholeDatabase = "--whole database--"
     enum Tab: String, CaseIterable, Identifiable { case export = "Export", `import` = "Import"; var id: String { rawValue } }
+    enum SQLiteImportMode: Hashable { case overwrite, newFile }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,12 +36,13 @@ struct ImportExportSheet: View {
             if !canExport { tab = .import }
             vm.clearDumpStatus()
             documentVM.clearBackupStatus()
+            initializeTarget()
         }
-        .alert(importConfirmationTitle, isPresented: $confirmingImport) {
-            Button("Import", role: .destructive) { runImport() }
+        .alert(confirmTitle, isPresented: $confirmingImport) {
+            Button(confirmButtonTitle, role: confirmIsDestructive ? .destructive : nil) { runImport() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text(importConfirmationMessage)
+            Text(confirmMessage)
         }
     }
 
@@ -107,19 +115,45 @@ struct ImportExportSheet: View {
                 Text(importFile.lastPathComponent).font(KDFont.mono).foregroundStyle(.secondary)
             }
             targetControls
-            Button("Import") { startImport() }
-                .disabled(importFile == nil || importTarget == nil || isWorking)
+            HStack(spacing: KDSpacing.space2) {
+                Button("Import") { startImport() }
+                    .disabled(importFile == nil || !canSubmit || isWorking || isResolvingTarget)
+                if isResolvingTarget { ProgressView().controlSize(.small) }
+            }
         }
     }
 
     @ViewBuilder
     private var targetControls: some View {
-        if let targetLabel = importTargetLabel {
-            Label(targetLabel, systemImage: activeKind == .sqlite ? "externaldrive" : "cylinder")
-                .font(KDFont.footnote).foregroundStyle(.secondary)
+        if activeKind == .sqlite {
+            sqliteTargetControls
         } else {
-            Label("Pick a database before importing.", systemImage: "exclamationmark.triangle")
-                .font(KDFont.footnote).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: KDSpacing.space1) {
+                TextField("Database name", text: $targetName)
+                    .textFieldStyle(.roundedBorder)
+                Label(nameTargetHint, systemImage: nameTargetIcon)
+                    .font(KDFont.footnote).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var sqliteTargetControls: some View {
+        VStack(alignment: .leading, spacing: KDSpacing.space1) {
+            Picker("Destination", selection: $sqliteMode) {
+                Text("Replace current file").tag(SQLiteImportMode.overwrite)
+                Text("Save as new file…").tag(SQLiteImportMode.newFile)
+            }
+            .pickerStyle(.radioGroup)
+            if sqliteMode == .overwrite {
+                Label(sqliteOverwriteText, systemImage: "externaldrive")
+                    .font(KDFont.footnote).foregroundStyle(.secondary)
+            } else {
+                Button("Choose destination…") { chooseSQLiteDestination() }
+                if let sqliteNewPath {
+                    Text(sqliteNewPath.lastPathComponent).font(KDFont.mono).foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
@@ -152,6 +186,18 @@ struct ImportExportSheet: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    private func initializeTarget() {
+        guard !didInitTarget else { return }
+        didInitTarget = true
+        switch activeKind {
+        case .some(.mysql), .some(.sqlite): targetName = vm.selectedDatabase ?? ""
+        case .some(.postgres): targetName = vm.selectedProfile?.database ?? ""
+        case .some(.mongodb): targetName = documentVM.selectedDatabase ?? ""
+        case .none: break
+        }
+        if activeKind == .sqlite { sqliteMode = hasSQLiteFile ? .overwrite : .newFile }
+    }
+
     private func chooseExportDestination() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.init(filenameExtension: "sql") ?? .data]
@@ -168,6 +214,14 @@ struct ImportExportSheet: View {
         importFile = url
     }
 
+    private func chooseSQLiteDestination() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "sqlite") ?? .data]
+        panel.nameFieldStringValue = importFile.map { "\($0.deletingPathExtension().lastPathComponent)-import.sqlite" } ?? "imported.sqlite"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        sqliteNewPath = url
+    }
+
     private func configureImportPanel(_ panel: NSOpenPanel) {
         panel.allowsMultipleSelection = false
         if activeKind == .mongodb {
@@ -182,15 +236,36 @@ struct ImportExportSheet: View {
     }
 
     private func startImport() {
-        confirmingImport = true
+        Task {
+            isResolvingTarget = true
+            pendingExists = await resolveTargetExists()
+            isResolvingTarget = false
+            confirmingImport = true
+        }
+    }
+
+    private func resolveTargetExists() async -> Bool {
+        switch activeKind {
+        case .some(.sqlite): return sqliteMode == .overwrite
+        case .some(.mongodb): return await documentVM.targetDatabaseExists(targetName)
+        default: return await vm.targetDatabaseExists(targetName)
+        }
     }
 
     private func runImport() {
-        guard let file = importFile, let target = importTarget else { return }
-        if isDocumentTrack {
-            Task { await documentVM.importDatabase(into: target, from: file, replaceExisting: true) }
-        } else {
-            Task { await vm.importDatabase(into: target, from: file, replaceExisting: true) }
+        guard let file = importFile else { return }
+        let name = targetName.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch activeKind {
+        case .some(.sqlite):
+            if sqliteMode == .overwrite {
+                Task { await vm.importSQLite(from: file, into: .overwrite) }
+            } else if let dest = sqliteNewPath {
+                Task { await vm.importSQLite(from: file, into: .newDatabase(dest.path)) }
+            }
+        case .some(.mongodb):
+            Task { await documentVM.importDatabase(into: name, from: file, replaceExisting: pendingExists) }
+        default:
+            Task { await vm.importDatabase(into: name, from: file, replaceExisting: pendingExists) }
         }
     }
 
@@ -208,35 +283,49 @@ struct ImportExportSheet: View {
         (isDocumentTrack ? documentVM.manualImportUnavailableReason : vm.manualImportUnavailableReason)
             ?? "The required database tools aren't available."
     }
-    private var importTarget: String? {
+
+    private var hasSQLiteFile: Bool {
+        guard let path = vm.selectedProfile?.filePath else { return false }
+        return !path.isEmpty
+    }
+
+    private var canSubmit: Bool {
         switch activeKind {
-        case .some(.mysql):
-            return vm.selectedDatabase
-        case .some(.postgres):
-            let database = vm.selectedProfile?.database.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            return database.isEmpty ? nil : database
         case .some(.sqlite):
-            return vm.selectedDatabase ?? "main"
-        case .some(.mongodb):
-            return documentVM.selectedDatabase
-        case .none:
-            return nil
+            return sqliteMode == .overwrite ? hasSQLiteFile : sqliteNewPath != nil
+        default:
+            return !targetName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
     }
-    private var importTargetLabel: String? {
+
+    private var liveTargetExists: Bool? {
+        let name = targetName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return nil }
         switch activeKind {
-        case .some(.mysql), .some(.mongodb):
-            guard let importTarget else { return nil }
-            return "Imports into \(importTarget)."
-        case .some(.postgres):
-            guard let importTarget else { return nil }
-            return "Imports into PostgreSQL database \(importTarget)."
-        case .some(.sqlite):
-            return sqliteTargetText
-        case .none:
-            return nil
+        case .some(.mysql): return vm.databases.contains { $0.name == name }
+        case .some(.mongodb): return documentVM.databases.contains { $0.name == name }
+        default: return nil
         }
     }
+
+    private var nameTargetHint: String {
+        let name = targetName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return "Type the target database name." }
+        switch liveTargetExists {
+        case .some(true): return "Will overwrite existing database \"\(name)\"."
+        case .some(false): return "Will create new database \"\(name)\"."
+        case .none: return "Creates \"\(name)\" if missing, otherwise overwrites it."
+        }
+    }
+
+    private var nameTargetIcon: String {
+        switch liveTargetExists {
+        case .some(true): return "exclamationmark.triangle"
+        case .some(false): return "plus.circle"
+        case .none: return "cylinder"
+        }
+    }
+
     private var importButtonTitle: String {
         switch activeKind {
         case .some(.mysql): return "Choose MySQL .sql file..."
@@ -254,20 +343,36 @@ struct ImportExportSheet: View {
         case .some(.mongodb), .none: return []
         }
     }
-    private var sqliteTargetText: String {
+    private var sqliteOverwriteText: String {
         guard let path = vm.selectedProfile?.filePath, !path.isEmpty else {
-            return "Import replaces the selected SQLite database file."
+            return "No SQLite file selected for this connection; save as a new file instead."
         }
-        return "Import replaces \(URL(fileURLWithPath: path).lastPathComponent)."
+        return "Replaces \(URL(fileURLWithPath: path).lastPathComponent)."
     }
-    private var importConfirmationTitle: String {
-        activeKind == .sqlite ? "Replace SQLite database?" : "Import into selected database?"
+    private var confirmIsDestructive: Bool {
+        if activeKind == .sqlite { return sqliteMode == .overwrite }
+        return pendingExists
     }
-    private var importConfirmationMessage: String {
+    private var confirmButtonTitle: String {
+        if activeKind == .sqlite { return sqliteMode == .overwrite ? "Replace" : "Save" }
+        return pendingExists ? "Overwrite" : "Create & Import"
+    }
+    private var confirmTitle: String {
         if activeKind == .sqlite {
-            return "The selected SQLite file will replace the active database file. This can't be undone."
+            return sqliteMode == .overwrite ? "Replace SQLite database?" : "Save to new file?"
         }
-        return "Loading into \"\(importTarget ?? "the selected database")\" can overwrite existing data. This can't be undone."
+        return pendingExists ? "Overwrite database?" : "Create new database?"
+    }
+    private var confirmMessage: String {
+        let name = targetName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if activeKind == .sqlite {
+            return sqliteMode == .overwrite
+                ? "The selected SQLite file will replace the active database file. This can't be undone."
+                : "A new SQLite file will be created from the imported snapshot."
+        }
+        return pendingExists
+            ? "Loading into \"\(name)\" can overwrite existing data. This can't be undone."
+            : "A new database \"\(name)\" will be created and the file imported."
     }
     private var scopeName: String {
         exportTable == Self.wholeDatabase ? (vm.selectedDatabase ?? "export") : exportTable
