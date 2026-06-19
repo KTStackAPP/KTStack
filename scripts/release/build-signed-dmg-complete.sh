@@ -15,7 +15,16 @@ echo "ℹ️  Keychain profile: $KEYCHAIN_PROFILE"
 
 if ! security find-identity -v -p codesigning | grep -q "44452PW7V3"; then
     echo "❌ ERROR: Developer ID not found in keychain"
-    echo "   Run: xcrun notarytool store-credentials $KEYCHAIN_PROFILE"
+    echo "   Install your 'Developer ID Application' certificate (team 44452PW7V3) first."
+    exit 1
+fi
+
+if ! security find-generic-password -s "com.apple.gke.notary.tool" >/dev/null 2>&1; then
+    echo "❌ ERROR: Notary credential profile '$KEYCHAIN_PROFILE' not found in keychain"
+    echo "   The build would fail at Step 4 (notarize) after several minutes — set it up first:"
+    echo "   xcrun notarytool store-credentials $KEYCHAIN_PROFILE \\"
+    echo "       --apple-id <your-apple-id-email> --team-id 44452PW7V3 --password <app-specific-password>"
+    echo "   (create an app-specific password at https://appleid.apple.com → Sign-In and Security)"
     exit 1
 fi
 
