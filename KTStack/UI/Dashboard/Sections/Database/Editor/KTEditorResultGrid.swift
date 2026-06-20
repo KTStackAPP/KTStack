@@ -35,6 +35,7 @@ struct KTEditorResultGrid: View {
                     Section { rows(widths) } header: { headerRow(widths) }
                 }
                 .frame(width: contentWidth, alignment: .leading)
+                .frame(minHeight: geo.size.height, alignment: .top)
             }
             .background(KTColor.contentBg)
         }
