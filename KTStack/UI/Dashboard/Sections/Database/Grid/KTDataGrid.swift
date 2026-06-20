@@ -9,6 +9,8 @@ struct KTDataGrid: NSViewRepresentable {
     var onNearEnd: (() -> Void)? = nil
     var sort: SortSpec? = nil
     var onSortColumn: ((String) -> Void)? = nil
+    var editableColumns: Set<String> = []
+    var onCommitEdit: ((Int, Int, String) -> Void)? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator(result: result) }
 
@@ -19,6 +21,7 @@ struct KTDataGrid: NSViewRepresentable {
         table.backgroundColor = .white
         table.gridStyleMask = []
         table.allowsColumnResizing = true
+        table.allowsColumnReordering = false
         table.columnAutoresizingStyle = .noColumnAutoresizing
         table.rowHeight = 22
         table.intercellSpacing = NSSize(width: 0, height: 0)
@@ -52,6 +55,8 @@ struct KTDataGrid: NSViewRepresentable {
         context.coordinator.onNearEnd = onNearEnd
         context.coordinator.sort = sort
         context.coordinator.onSortColumn = onSortColumn
+        context.coordinator.editableColumns = editableColumns
+        context.coordinator.onCommitEdit = onCommitEdit
         context.coordinator.apply(result)
     }
 
@@ -59,7 +64,7 @@ struct KTDataGrid: NSViewRepresentable {
         coordinator.stopObserving()
     }
 
-    final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+    final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate {
         private(set) var result: QueryResult
         weak var table: NSTableView?
         weak var scrollView: NSScrollView?
@@ -68,13 +73,20 @@ struct KTDataGrid: NSViewRepresentable {
         var onNearEnd: (() -> Void)?
         var sort: SortSpec?
         var onSortColumn: ((String) -> Void)?
+        var editableColumns: Set<String> = []
+        var onCommitEdit: ((Int, Int, String) -> Void)?
         private var nearEndRequested = false
+        private weak var editingField: NSTextField?
+        private var editingRow = -1
+        private var editingColumn = -1
+        private var committedEdit = false
 
         static let cellFont: NSFont =
             NSFont(name: "JetBrainsMono-Medium", size: 12.5)
             ?? .monospacedSystemFont(ofSize: 12, weight: .regular)
         static let textColor = NSColor(hexValue: 0x42424C)
         static let nullColor = NSColor(hexValue: 0xC0C0C8)
+        static let editingColor = NSColor(hexValue: 0xFFF6CC)
 
         init(result: QueryResult) { self.result = result }
 
@@ -93,6 +105,7 @@ struct KTDataGrid: NSViewRepresentable {
 
         @objc private func boundsDidChange() {
             guard let scroll = scrollView, let table, !result.rows.isEmpty else { return }
+            if editingField != nil { table.window?.makeFirstResponder(table) }
             let documentHeight = table.bounds.height
             let viewportHeight = scroll.contentView.bounds.height
             guard documentHeight > viewportHeight else { return }
@@ -200,6 +213,9 @@ struct KTDataGrid: NSViewRepresentable {
             let field = (tableView.makeView(withIdentifier: identifier, owner: self) as? NSTextField)
                 ?? Self.makeCell(identifier: identifier)
 
+            field.delegate = self
+            field.isEditable = false
+            field.drawsBackground = false
             if let text = result.rows[row][columnIndex].displayText {
                 field.stringValue = text
                 field.textColor = Self.textColor
@@ -218,7 +234,55 @@ struct KTDataGrid: NSViewRepresentable {
 
         @objc func handleDoubleClick() {
             guard let table, table.clickedRow >= 0, table.clickedRow < result.rows.count else { return }
-            onActivate?(table.clickedRow)
+            let row = table.clickedRow
+            let column = table.clickedColumn
+            if column >= 0, cellIsInlineEditable(row: row, column: column) {
+                beginInlineEdit(row: row, column: column)
+            } else {
+                onActivate?(row)
+            }
+        }
+
+        private func cellIsInlineEditable(row: Int, column: Int) -> Bool {
+            guard onCommitEdit != nil, column < result.columns.count else { return false }
+            guard editableColumns.contains(result.columns[column].name) else { return false }
+            if case .blob = result.rows[row][column] { return false }
+            return true
+        }
+
+        private func beginInlineEdit(row: Int, column: Int) {
+            guard let table,
+                  let field = table.view(atColumn: column, row: row, makeIfNecessary: true) as? NSTextField
+            else { return }
+            committedEdit = false
+            editingRow = row
+            editingColumn = column
+            editingField = field
+            let cell = result.rows[row][column]
+            field.stringValue = cell.displayText ?? ""
+            field.textColor = Self.textColor
+            field.isEditable = true
+            field.drawsBackground = true
+            field.backgroundColor = Self.editingColor
+            table.editColumn(column, row: row, with: nil, select: true)
+        }
+
+        func controlTextDidEndEditing(_ obj: Notification) {
+            guard let field = obj.object as? NSTextField, field === editingField else { return }
+            let row = editingRow, column = editingColumn
+            let value = field.stringValue
+            let cancelled = (obj.userInfo?["NSTextMovement"] as? Int) == NSTextMovement.cancel.rawValue
+            field.isEditable = false
+            field.drawsBackground = false
+            editingField = nil
+            editingRow = -1
+            editingColumn = -1
+            guard !cancelled, !committedEdit, row >= 0, column >= 0 else {
+                table?.reloadData()
+                return
+            }
+            committedEdit = true
+            onCommitEdit?(row, column, value)
         }
 
         private static func makeCell(identifier: NSUserInterfaceItemIdentifier) -> NSTextField {

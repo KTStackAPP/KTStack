@@ -101,7 +101,13 @@ struct KTEditorDataTab: View {
                        onActivate: { if vm.canEditRows { editor = .edit($0) } },
                        onNearEnd: { Task { await vm.loadMoreRows() } },
                        sort: vm.activeSort,
-                       onSortColumn: { column in Task { await vm.toggleSort(column: column) } })
+                       onSortColumn: { column in Task { await vm.toggleSort(column: column) } },
+                       editableColumns: editableColumnNames(result),
+                       onCommitEdit: { row, column, value in
+                           guard column >= 0, column < result.columns.count else { return }
+                           let name = result.columns[column].name
+                           Task { await vm.updateCell(rowIndex: row, column: name, stringValue: value) }
+                       })
             footer(result)
         } else if let error = vm.resultError {
             messageState(icon: "exclamationmark.triangle", title: "Couldn’t load rows", message: error)
@@ -172,6 +178,12 @@ struct KTEditorDataTab: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    private func editableColumnNames(_ result: QueryResult) -> Set<String> {
+        guard vm.canEditRows else { return [] }
+        let primaryKeys = Set(vm.primaryKeyColumns.map(\.name))
+        return Set(result.columns.map(\.name)).subtracting(primaryKeys)
     }
 
     private func rowCountLabel(_ result: QueryResult) -> String {
