@@ -13,6 +13,7 @@ struct KTDatabaseScreen: View {
     @State private var tab: Tab = .databases
     @State private var session = BackupSession.managed()
     @State private var backupSets: [BackupSet] = []
+    @State private var reloadGeneration = 0
     @State private var showImportExport = false
     @State private var restoringSet: BackupSet?
     @State private var backingUpAll = false
@@ -31,7 +32,7 @@ struct KTDatabaseScreen: View {
                 _ = await vm.restoreBackup(set, database: db, target: target, session: session)
             }
         }
-        .task { await autoConnectIfNeeded(); reloadBackups() }
+        .task { await autoConnectIfNeeded(); await reloadBackups() }
     }
 
     private func confirmDeleteBackup(_ set: BackupSet) {
@@ -39,7 +40,7 @@ struct KTDatabaseScreen: View {
                         message: "Permanently delete this backup. This cannot be undone.",
                         okLabel: "Delete", danger: true) {
             vm.deleteBackup(set, session: session)
-            reloadBackups()
+            Task { await reloadBackups() }
             overlay.toast("Backup deleted")
         }
     }
@@ -180,7 +181,7 @@ struct KTDatabaseScreen: View {
     private func backup(_ name: String) {
         Task {
             let set = await vm.backupDatabase(name, session: session)
-            reloadBackups()
+            await reloadBackups()
             if set != nil { overlay.toast("Backed up “\(name)”") }
         }
     }
@@ -190,7 +191,7 @@ struct KTDatabaseScreen: View {
         backingUpAll = true
         Task {
             let set = await vm.backupAllDatabases(session: session)
-            reloadBackups()
+            await reloadBackups()
             backingUpAll = false
             if set != nil { overlay.toast("Backup complete") }
         }
@@ -210,7 +211,12 @@ struct KTDatabaseScreen: View {
         vm.exportBackup(set, to: url, session: session)
     }
 
-    private func reloadBackups() {
-        backupSets = session.library.list().sorted { $0.createdAt > $1.createdAt }
+    private func reloadBackups() async {
+        let gen = reloadGeneration &+ 1
+        reloadGeneration = gen
+        let session = session
+        let sets = await Task.detached { session.library.list() }.value
+        guard gen == reloadGeneration else { return }
+        backupSets = sets.sorted { $0.createdAt > $1.createdAt }
     }
 }
