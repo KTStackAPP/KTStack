@@ -140,7 +140,7 @@ public final class LocalServerController: ObservableObject {
     public func start() {
         guard !isBusy, !isRunning else { return }
         isBusy = true; lastError = nil
-        nginxStatus = .starting; phpStatus = .starting
+        nginxStatus = .starting
         ensureSeed()
         let sites = registry.sites
         let port = httpPort
@@ -321,14 +321,17 @@ public final class LocalServerController: ObservableObject {
     private nonisolated func applyConfiguration(sites: [Site], port: Int, startNginx: Bool,
                                                 runPreflight: Bool = true) async throws -> [String] {
         let changed = try generator.generate(sites: sites, port: port)
-       
-        _ = try pools.reconcile(required: generator.poolVersions(for: sites))
+
+        let phpUp = !pools.activeVersions.isEmpty && pools.activeVersions.allSatisfy { pools.isRunning(version: $0) }
+        if phpUp {
+            _ = try pools.reconcile(required: generator.poolVersions(for: sites))
+            for version in pools.activeVersions {
+                try await Self.waitForSocket(pools.socket(for: version))
+            }
+        }
         let installedPHP = Set(BundledPHP.availableVersions(php: paths.phpRuntimesRoot))
         let missing = SiteConfigGenerator.requiredVersions(for: sites)
             .subtracting(installedPHP).sorted()
-        for version in pools.activeVersions {
-            try await Self.waitForSocket(pools.socket(for: version))
-        }
         if startNginx {
             if runPreflight {
                 switch preflight.check(port: port) {
