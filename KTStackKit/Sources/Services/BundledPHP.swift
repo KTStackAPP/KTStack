@@ -6,6 +6,12 @@ public enum BundledPHP {
 
     public static let plannedVersions = ["7.4", "8.0", "8.1", "8.2", "8.3", "8.4"]
 
+    public static let endOfLifeVersions: Set<String> = ["7.4", "8.0", "8.1"]
+
+    public static func isEndOfLife(_ version: String) -> Bool {
+        endOfLifeVersions.contains(version)
+    }
+
     public static func fpmBinary(for version: String, php runtimeRoot: URL) -> URL {
         runtimeRoot.appendingPathComponent(version, isDirectory: true)
             .appendingPathComponent("bin", isDirectory: true)

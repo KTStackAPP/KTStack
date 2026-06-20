@@ -28,6 +28,9 @@ struct KTRuntimeRow: View {
                 HStack(spacing: 9) {
                     Text(label).font(KTType.cardName).foregroundStyle(KTColor.ink)
                     KTBadge(text: badgeText, tint: badgeTint, radius: 20)
+                    if isEndOfLife {
+                        KTBadge(text: "EOL", tint: KTTint(fg: KTColor.danger, bg: KTColor.dangerBg), radius: 20)
+                    }
                 }
                 Text(note).font(KTType.sub).foregroundStyle(KTColor.muted)
             }
@@ -79,6 +82,10 @@ struct KTRuntimeRow: View {
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).frame(width: 28)
         }
+    }
+
+    private var isEndOfLife: Bool {
+        language == .php && BundledPHP.isEndOfLife(version)
     }
 
     private var label: String {
