@@ -72,16 +72,6 @@ struct KTStackApp: App {
         .defaultSize(width: Self.defaultWindowSize.width, height: Self.defaultWindowSize.height)
         .windowResizability(.contentMinSize)
 
-        Window("Database", id: DatabaseWindow.windowID) {
-            DatabaseWindow()
-                .environmentObject(appDelegate.services)
-                .environmentObject(appDelegate.connectionStore)
-                .environmentObject(appDelegate.databaseViewModel)
-                .environmentObject(appDelegate.documentViewModel)
-        }
-        .defaultSize(width: Self.defaultWindowSize.width, height: Self.defaultWindowSize.height)
-        .windowResizability(.contentMinSize)
-
         Settings {
             SettingsView(preferences: appDelegate.preferences,
                          dns: appDelegate.dns,

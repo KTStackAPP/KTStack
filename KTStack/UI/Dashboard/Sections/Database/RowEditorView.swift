@@ -1,11 +1,16 @@
 import SwiftUI
 import KTStackKit
 
+enum RowEditorMode: Identifiable {
+    case insert
+    case edit(Int)
+    var id: String { if case .edit(let row) = self { return "edit-\(row)" } else { return "insert" } }
+}
 
 struct RowEditorView: View {
     @EnvironmentObject private var vm: DatabaseViewModel
     @Environment(\.dismiss) private var dismiss
-    let mode: TableDataView.EditorMode
+    let mode: RowEditorMode
 
     @State private var fields: [String: Field] = [:]
 

@@ -20,6 +20,7 @@ struct KTEditorQueryTab: View {
             editorPanel
             results
         }
+        .task(id: vm.selectedDatabase) { await vm.ensureSchemaCatalogLoaded() }
         .alert("Run this destructive statement?", isPresented: dangerousBinding,
                presenting: vm.pendingDangerousSQL) { _ in
             Button("Run anyway", role: .destructive) { Task { await vm.runActiveQueryTab(confirmed: true) } }
@@ -75,7 +76,7 @@ struct KTEditorQueryTab: View {
         if let error = vm.activeQueryTab?.resultError {
             messageState(icon: "exclamationmark.triangle", title: "SQL error", message: error)
         } else if let result = vm.activeQueryTab?.result {
-            KTEditorResultGrid(result: result)
+            KTDataGrid(result: result)
         } else {
             messageState(icon: "terminal", title: "Run a query", message: "Type SQL above and press ⌘↩ to see results here.")
         }

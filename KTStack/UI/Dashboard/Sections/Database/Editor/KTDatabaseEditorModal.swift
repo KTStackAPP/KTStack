@@ -10,7 +10,7 @@ struct KTDatabaseEditorModal: View {
     @State private var tab: EditorTab = .data
     @State private var tableFilter = ""
     @State private var selectedRow: Int?
-    @State private var rowEditor: TableDataView.EditorMode?
+    @State private var rowEditor: RowEditorMode?
     @State private var pendingDelete: Int?
     @State private var ddlSheet: DDLActionSheet.Mode?
 

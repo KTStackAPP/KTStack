@@ -4,20 +4,106 @@ import KTStackKit
 struct KTEditorDataTab: View {
     @EnvironmentObject private var vm: DatabaseViewModel
     @Binding var selectedRow: Int?
-    @Binding var editor: TableDataView.EditorMode?
+    @Binding var editor: RowEditorMode?
     @Binding var pendingDelete: Int?
+
+    @State private var showFilterPopover = false
+    @State private var showDetailPanel = false
 
     var body: some View {
         VStack(spacing: 0) {
             contentHeader
             Rectangle().fill(KTColor.sep).frame(height: 0.5)
+            if !vm.navigationStack.isEmpty {
+                KTBreadcrumbBar(trail: breadcrumbTrail, onBack: { Task { await vm.popNavigation(); selectedRow = nil } })
+                Rectangle().fill(KTColor.sep).frame(height: 0.5)
+            }
+            if vm.isTableBrowse {
+                filterBar
+                Rectangle().fill(KTColor.sep).frame(height: 0.5)
+            }
             body(for: vm.selectedTable)
         }
         .onAppear(perform: reloadIfNeeded)
+        .task(id: vm.selectedTable?.name) { await vm.loadRelationsIfNeeded() }
+    }
+
+    private var breadcrumbTrail: [String] {
+        vm.navigationStack.map(\.table.name) + [vm.selectedTable?.name ?? ""]
+    }
+
+    private var foreignKeyColumnNames: Set<String> {
+        guard let table = vm.selectedTable else { return [] }
+        return Set(vm.navigableForeignKeys(forTable: table.name).keys)
+    }
+
+    private var filterBar: some View {
+        HStack(spacing: 8) {
+            Button { showFilterPopover = true } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "line.3.horizontal.decrease").font(.system(size: 10.5, weight: .semibold))
+                    Text("Filter").font(.jbMono(12, .medium))
+                }
+                .foregroundStyle(KTColor.ink2)
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white))
+                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).stroke(KTColor.btnBorder, lineWidth: 0.5))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showFilterPopover, arrowEdge: .bottom) {
+                KTColumnFilterPopover(
+                    columns: vm.currentColumns.map(\.name),
+                    onAdd: { condition in Task { await vm.applyFilters(vm.activeFilters + [condition]) } },
+                    onClose: { showFilterPopover = false })
+            }
+
+            ForEach(Array(vm.activeFilters.enumerated()), id: \.offset) { index, condition in
+                filterChip(condition, at: index)
+            }
+
+            if !vm.activeFilters.isEmpty || vm.activeSort != nil {
+                Button("Clear") { Task { await vm.clearFiltersAndSort(); selectedRow = nil } }
+                    .buttonStyle(.plain)
+                    .font(.jbMono(12, .medium))
+                    .foregroundStyle(KTColor.accent)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 16).padding(.vertical, 8)
+    }
+
+    private func filterChip(_ condition: FilterCondition, at index: Int) -> some View {
+        HStack(spacing: 5) {
+            Text(chipLabel(condition)).font(.jbMono(11.5)).foregroundStyle(KTColor.ink2).lineLimit(1)
+            Button {
+                var next = vm.activeFilters
+                next.remove(at: index)
+                Task { await vm.applyFilters(next) }
+            } label: {
+                Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).foregroundStyle(KTColor.muted)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(KTColor.pillBg))
+    }
+
+    private func chipLabel(_ c: FilterCondition) -> String {
+        switch c.op {
+        case .isNull:    return "\(c.column) is null"
+        case .isNotNull: return "\(c.column) is not null"
+        case .equals:      return "\(c.column) = \(c.value.displayText ?? "")"
+        case .notEquals:   return "\(c.column) ≠ \(c.value.displayText ?? "")"
+        case .contains:    return "\(c.column) ⊃ \(c.value.displayText ?? "")"
+        case .greaterThan: return "\(c.column) > \(c.value.displayText ?? "")"
+        case .lessThan:    return "\(c.column) < \(c.value.displayText ?? "")"
+        }
     }
 
     private func reloadIfNeeded() {
-        guard let table = vm.selectedTable, !vm.isTableBrowse, !vm.isBusy else { return }
+        guard let table = vm.selectedTable, !vm.isTableBrowse, !vm.isBusy,
+              vm.navigationStack.isEmpty else { return }
         Task { await vm.select(table: table) }
     }
 
@@ -26,15 +112,47 @@ struct KTEditorDataTab: View {
         if table == nil {
             emptyState
         } else if let result = vm.result, vm.isTableBrowse {
-            KTEditorResultGrid(result: result,
-                               selectedRow: selectedRow,
-                               onSelect: { selectedRow = $0 },
-                               onActivate: { if vm.canEditRows { editor = .edit($0) } })
-            footer(result)
+            HStack(spacing: 0) {
+                VStack(spacing: 0) {
+                    KTDataGrid(result: result,
+                               selectedRow: $selectedRow,
+                               onActivate: { if vm.canEditRows { editor = .edit($0) } },
+                               onNearEnd: { Task { await vm.loadMoreRows() } },
+                               sort: vm.activeSort,
+                               onSortColumn: { column in Task { await vm.toggleSort(column: column) } },
+                               editableColumns: editableColumnNames(result),
+                               onCommitEdit: { row, column, value in
+                                   guard column >= 0, column < result.columns.count else { return }
+                                   let name = result.columns[column].name
+                                   Task { await vm.updateCell(rowIndex: row, column: name, stringValue: value) }
+                               },
+                               foreignKeyColumns: foreignKeyColumnNames,
+                               onNavigateFK: { row, column in
+                                   guard row < result.rows.count, column >= 0, column < result.columns.count else { return }
+                                   let name = result.columns[column].name
+                                   let value = result.rows[row][column]
+                                   Task { await vm.navigateForeignKey(fromColumn: name, value: value) }
+                               })
+                    footer(result)
+                }
+                if showDetailPanel {
+                    Rectangle().fill(KTColor.sep).frame(width: 0.5)
+                    KTRowDetailPanel(
+                        columns: result.columns,
+                        row: selectedRow.flatMap { $0 < result.rows.count ? result.rows[$0] : nil },
+                        onClose: { showDetailPanel = false })
+                }
+            }
         } else if let error = vm.resultError {
             messageState(icon: "exclamationmark.triangle", title: "Couldn’t load rows", message: error)
         } else {
-            ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(spacing: 10) {
+                ProgressView()
+                if let label = vm.currentActivityLabel {
+                    Text(label).font(.jbMono(12.5)).foregroundStyle(KTColor.muted)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -51,7 +169,13 @@ struct KTEditorDataTab: View {
                         .font(.jbMono(12.5)).foregroundStyle(KTColor.muted)
                 }
                 Spacer()
-                pager
+                if vm.isTableBrowse, !vm.canEditRows, let reason = vm.editDisabledReason {
+                    Text(reason).font(.jbMono(11.5)).foregroundStyle(KTColor.muted).lineLimit(1)
+                }
+                if vm.isTableBrowse {
+                    CSVExportButton(defaultName: table.name)
+                }
+                detailToggle
                 if vm.canEditRows {
                     rowActions
                 }
@@ -62,6 +186,17 @@ struct KTEditorDataTab: View {
         }
         .padding(.horizontal, 18).padding(.vertical, 11)
         .frame(minHeight: 48)
+    }
+
+    private var detailToggle: some View {
+        Button { showDetailPanel.toggle() } label: {
+            Image(systemName: "sidebar.trailing")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(showDetailPanel ? KTColor.accent : Color(hex: 0x86868F))
+                .frame(width: 28, height: 26)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var rowActions: some View {
@@ -85,15 +220,6 @@ struct KTEditorDataTab: View {
         }
     }
 
-    private var pager: some View {
-        HStack(spacing: 4) {
-            iconButton("chevron.left") { Task { await vm.previousPage(); selectedRow = nil } }
-                .disabled(vm.pageOffset == 0 || vm.isBusy)
-            iconButton("chevron.right") { Task { await vm.nextPage(); selectedRow = nil } }
-                .disabled(!vm.hasMorePages || vm.isBusy)
-        }
-    }
-
     private func iconButton(_ symbol: String, tint: Color = Color(hex: 0x86868F),
                             action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -106,15 +232,23 @@ struct KTEditorDataTab: View {
         .buttonStyle(.plain)
     }
 
+    private func editableColumnNames(_ result: QueryResult) -> Set<String> {
+        guard vm.canEditRows else { return [] }
+        let primaryKeys = Set(vm.primaryKeyColumns.map(\.name))
+        return Set(result.columns.map(\.name)).subtracting(primaryKeys)
+    }
+
     private func rowCountLabel(_ result: QueryResult) -> String {
-        if vm.pageOffset == 0 && !vm.hasMorePages { return "\(result.rowCount) rows" }
-        return "\(result.rowCount) rows on this page"
+        "\(result.rowCount) row\(result.rowCount == 1 ? "" : "s") loaded"
     }
 
     private func footer(_ result: QueryResult) -> some View {
         HStack(spacing: 8) {
-            Text("Showing rows \(vm.pageOffset + 1)–\(vm.pageOffset + result.rowCount)\(vm.hasMorePages ? " · more available" : "")")
+            Text("\(result.rowCount) rows loaded\(vm.hasMorePages ? " · scroll for more" : "")")
                 .font(.jbMono(12)).foregroundStyle(KTColor.muted)
+            if vm.isFetchingMore {
+                ProgressView().controlSize(.small).scaleEffect(0.7)
+            }
             Spacer()
         }
         .padding(.horizontal, 16).padding(.vertical, 8)
