@@ -98,11 +98,11 @@ public struct RuntimeCatalog: Sendable {
     ]
 
     static let phpArtifactChecksums: [String: String] = [
-        "7.4": "3bc8620d01c1a7fa92ef51cc1c9d64ea8c97b789f74ef303dd08d5a6133134ec",
-        "8.0": "e1ccba12320be5b2633b2a22e5e67384d7eb2b7319b3252d9d1c81c5ad0224e7",
-        "8.1": "521db467959d850b1de549bc693e1d60166bd3e0bc07b8fd91194001f2cb2ad8",
-        "8.2": "732e6f56d007e13227db9b6d99e0d9f3263e32d1e7c125ad1ffc33aa4b248a41",
-        "8.3": "5435cd64bfe98894809a4660acac36f0260aa53155920259e6cfee4a63836d81",
-        "8.4": "9a541d703f35e92b298c1c8c69ed2f88d8a300ee870ab8a139bf361e29120538",
+        "7.4": "303e7a893dd5a8e96a863b9cda74a2834121c98903a0f5136e8d59228c3ba2b4",
+        "8.0": "d88102cd8c69a25451f3c33d91c64326d0ad5dcc382c25af435d55ccc1897345",
+        "8.1": "974a4141c83ba68a146945d2eb15bc18b8165a0f7deb1598d8061f6c87b589cb",
+        "8.2": "3ba0e36b504bf202b6764d07a4c3d1f086eb5fa6ecfe037e222cbc269733f2d8",
+        "8.3": "7eab0f81067d4cbdcc274df6fa18684f6d2fb73bfc2599573c7a02e4e96064a8",
+        "8.4": "5451afde00d8dcbec3d3bdd6136d4a45fb0004d463d2e980d8fdd1340dcab029",
     ]
 }
