@@ -13,6 +13,10 @@ struct KTEditorDataTab: View {
         VStack(spacing: 0) {
             contentHeader
             Rectangle().fill(KTColor.sep).frame(height: 0.5)
+            if !vm.navigationStack.isEmpty {
+                KTBreadcrumbBar(trail: breadcrumbTrail, onBack: { Task { await vm.popNavigation(); selectedRow = nil } })
+                Rectangle().fill(KTColor.sep).frame(height: 0.5)
+            }
             if vm.isTableBrowse {
                 filterBar
                 Rectangle().fill(KTColor.sep).frame(height: 0.5)
@@ -20,6 +24,16 @@ struct KTEditorDataTab: View {
             body(for: vm.selectedTable)
         }
         .onAppear(perform: reloadIfNeeded)
+        .task(id: vm.selectedTable?.name) { await vm.loadRelationsIfNeeded() }
+    }
+
+    private var breadcrumbTrail: [String] {
+        vm.navigationStack.map(\.table.name) + [vm.selectedTable?.name ?? ""]
+    }
+
+    private var foreignKeyColumnNames: Set<String> {
+        guard let table = vm.selectedTable else { return [] }
+        return Set(vm.navigableForeignKeys(forTable: table.name).keys)
     }
 
     private var filterBar: some View {
@@ -87,7 +101,8 @@ struct KTEditorDataTab: View {
     }
 
     private func reloadIfNeeded() {
-        guard let table = vm.selectedTable, !vm.isTableBrowse, !vm.isBusy else { return }
+        guard let table = vm.selectedTable, !vm.isTableBrowse, !vm.isBusy,
+              vm.navigationStack.isEmpty else { return }
         Task { await vm.select(table: table) }
     }
 
@@ -107,6 +122,13 @@ struct KTEditorDataTab: View {
                            guard column >= 0, column < result.columns.count else { return }
                            let name = result.columns[column].name
                            Task { await vm.updateCell(rowIndex: row, column: name, stringValue: value) }
+                       },
+                       foreignKeyColumns: foreignKeyColumnNames,
+                       onNavigateFK: { row, column in
+                           guard row < result.rows.count, column >= 0, column < result.columns.count else { return }
+                           let name = result.columns[column].name
+                           let value = result.rows[row][column]
+                           Task { await vm.navigateForeignKey(fromColumn: name, value: value) }
                        })
             footer(result)
         } else if let error = vm.resultError {

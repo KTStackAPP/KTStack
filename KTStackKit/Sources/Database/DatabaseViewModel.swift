@@ -41,6 +41,7 @@ public final class DatabaseViewModel: ObservableObject {
 
     @Published public internal(set) var activeFilters: [FilterCondition] = []
     @Published public internal(set) var activeSort: SortSpec?
+    @Published public internal(set) var navigationStack: [BreadcrumbEntry] = []
 
     private var isIncrementalBrowse = false
     private var schemaColumnsLoaded = false
@@ -141,7 +142,7 @@ public final class DatabaseViewModel: ObservableObject {
         schemaCatalog = .empty
         pageOffset = 0; hasMorePages = false; isBusy = false; isFetchingMore = false
         isIncrementalBrowse = false; schemaColumnsLoaded = false; currentActivityLabel = nil
-        activeFilters = []; activeSort = nil
+        activeFilters = []; activeSort = nil; navigationStack = []
         if let previousDriver { Task { await previousDriver.closeSession() } }
     }
 
@@ -207,7 +208,7 @@ public final class DatabaseViewModel: ObservableObject {
         tables = []; selectedTable = nil; result = nil; resultError = nil; resultSource = .none
         clearQueryTabResults()
         schemaCatalog = .empty; schemaColumnsLoaded = false
-        activeFilters = []; activeSort = nil
+        activeFilters = []; activeSort = nil; navigationStack = []
         return true
     }
 
@@ -252,6 +253,12 @@ public final class DatabaseViewModel: ObservableObject {
     }
 
     public func select(table: TableInfo) async {
+        navigationStack = []
+        await loadSelectedTable(table, filters: [], sort: nil)
+    }
+
+    func loadSelectedTable(_ table: TableInfo,
+                           filters: [FilterCondition], sort: SortSpec?) async {
         guard let driver, let database = selectedDatabase else { return }
         selectedTable = table
         pageOffset = 0
@@ -260,7 +267,7 @@ public final class DatabaseViewModel: ObservableObject {
         currentColumns = []
         currentIndexes = []
         let token = beginOperation()
-        
+
         do {
             let cols = try await driver.columns(database: database, table: table.name)
             guard token == generation else { return }
@@ -269,6 +276,8 @@ public final class DatabaseViewModel: ObservableObject {
             guard token == generation else { return }
             currentColumns = []
         }
+        activeFilters = filters.filter { columnIsBrowsable($0.column) }
+        activeSort = sort.flatMap { columnIsBrowsable($0.column) ? $0 : nil }
         await loadPage()
     }
 

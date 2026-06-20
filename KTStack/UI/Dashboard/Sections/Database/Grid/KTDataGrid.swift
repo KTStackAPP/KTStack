@@ -11,6 +11,8 @@ struct KTDataGrid: NSViewRepresentable {
     var onSortColumn: ((String) -> Void)? = nil
     var editableColumns: Set<String> = []
     var onCommitEdit: ((Int, Int, String) -> Void)? = nil
+    var foreignKeyColumns: Set<String> = []
+    var onNavigateFK: ((Int, Int) -> Void)? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator(result: result) }
 
@@ -57,6 +59,8 @@ struct KTDataGrid: NSViewRepresentable {
         context.coordinator.onSortColumn = onSortColumn
         context.coordinator.editableColumns = editableColumns
         context.coordinator.onCommitEdit = onCommitEdit
+        context.coordinator.foreignKeyColumns = foreignKeyColumns
+        context.coordinator.onNavigateFK = onNavigateFK
         context.coordinator.apply(result)
     }
 
@@ -75,6 +79,8 @@ struct KTDataGrid: NSViewRepresentable {
         var onSortColumn: ((String) -> Void)?
         var editableColumns: Set<String> = []
         var onCommitEdit: ((Int, Int, String) -> Void)?
+        var foreignKeyColumns: Set<String> = []
+        var onNavigateFK: ((Int, Int) -> Void)?
         private var nearEndRequested = false
         private weak var editingField: NSTextField?
         private var editingRow = -1
@@ -87,6 +93,7 @@ struct KTDataGrid: NSViewRepresentable {
         static let textColor = NSColor(hexValue: 0x42424C)
         static let nullColor = NSColor(hexValue: 0xC0C0C8)
         static let editingColor = NSColor(hexValue: 0xFFF6CC)
+        static let foreignKeyColor = NSColor(hexValue: 0x2F6BFF)
 
         init(result: QueryResult) { self.result = result }
 
@@ -125,9 +132,17 @@ struct KTDataGrid: NSViewRepresentable {
             menu.addItem(withTitle: "Copy with Headers", action: #selector(copyTSVWithHeaders), keyEquivalent: "")
             menu.addItem(withTitle: "Copy as CSV", action: #selector(copyCSV), keyEquivalent: "")
             menu.addItem(.separator())
+            menu.addItem(withTitle: "Follow Foreign Key", action: #selector(followForeignKey), keyEquivalent: "")
             menu.addItem(withTitle: "Edit Row…", action: #selector(editRow), keyEquivalent: "")
             menu.items.forEach { $0.target = self }
             return menu
+        }
+
+        @objc private func followForeignKey() {
+            guard let grid = table as? KTGridTableView,
+                  grid.menuRow >= 0, grid.menuColumn >= 0,
+                  grid.menuRow < result.rows.count, grid.menuColumn < result.columns.count else { return }
+            onNavigateFK?(grid.menuRow, grid.menuColumn)
         }
 
         @objc private func copyTSV() { copySelectedRows(includeHeaders: false, asCSV: false) }
@@ -143,6 +158,13 @@ struct KTDataGrid: NSViewRepresentable {
         func validateMenuItem(_ item: NSMenuItem) -> Bool {
             if item.action == #selector(editRow) {
                 return onActivate != nil && !(table?.selectedRowIndexes.isEmpty ?? true)
+            }
+            if item.action == #selector(followForeignKey) {
+                guard onNavigateFK != nil, let grid = table as? KTGridTableView,
+                      grid.menuColumn >= 0, grid.menuColumn < result.columns.count,
+                      grid.menuRow >= 0, grid.menuRow < result.rows.count else { return false }
+                return foreignKeyColumns.contains(result.columns[grid.menuColumn].name)
+                    && result.rows[grid.menuRow][grid.menuColumn] != .null
             }
             return true
         }
@@ -218,7 +240,9 @@ struct KTDataGrid: NSViewRepresentable {
             field.drawsBackground = false
             if let text = result.rows[row][columnIndex].displayText {
                 field.stringValue = text
-                field.textColor = Self.textColor
+                field.textColor = foreignKeyColumns.contains(result.columns[columnIndex].name)
+                    ? Self.foreignKeyColor
+                    : Self.textColor
             } else {
                 field.stringValue = "NULL"
                 field.textColor = Self.nullColor
@@ -298,6 +322,8 @@ struct KTDataGrid: NSViewRepresentable {
 
 final class KTGridTableView: NSTableView {
     var onCopy: (() -> Void)?
+    private(set) var menuRow = -1
+    private(set) var menuColumn = -1
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
@@ -309,9 +335,11 @@ final class KTGridTableView: NSTableView {
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {
-        let row = self.row(at: convert(event.locationInWindow, from: nil))
-        if row >= 0, !selectedRowIndexes.contains(row) {
-            selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        let point = convert(event.locationInWindow, from: nil)
+        menuRow = row(at: point)
+        menuColumn = column(at: point)
+        if menuRow >= 0, !selectedRowIndexes.contains(menuRow) {
+            selectRowIndexes(IndexSet(integer: menuRow), byExtendingSelection: false)
         }
         return super.menu(for: event)
     }
