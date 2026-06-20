@@ -29,7 +29,10 @@ struct KTEditorERTab: View {
                 canvas
             }
         }
-        .task(id: vm.selectedDatabase) { await vm.loadRelationsIfNeeded() }
+        .task(id: vm.selectedDatabase) {
+            await vm.ensureSchemaCatalogLoaded()
+            await vm.loadRelationsIfNeeded()
+        }
     }
 
     private var canvas: some View {

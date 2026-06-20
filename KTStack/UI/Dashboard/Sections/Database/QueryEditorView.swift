@@ -31,6 +31,7 @@ struct QueryEditorView: View {
             }
             .environmentObject(vm)
         }
+        .task(id: vm.selectedDatabase) { await vm.ensureSchemaCatalogLoaded() }
     }
 
     private var dangerousBinding: Binding<Bool> {

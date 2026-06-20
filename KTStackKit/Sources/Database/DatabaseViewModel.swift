@@ -37,7 +37,10 @@ public final class DatabaseViewModel: ObservableObject {
 
     @Published public internal(set) var isFetchingMore = false
 
+    @Published public internal(set) var currentActivityLabel: String?
+
     private var isIncrementalBrowse = false
+    private var schemaColumnsLoaded = false
 
     @Published public internal(set) var currentColumns: [ColumnInfo] = []
 
@@ -132,7 +135,7 @@ public final class DatabaseViewModel: ObservableObject {
         currentColumns = []; currentIndexes = []
         schemaCatalog = .empty
         pageOffset = 0; hasMorePages = false; isBusy = false; isFetchingMore = false
-        isIncrementalBrowse = false
+        isIncrementalBrowse = false; schemaColumnsLoaded = false; currentActivityLabel = nil
         if let previousDriver { Task { await previousDriver.closeSession() } }
     }
 
@@ -143,6 +146,7 @@ public final class DatabaseViewModel: ObservableObject {
         clearQueryTabResults()
         currentColumns = []; currentIndexes = []
         schemaCatalog = .empty
+        schemaColumnsLoaded = false
     }
 
     public func select(profile: ConnectionProfile) async {
@@ -152,13 +156,14 @@ public final class DatabaseViewModel: ObservableObject {
         databases = []; tables = []; selectedDatabase = nil; selectedTable = nil
         result = nil; resultError = nil; resultSource = .none; pageOffset = 0; hasMorePages = false
         clearQueryTabResults()
-        schemaCatalog = .empty
+        schemaCatalog = .empty; schemaColumnsLoaded = false
         connection = .connecting
+        currentActivityLabel = "Connecting…"
         await previousDriver?.closeSession()
 
         guard let driver = makeDriver(profile, passwordFor(profile)) else {
             connection = .failed(.connection("Unsupported engine: \(profile.kind.rawValue)"))
-            isBusy = false
+            isBusy = false; currentActivityLabel = nil
             return
         }
         self.driver = driver
@@ -173,7 +178,7 @@ public final class DatabaseViewModel: ObservableObject {
             guard token == generation else { return }
             connection = .failed(Self.asDatabaseError(error))
         }
-        if token == generation { isBusy = false }
+        if token == generation { isBusy = false; currentActivityLabel = nil }
     }
 
     // MARK: - Schema
@@ -195,31 +200,39 @@ public final class DatabaseViewModel: ObservableObject {
         selectedDatabase = database
         tables = []; selectedTable = nil; result = nil; resultError = nil; resultSource = .none
         clearQueryTabResults()
-        schemaCatalog = .empty
+        schemaCatalog = .empty; schemaColumnsLoaded = false
         return true
     }
 
     private func loadTables(of database: String) async {
         guard let driver else { return }
         let token = generation
+        currentActivityLabel = "Loading tables…"
         do {
             let loaded = try await driver.listTables(database: database)
             guard token == generation else { return }
             tables = loaded
+            schemaCatalog = SchemaCatalog(tables: loaded.map(\.name))
         } catch {
             guard token == generation else { return }
             resultError = Self.asDatabaseError(error).message
         }
-        if token == generation { isBusy = false }
-        await buildSchemaCatalog(of: database, token: token)
+        if token == generation { isBusy = false; currentActivityLabel = nil }
     }
 
-    private func buildSchemaCatalog(of database: String, token: Int) async {
-        guard let driver else { return }
-        let tableNames = tables.map(\.name)
-        let map = (try? await driver.allColumns(database: database)) ?? [:]
-        guard token == generation else { return }
-        schemaCatalog = SchemaCatalog(tables: tableNames, columnsByTable: map)
+    public func ensureSchemaCatalogLoaded() async {
+        guard let driver, let database = selectedDatabase, !schemaColumnsLoaded else { return }
+        let token = generation
+        schemaColumnsLoaded = true
+        do {
+            let map = try await driver.allColumns(database: database)
+            guard token == generation else { schemaColumnsLoaded = false; return }
+            schemaCatalog = SchemaCatalog(tables: schemaCatalog.tables,
+                                          columnsByTable: map,
+                                          relations: schemaCatalog.relations)
+        } catch {
+            schemaColumnsLoaded = false
+        }
     }
 
     public func loadRelationsIfNeeded() async {
@@ -275,7 +288,8 @@ public final class DatabaseViewModel: ObservableObject {
         let expectedColumns = current.columns
         let nextOffset = pageOffset + pageSize
         isFetchingMore = true
-        defer { isFetchingMore = false }
+        currentActivityLabel = "Loading more…"
+        defer { isFetchingMore = false; currentActivityLabel = nil }
         do {
             let page = try await driver.paginatedRows(
                 database: database, table: table.name, limit: pageSize + 1, offset: nextOffset)
@@ -332,6 +346,7 @@ public final class DatabaseViewModel: ObservableObject {
     func loadPage() async {
         guard let driver, let database = selectedDatabase, let table = selectedTable else { return }
         let token = beginOperation()
+        currentActivityLabel = "Loading rows…"
         do {
             let page = try await driver.paginatedRows(
                 database: database, table: table.name, limit: pageSize + 1, offset: pageOffset)
@@ -349,7 +364,7 @@ public final class DatabaseViewModel: ObservableObject {
             resultError = Self.asDatabaseError(error).message
             resultSource = .none
         }
-        if token == generation { isBusy = false }
+        if token == generation { isBusy = false; currentActivityLabel = nil }
     }
 
     public func clearEditError() { editError = nil }
@@ -360,6 +375,7 @@ public final class DatabaseViewModel: ObservableObject {
         generation += 1
         isBusy = true
         isFetchingMore = false
+        currentActivityLabel = nil
         return generation
     }
 

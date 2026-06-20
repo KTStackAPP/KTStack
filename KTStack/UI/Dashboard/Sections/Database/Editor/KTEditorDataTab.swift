@@ -34,7 +34,13 @@ struct KTEditorDataTab: View {
         } else if let error = vm.resultError {
             messageState(icon: "exclamationmark.triangle", title: "Couldn’t load rows", message: error)
         } else {
-            ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(spacing: 10) {
+                ProgressView()
+                if let label = vm.currentActivityLabel {
+                    Text(label).font(.jbMono(12.5)).foregroundStyle(KTColor.muted)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 

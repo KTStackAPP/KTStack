@@ -20,6 +20,7 @@ struct KTEditorQueryTab: View {
             editorPanel
             results
         }
+        .task(id: vm.selectedDatabase) { await vm.ensureSchemaCatalogLoaded() }
         .alert("Run this destructive statement?", isPresented: dangerousBinding,
                presenting: vm.pendingDangerousSQL) { _ in
             Button("Run anyway", role: .destructive) { Task { await vm.runActiveQueryTab(confirmed: true) } }

@@ -39,6 +39,7 @@ struct ERDiagramView: View {
             }
         }
         .task(id: vm.selectedDatabase) {
+            await vm.ensureSchemaCatalogLoaded()
             await vm.loadRelationsIfNeeded()
             rebuildLayout()
         }

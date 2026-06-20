@@ -48,6 +48,12 @@ final class DatabaseViewModelTests: XCTestCase {
         var foreignKeysResult: [ForeignKeyRelation] = []
         func foreignKeys(database: String) async throws -> [ForeignKeyRelation] { foreignKeysResult }
 
+        private(set) var allColumnsCalls = 0
+        func allColumns(database: String) async throws -> [String: [String]] {
+            allColumnsCalls += 1
+            return ["users": columnsResult.map(\.name), "orders": columnsResult.map(\.name)]
+        }
+
         func query(_ sql: String, database: String?) async throws -> QueryResult {
             if queryDelay > .zero { try? await Task.sleep(for: queryDelay) }
             queryCalls.append((sql, database))
@@ -159,6 +165,9 @@ final class DatabaseViewModelTests: XCTestCase {
         await vm.select(database: "db_a")
 
         XCTAssertEqual(vm.schemaCatalog.tables, ["users", "orders"])
+        XCTAssertTrue(vm.schemaCatalog.columns(of: "users").isEmpty)
+
+        await vm.ensureSchemaCatalogLoaded()
         XCTAssertEqual(vm.schemaCatalog.columns(of: "users"), ["id", "name"])
         XCTAssertEqual(vm.schemaCatalog.columns(of: "orders"), ["id", "name"])
     }
