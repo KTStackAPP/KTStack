@@ -128,5 +128,12 @@ public struct RuntimeCatalog: Sendable {
         "8.4": "5451afde00d8dcbec3d3bdd6136d4a45fb0004d463d2e980d8fdd1340dcab029",
     ]
 
-    static let phpArtifactChecksumsX86: [String: String] = [:]
+    static let phpArtifactChecksumsX86: [String: String] = [
+        "7.4": "f043e6fcf1966677e4fa3180ef55a8ea6b9006bbbbbf2d1674c727b2508a791c",
+        "8.0": "ccd36bd11aa1ceed8e3c4dbf1606efc9f0fea8b12378784299de840922dce856",
+        "8.1": "998e033c2eb6f899aa1f3d48ed97bae76125d88e24b2ed8ac30b449fa23c7082",
+        "8.2": "403cdbe93092e65e0943c20ad6c3fe788cd083a2c10ab9cc60d4bd8f4b43a4ce",
+        "8.3": "cc697e9be26ccea7d821d41daec21d0e6f54c9ebdcaf41ce5a9a2721863b85bf",
+        "8.4": "81a36b2cc6d7ab3ddac4966863363680653144cf566744dfb40381ee0b30327a",
+    ]
 }

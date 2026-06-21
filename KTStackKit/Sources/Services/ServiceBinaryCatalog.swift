@@ -52,11 +52,20 @@ public struct ServiceBinaryCatalog: Sendable {
    
     public static let manifest: [ServiceBinaryRelease] = [
         ServiceBinaryRelease(kind: .mysql, version: "9.6.0",
-                             sha256: "e8bf680f8372a9cd4fab38b120753fef1ffb8980d8b5554d64c7186e671616b0"),
+                             sha256ByArch: [
+                                 "arm64":  "e8bf680f8372a9cd4fab38b120753fef1ffb8980d8b5554d64c7186e671616b0",
+                                 "x86_64": "d442e64ffb6a9774a3ae330d99ece8cc252fc59005903291378ef88997a45353",
+                             ]),
         ServiceBinaryRelease(kind: .redis, version: "7.4.2",
-                             sha256: "b9e086c252492561e4a53820589cb893ad07bbd4b1c08f38fcf87836ad1cb6e9"),
+                             sha256ByArch: [
+                                 "arm64":  "b9e086c252492561e4a53820589cb893ad07bbd4b1c08f38fcf87836ad1cb6e9",
+                                 "x86_64": "1afcdd01a585f754087a8e3bdf458f9261b0897d81cbbbd45c2fc2b578d789ec",
+                             ]),
         ServiceBinaryRelease(kind: .postgres, version: "17.10",
-                             sha256: "2fc58f9f78376b79f5007bfbbd6f724f5f34d81cd429ef6b0c9696ad8617d698"),
+                             sha256ByArch: [
+                                 "arm64":  "2fc58f9f78376b79f5007bfbbd6f724f5f34d81cd429ef6b0c9696ad8617d698",
+                                 "x86_64": "4e1a6905cc31d135ecea0dafff670dcda3e2493705f00d69cf2f70ec61127651",
+                             ]),
 
         ServiceBinaryRelease(
             kind: .mongodb, version: "7.0",
