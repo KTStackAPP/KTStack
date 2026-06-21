@@ -10,10 +10,13 @@ struct InstallCommandRunner: Sendable {
 
     let php: URL
     let phpIni: URL?
+    let phpScanDir: URL?
 
     init(php: URL, phpIni: URL? = nil) {
         self.php = php
         self.phpIni = phpIni
+        self.phpScanDir = php.deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("conf.d", isDirectory: true)
     }
 
     @discardableResult
@@ -36,7 +39,11 @@ struct InstallCommandRunner: Sendable {
         proc.executableURL = exe
         proc.arguments = args
         proc.currentDirectoryURL = cwd
-        proc.environment = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": NSHomeDirectory()]
+        var environment = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": NSHomeDirectory()]
+        if let phpScanDir, FileManager.default.fileExists(atPath: phpScanDir.path) {
+            environment["PHP_INI_SCAN_DIR"] = phpScanDir.path
+        }
+        proc.environment = environment
         let output = Pipe()
         proc.standardOutput = output
         proc.standardError = output
