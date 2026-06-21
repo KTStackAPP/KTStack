@@ -11,6 +11,7 @@ final class ERDiagramState: ObservableObject {
     @Published var selectedTable: String?
     @Published private(set) var draggingTable: String?
     @Published private(set) var isCompact = false
+    private(set) var isDragging = false
 
     var viewportSize: CGSize = .zero
     var isMouseOverCanvas = false
@@ -117,6 +118,7 @@ final class ERDiagramState: ObservableObject {
     }
 
     func beginDrag(at startLocation: CGPoint) {
+        isDragging = true
         if let table = tableAt(viewPoint: startLocation) {
             draggingTable = table
             dragNodeStart = position(for: table)
@@ -147,6 +149,7 @@ final class ERDiagramState: ObservableObject {
 
     func endDrag() {
         if draggingTable != nil { persistOverrides() }
+        isDragging = false
         draggingTable = nil
         dragNodeStart = nil
         panStart = nil

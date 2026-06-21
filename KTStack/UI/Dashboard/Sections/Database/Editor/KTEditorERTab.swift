@@ -83,7 +83,7 @@ struct KTEditorERTab: View {
     private var dragGesture: some Gesture {
         DragGesture(minimumDistance: 2)
             .onChanged { value in
-                if state.draggingTable == nil && hoverCursor != .closedHand {
+                if !state.isDragging {
                     state.beginDrag(at: value.startLocation)
                     if state.draggingTable != nil {
                         if hoverCursor != nil { NSCursor.pop() }
