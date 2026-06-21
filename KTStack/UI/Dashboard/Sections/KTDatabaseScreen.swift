@@ -11,6 +11,7 @@ struct KTDatabaseScreen: View {
     enum Tab: Hashable { case databases, backups }
 
     @State private var tab: Tab = .databases
+    @State private var databaseSearch = ""
     @State private var session = BackupSession.managed()
     @State private var backupSets: [BackupSet] = []
     @State private var reloadGeneration = 0
@@ -80,23 +81,38 @@ struct KTDatabaseScreen: View {
             if vm.databases.isEmpty {
                 emptyState(icon: "cylinder.split.1x2", title: "No databases", message: "Create one to get started.")
             } else {
-                ScrollView { KTListContainer { databaseRows } }
+                VStack(spacing: 14) {
+                    KTSearchField(text: $databaseSearch, placeholder: "Search databases…")
+                    let matches = filteredDatabases
+                    if matches.isEmpty {
+                        emptyState(icon: "magnifyingglass", title: "No matches",
+                                   message: "No database matches “\(databaseSearch)”.")
+                    } else {
+                        ScrollView { KTListContainer { databaseRows(matches) } }
+                    }
+                }
             }
         } else {
             connectionGate
         }
     }
 
-    private var databaseRows: some View {
+    private var filteredDatabases: [DatabaseInfo] {
+        let query = databaseSearch.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return vm.databases }
+        return vm.databases.filter { $0.name.range(of: query, options: .caseInsensitive) != nil }
+    }
+
+    private func databaseRows(_ databases: [DatabaseInfo]) -> some View {
         let kind = vm.selectedProfile?.kind ?? .mysql
         return VStack(spacing: 0) {
-            ForEach(Array(vm.databases.enumerated()), id: \.element.id) { index, db in
+            ForEach(Array(databases.enumerated()), id: \.element.id) { index, db in
                 KTDatabaseRow(name: db.name, kind: kind,
                               onOpen: { open(db.name) },
                               onBackup: { backup(db.name) },
                               onExport: { exportSQL(db.name) },
                               onRestore: { tab = .backups })
-                if index < vm.databases.count - 1 {
+                if index < databases.count - 1 {
                     Rectangle().fill(KTColor.sepFaint).frame(height: 0.5).padding(.leading, 18)
                 }
             }
