@@ -46,7 +46,7 @@ xcodebuild -project KTStack.xcodeproj \
     -configuration Release \
     -destination 'generic/platform=macOS' \
     -derivedDataPath .build-xcode \
-    ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
+    ARCHS="${DMG_ARCH:-arm64 x86_64}" ONLY_ACTIVE_ARCH=NO \
     build
 
 APP="$(find .build-xcode -name KTStack.app -path '*Release*' | head -1)"
@@ -73,7 +73,7 @@ scripts/release/license-audit.sh
 echo ""
 echo "💿 Step 6: Build DMG"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
-DMG="KTStack-$VERSION.dmg"
+DMG="KTStack-${VERSION}${DMG_ARCH:+-$DMG_ARCH}.dmg"
 
 if [ -f "$DMG" ]; then
     echo "   Removing old DMG: $DMG"
