@@ -44,8 +44,9 @@ echo "🏗️  Step 2: Build app (Release)"
 xcodebuild -project KTStack.xcodeproj \
     -scheme KTStack \
     -configuration Release \
-    -destination 'platform=macOS' \
+    -destination 'generic/platform=macOS' \
     -derivedDataPath .build-xcode \
+    ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
     build
 
 APP="$(find .build-xcode -name KTStack.app -path '*Release*' | head -1)"
