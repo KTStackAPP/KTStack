@@ -21,6 +21,28 @@ extension MySQLDriver {
         return map
     }
 
+    public func allColumnsDetailed(database: String) async throws -> [String: [ColumnInfo]] {
+        let sql = """
+        SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT \
+        FROM information_schema.COLUMNS \
+        WHERE TABLE_SCHEMA = \(try MySQLErrorMapper.quoteLiteral(database)) \
+        ORDER BY TABLE_NAME, ORDINAL_POSITION
+        """
+        let result = try await query(sql, database: nil)
+        var map: [String: [ColumnInfo]] = [:]
+        for row in result.rows {
+            guard row.count >= 5, let table = row[0].displayText, let name = row[1].displayText
+            else { continue }
+            map[table, default: []].append(ColumnInfo(
+                name: name,
+                dataType: row[2].displayText ?? "",
+                isNullable: row[3].displayText == "YES",
+                isPrimaryKey: row[4].displayText == "PRI",
+                defaultValue: row[5].displayText))
+        }
+        return map
+    }
+
     public func foreignKeys(database: String) async throws -> [ForeignKeyRelation] {
         let sql = """
         SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME, CONSTRAINT_NAME \

@@ -50,6 +50,35 @@ extension PostgresDriver {
         return map
     }
 
+    public func allColumnsDetailed(database: String) async throws -> [String: [ColumnInfo]] {
+        var binds = PostgresBindings()
+        binds.append(database)
+        let result = try await runQuery(PostgresQuery(unsafeSQL: """
+        SELECT c.table_name, c.column_name, c.data_type, c.is_nullable, c.column_default, \
+        CASE WHEN pk.column_name IS NOT NULL THEN 'YES' ELSE 'NO' END AS is_pk \
+        FROM information_schema.columns c \
+        LEFT JOIN ( \
+          SELECT kcu.table_name, kcu.column_name FROM information_schema.table_constraints tc \
+          JOIN information_schema.key_column_usage kcu \
+            ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema \
+          WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_schema = $1 \
+        ) pk ON pk.table_name = c.table_name AND pk.column_name = c.column_name \
+        WHERE c.table_schema = $1 ORDER BY c.table_name, c.ordinal_position
+        """, binds: binds))
+        var map: [String: [ColumnInfo]] = [:]
+        for row in result.rows {
+            guard row.count >= 6, let table = row[0].displayText, let name = row[1].displayText
+            else { continue }
+            map[table, default: []].append(ColumnInfo(
+                name: name,
+                dataType: row[2].displayText ?? "",
+                isNullable: row[3].displayText == "YES",
+                isPrimaryKey: row[5].displayText == "YES",
+                defaultValue: row[4].displayText))
+        }
+        return map
+    }
+
     public func foreignKeys(database: String) async throws -> [ForeignKeyRelation] {
         var binds = PostgresBindings()
         binds.append(database)

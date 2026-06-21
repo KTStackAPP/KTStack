@@ -45,6 +45,7 @@ public final class DatabaseViewModel: ObservableObject {
 
     private var isIncrementalBrowse = false
     private var schemaColumnsLoaded = false
+    private var schemaDetailedLoaded = false
 
     private var browseDialect: SQLDialect { SQLDialect.forKind(selectedProfile?.kind ?? .mysql) }
 
@@ -141,7 +142,7 @@ public final class DatabaseViewModel: ObservableObject {
         currentColumns = []; currentIndexes = []
         schemaCatalog = .empty
         pageOffset = 0; hasMorePages = false; isBusy = false; isFetchingMore = false
-        isIncrementalBrowse = false; schemaColumnsLoaded = false; currentActivityLabel = nil
+        isIncrementalBrowse = false; schemaColumnsLoaded = false; schemaDetailedLoaded = false; currentActivityLabel = nil
         activeFilters = []; activeSort = nil; navigationStack = []
         if let previousDriver { Task { await previousDriver.closeSession() } }
     }
@@ -154,6 +155,7 @@ public final class DatabaseViewModel: ObservableObject {
         currentColumns = []; currentIndexes = []
         schemaCatalog = .empty
         schemaColumnsLoaded = false
+        schemaDetailedLoaded = false
     }
 
     public func select(profile: ConnectionProfile) async {
@@ -163,7 +165,7 @@ public final class DatabaseViewModel: ObservableObject {
         databases = []; tables = []; selectedDatabase = nil; selectedTable = nil
         result = nil; resultError = nil; resultSource = .none; pageOffset = 0; hasMorePages = false
         clearQueryTabResults()
-        schemaCatalog = .empty; schemaColumnsLoaded = false
+        schemaCatalog = .empty; schemaColumnsLoaded = false; schemaDetailedLoaded = false
         connection = .connecting
         currentActivityLabel = "Connecting…"
         await previousDriver?.closeSession()
@@ -207,7 +209,7 @@ public final class DatabaseViewModel: ObservableObject {
         selectedDatabase = database
         tables = []; selectedTable = nil; result = nil; resultError = nil; resultSource = .none
         clearQueryTabResults()
-        schemaCatalog = .empty; schemaColumnsLoaded = false
+        schemaCatalog = .empty; schemaColumnsLoaded = false; schemaDetailedLoaded = false
         activeFilters = []; activeSort = nil; navigationStack = []
         return true
     }
@@ -240,6 +242,19 @@ public final class DatabaseViewModel: ObservableObject {
                                           relations: schemaCatalog.relations)
         } catch {
             schemaColumnsLoaded = false
+        }
+    }
+
+    public func ensureDetailedColumnsLoaded() async {
+        guard let driver, let database = selectedDatabase, !schemaDetailedLoaded else { return }
+        let token = generation
+        schemaDetailedLoaded = true
+        do {
+            let detailed = try await driver.allColumnsDetailed(database: database)
+            guard token == generation else { schemaDetailedLoaded = false; return }
+            schemaCatalog = schemaCatalog.withDetailedColumns(detailed)
+        } catch {
+            schemaDetailedLoaded = false
         }
     }
 

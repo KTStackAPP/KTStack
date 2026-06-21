@@ -12,6 +12,8 @@ public protocol RelationalDriver: DatabaseDriver {
 
     func allColumns(database: String) async throws -> [String: [String]]
 
+    func allColumnsDetailed(database: String) async throws -> [String: [ColumnInfo]]
+
     func indexes(database: String, table: String) async throws -> [IndexInfo]
 
     func foreignKeys(database: String) async throws -> [ForeignKeyRelation]
