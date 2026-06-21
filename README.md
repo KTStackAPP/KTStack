@@ -1,209 +1,128 @@
+<div align="center">
+
 # KTStack
 
-Native macOS local development environment for PHP and Node.js.
+### A native macOS local development environment for PHP & Node.js
 
-Run local websites with trusted HTTPS, automatic `.test` domains, databases, mail testing, logs, and public sharing — all from a native SwiftUI application.
+Run local sites at **`https://your-project.test`** with trusted HTTPS, automatic `.test` domains, databases, a built-in database editor, mail testing, logs, and public sharing — from a single native menu-bar app. No Docker.
 
-> Open-source alternative to Laravel Herd, Valet and Laragon for macOS.
+**Open-source. Free forever.** An alternative to Laravel Herd, Valet and Laragon for macOS.
 
-![KTStack Sites dashboard](assets/readme/dashboard-sites.png)
+[![Latest release](https://img.shields.io/github/v/release/nguyenkhoi489/kt-stack?style=flat-square&color=b8232c)](https://github.com/nguyenkhoi489/kt-stack/releases)
+[![Downloads](https://img.shields.io/github/downloads/nguyenkhoi489/kt-stack/total?style=flat-square)](https://github.com/nguyenkhoi489/kt-stack/releases)
+[![Stars](https://img.shields.io/github/stars/nguyenkhoi489/kt-stack?style=flat-square)](https://github.com/nguyenkhoi489/kt-stack/stargazers)
+![Platform](https://img.shields.io/badge/macOS-13%2B-000000?style=flat-square&logo=apple)
+![Built with Swift](https://img.shields.io/badge/Swift-SwiftUI-fa7343?style=flat-square&logo=swift)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
-## Features
+<img src="assets/readme/dashboard-sites.png" alt="KTStack dashboard" width="820">
 
-* ✅ Automatic `.test` domains
-* ✅ Trusted local HTTPS
-* ✅ Nginx + PHP-FPM management
-* ✅ PHP 8.1 / 8.3 / 8.4
-* ✅ Node.js runtimes
-* ✅ MySQL, PostgreSQL, Redis and MongoDB
-* ✅ Built-in Mailpit
-* ✅ Per-site log viewer
-* ✅ Cloudflare Tunnel sharing
-* ✅ Native SwiftUI interface
-* ❌ No Docker required
+</div>
 
 ---
 
 ## Why KTStack?
 
-Setting up a local development environment on macOS often means combining multiple tools:
+Setting up a local PHP/Node stack on macOS usually means stitching together a web server, a PHP version manager, database engines, local HTTPS certificates, DNS config, a mail catcher, and a database GUI.
 
-* Web server
-* PHP runtime manager
-* Database services
-* Local HTTPS certificates
-* DNS configuration
-* Mail testing
-* Public preview links
+KTStack bundles all of it into one native app. Create a site and instantly get:
 
-KTStack brings all of those pieces together into a single native application.
-
-Create a site and instantly access:
-
-```text
+```
 https://my-project.test
 ```
 
-with HTTPS, databases, logs, and mail testing already configured.
+— HTTPS, the right PHP version, databases, logs and mail testing already wired up.
 
----
+The features other tools **lock behind a paid plan or a separate app** — the database editor, every database engine, mail testing, public sharing — are **built in and free** here.
+
+## KTStack vs the alternatives
+
+| | **KTStack** | Laravel Herd | Valet |
+|---|:---:|:---:|:---:|
+| Price | **Free** | Free + Pro **$99/yr** | Free |
+| Open source | ✅ | ❌ | ✅ |
+| Native UI | ✅ menu-bar | ✅ | ❌ CLI only |
+| No Docker / no Homebrew needed | ✅ | ✅ | ❌ (Homebrew) |
+| Trusted local HTTPS | ✅ | ✅ | extra setup |
+| Multiple PHP versions | ✅ 7.4 → 8.4 | ✅ | ✅ |
+| Database engines (MySQL/PG/Redis/Mongo) | ✅ **built in** | Pro | ❌ |
+| **Database editor** (browse/edit/SQL/ER) | ✅ **built in** | ❌ (use TablePlus) | ❌ |
+| Mail testing (Mailpit) | ✅ | Pro | ❌ |
+| Public sharing (Cloudflare Tunnel) | ✅ | Pro | ❌ |
+| Configurable TLD (not only `.test`) | ✅ | ❌ `.test` only | ❌ |
+
+<sub>Comparison reflects publicly documented free/Pro tiers as of 2026. Corrections welcome via issue.</sub>
+
+## Features
+
+- **Automatic `.test` domains** with trusted local HTTPS (per-site certificates from a local CA)
+- **Nginx + PHP-FPM** with per-site PHP version isolation
+- **PHP 7.4 → 8.4** (six versions, EOL versions clearly flagged) and **Node.js**, self-contained — no Homebrew required
+- **Databases**: MySQL, PostgreSQL, Redis, MongoDB
+- **Built-in database editor**: browse & edit rows, run SQL, structure/DDL, foreign-key navigation, and an interactive ER diagram — for MySQL, PostgreSQL and SQLite
+- **Mailpit** mail catcher
+- **Per-site & per-service log viewer**
+- **`dd()` / `dump()` viewer** — Laravel/Symfony dumps stream straight into the app, no code changes
+- **Cloudflare Tunnel sharing** — expose a local site over a temporary public HTTPS URL for client reviews, mobile testing or QA
+- **Native SwiftUI** menu-bar app with Sparkle auto-updates
 
 ## Screenshots
 
-### Sites
+| Sites | Services | Runtimes |
+|---|---|---|
+| ![Sites](assets/readme/dashboard-sites.png) | ![Services](assets/readme/dashboard-services.png) | ![Runtimes](assets/readme/dashboard-runtimes.png) |
 
-![Sites dashboard](assets/readme/dashboard-sites.png)
+<div align="center"><img src="assets/readme/menubar-dropdown.png" alt="Menu bar" width="320"></div>
 
-### Services
+## Install
 
-![Services dashboard](assets/readme/dashboard-services.png)
+1. Download the latest `KTStack.dmg` from the [**Releases**](https://github.com/nguyenkhoi489/kt-stack/releases) page.
+2. Drag **KTStack** to Applications and launch it.
+3. Approve the privileged helper when prompted (needed only for local DNS, the `/etc/resolver` entry, and installing the local HTTPS CA).
+4. Add a site, open `https://<name>.test`. Done.
 
-### Runtimes
+Requires **macOS 13 (Ventura) or newer**, Apple Silicon.
 
-![Runtimes dashboard](assets/readme/dashboard-runtimes.png)
+## How it works
 
-### Menu Bar
-
-![Menu bar dropdown](assets/readme/menubar-dropdown.png)
-
----
-
-## Current Feature Set
-
-| Area           | Status                                                              |
-| -------------- | ------------------------------------------------------------------- |
-| Native app     | Menu-bar SwiftUI app                                                |
-| Local sites    | Park/import sites with automatic `.test` domains                    |
-| HTTPS          | Trusted local TLS certificates                                      |
-| Web server     | Nginx virtual hosts and PHP-FPM pools                               |
-| PHP            | On-demand PHP 8.1 / 8.3 / 8.4                                       |
-| Other runtimes | Node.js                                                             |
-| Services       | Nginx, PHP-FPM, dnsmasq, MySQL, PostgreSQL, Redis, MongoDB, Mailpit |
-| Database UI    | MySQL, PostgreSQL, SQLite, MongoDB                                  |
-| Mail           | Mailpit integration                                                 |
-| Logs           | Per-service and per-site log viewer                                 |
-| Sharing        | Cloudflare Tunnel public links                                      |
-| Updates        | Sparkle auto-update support                                         |
-
----
-
-## Cloudflare Tunnel Sharing
-
-KTStack can expose a local site through a temporary `trycloudflare.com` URL.
-
-Useful for:
-
-* Client reviews
-* Mobile device testing
-* QA verification
-* Temporary demos
-
-KTStack automatically creates a dedicated tunnel vhost and forwards the correct host and HTTPS metadata so frameworks like Laravel and WordPress behave correctly behind the tunnel.
-
----
-
-## Architecture
-
-Application data is stored under:
-
-```text
-~/Library/Application Support/KTStack/
+```
+browser → https://app.test
+  → dnsmasq           resolves *.test → 127.0.0.1   (privileged helper, root)
+  → Nginx (:80/:443)  reverse proxy + local TLS     (user launch agent)
+  → PHP-FPM / Node    per-site, version-aware
 ```
 
-Core components:
+The root helper does **only** three things — write `/etc/resolver/<tld>`, run dnsmasq on port 53, and install the local CA into the System Keychain. Everything else (Nginx, PHP-FPM, databases) runs as your user. All app data lives in `~/Library/Application Support/KTStack/`.
 
-| Component    | Purpose                  |
-| ------------ | ------------------------ |
-| KTStack.app  | Native macOS application |
-| KTStackKit    | Core framework           |
-| KTStackHelper | Privileged helper        |
-| project.yml  | XcodeGen source of truth |
+## Build from source
 
----
-
-## Local Development
-
-Requirements:
-
-* macOS 13+
-* Xcode
-* XcodeGen
-
-Install XcodeGen:
+The Xcode project is generated by [XcodeGen](https://github.com/yonaskolb/XcodeGen) — `project.yml` is the source of truth; never edit `KTStack.xcodeproj` by hand.
 
 ```bash
 brew install xcodegen
-```
-
-Generate project:
-
-```bash
 xcodegen generate
+
+# Run the framework logic tests
+xcodebuild -project KTStack.xcodeproj -scheme KTStackKit-Tests -destination 'platform=macOS' test
+
+# Build a Release app
+xcodebuild -project KTStack.xcodeproj -scheme KTStack -destination 'platform=macOS' -configuration Release build
 ```
 
-Run tests:
+> Bundled binaries under `KTStack/Resources/bin/` (nginx, dnsmasq, mkcert, redis, mailpit, …) are gitignored build artifacts produced by `scripts/build-*-relocatable.sh`; they won't exist on a fresh checkout until built. See `docs/` for architecture and the signing/notarization guide.
 
-```bash
-xcodebuild \
-  -project KTStack.xcodeproj \
-  -scheme KTStackKit-Tests \
-  -destination 'platform=macOS' \
-  test
-```
+## Contributing
 
-Build:
+Issues and pull requests are welcome. KTStack is an active project exploring Swift, SwiftUI, macOS development and developer-experience tooling.
 
-```bash
-xcodebuild \
-  -project KTStack.xcodeproj \
-  -scheme KTStack \
-  -destination 'platform=macOS' \
-  -configuration Release \
-  build
-```
+## License
+
+KTStack is free and open-source software. See [`LICENSE`](LICENSE).
 
 ---
 
-## Build DMG
+<div align="center">
 
-```bash
-scripts/release/build-dmg.sh \
-  ~/Library/Developer/Xcode/DerivedData/KTStack-*/Build/Products/Release/KTStack.app \
-  ./KTStack.dmg
-```
+**⭐ If KTStack helps your workflow, please star the repo — it's the single biggest thing that helps others find it.**
 
-Release signing and notarization playbook:
-`docs/signing-and-notarization-guide.md`
-
----
-
-## Repository Layout
-
-```text
-KTStack/                 Application target
-KTStackKit/Sources/      Core framework
-KTStackHelper/           Privileged helper
-KTStackKitTests/         Unit tests
-scripts/                Build & release scripts
-spikes/                 Experiments
-assets/readme/          README assets
-```
-
----
-
-## Notes
-
-* macOS only
-* Runtime downloads are checksum verified
-* MongoDB is installed on demand
-* Generated projects and local artifacts are ignored
-
----
-
-## Project Status
-
-KTStack is an active side project built to explore Swift, SwiftUI, macOS development, local infrastructure tooling, and developer experience.
-
-Feedback, issues, and pull requests are welcome.
-
-⭐ If KTStack helps your workflow, consider starring the repository.
+</div>
