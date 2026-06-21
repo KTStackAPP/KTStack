@@ -1,6 +1,6 @@
 <div align="center">
 
-# KTStack
+<img src="assets/readme/ktstack-icon.png" alt="KTStack" width="128" height="128">
 
 ### A native macOS local development environment for PHP & Node.js
 
