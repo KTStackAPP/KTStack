@@ -20,6 +20,7 @@ struct KTSiteActionsMenu: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .help("More actions")
         .accessibilityLabel("More actions for \(site.name)")
         .popover(isPresented: $open, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 1) {

@@ -117,6 +117,7 @@ struct KTSiteListRow: View {
 
             KTButton(title: "Open", kind: .secondary, action: onOpen)
                 .disabled(!canOpen)
+                .help("Open \(site.domain) in your browser")
 
             KTSiteActionsMenu(site: site, canOpen: canOpen,
                               onOpenLogs: onOpenLogs, onRemove: onRemove, onError: onError)
