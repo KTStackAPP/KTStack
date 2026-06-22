@@ -209,7 +209,7 @@ public struct PHPExtensionInstaller: Sendable {
 
         let modules = paths.phpModulesDir(version: phpVersion)
         let directive = PHPExtensionCatalog.descriptor(extID)?.loadDirective ?? .module
-        var args = ["-d", "extension_dir=\(modules.path)"]
+        var args = ["-n", "-d", "extension_dir=\(modules.path)"]
         switch directive {
         case .module:        args += ["-d", "extension=\(extID).so"]
         case .zendExtension: args += ["-d", "zend_extension=\(soURL(extID, phpVersion).path)"]
