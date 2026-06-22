@@ -67,7 +67,7 @@ struct KTAPIVariablesSheet: View {
             }
             .padding(.horizontal, 18).padding(.vertical, 14)
         }
-        .frame(maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private func row(_ variable: Binding<EditablePair>) -> some View {
