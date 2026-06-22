@@ -36,10 +36,36 @@ struct KTAPIRouteSidebar: View {
             searchField
             newRequestButton
             list
+            variablesSection
         }
         .frame(width: 300)
         .background(Color(hex: 0xFBFBFC))
         .overlay(alignment: .trailing) { Rectangle().fill(KTColor.sep).frame(width: 0.5) }
+    }
+
+    private var variablesSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Rectangle().fill(KTColor.sep).frame(height: 0.5)
+            HStack(spacing: 6) {
+                Image(systemName: "curlybraces").font(.system(size: 11)).foregroundStyle(KTColor.muted)
+                Text("VARIABLES").font(.jbMono(10.5, .bold)).foregroundStyle(KTColor.ink3)
+                Spacer()
+                Text(vm.siteDomain).font(.jbMono(10)).foregroundStyle(KTColor.faint).lineLimit(1)
+            }
+            .padding(.horizontal, 12).padding(.top, 10).padding(.bottom, 8)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    KTEditablePairList(pairs: $vm.variables,
+                                       keyPlaceholder: "Name", valuePlaceholder: "Value")
+                        .onChange(of: vm.variables) { _ in vm.saveVariables() }
+                    Text("Use {{name}} in URL, params, headers, or body.")
+                        .font(.jbMono(10.5)).foregroundStyle(KTColor.faint)
+                }
+                .padding(.horizontal, 12).padding(.bottom, 12)
+            }
+            .frame(maxHeight: 180)
+        }
+        .background(Color.white)
     }
 
     private var newRequestButton: some View {

@@ -5,7 +5,7 @@ struct KTAPIRequestPanel: View {
     @ObservedObject var vm: APITesterViewModel
     let site: Site
 
-    enum BuilderTab: Hashable { case params, headers, body, variables }
+    enum BuilderTab: Hashable { case params, headers, body }
 
     @State private var builderTab: BuilderTab = .params
 
@@ -113,8 +113,7 @@ struct KTAPIRequestPanel: View {
         HStack {
             KTSegmentedTabs(items: [.init(value: BuilderTab.params, label: "Params"),
                                     .init(value: .headers, label: "Headers"),
-                                    .init(value: .body, label: "Body"),
-                                    .init(value: .variables, label: "Variables")],
+                                    .init(value: .body, label: "Body")],
                             selection: $builderTab)
             Spacer()
         }
@@ -128,27 +127,6 @@ struct KTAPIRequestPanel: View {
         case .headers: KTEditablePairList(pairs: $vm.requestDraft.headers,
                                           keyPlaceholder: "Header", valuePlaceholder: "Value")
         case .body: bodyTab(route)
-        case .variables: variablesTab(route)
-        }
-    }
-
-    @ViewBuilder
-    private func variablesTab(_ route: APIRoute) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            KTEditablePairList(pairs: $vm.variables,
-                               keyPlaceholder: "Name", valuePlaceholder: "Value")
-                .onChange(of: vm.variables) { _ in vm.saveVariables() }
-            HStack(spacing: 7) {
-                Image(systemName: "curlybraces").font(.system(size: 12))
-                Text("Use {{name}} in URL, params, headers, or body.").font(.jbMono(11.5))
-            }
-            .foregroundStyle(KTColor.faint)
-            sectionLabel("RESOLVED URL")
-            Text(urlPreview(route))
-                .font(.jbMono(11.5))
-                .foregroundStyle(KTColor.ink3)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -242,17 +220,6 @@ struct KTAPIRequestPanel: View {
         }
         .foregroundStyle(color)
         .padding(14)
-    }
-
-    private func urlPreview(_ route: APIRoute) -> String {
-        let scheme = site.secure ? "https" : "http"
-        var path = vm.normalizedDraftPath
-        for param in vm.requestDraft.pathParams where !param.value.isEmpty {
-            let value = vm.resolved(param.value)
-            path = path.replacingOccurrences(of: "{\(param.key)?}", with: value)
-            path = path.replacingOccurrences(of: "{\(param.key)}", with: value)
-        }
-        return vm.resolved("\(scheme)://\(site.domain)\(path)")
     }
 }
 

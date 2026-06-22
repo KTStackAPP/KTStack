@@ -59,6 +59,8 @@ final class APITesterViewModel: ObservableObject {
     private var drafts: [String: RequestDraft] = [:]
     private var siteKey = ""
 
+    var siteDomain: String { siteKey }
+
     var webRoutes: [APIRoute] { filtered(routes.filter { !$0.isApi }) }
     var apiRoutes: [APIRoute] { filtered(routes.filter { $0.isApi }) }
 
