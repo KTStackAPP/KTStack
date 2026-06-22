@@ -14,7 +14,7 @@ public struct PHPFPMPoolWriter {
         let sendmail = "'\(paths.binary("mailpit").path)' sendmail -S 127.0.0.1:1025"
         
         let mysqlSocket = paths.serviceSocket("mysql").path
-        return """
+        let base = """
         [global]
         error_log = \(log)
         daemonize = no
@@ -40,6 +40,11 @@ public struct PHPFPMPoolWriter {
         php_value[mysqli.default_socket] = \(mysqlSocket)
         php_value[pdo_mysql.default_socket] = \(mysqlSocket)
         """
+        let magickLines = ImageMagickEnvironment
+            .sortedVariables(modulesDir: paths.phpModulesDir(version: poolName))
+            .map { "env[\($0.key)] = \($0.value)" }
+        guard !magickLines.isEmpty else { return base }
+        return base + "\n" + magickLines.joined(separator: "\n")
     }
 
     @discardableResult

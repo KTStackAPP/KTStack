@@ -42,6 +42,8 @@ struct InstallCommandRunner: Sendable {
         var environment = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": NSHomeDirectory()]
         if let phpScanDir, FileManager.default.fileExists(atPath: phpScanDir.path) {
             environment["PHP_INI_SCAN_DIR"] = phpScanDir.path
+            let modulesDir = phpScanDir.deletingLastPathComponent().appendingPathComponent("modules", isDirectory: true)
+            for (key, value) in ImageMagickEnvironment.variables(modulesDir: modulesDir) { environment[key] = value }
         }
         proc.environment = environment
         let output = Pipe()

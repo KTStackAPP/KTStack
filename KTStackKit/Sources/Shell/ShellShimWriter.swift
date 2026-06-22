@@ -13,6 +13,12 @@ struct ShellShimWriter {
         __ktphp_root="${__ktphp_dir%/runtimes/php/*}"
         [ -d "$__ktphp_root/config/php/$__ktphp_ver" ] && export PHPRC="$__ktphp_root/config/php/$__ktphp_ver"
         [ -d "$__ktphp_dir/conf.d" ] && export PHP_INI_SCAN_DIR="$__ktphp_dir/conf.d"
+        if [ -d "$__ktphp_dir/modules/imagick-magick/coders" ]; then
+            export MAGICK_HOME="$__ktphp_dir/modules/imagick-magick"
+            export MAGICK_CODER_MODULE_PATH="$__ktphp_dir/modules/imagick-magick/coders"
+            export MAGICK_CODER_FILTER_PATH="$__ktphp_dir/modules/imagick-magick/filters"
+            export MAGICK_CONFIGURE_PATH="$__ktphp_dir/modules/imagick-magick/config"
+        fi
         """
 
     func directBinaryShim(lang: String) -> String {

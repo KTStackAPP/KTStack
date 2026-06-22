@@ -196,6 +196,10 @@ public struct PHPExtensionInstaller: Sendable {
         where fm.fileExists(atPath: url.path) {
             try fm.removeItem(at: url)
         }
+        if extID == "imagick" {
+            let magickDir = ImageMagickEnvironment.directory(modulesDir: paths.phpModulesDir(version: phpVersion))
+            if fm.fileExists(atPath: magickDir.path) { try fm.removeItem(at: magickDir) }
+        }
         PHPModules.invalidate(version: phpVersion)
     }
 
@@ -215,6 +219,9 @@ public struct PHPExtensionInstaller: Sendable {
         let proc = Process()
         proc.executableURL = php
         proc.arguments = args
+        var env = ProcessInfo.processInfo.environment
+        for (key, value) in ImageMagickEnvironment.variables(modulesDir: modules) { env[key] = value }
+        proc.environment = env
         let out = Pipe(); let err = Pipe()
         proc.standardOutput = out; proc.standardError = err
         do { try proc.run() } catch { return (false, error.localizedDescription) }
