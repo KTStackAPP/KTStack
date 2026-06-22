@@ -39,6 +39,7 @@ final class APITesterViewModel: ObservableObject {
     @Published var timeoutSeconds: Double = 30
     @Published var bodyDisplayLimitKB: Int = 200
     @Published var requestDraft = RequestDraft()
+    @Published var variables: [EditablePair] = []
     @Published var response: APIResponseResult?
     @Published var isLoadingRoutes = false
     @Published var isSending = false
@@ -47,6 +48,7 @@ final class APITesterViewModel: ObservableObject {
     @Published var metadataWarning: String?
 
     private var drafts: [String: RequestDraft] = [:]
+    private var siteKey = ""
 
     var webRoutes: [APIRoute] { filtered(routes.filter { !$0.isApi }) }
     var apiRoutes: [APIRoute] { filtered(routes.filter { $0.isApi }) }
@@ -72,6 +74,10 @@ final class APITesterViewModel: ObservableObject {
         isLoadingRoutes = true
         loadError = nil
         metadataWarning = nil
+        siteKey = site.domain
+        variables = APIVariableStore.load(siteKey: siteKey).map {
+            EditablePair(key: $0.name, value: $0.value, enabled: $0.enabled)
+        }
         let paths = AppSupportPaths()
         let php = paths.phpBinary(version: site.phpVersion)
         let phpIni = paths.phpIni(version: site.phpVersion)
@@ -106,11 +112,32 @@ final class APITesterViewModel: ObservableObject {
         requestDraft = drafts[route.id] ?? Self.defaultDraft(for: route)
     }
 
+    func saveVariables() {
+        guard !siteKey.isEmpty else { return }
+        let stored = variables.map { APIVariable(name: $0.key, value: $0.value, enabled: $0.enabled) }
+        APIVariableStore.save(stored, siteKey: siteKey)
+    }
+
+    func resolved(_ text: String) -> String {
+        APIVariableInterpolator.resolve(text, with: variableMap())
+    }
+
+    private func variableMap() -> [String: String] {
+        var map: [String: String] = [:]
+        for variable in variables where variable.enabled {
+            let name = variable.key.trimmingCharacters(in: .whitespaces)
+            guard !name.isEmpty else { continue }
+            map[name] = variable.value
+        }
+        return map
+    }
+
     func send(site: Site) async {
         guard let route = selected, !isSending else { return }
         isSending = true
         sendError = nil
         response = nil
+        saveVariables()
         drafts[route.id] = requestDraft
         do {
             let spec = try buildSpec(route: route, site: site)
@@ -128,7 +155,7 @@ final class APITesterViewModel: ObservableObject {
         }
         var headers = requestDraft.headers
             .filter { $0.enabled && !$0.key.trimmingCharacters(in: .whitespaces).isEmpty }
-            .map { ($0.key, $0.value) }
+            .map { ($0.key, resolved($0.value)) }
         let body = encodedBody()
         if let body, !body.isEmpty, !headers.contains(where: { $0.0.lowercased() == "content-type" }) {
             headers.append(("Content-Type", contentType()))
@@ -140,7 +167,8 @@ final class APITesterViewModel: ObservableObject {
         let scheme = site.secure ? "https" : "http"
         var path = route.uri.hasPrefix("/") ? route.uri : "/" + route.uri
         for param in requestDraft.pathParams {
-            let value = param.value.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? param.value
+            let raw = resolved(param.value)
+            let value = raw.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? raw
             path = path.replacingOccurrences(of: "{\(param.key)?}", with: value)
             path = path.replacingOccurrences(of: "{\(param.key)}", with: value)
         }
@@ -150,7 +178,7 @@ final class APITesterViewModel: ObservableObject {
         components.path = path
         let items = requestDraft.query
             .filter { $0.enabled && !$0.key.trimmingCharacters(in: .whitespaces).isEmpty }
-            .map { URLQueryItem(name: $0.key, value: $0.value) }
+            .map { URLQueryItem(name: $0.key, value: resolved($0.value)) }
         if !items.isEmpty { components.queryItems = items }
         return components.url
     }
@@ -160,10 +188,10 @@ final class APITesterViewModel: ObservableObject {
         case .none:
             return nil
         case .json:
-            let text = requestDraft.bodyText
+            let text = resolved(requestDraft.bodyText)
             return text.isEmpty ? nil : text.data(using: .utf8)
         case .form:
-            return Self.encodeForm(requestDraft.bodyText)
+            return Self.encodeForm(resolved(requestDraft.bodyText))
         }
     }
 
