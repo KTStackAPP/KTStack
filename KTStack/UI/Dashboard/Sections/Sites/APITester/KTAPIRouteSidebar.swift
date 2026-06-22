@@ -32,13 +32,31 @@ struct KTAPIRouteSidebar: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            tabs
+            if !vm.isGenericMode { tabs }
             searchField
+            newRequestButton
             list
         }
         .frame(width: 300)
         .background(Color(hex: 0xFBFBFC))
         .overlay(alignment: .trailing) { Rectangle().fill(KTColor.sep).frame(width: 0.5) }
+    }
+
+    private var newRequestButton: some View {
+        Button { vm.newRequest() } label: {
+            HStack(spacing: 7) {
+                Image(systemName: "plus.circle.fill").font(.system(size: 13))
+                Text("New request").font(.jbMono(12.5, .medium))
+                Spacer()
+            }
+            .foregroundStyle(KTColor.accent)
+            .padding(.horizontal, 10).padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(KTColor.accentSoft))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 12).padding(.bottom, 8)
     }
 
     private var tabs: some View {
@@ -71,9 +89,11 @@ struct KTAPIRouteSidebar: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if vm.visibleRoutes.isEmpty {
-            Text(vm.routes.isEmpty ? "No routes" : "No routes in this group")
+            Text(emptyMessage)
                 .font(.jbMono(12)).foregroundStyle(KTColor.muted)
+                .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.horizontal, 16)
         } else {
             ScrollView {
                 LazyVStack(spacing: 1) {
@@ -84,6 +104,11 @@ struct KTAPIRouteSidebar: View {
                 .padding(.horizontal, 8).padding(.bottom, 10)
             }
         }
+    }
+
+    private var emptyMessage: String {
+        if vm.isGenericMode { return "Compose a request above, or hit New request." }
+        return vm.routes.isEmpty ? "No routes" : "No routes in this group"
     }
 
     private func row(_ route: APIRoute) -> some View {

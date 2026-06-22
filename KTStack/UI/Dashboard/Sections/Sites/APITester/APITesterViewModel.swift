@@ -46,6 +46,15 @@ final class APITesterViewModel: ObservableObject {
     @Published var loadError: String?
     @Published var sendError: String?
     @Published var metadataWarning: String?
+    @Published var isGenericMode = false
+    @Published var draftMethod = "GET"
+    @Published var draftPath = "/"
+
+    static let methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]
+
+    static let adHocRouteID = "__ktstack_adhoc__"
+    static let adHocRoute = APIRoute(method: "GET", uri: adHocRouteID, name: "New request",
+                                     middleware: [], action: "", fields: [], rulesResolved: true)
 
     private var drafts: [String: RequestDraft] = [:]
     private var siteKey = ""
@@ -78,10 +87,18 @@ final class APITesterViewModel: ObservableObject {
         variables = APIVariableStore.load(siteKey: siteKey).map {
             EditablePair(key: $0.name, value: $0.value, enabled: $0.enabled)
         }
+        let folder = URL(fileURLWithPath: site.path)
+        guard LaravelSiteProbe().isLaravel(siteAt: folder) else {
+            isGenericMode = true
+            routes = []
+            newRequest()
+            isLoadingRoutes = false
+            return
+        }
+        isGenericMode = false
         let paths = AppSupportPaths()
         let php = paths.phpBinary(version: site.phpVersion)
         let phpIni = paths.phpIni(version: site.phpVersion)
-        let folder = URL(fileURLWithPath: site.path)
         do {
             let introspector = RouteIntrospector(php: php, phpIni: phpIni)
             let outcome = try await Task.detached(priority: .userInitiated) {
@@ -94,6 +111,8 @@ final class APITesterViewModel: ObservableObject {
             } else if let firstAny = routes.first {
                 tab = firstAny.isApi ? .api : .web
                 select(firstAny)
+            } else {
+                newRequest()
             }
         } catch {
             routes = []
@@ -102,11 +121,25 @@ final class APITesterViewModel: ObservableObject {
         isLoadingRoutes = false
     }
 
+    func newRequest() {
+        select(Self.adHocRoute)
+        draftMethod = "GET"
+        draftPath = "/"
+    }
+
+    var normalizedDraftPath: String {
+        let trimmed = draftPath.trimmingCharacters(in: .whitespaces)
+        let path = trimmed.isEmpty ? "/" : trimmed
+        return path.hasPrefix("/") ? path : "/" + path
+    }
+
     func select(_ route: APIRoute) {
         if let current = selected {
             drafts[current.id] = requestDraft
         }
         selected = route
+        draftMethod = route.method
+        draftPath = route.uri.hasPrefix("/") ? route.uri : "/" + route.uri
         response = nil
         sendError = nil
         requestDraft = drafts[route.id] ?? Self.defaultDraft(for: route)
@@ -160,12 +193,12 @@ final class APITesterViewModel: ObservableObject {
         if let body, !body.isEmpty, !headers.contains(where: { $0.0.lowercased() == "content-type" }) {
             headers.append(("Content-Type", contentType()))
         }
-        return APIRequestSpec(method: route.method, url: url, headers: headers, body: body)
+        return APIRequestSpec(method: draftMethod, url: url, headers: headers, body: body)
     }
 
     private func composeURL(route: APIRoute, site: Site) -> URL? {
         let scheme = site.secure ? "https" : "http"
-        var path = route.uri.hasPrefix("/") ? route.uri : "/" + route.uri
+        var path = normalizedDraftPath
         for param in requestDraft.pathParams {
             let raw = resolved(param.value)
             let value = raw.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? raw

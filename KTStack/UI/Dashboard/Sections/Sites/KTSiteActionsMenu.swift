@@ -11,10 +11,6 @@ struct KTSiteActionsMenu: View {
     @EnvironmentObject private var overlay: KTOverlayCenter
     @State private var open = false
 
-    private var isLaravel: Bool {
-        LaravelSiteProbe().isLaravel(siteAt: URL(fileURLWithPath: site.path))
-    }
-
     var body: some View {
         Button { open.toggle() } label: {
             Image(systemName: "ellipsis")
@@ -35,9 +31,7 @@ struct KTSiteActionsMenu: View {
                 if site.type == .node {
                     row("Node Logs", "shippingbox", "") { KTSiteActions.openNodeLog(site) }
                 }
-                if isLaravel {
-                    row("API Tester", "network", "") { overlay.apiTesterSite = site }
-                }
+                row("API Tester", "network", "") { overlay.apiTesterSite = site }
                 if site.type == .php {
                     row("Configure VS Code Debug", "curlybraces", "") {
                         do { try KTSiteActions.configureVSCode(site) }

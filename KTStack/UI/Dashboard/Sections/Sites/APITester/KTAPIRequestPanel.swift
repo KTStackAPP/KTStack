@@ -36,14 +36,8 @@ struct KTAPIRequestPanel: View {
 
     private func requestBar(_ route: APIRoute) -> some View {
         HStack(spacing: 10) {
-            KTAPIMethodBadge(method: route.method)
-            Text(urlPreview(route))
-                .font(.jbMono(12.5))
-                .foregroundStyle(KTColor.ink2)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            methodPicker
+            urlField
             KTButton(title: "Send", systemImage: "paperplane.fill", kind: .primary,
                      isLoading: vm.isSending) {
                 Task { await vm.send(site: site) }
@@ -51,6 +45,40 @@ struct KTAPIRequestPanel: View {
         }
         .padding(.horizontal, 14).padding(.vertical, 11)
         .overlay(alignment: .bottom) { Rectangle().fill(KTColor.sep).frame(height: 0.5) }
+    }
+
+    private var methodPicker: some View {
+        let tint = KTAPIMethodStyle.tint(vm.draftMethod)
+        return Menu {
+            ForEach(APITesterViewModel.methods, id: \.self) { method in
+                Button(method) { vm.draftMethod = method }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(vm.draftMethod.uppercased()).font(.jbMono(10.5, .bold)).foregroundStyle(tint.fg)
+                Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundStyle(tint.fg)
+            }
+            .padding(.horizontal, 8).padding(.vertical, 5)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(tint.bg))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+    }
+
+    private var urlField: some View {
+        HStack(spacing: 0) {
+            Text("\(site.secure ? "https" : "http")://\(site.domain)")
+                .font(.jbMono(12)).foregroundStyle(KTColor.faint).lineLimit(1)
+            TextField("/path", text: $vm.draftPath)
+                .textFieldStyle(.plain)
+                .font(.jbMono(12.5))
+                .foregroundStyle(KTColor.ink)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 7)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color(hex: 0xFBFBFC)))
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(KTColor.fieldBorder, lineWidth: 0.5))
+        .frame(maxWidth: .infinity)
     }
 
     private var settingsRow: some View {
@@ -217,7 +245,7 @@ struct KTAPIRequestPanel: View {
 
     private func urlPreview(_ route: APIRoute) -> String {
         let scheme = site.secure ? "https" : "http"
-        var path = route.uri.hasPrefix("/") ? route.uri : "/" + route.uri
+        var path = vm.normalizedDraftPath
         for param in vm.requestDraft.pathParams where !param.value.isEmpty {
             let value = vm.resolved(param.value)
             path = path.replacingOccurrences(of: "{\(param.key)?}", with: value)

@@ -61,7 +61,8 @@ struct KTAPITesterModal: View {
             if vm.isLoadingRoutes {
                 ProgressView().controlSize(.small)
             } else {
-                Text("\(vm.routes.count) routes").font(.jbMono(12)).foregroundStyle(KTColor.faint)
+                Text(vm.isGenericMode ? "REST client" : "\(vm.routes.count) routes")
+                    .font(.jbMono(12)).foregroundStyle(KTColor.faint)
             }
             closeButton
         }
