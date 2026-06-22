@@ -63,7 +63,7 @@ struct LogsSectionView: View {
     }
 
     private var sourceMenu: some View {
-        KTDropdown(width: 260,
+        KTDropdown(width: 240, maxHeight: 320, compact: true,
                    options: sources.map { source in
                        KTDropdownOption(label: source.displayName, active: source.id == selectedID) {
                            selectedID = source.id
