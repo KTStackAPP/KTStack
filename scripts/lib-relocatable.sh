@@ -24,6 +24,17 @@ relocatable_gate() {
 # seals the binary against post-stage tampering. Phase 9 replaces this with a Developer ID signature.
 ad_hoc_sign() { codesign --force --sign - "$@"; }
 
+# Sign every passed Mach-O with the production Developer ID when DEV_ID is set (hardened php enforces
+# macOS Library Validation — a loaded .so/.dylib must carry the same Team ID), else fall back to
+# ad-hoc for dev. Use for bundles whose sidecar dylibs/coder modules are loaded under the runtime.
+prod_sign() {
+    if [[ -n "${DEV_ID:-}" ]]; then
+        codesign --force --options runtime --timestamp --sign "$DEV_ID" "$@"
+    else
+        ad_hoc_sign "$@"
+    fi
+}
+
 sha256_of() { shasum -a 256 "$1" | awk '{print $1}'; }
 
 brew_for_arch() {

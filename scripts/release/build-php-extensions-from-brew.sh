@@ -133,7 +133,7 @@ build_one() {
     fi
 
     local m
-    while IFS= read -r m; do [[ -e "$m" ]] && ad_hoc_sign "$m" >/dev/null 2>&1; done \
+    while IFS= read -r m; do [[ -e "$m" ]] && prod_sign "$m" >/dev/null 2>&1; done \
         < <(find "$stage" \( -name '*.so' -o -name '*.dylib' \))
 
     gate_extension_so "$stage" "$runtime_lib" || { echo "  ✗ $ext@$ver failed relocate gate"; return 1; }
