@@ -13,10 +13,11 @@ struct KTAPIVariablesSheet: View {
             columnHeader
             Rectangle().fill(KTColor.sep).frame(height: 0.5)
             rows
+            Spacer(minLength: 0)
             Rectangle().fill(KTColor.sep).frame(height: 0.5)
             footer
         }
-        .frame(width: 720, height: 520)
+        .frame(width: 720, height: 520, alignment: .top)
         .background(Color.white)
         .onChange(of: vm.variables) { _ in vm.saveVariables() }
     }
@@ -58,18 +59,14 @@ struct KTAPIVariablesSheet: View {
     }
 
     private var rows: some View {
-        GeometryReader { geo in
-            ScrollView {
-                VStack(spacing: 8) {
-                    ForEach($vm.variables) { $variable in
-                        row($variable)
-                    }
-                    addButton
-                }
-                .padding(.horizontal, 18).padding(.vertical, 14)
-                .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: .top)
+        VStack(spacing: 8) {
+            ForEach($vm.variables) { $variable in
+                row($variable)
             }
+            addButton
         }
+        .padding(.horizontal, 18).padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .top)
     }
 
     private func row(_ variable: Binding<EditablePair>) -> some View {
