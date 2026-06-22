@@ -171,11 +171,16 @@ public final class TunnelManager: ObservableObject {
 
     private func writeTunnelVhost(site: Site, port: Int, publicHost: String?) throws {
         let socket = site.type == .php ? paths.phpFpmSocket(generator.effectivePHPVersion(site.phpVersion)) : nil
+        if publicHost != nil {
+            try? TunnelHostPrepend.write(to: paths.tunnelHostPrependFile,
+                                         chainingPrepend: paths.dumpsPrependFile)
+        }
         let config = tunnelWriter.vhost(site: site, port: port, phpFpmSocket: socket,
                                         accessLog: paths.siteAccessLog(site.domain),
                                         errorLog: paths.siteErrorLog(site.domain),
                                         publicHost: publicHost,
-                                        supportsBodyRewrite: nginx.supportsResponseBodyRewrite())
+                                        supportsBodyRewrite: nginx.supportsResponseBodyRewrite(),
+                                        hostPrependFile: paths.tunnelHostPrependFile)
         try config.write(to: tunnelVhostURL(site.id), atomically: true, encoding: .utf8)
     }
 

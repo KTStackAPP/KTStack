@@ -7,9 +7,11 @@ public struct NginxTunnelVhostWriter {
 
     public func vhost(site: Site, port: Int, phpFpmSocket: URL?,
                       accessLog: URL? = nil, errorLog: URL? = nil,
-                      publicHost: String? = nil, supportsBodyRewrite: Bool = false) -> String {
+                      publicHost: String? = nil, supportsBodyRewrite: Bool = false,
+                      hostPrependFile: URL? = nil) -> String {
         let root = URL(fileURLWithPath: site.docroot)
-        let routing = phpFpmSocket.map { phpRouting(socket: $0, localHost: site.domain, publicHost: publicHost) } ?? staticRouting()
+        let prepend = publicHost == nil ? nil : hostPrependFile
+        let routing = phpFpmSocket.map { phpRouting(socket: $0, localHost: site.domain, publicHost: publicHost, prependFile: prepend) } ?? staticRouting()
         let index = phpFpmSocket == nil ? "index.html index.htm" : "index.php index.html"
         let rewrite = supportsBodyRewrite ? publicHostRewrite(localDomain: site.domain, publicHost: publicHost) : ""
         return """
@@ -36,8 +38,11 @@ public struct NginxTunnelVhostWriter {
         return "\n" + lines.map { "    " + $0 }.joined(separator: "\n")
     }
 
-    private func phpRouting(socket: URL, localHost: String, publicHost: String?) -> String {
+    private func phpRouting(socket: URL, localHost: String, publicHost: String?, prependFile: URL?) -> String {
         let forwardedHost = publicHost ?? localHost
+        let prependParam = prependFile.map {
+            "\n                fastcgi_param PHP_VALUE                \(NginxConfigWriter.q("auto_prepend_file=" + $0.path));"
+        } ?? ""
         return """
             location / {
                 try_files $uri $uri/ /index.php?$query_string;
@@ -66,7 +71,7 @@ public struct NginxTunnelVhostWriter {
                 fastcgi_param HTTP_X_FORWARDED_PORT    443;
                 fastcgi_param REMOTE_ADDR              $remote_addr;
                 fastcgi_param REMOTE_PORT              $remote_port;
-                fastcgi_param SERVER_ADDR              $server_addr;
+                fastcgi_param SERVER_ADDR              $server_addr;\(prependParam)
             }
 
             location ~ /\\.(?!well-known).* {

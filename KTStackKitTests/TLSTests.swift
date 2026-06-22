@@ -105,6 +105,25 @@ final class NginxTunnelVhostWriterTests: XCTestCase {
         XCTAssertFalse(v.contains("app.test"))
     }
 
+    func testTunnelVhostInjectsHostPrependWhenSharing() {
+        let site = Site(name: "App", path: "/site", docroot: "/site/public",
+                        domain: "app.test", phpVersion: "8.4", type: .php, secure: true)
+        let v = writer.vhost(site: site, port: 45129,
+                             phpFpmSocket: URL(fileURLWithPath: "/run/php-fpm-8.4.sock"),
+                             publicHost: "demo.trycloudflare.com",
+                             hostPrependFile: URL(fileURLWithPath: "/cfg/tunnel-host-prepend.php"))
+        XCTAssertTrue(v.contains("fastcgi_param PHP_VALUE                \"auto_prepend_file=/cfg/tunnel-host-prepend.php\";"))
+    }
+
+    func testTunnelVhostOmitsHostPrependWithoutPublicHost() {
+        let site = Site(name: "App", path: "/site", docroot: "/site/public",
+                        domain: "app.test", phpVersion: "8.4", type: .php, secure: true)
+        let v = writer.vhost(site: site, port: 45130,
+                             phpFpmSocket: URL(fileURLWithPath: "/run/php-fpm-8.4.sock"),
+                             hostPrependFile: URL(fileURLWithPath: "/cfg/tunnel-host-prepend.php"))
+        XCTAssertFalse(v.contains("auto_prepend_file"))
+    }
+
     func testTunnelVhostOmitsSubFilterWhenBodyRewriteUnsupported() {
         let site = Site(name: "App", path: "/site", docroot: "/site/public",
                         domain: "app.test", phpVersion: "8.4", type: .php, secure: true)

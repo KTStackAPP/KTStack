@@ -119,6 +119,8 @@ public struct AppSupportPaths: Sendable {
 
     public var dumpsPrependFile: URL { config.appendingPathComponent("php-vardumper-prepend.php") }
 
+    public var tunnelHostPrependFile: URL { config.appendingPathComponent("tunnel-host-prepend.php") }
+
 
     public var phpRuntimesRoot: URL { runtimeLangRoot("php") }
     public func phpFpmBinary(version: String) -> URL {
