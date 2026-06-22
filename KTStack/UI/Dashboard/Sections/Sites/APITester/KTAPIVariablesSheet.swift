@@ -58,16 +58,18 @@ struct KTAPIVariablesSheet: View {
     }
 
     private var rows: some View {
-        ScrollView {
-            VStack(spacing: 8) {
-                ForEach($vm.variables) { $variable in
-                    row($variable)
+        GeometryReader { geo in
+            ScrollView {
+                VStack(spacing: 8) {
+                    ForEach($vm.variables) { $variable in
+                        row($variable)
+                    }
+                    addButton
                 }
-                addButton
+                .padding(.horizontal, 18).padding(.vertical, 14)
+                .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: .top)
             }
-            .padding(.horizontal, 18).padding(.vertical, 14)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private func row(_ variable: Binding<EditablePair>) -> some View {
