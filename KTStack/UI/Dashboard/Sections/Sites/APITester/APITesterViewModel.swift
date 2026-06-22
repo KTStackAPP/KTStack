@@ -133,6 +133,20 @@ final class APITesterViewModel: ObservableObject {
         return path.hasPrefix("/") ? path : "/" + path
     }
 
+    func syncPathParams() {
+        let names = Self.pathParamNames(in: normalizedDraftPath)
+        let existing = Dictionary(requestDraft.pathParams.map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })
+        var rebuilt: [EditablePair] = []
+        var seen = Set<String>()
+        for name in names where !seen.contains(name) {
+            seen.insert(name)
+            rebuilt.append(existing[name] ?? EditablePair(key: name, value: ""))
+        }
+        if rebuilt.map(\.key) != requestDraft.pathParams.map(\.key) {
+            requestDraft.pathParams = rebuilt
+        }
+    }
+
     func select(_ route: APIRoute) {
         if let current = selected {
             drafts[current.id] = requestDraft

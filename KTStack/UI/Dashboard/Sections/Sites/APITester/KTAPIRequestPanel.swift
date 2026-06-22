@@ -74,6 +74,7 @@ struct KTAPIRequestPanel: View {
                 .textFieldStyle(.plain)
                 .font(.jbMono(12.5))
                 .foregroundStyle(KTColor.ink)
+                .onChange(of: vm.draftPath) { _ in vm.syncPathParams() }
         }
         .padding(.horizontal, 10).padding(.vertical, 7)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color(hex: 0xFBFBFC)))
