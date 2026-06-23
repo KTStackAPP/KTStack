@@ -138,10 +138,11 @@ extension PHPExtensionCatalog {
     ]
 
    
-    private static func ext(_ id: String, _ version: String, _ sha256: String) -> PHPExtensionRelease {
-        PHPExtensionRelease(
-            extID: id, phpVersion: version,
-            url: "https://github.com/KTStackAPP/KTStack/releases/download/binaries-v1/php-ext-\(id)-\(version)-arm64.tar.gz",
-            sha256: sha256)
+    private static func ext(_ id: String, _ version: String, _ arm64: String) -> PHPExtensionRelease {
+        var sha256ByArch = ["arm64": arm64]
+        if let x86 = extChecksumsX86["\(id)-\(version)"] { sha256ByArch["x86_64"] = x86 }
+        return PHPExtensionRelease(extID: id, phpVersion: version, sha256ByArch: sha256ByArch)
     }
+
+    static let extChecksumsX86: [String: String] = [:]
 }

@@ -33,17 +33,25 @@ public struct PHPExtension: Sendable, Hashable, Identifiable {
 public struct PHPExtensionRelease: Sendable, Hashable, Identifiable {
     public let extID: String
     public let phpVersion: String
-    public let url: URL
-    public let sha256: String
+    public let sha256ByArch: [String: String]
 
     public var id: String { "\(extID)-\(phpVersion)" }
 
-    public init(extID: String, phpVersion: String, url: String, sha256: String) {
+    public init(extID: String, phpVersion: String, sha256ByArch: [String: String]) {
         self.extID = extID
         self.phpVersion = phpVersion
-        self.url = URL(string: url)!
-        self.sha256 = sha256
+        self.sha256ByArch = sha256ByArch
     }
+
+    public var fileName: String { "php-ext-\(extID)-\(phpVersion)-\(RuntimeCatalog.arch).tar.gz" }
+
+    public var url: URL {
+        URL(string: "https://github.com/KTStackAPP/KTStack/releases/download/binaries-v1/\(fileName)")!
+    }
+
+    public var sha256: String { sha256ByArch[RuntimeCatalog.arch] ?? "" }
+
+    public var supportsCurrentArch: Bool { ChecksumVerifier.isResolved(sha256ByArch[RuntimeCatalog.arch]) }
 }
 public enum PHPExtensionStatus: String, Sendable, Hashable {
     case builtIn
@@ -65,7 +73,7 @@ public struct PHPExtensionCatalog: Sendable {
 
    
     public func release(_ extID: String, phpVersion: String) -> PHPExtensionRelease? {
-        Self.manifest.first { $0.extID == extID && $0.phpVersion == phpVersion }
+        Self.manifest.first { $0.extID == extID && $0.phpVersion == phpVersion && $0.supportsCurrentArch }
     }
 
     // MARK: Installed-state resolution
