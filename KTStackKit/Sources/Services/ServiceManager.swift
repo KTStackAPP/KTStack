@@ -136,7 +136,14 @@ public final class ServiceManager: ObservableObject {
     // MARK: - On-demand engine install
 
     public func install(_ kind: ServiceKind) {
-        guard installTasks[kind] == nil, let release = catalog.availableRelease(kind) else { return }
+        guard installTasks[kind] == nil else { return }
+        guard let release = catalog.availableRelease(kind) else {
+            if !catalog.isInstalled(kind),
+               ServiceBinaryCatalog.manifest.contains(where: { $0.kind == kind }) {
+                installError[kind] = "\(kind.displayName) isn’t available for \(ServiceBinaryCatalog.arch) yet."
+            }
+            return
+        }
         let marker = ServiceBinaryCatalog.marker(kind) ?? ""
         let dest = catalog.installDir(release)
         downloadFraction[kind] = 0

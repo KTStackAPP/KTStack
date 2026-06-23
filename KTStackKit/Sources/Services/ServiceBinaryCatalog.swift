@@ -33,7 +33,7 @@ public struct ServiceBinaryRelease: Sendable, Hashable, Identifiable {
             ?? ServiceBinaryCatalog.releaseBaseURL.appendingPathComponent(fileName)
     }
 
-    public var supportsCurrentArch: Bool { sha256ByArch[ServiceBinaryCatalog.arch] != nil }
+    public var supportsCurrentArch: Bool { ChecksumVerifier.isResolved(sha256ByArch[ServiceBinaryCatalog.arch]) }
 }
 
 public struct ServiceBinaryCatalog: Sendable {

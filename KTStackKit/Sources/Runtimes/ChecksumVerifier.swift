@@ -11,6 +11,11 @@ public enum ChecksumVerifier {
     }
 
    
+    public static func isResolved(_ checksum: String?) -> Bool {
+        guard let checksum else { return false }
+        return checksum.count == 64 && checksum.allSatisfy(\.isHexDigit)
+    }
+
     public static func sha256(of file: URL) throws -> String {
         let handle = try FileHandle(forReadingFrom: file)
         defer { try? handle.close() }

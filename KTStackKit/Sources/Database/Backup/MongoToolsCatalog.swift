@@ -15,7 +15,7 @@ public struct MongoToolsRelease: Sendable, Hashable, Identifiable {
     }
 
     public var id: String { "mongodb-database-tools-\(version)" }
-    public var supportsCurrentArch: Bool { sha256ByArch[ServiceBinaryCatalog.arch] != nil }
+    public var supportsCurrentArch: Bool { ChecksumVerifier.isResolved(sha256ByArch[ServiceBinaryCatalog.arch]) }
     public var sha256: String { sha256ByArch[ServiceBinaryCatalog.arch] ?? "" }
     public var url: URL? { urlByArch[ServiceBinaryCatalog.arch] }
 }

@@ -49,8 +49,7 @@ public struct RuntimeRelease: Sendable, Hashable, Identifiable {
     public var sha256: String { sha256ByArch[RuntimeCatalog.arch] ?? "" }
 
     public var supportsCurrentArch: Bool {
-        guard let sha = sha256ByArch[RuntimeCatalog.arch] else { return false }
-        return sha.count == 64
+        ChecksumVerifier.isResolved(sha256ByArch[RuntimeCatalog.arch])
     }
 }
 
