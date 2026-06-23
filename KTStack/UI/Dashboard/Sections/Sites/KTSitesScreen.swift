@@ -33,7 +33,6 @@ private struct KTSitesContent: View {
     @State private var gridView = false
     @State private var showScan = false
     @State private var showImport = false
-    @State private var showAdd = false
     @State private var removingSiteID: UUID?
     @State private var actionError: String?
 
@@ -50,8 +49,7 @@ private struct KTSitesContent: View {
             KTSitesHeader(siteCount: registry.sites.count,
                           onScan: { showScan = true },
                           onImport: { showImport = true },
-                          onNewSite: { overlay.newSitePresented = true },
-                          onAddExisting: { showAdd = true })
+                          onNewSite: { overlay.newSitePresented = true })
                 .padding(.horizontal, KTSpacing.screenGutter)
                 .padding(.top, 18)
 
@@ -84,7 +82,6 @@ private struct KTSitesContent: View {
         .background(KTColor.contentBg)
         .sheet(isPresented: $showScan) { ScanImportSheet(registry: registry, sitesRoot: preferences.sitesRootURL) }
         .sheet(isPresented: $showImport) { MigrateImportSheet(registry: registry, availableVersions: server.availableVersions) }
-        .sheet(isPresented: $showAdd) { AddSiteSheet(registry: registry, availableVersions: server.availableVersions, sitesRoot: preferences.sitesRootURL) }
     }
 
     private var serverStatusRow: some View {
