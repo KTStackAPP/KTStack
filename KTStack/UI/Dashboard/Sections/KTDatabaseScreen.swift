@@ -36,6 +36,25 @@ struct KTDatabaseScreen: View {
         .task { await autoConnectIfNeeded(); await reloadBackups() }
     }
 
+    private var canDropDatabase: Bool {
+        vm.connection == .connected && !vm.isReadOnlyConnection && vm.canDropDatabase
+    }
+
+    private func confirmDropDatabase(_ name: String) {
+        overlay.confirm(title: "Drop database?",
+                        message: "Permanently delete database “\(name)” and all of its tables. This cannot be undone.",
+                        okLabel: "Drop", danger: true) {
+            Task {
+                vm.prepareDropDatabase(name)
+                if await vm.confirmDropDatabase(name) {
+                    overlay.toast("Dropped “\(name)”")
+                } else if let error = vm.ddlError {
+                    overlay.toast(error)
+                }
+            }
+        }
+    }
+
     private func confirmDeleteBackup(_ set: BackupSet) {
         overlay.confirm(title: "Delete backup?",
                         message: "Permanently delete this backup. This cannot be undone.",
@@ -111,7 +130,8 @@ struct KTDatabaseScreen: View {
                               onOpen: { open(db.name) },
                               onBackup: { backup(db.name) },
                               onExport: { exportSQL(db.name) },
-                              onRestore: { tab = .backups })
+                              onRestore: { tab = .backups },
+                              onDrop: canDropDatabase ? { confirmDropDatabase(db.name) } : nil)
                 if index < databases.count - 1 {
                     Rectangle().fill(KTColor.sepFaint).frame(height: 0.5).padding(.leading, 18)
                 }

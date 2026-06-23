@@ -19,6 +19,7 @@ struct KTDatabaseRow: View {
     let onBackup: () -> Void
     let onExport: () -> Void
     let onRestore: () -> Void
+    var onDrop: (() -> Void)? = nil
 
     @State private var hovering = false
 
@@ -45,6 +46,10 @@ struct KTDatabaseRow: View {
                 Button("Backup Now", systemImage: "tray.and.arrow.down", action: onBackup)
                 Button("Restore from Backups…", systemImage: "clock.arrow.circlepath", action: onRestore)
                 Button("Export SQL…", systemImage: "square.and.arrow.up", action: onExport)
+                if let onDrop {
+                    Divider()
+                    Button("Drop Database…", systemImage: "trash", role: .destructive, action: onDrop)
+                }
             } label: {
                 Image(systemName: "ellipsis").font(.system(size: 15, weight: .regular))
                     .foregroundStyle(KTColor.muted).frame(width: 32, height: 30).contentShape(Rectangle())
