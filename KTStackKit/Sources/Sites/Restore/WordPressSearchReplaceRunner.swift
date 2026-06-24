@@ -22,7 +22,7 @@ public struct WordPressSearchReplaceRunner: Sendable {
         for (from, to) in replacements(old: oldValue, new: newValue) where from != to {
             try Task.checkCancellation()
             emit("Rewriting \(from) → \(to)…")
-            _ = try cli.run(["search-replace", "--all-tables", "--precise", "--report-changes-only", path]
+            _ = try cli.run(["search-replace", "--all-tables", "--precise", "--report-changed-only", path]
                             + WordPressCLI.skipFlags + ["--", from, to], in: docroot)
         }
 
