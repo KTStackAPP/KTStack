@@ -31,6 +31,7 @@ struct DumpTreeView: View {
                                 .frame(minWidth: 40, alignment: .trailing)
                             DumpTreeView(pair.value, depth: depth + 1)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.leading, KDSpacing.space3)
                     }
                 } label: {
@@ -51,6 +52,7 @@ struct DumpTreeView: View {
                                 .frame(minWidth: 60, alignment: .trailing)
                             DumpTreeView(pair.value, depth: depth + 1)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.leading, KDSpacing.space3)
                     }
                 } label: {
