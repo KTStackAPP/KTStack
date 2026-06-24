@@ -19,6 +19,14 @@ final class WordPressArgumentValidatorTests: XCTestCase {
         }
     }
 
+    func testRejectsLeadingDashHost() {
+        for hostile in ["http://-evil.com", "-evil.com", "https://-x"] {
+            XCTAssertThrowsError(try WordPressArgumentValidator.validateURL(hostile)) { error in
+                XCTAssertEqual(error as? WordPressArgumentError, .invalidURL(hostile))
+            }
+        }
+    }
+
     func testRejectsControlAndQuoteCharacters() {
         for hostile in ["https://old.test\u{0}", "https://old.test ; rm -rf", "https://old'test", "https://old\"test"] {
             XCTAssertThrowsError(try WordPressArgumentValidator.validateURL(hostile))

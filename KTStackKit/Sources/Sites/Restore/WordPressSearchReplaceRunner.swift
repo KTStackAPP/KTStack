@@ -23,12 +23,12 @@ public struct WordPressSearchReplaceRunner: Sendable {
             try Task.checkCancellation()
             emit("Rewriting \(from) → \(to)…")
             _ = try cli.run(["search-replace", "--all-tables", "--precise", "--report-changed-only", path]
-                            + WordPressCLI.skipFlags + ["--", from, to], in: docroot)
+                            + WordPressCLI.skipFlags + [from, to], in: docroot)
         }
 
         emit("Setting site address…")
         for key in ["siteurl", "home"] {
-            _ = try cli.run(["option", "update", path] + WordPressCLI.skipFlags + ["--", key, newValue], in: docroot)
+            _ = try cli.run(["option", "update", path] + WordPressCLI.skipFlags + [key, newValue], in: docroot)
         }
         _ = try? cli.run(["rewrite", "flush", path] + WordPressCLI.skipFlags, in: docroot)
     }

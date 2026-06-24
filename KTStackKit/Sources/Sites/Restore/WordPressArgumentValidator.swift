@@ -22,7 +22,7 @@ enum WordPressArgumentValidator {
         guard !value.isEmpty, !value.hasPrefix("-"), !containsUnsafeScalars(value) else {
             throw WordPressArgumentError.invalidURL(value)
         }
-        let pattern = #"^(https?://)?[A-Za-z0-9.\-]+(:[0-9]+)?(/[^\s]*)?$"#
+        let pattern = #"^(https?://)?[A-Za-z0-9][A-Za-z0-9.\-]*(:[0-9]+)?(/[^\s]*)?$"#
         guard matches(pattern, value) else { throw WordPressArgumentError.invalidURL(value) }
         return value
     }
