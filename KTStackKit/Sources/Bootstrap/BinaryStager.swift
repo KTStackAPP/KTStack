@@ -35,6 +35,7 @@ public struct BinaryStager {
 
     public func stageIfNeeded() throws {
         try paths.ensureDirectoryTree(fileManager: fileManager)
+        RestoreStagingArea(paths: paths).sweepOrphans(keeping: [])
         for name in Self.binBinaries {
             try stage(from: bundleBinDir.appendingPathComponent(name),
                       to: paths.bin.appendingPathComponent(name), displayName: name)
