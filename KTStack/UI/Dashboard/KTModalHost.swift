@@ -10,10 +10,6 @@ struct KTWindowModals: View {
 
     var body: some View {
         ZStack {
-            if overlay.databaseEditorPresented {
-                KTDatabaseEditorModal(onClose: { overlay.databaseEditorPresented = false })
-                    .transition(.opacity)
-            }
             if overlay.newSitePresented {
                 KTModalCard(icon: "plus.app", tint: KTIconTint.cube,
                             title: "New Site", subtitle: "Create a new local development site",
@@ -49,7 +45,6 @@ struct KTWindowModals: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .animation(.easeOut(duration: 0.15), value: overlay.databaseEditorPresented)
         .animation(.easeOut(duration: 0.15), value: overlay.newSitePresented)
         .animation(.easeOut(duration: 0.15), value: overlay.connectPresented)
         .animation(.easeOut(duration: 0.15), value: overlay.newDatabasePresented)

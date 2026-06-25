@@ -1,7 +1,7 @@
 import SwiftUI
 import KTStackKit
 
-struct KTDatabaseEditorModal: View {
+struct KTDatabaseEditorRoot: View {
     @EnvironmentObject private var vm: DatabaseViewModel
     let onClose: () -> Void
 
@@ -23,31 +23,22 @@ struct KTDatabaseEditorModal: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                KTColor.modalScrim.ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .onTapGesture(perform: onClose)
-                card
-                    .frame(width: min(1200, geo.size.width - 56),
-                           height: min(760, geo.size.height - 56))
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-
-    private var card: some View {
         VStack(spacing: 0) {
-            headerBar
-            HStack(spacing: 0) {
-                KTEditorTableSidebar(filter: $tableFilter,
-                                     onRefresh: { Task { await reloadCurrentDatabase() } },
-                                     onAddTable: { ddlSheet = .createTable })
-                tabContent
+            titlebar
+            objectTabs
+            if vm.connection == .connected {
+                HStack(spacing: 0) {
+                    KTEditorTableSidebar(filter: $tableFilter,
+                                         onRefresh: { Task { await reloadCurrentDatabase() } },
+                                         onAddTable: { ddlSheet = .createTable })
+                    tabContent
+                }
+            } else {
+                disconnectedState
             }
         }
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(KTEditorTheme.window)
         .background(escCatcher)
         .onChange(of: vm.selectedTable) { _ in selectedRow = nil; pendingDelete = nil }
         .sheet(item: $rowEditor) { RowEditorView(mode: $0) }
@@ -68,57 +59,77 @@ struct KTDatabaseEditorModal: View {
         } message: { Text($0) }
     }
 
-    private var headerBar: some View {
-        HStack(spacing: 13) {
-            KTIconTile(tint: engineTint, size: 30, radius: 8) {
-                Image(systemName: "cylinder.split.1x2").font(.system(size: 15, weight: .medium))
+    private var titlebar: some View {
+        HStack(spacing: 11) {
+            KTIconTile(tint: engineTint, size: 26, radius: 7) {
+                Image(systemName: "cylinder.split.1x2").font(.system(size: 13, weight: .medium))
             }
-            Text(schemaName)
-                .font(.jbMono(16, .bold))
-                .foregroundStyle(KTColor.ink)
-            connectionBadge
+            HStack(spacing: 7) {
+                Text("SQL Editor")
+                    .font(.jbMono(13, .semibold))
+                    .foregroundStyle(KTEditorTheme.label)
+                Text(schemaName)
+                    .font(.jbMono(13, .medium))
+                    .foregroundStyle(KTEditorTheme.label2)
+            }
             Spacer()
-            KTSegmentedTabs(items: [.init(value: EditorTab.data, label: "Data"),
-                                    .init(value: .structure, label: "Structure"),
-                                    .init(value: .query, label: "Query"),
-                                    .init(value: .er, label: "ER")],
-                            selection: $tab, large: true)
-            closeButton
+            connectionPill
         }
-        .padding(.horizontal, 18).padding(.vertical, 13)
-        .background(LinearGradient(colors: [Color(hex: 0xFBFBFD), .white], startPoint: .top, endPoint: .bottom))
-        .overlay(alignment: .bottom) { Rectangle().fill(KTColor.sep).frame(height: 0.5) }
+        .padding(.leading, 80).padding(.trailing, 14).padding(.vertical, 8)
+        .background(LinearGradient(colors: [KTEditorTheme.titlebarTop, KTEditorTheme.titlebarBottom],
+                                   startPoint: .top, endPoint: .bottom))
+    }
+
+    private var objectTabs: some View {
+        KTEditorObjectTabs(items: [.init(value: EditorTab.data, label: "Data", systemImage: "tablecells"),
+                                   .init(value: .structure, label: "Structure", systemImage: "list.bullet.rectangle"),
+                                   .init(value: .query, label: "Query", systemImage: "chevron.left.forwardslash.chevron.right"),
+                                   .init(value: .er, label: "ER", systemImage: "point.3.connected.trianglepath.dotted")],
+                           selection: $tab)
     }
 
     @ViewBuilder
-    private var connectionBadge: some View {
+    private var connectionPill: some View {
         switch vm.connection {
         case .connected:
-            HStack(spacing: 6) {
-                Image(systemName: "checkmark.circle").font(.system(size: 13, weight: .regular))
-                Text("Connected").font(.jbMono(13, .regular))
-            }
-            .foregroundStyle(KTColor.online)
+            pill(color: KTEditorTheme.Status.running, text: "Connected")
         case .connecting:
             HStack(spacing: 6) {
                 ProgressView().controlSize(.small)
-                Text("Connecting…").font(.jbMono(13)).foregroundStyle(KTColor.muted)
+                Text("Connecting…").font(.jbMono(11)).foregroundStyle(KTEditorTheme.label2)
             }
+            .padding(.horizontal, 8).padding(.vertical, 2)
+            .background(Capsule().fill(KTEditorTheme.pillBg))
         default:
-            HStack(spacing: 6) {
-                Image(systemName: "exclamationmark.triangle").font(.system(size: 13))
-                Text("Disconnected").font(.jbMono(13))
-            }
-            .foregroundStyle(KTColor.danger)
+            pill(color: KTEditorTheme.Status.error, text: "Disconnected")
         }
     }
 
-    private var closeButton: some View {
-        Button(action: onClose) {
-            Image(systemName: "xmark").font(.system(size: 14, weight: .medium))
-                .foregroundStyle(KTColor.muted).frame(width: 30, height: 30).contentShape(Rectangle())
+    private func pill(color: Color, text: String) -> some View {
+        HStack(spacing: 5) {
+            Circle().fill(color).frame(width: 7, height: 7)
+                .shadow(color: color.opacity(0.6), radius: 2)
+            Text(text).font(.jbMono(11)).foregroundStyle(KTEditorTheme.label2)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 8).padding(.vertical, 2)
+        .background(Capsule().fill(KTEditorTheme.pillBg))
+    }
+
+    private var disconnectedState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "cylinder.split.1x2")
+                .font(.system(size: 42, weight: .light))
+                .foregroundStyle(KTEditorTheme.label3)
+            Text("Not connected")
+                .font(.jbMono(15, .regular))
+                .foregroundStyle(KTEditorTheme.label2)
+            Text("Connect to a database from the dashboard to browse it here.")
+                .font(.jbMono(12))
+                .foregroundStyle(KTEditorTheme.label3)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(KTEditorTheme.content)
     }
 
     private var tabContent: some View {

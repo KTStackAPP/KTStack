@@ -8,6 +8,8 @@ struct KTDatabaseScreen: View {
     @EnvironmentObject private var services: ServiceManager
     @EnvironmentObject private var overlay: KTOverlayCenter
 
+    let onOpenEditor: () -> Void
+
     enum Tab: Hashable { case databases, backups }
 
     @State private var tab: Tab = .databases
@@ -210,7 +212,7 @@ struct KTDatabaseScreen: View {
     private func open(_ name: String) {
         Task {
             await vm.select(database: name)
-            overlay.databaseEditorPresented = true
+            onOpenEditor()
         }
     }
 

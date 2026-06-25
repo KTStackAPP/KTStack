@@ -14,14 +14,13 @@ final class KTOverlayCenter: ObservableObject {
 
     @Published var toastMessage: String?
     @Published var confirmRequest: ConfirmRequest?
-    @Published var databaseEditorPresented = false
     @Published var newSitePresented = false
     @Published var connectPresented = false
     @Published var newDatabasePresented = false
     @Published var apiTesterSite: Site?
 
     var anyModalPresented: Bool {
-        databaseEditorPresented || newSitePresented || connectPresented
+        newSitePresented || connectPresented
             || newDatabasePresented || apiTesterSite != nil
     }
 
