@@ -90,13 +90,13 @@ struct KTDataGrid: NSViewRepresentable {
         static let cellFont: NSFont =
             NSFont(name: "JetBrainsMono-Medium", size: 12.5)
             ?? .monospacedSystemFont(ofSize: 12, weight: .regular)
-        static let gridBackground = NSColor(hexValue: 0x252527)
-        static let textColor = NSColor(white: 0.85, alpha: 1)
-        static let nullColor = NSColor(hexValue: 0x8E8E93)
-        static let editingColor = NSColor(hexValue: 0x143A5C)
-        static let editingTextColor = NSColor.white
-        static let foreignKeyColor = NSColor(hexValue: 0x0A84FF)
-        static let numberColor = NSColor(hexValue: 0xFFB454)
+        static let gridBackground = NSColor(hexValue: 0xFFFFFF)
+        static let textColor = NSColor(hexValue: 0x1D1D1F)
+        static let nullColor = NSColor(hexValue: 0x9A9AA5)
+        static let editingColor = NSColor(hexValue: 0xE6EDFF)
+        static let editingTextColor = NSColor(hexValue: 0x1D1D1F)
+        static let foreignKeyColor = NSColor(hexValue: 0x2F6BFF)
+        static let numberColor = NSColor(hexValue: 0xB26A00)
 
         static func isNumeric(_ cell: Cell) -> Bool {
             switch cell {
