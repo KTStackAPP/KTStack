@@ -15,6 +15,7 @@ enum KTDatabaseVisuals {
 struct KTServerRow: View {
     let profile: ConnectionProfile
     let status: ServerStatus
+    let databaseCount: Int?
     let onOpen: () -> Void
     let onBackup: () -> Void
     let onRestore: () -> Void
@@ -25,17 +26,17 @@ struct KTServerRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            KTIconTile(tint: KTEngineTint.of(profile.kind.rawValue), size: 40, radius: 11) {
+            KTIconTile(tint: KTEngineTint.of(profile.kind.rawValue), size: 44, radius: 11) {
                 Image(systemName: profile.kind == .mongodb ? "leaf.fill" : "cylinder.split.1x2")
                     .font(.system(size: 18, weight: .medium))
             }
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 9) {
-                    Text(profile.name).font(.jbMono(14.5, .regular)).foregroundStyle(KTColor.ink)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(profile.name).font(KTType.rowName).foregroundStyle(KTColor.ink)
                     KTBadge(text: KTDatabaseVisuals.engineLabel(profile.kind),
-                            tint: KTEngineTint.of(profile.kind.rawValue), radius: 6)
+                            tint: KTEngineTint.of(profile.kind.rawValue), radius: 5)
                     if profile.isManaged {
-                        Text("bundled").font(KTType.sub).foregroundStyle(KTColor.faint)
+                        Text("bundled").font(KTType.sub).foregroundStyle(KTColor.muted)
                     }
                 }
                 statusLine
@@ -44,44 +45,51 @@ struct KTServerRow: View {
             KTButton(title: "Open", kind: .primary, action: onOpen).disabled(!isOnline)
             ghostIcon("tray.and.arrow.down", help: "Backup now", action: onBackup)
                 .disabled(!isOnline)
-                .opacity(isOnline ? 1 : 0.5)
+                .opacity(isOnline ? 1 : 0.4)
             Menu {
                 Button("Open in Editor", systemImage: "tablecells", action: onOpen).disabled(!isOnline)
                 Button("Backup Now", systemImage: "tray.and.arrow.down", action: onBackup).disabled(!isOnline)
                 Button("Restore from Backups…", systemImage: "clock.arrow.circlepath", action: onRestore)
             } label: {
                 Image(systemName: "ellipsis").font(.system(size: 15, weight: .regular))
-                    .foregroundStyle(KTColor.muted).frame(width: 32, height: 30).contentShape(Rectangle())
+                    .foregroundStyle(KTColor.muted).frame(width: 28, height: 30).contentShape(Rectangle())
             }
-            .menuStyle(.borderlessButton).menuIndicator(.hidden).frame(width: 32)
+            .menuStyle(.borderlessButton).menuIndicator(.hidden).frame(width: 28)
         }
-        .padding(.vertical, 15)
-        .padding(.horizontal, 18)
-        .background(hovering ? KTColor.rowHover : Color.clear)
+        .padding(.vertical, 13)
+        .padding(.horizontal, 16)
+        .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(hovering ? KTColor.rowHover : .white))
+        .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(KTColor.sep, lineWidth: 1))
         .onHover { hovering = $0 }
     }
 
     private var statusLine: some View {
-        HStack(spacing: 7) {
-            KTDot(color: dotColor, size: 6)
-            Text(statusText).font(KTType.sub).foregroundStyle(KTColor.muted)
+        HStack(spacing: 6) {
+            Circle().fill(statusColor).frame(width: 7, height: 7)
+                .shadow(color: isOnline ? statusColor.opacity(0.55) : .clear, radius: isOnline ? 2.5 : 0)
+            Text(statusText).font(KTType.sub).foregroundStyle(statusColor)
         }
     }
 
-    private var dotColor: Color {
+    private var statusColor: Color {
         switch status {
-        case .online:     return KTColor.runDot
-        case .connecting: return Color(hex: 0xFF9F0A)
-        case .offline:    return KTColor.stopDot
+        case .online:     return KTColor.online
+        case .connecting: return KTColor.accent
+        case .offline:    return KTColor.muted
         }
     }
 
     private var statusText: String {
         switch status {
-        case .online:     return "Online · \(endpoint)"
+        case .online:     return "Online · \(endpoint)\(databaseSuffix)"
         case .connecting: return "Connecting… · \(endpoint)"
         case .offline:    return profile.isManaged ? "Offline · engine not running" : "Offline"
         }
+    }
+
+    private var databaseSuffix: String {
+        guard let count = databaseCount else { return "" }
+        return " · \(count) \(count == 1 ? "database" : "databases")"
     }
 
     private var endpoint: String {

@@ -86,7 +86,8 @@ struct KTDatabaseScreen: View {
     private var serversTab: some View {
         if connectionStore.allProfiles.isEmpty {
             emptyState(icon: "cylinder.split.1x2", title: "No connections yet",
-                       message: "Add a database server to browse it.")
+                       message: "Add a database server to browse it. Bundled MySQL / PostgreSQL / MongoDB appear here once their engine is running.",
+                       cta: ("Connect a server", "link", { overlay.connectPresented = true }))
         } else {
             VStack(spacing: 14) {
                 KTSearchField(text: $serverSearch, placeholder: "Search connections…")
@@ -95,7 +96,7 @@ struct KTDatabaseScreen: View {
                     emptyState(icon: "magnifyingglass", title: "No matches",
                                message: "No connection matches “\(serverSearch)”.")
                 } else {
-                    ScrollView { KTListContainer { serverRows(matches) } }
+                    ScrollView { serverRows(matches) }
                 }
             }
         }
@@ -111,18 +112,21 @@ struct KTDatabaseScreen: View {
     }
 
     private func serverRows(_ profiles: [ConnectionProfile]) -> some View {
-        VStack(spacing: 0) {
-            ForEach(Array(profiles.enumerated()), id: \.element.id) { index, profile in
+        LazyVStack(spacing: 10) {
+            ForEach(profiles) { profile in
                 KTServerRow(profile: profile,
                             status: reachability.currentStatus(for: profile.id),
+                            databaseCount: databaseCount(for: profile),
                             onOpen: { open(profile) },
                             onBackup: { backupServer(profile) },
                             onRestore: { tab = .backups })
-                if index < profiles.count - 1 {
-                    Rectangle().fill(KTColor.sepFaint).frame(height: 0.5).padding(.leading, 18)
-                }
             }
         }
+    }
+
+    private func databaseCount(for profile: ConnectionProfile) -> Int? {
+        guard vm.connection == .connected, vm.selectedProfile?.id == profile.id else { return nil }
+        return vm.databases.count
     }
 
     @ViewBuilder
@@ -158,11 +162,17 @@ struct KTDatabaseScreen: View {
         }
     }
 
-    private func emptyState(icon: String, title: String, message: String) -> some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon).font(.system(size: 46, weight: .light)).foregroundStyle(KTColor.faint)
-            Text(title).font(.jbMono(17, .regular)).foregroundStyle(KTColor.ink3)
-            Text(message).font(.jbMono(13)).foregroundStyle(KTColor.muted).multilineTextAlignment(.center)
+    private func emptyState(icon: String, title: String, message: String,
+                            cta: (title: String, systemImage: String, action: () -> Void)? = nil) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon).font(.system(size: 42, weight: .light)).foregroundStyle(KTColor.faint)
+            Text(title).font(.jbMono(16, .regular)).foregroundStyle(KTColor.ink3)
+            Text(message).font(.jbMono(12.5)).foregroundStyle(KTColor.muted)
+                .multilineTextAlignment(.center).frame(maxWidth: 380)
+            if let cta {
+                KTButton(title: cta.title, systemImage: cta.systemImage, kind: .primary, action: cta.action)
+                    .padding(.top, 4)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
