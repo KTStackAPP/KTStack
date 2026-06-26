@@ -14,10 +14,6 @@ struct KTDatabaseEditorRoot: View {
     @State private var pendingDelete: Int?
     @State private var ddlSheet: DDLActionSheet.Mode?
 
-    private var engineTint: KTTint {
-        KTEngineTint.of(vm.selectedProfile?.kind.rawValue ?? "mysql")
-    }
-
     private var schemaName: String {
         vm.selectedDatabase ?? vm.selectedProfile?.name ?? "database"
     }
@@ -61,12 +57,12 @@ struct KTDatabaseEditorRoot: View {
 
     private var titlebar: some View {
         HStack(spacing: 11) {
-            KTIconTile(tint: engineTint, size: 26, radius: 7) {
+            KTIconTile(tint: KTIconTint.db, size: 26, radius: 7) {
                 Image(systemName: "cylinder.split.1x2").font(.system(size: 13, weight: .medium))
             }
-            HStack(spacing: 7) {
+            HStack(spacing: 6) {
                 Text("SQL Editor")
-                    .font(.jbMono(13, .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(KTEditorTheme.label)
                 Text(schemaName)
                     .font(.jbMono(13, .medium))
@@ -75,7 +71,8 @@ struct KTDatabaseEditorRoot: View {
             Spacer()
             connectionPill
         }
-        .padding(.leading, 80).padding(.trailing, 14).padding(.vertical, 8)
+        .frame(height: 44)
+        .padding(.leading, 78).padding(.trailing, 14)
         .background(LinearGradient(colors: [KTEditorTheme.titlebarTop, KTEditorTheme.titlebarBottom],
                                    startPoint: .top, endPoint: .bottom))
     }

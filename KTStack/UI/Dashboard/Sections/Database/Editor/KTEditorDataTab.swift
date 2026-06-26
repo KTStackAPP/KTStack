@@ -189,7 +189,7 @@ struct KTEditorDataTab: View {
                 Spacer()
             }
         }
-        .padding(.horizontal, 18).padding(.vertical, 11)
+        .padding(.horizontal, 16).padding(.vertical, 11)
         .frame(minHeight: 48)
     }
 

@@ -20,7 +20,7 @@ struct KTEditorTableSidebar: View {
             searchField
             tableList
         }
-        .frame(width: 288)
+        .frame(width: 248)
         .background(KTEditorTheme.sidebar)
         .overlay(alignment: .trailing) { Rectangle().fill(KTEditorTheme.separator).frame(width: 0.5) }
     }
@@ -123,12 +123,12 @@ struct KTEditorTableSidebar: View {
                     .font(.system(size: 13))
                     .foregroundStyle(active ? KTEditorTheme.onAccent : KTEditorTheme.label3)
                 Text(table.name)
-                    .font(.jbMono(13, .regular))
+                    .font(.jbMono(12.5, .regular))
                     .foregroundStyle(active ? KTEditorTheme.onAccent : KTEditorTheme.label)
                     .lineLimit(1)
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 10).padding(.vertical, 7)
+            .padding(.horizontal, 9).padding(.vertical, 6)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .fill(active ? KTEditorTheme.accent : Color.clear))
