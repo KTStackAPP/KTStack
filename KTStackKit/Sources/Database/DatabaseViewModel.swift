@@ -109,6 +109,7 @@ public final class DatabaseViewModel: ObservableObject {
     let passwordFor: @Sendable (ConnectionProfile) -> String?
     let dumpService: DumpService
     let historyStore: QueryHistoryStore
+    let lastUsedStore: LastUsedDatabaseStore
 
     private(set) var driver: RelationalDriver?
 
@@ -119,13 +120,27 @@ public final class DatabaseViewModel: ObservableObject {
     public init(makeDriver: @escaping DriverFactory = DatabaseViewModel.defaultDriver,
                 passwordFor: @escaping @Sendable (ConnectionProfile) -> String? = DatabaseViewModel.defaultPassword,
                 dumpService: DumpService = DumpService(),
-                historyStore: QueryHistoryStore = QueryHistoryStore()) {
+                historyStore: QueryHistoryStore = QueryHistoryStore(),
+                lastUsedStore: LastUsedDatabaseStore = LastUsedDatabaseStore()) {
         self.makeDriver = makeDriver
         self.passwordFor = passwordFor
         self.dumpService = dumpService
         self.historyStore = historyStore
+        self.lastUsedStore = lastUsedStore
         self.queryHistoryEntries = historyStore.entries()
         self.activeQueryTabID = queryTabs.first?.id
+    }
+
+    public func lastDatabase(for profileID: UUID) -> String? {
+        lastUsedStore.lastDatabase(for: profileID)
+    }
+
+    public func resolvePreferredDatabase(for profile: ConnectionProfile) -> String? {
+        let available = databases.map(\.name)
+        guard !available.isEmpty else { return nil }
+        if let last = lastUsedStore.lastDatabase(for: profile.id), available.contains(last) { return last }
+        if available.contains(profile.database) { return profile.database }
+        return available.first
     }
 
     // MARK: - Connection
@@ -208,6 +223,9 @@ public final class DatabaseViewModel: ObservableObject {
         guard driver != nil else { return false }
         _ = beginOperation()
         selectedDatabase = database
+        if let profileID = selectedProfile?.id {
+            lastUsedStore.setLastDatabase(database, for: profileID)
+        }
         tables = []; selectedTable = nil; result = nil; resultError = nil; resultSource = .none
         clearQueryTabResults()
         schemaCatalog = .empty; schemaColumnsLoaded = false; schemaDetailedLoaded = false
