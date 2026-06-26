@@ -25,6 +25,8 @@ struct KTEditorTableSidebar: View {
         .overlay(alignment: .trailing) { Rectangle().fill(KTEditorTheme.separator).frame(width: 0.5) }
     }
 
+    @State private var switcherHovering = false
+
     private var databaseSwitcher: some View {
         Menu {
             if vm.databases.isEmpty {
@@ -44,24 +46,25 @@ struct KTEditorTableSidebar: View {
                 }
             }
         } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "cylinder.split.1x2").font(.system(size: 12)).foregroundStyle(KTEditorTheme.label3)
+            HStack(spacing: 7) {
+                Image(systemName: "cylinder.split.1x2").font(.system(size: 12.5)).foregroundStyle(KTEditorTheme.switcherIcon)
                 Text(vm.selectedDatabase ?? "Select database")
-                    .font(.jbMono(13, .regular))
+                    .font(.jbMono(12.5, .semibold))
                     .foregroundStyle(vm.selectedDatabase == nil ? KTEditorTheme.label3 : KTEditorTheme.label)
                     .lineLimit(1)
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.up.chevron.down").font(.system(size: 10)).foregroundStyle(KTEditorTheme.label3)
+                Image(systemName: "chevron.down").font(.system(size: 10)).foregroundStyle(KTEditorTheme.label3)
             }
-            .padding(.horizontal, 11).padding(.vertical, 8)
-            .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(KTEditorTheme.fieldBg))
-            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(KTEditorTheme.separator, lineWidth: 0.5))
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(switcherHovering ? KTEditorTheme.rowHover : Color.clear)
+            .overlay(alignment: .bottom) { Rectangle().fill(KTEditorTheme.separator).frame(height: 1) }
             .contentShape(Rectangle())
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .disabled(vm.connection != .connected || vm.databases.isEmpty)
-        .padding(.horizontal, 12).padding(.top, 12).padding(.bottom, 4)
+        .onHover { switcherHovering = $0 }
     }
 
     private var header: some View {
