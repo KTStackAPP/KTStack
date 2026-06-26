@@ -5,43 +5,56 @@ struct QueryTabBar: View {
     @EnvironmentObject private var vm: DatabaseViewModel
 
     var body: some View {
-        HStack(spacing: KDSpacing.space1) {
+        HStack(spacing: 0) {
             ForEach(vm.queryTabs) { tab in
                 tabButton(tab)
             }
-            Button { vm.addQueryTab() } label: {
-                Image(systemName: "plus")
-            }
-            .buttonStyle(.borderless)
-            .help("New query tab")
-            Spacer()
+            addButton
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, KDSpacing.space2)
-        .padding(.vertical, KDSpacing.space1)
+        .frame(height: 34)
+        .background(KTEditorTheme.content2)
+        .overlay(alignment: .bottom) { Rectangle().fill(KTEditorTheme.separator).frame(height: 1) }
     }
 
     private func tabButton(_ tab: QueryTab) -> some View {
-        HStack(spacing: KDSpacing.space1) {
-            Button { vm.selectQueryTab(tab.id) } label: {
-                HStack(spacing: KDSpacing.space1) {
-                    if tab.isBusy {
-                        ProgressView().controlSize(.mini)
-                    }
-                    Text(tab.title).lineLimit(1)
+        let active = tab.id == vm.activeQueryTabID
+        return HStack(spacing: 8) {
+            if tab.isBusy {
+                ProgressView().controlSize(.mini).scaleEffect(0.65).frame(width: 12, height: 12)
+            }
+            Text(tab.title)
+                .font(.jbMono(12))
+                .foregroundStyle(active ? KTEditorTheme.label : KTEditorTheme.label2)
+                .lineLimit(1)
+                .frame(maxWidth: 150, alignment: .leading)
+                .fixedSize(horizontal: true, vertical: false)
+            if vm.queryTabs.count > 1 {
+                Button { vm.closeQueryTab(tab.id) } label: {
+                    Image(systemName: "xmark").font(.system(size: 10, weight: .regular))
+                        .foregroundStyle(KTEditorTheme.label3)
                 }
+                .buttonStyle(.plain)
+                .help("Close query tab")
             }
-            .buttonStyle(.borderless)
-            Button { vm.closeQueryTab(tab.id) } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .regular))
-            }
-            .buttonStyle(.borderless)
-            .help("Close query tab")
         }
-        .font(KDFont.footnote)
-        .padding(.vertical, 3)
-        .padding(.horizontal, KDSpacing.space2)
-        .background(tab.id == vm.activeQueryTabID ? Color.accentColor.opacity(0.15) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .padding(.horizontal, 12)
+        .frame(maxHeight: .infinity)
+        .background(active ? KTEditorTheme.content : Color.clear)
+        .overlay(alignment: .trailing) { Rectangle().fill(KTEditorTheme.separator).frame(width: 1) }
+        .contentShape(Rectangle())
+        .onTapGesture { vm.selectQueryTab(tab.id) }
+        .help(tab.sql.isEmpty ? tab.title : tab.sql)
+    }
+
+    private var addButton: some View {
+        Button { vm.addQueryTab() } label: {
+            Image(systemName: "plus").font(.system(size: 13, weight: .regular))
+                .foregroundStyle(KTEditorTheme.label2)
+                .padding(.horizontal, 12).frame(maxHeight: .infinity)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("New query tab")
     }
 }
