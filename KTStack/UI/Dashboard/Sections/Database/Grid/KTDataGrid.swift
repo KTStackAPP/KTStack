@@ -21,7 +21,8 @@ struct KTDataGrid: NSViewRepresentable {
         let table = KTGridTableView()
         table.usesAlternatingRowBackgroundColors = false
         table.backgroundColor = Coordinator.gridBackground
-        table.gridStyleMask = []
+        table.gridStyleMask = [.solidVerticalGridLineMask, .solidHorizontalGridLineMask]
+        table.gridColor = Coordinator.gridLineColor
         table.allowsColumnResizing = true
         table.allowsColumnReordering = false
         table.columnAutoresizingStyle = .noColumnAutoresizing
@@ -97,6 +98,7 @@ struct KTDataGrid: NSViewRepresentable {
         static let editingTextColor = NSColor(hexValue: 0x1D1D1F)
         static let foreignKeyColor = NSColor(hexValue: 0x2F6BFF)
         static let numberColor = NSColor(hexValue: 0xB26A00)
+        static let gridLineColor = NSColor(hexValue: 0xECECF1)
 
         static func isNumeric(_ cell: Cell) -> Bool {
             switch cell {
