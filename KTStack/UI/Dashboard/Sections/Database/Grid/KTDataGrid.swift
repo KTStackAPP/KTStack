@@ -99,6 +99,19 @@ struct KTDataGrid: NSViewRepresentable {
         static let foreignKeyColor = NSColor(hexValue: 0x2F6BFF)
         static let numberColor = NSColor(hexValue: 0xB26A00)
         static let gridLineColor = NSColor(hexValue: 0xECECF1)
+        static let rownumText = NSColor(hexValue: 0x9A9AA5)
+        static let rownumBg = NSColor(hexValue: 0xFAFAFC)
+        static let rownumIdentifier = "rownum"
+
+        private func dataIndex(of tableColumn: NSTableColumn?) -> Int? {
+            guard let raw = tableColumn?.identifier.rawValue, raw.hasPrefix("col-") else { return nil }
+            return Int(raw.dropFirst(4))
+        }
+
+        private func dataIndex(ofViewColumn viewColumn: Int) -> Int? {
+            guard let table, viewColumn >= 0, viewColumn < table.tableColumns.count else { return nil }
+            return dataIndex(of: table.tableColumns[viewColumn])
+        }
 
         static func isNumeric(_ cell: Cell) -> Bool {
             switch cell {
@@ -151,10 +164,11 @@ struct KTDataGrid: NSViewRepresentable {
         }
 
         @objc private func followForeignKey() {
-            guard let grid = table as? KTGridTableView,
-                  grid.menuRow >= 0, grid.menuColumn >= 0,
-                  grid.menuRow < result.rows.count, grid.menuColumn < result.columns.count else { return }
-            onNavigateFK?(grid.menuRow, grid.menuColumn)
+            guard let grid = table as? KTGridTableView, grid.menuRow >= 0,
+                  grid.menuRow < result.rows.count,
+                  let column = dataIndex(ofViewColumn: grid.menuColumn),
+                  column < result.columns.count else { return }
+            onNavigateFK?(grid.menuRow, column)
         }
 
         @objc private func copyTSV() { copySelectedRows(includeHeaders: false, asCSV: false) }
@@ -173,10 +187,11 @@ struct KTDataGrid: NSViewRepresentable {
             }
             if item.action == #selector(followForeignKey) {
                 guard onNavigateFK != nil, let grid = table as? KTGridTableView,
-                      grid.menuColumn >= 0, grid.menuColumn < result.columns.count,
-                      grid.menuRow >= 0, grid.menuRow < result.rows.count else { return false }
-                return foreignKeyColumns.contains(result.columns[grid.menuColumn].name)
-                    && result.rows[grid.menuRow][grid.menuColumn] != .null
+                      grid.menuRow >= 0, grid.menuRow < result.rows.count,
+                      let column = dataIndex(ofViewColumn: grid.menuColumn),
+                      column < result.columns.count else { return false }
+                return foreignKeyColumns.contains(result.columns[column].name)
+                    && result.rows[grid.menuRow][column] != .null
             }
             return true
         }
@@ -203,8 +218,18 @@ struct KTDataGrid: NSViewRepresentable {
         }
 
         func tableView(_ tableView: NSTableView, didClick tableColumn: NSTableColumn) {
-            guard let onSortColumn else { return }
+            guard let onSortColumn, tableColumn.identifier.rawValue != Self.rownumIdentifier else { return }
             onSortColumn(tableColumn.title)
+        }
+
+        func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+            let identifier = NSUserInterfaceItemIdentifier("ktgridrow")
+            if let reused = tableView.makeView(withIdentifier: identifier, owner: self) as? KTGridRowView {
+                return reused
+            }
+            let rowView = KTGridRowView()
+            rowView.identifier = identifier
+            return rowView
         }
 
         private func updateSortIndicators() {
@@ -225,6 +250,10 @@ struct KTDataGrid: NSViewRepresentable {
         func rebuildColumns(for result: QueryResult) {
             guard let table else { return }
             for column in table.tableColumns { table.removeTableColumn(column) }
+            let rownum = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(Self.rownumIdentifier))
+            rownum.title = ""
+            rownum.width = 50; rownum.minWidth = 40; rownum.maxWidth = 72
+            table.addTableColumn(rownum)
             for (index, meta) in result.columns.enumerated() {
                 let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("col-\(index)"))
                 column.title = meta.name
@@ -238,9 +267,23 @@ struct KTDataGrid: NSViewRepresentable {
 
         func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?,
                        row: Int) -> NSView? {
-            guard let tableColumn,
-                  let columnIndex = tableView.tableColumns.firstIndex(of: tableColumn),
-                  row < result.rows.count,
+            guard let tableColumn, row < result.rows.count else { return nil }
+
+            if tableColumn.identifier.rawValue == Self.rownumIdentifier {
+                let rownumID = NSUserInterfaceItemIdentifier("rownumcell")
+                let cell = (tableView.makeView(withIdentifier: rownumID, owner: self) as? NSTextField)
+                    ?? Self.makeCell(identifier: rownumID)
+                cell.delegate = nil
+                cell.isEditable = false
+                cell.stringValue = "\(row + 1)"
+                cell.textColor = Self.rownumText
+                cell.alignment = .right
+                cell.drawsBackground = true
+                cell.backgroundColor = Self.rownumBg
+                return cell
+            }
+
+            guard let columnIndex = dataIndex(of: tableColumn),
                   columnIndex < result.rows[row].count else { return nil }
 
             let identifier = NSUserInterfaceItemIdentifier("cell")
@@ -280,12 +323,12 @@ struct KTDataGrid: NSViewRepresentable {
         @objc func handleDoubleClick() {
             guard let table, table.clickedRow >= 0, table.clickedRow < result.rows.count else { return }
             let row = table.clickedRow
-            let column = table.clickedColumn
-            if column >= 0, cellIsInlineEditable(row: row, column: column) {
-                beginInlineEdit(row: row, column: column)
-            } else {
+            let viewColumn = table.clickedColumn
+            guard let column = dataIndex(ofViewColumn: viewColumn), cellIsInlineEditable(row: row, column: column) else {
                 onActivate?(row)
+                return
             }
+            beginInlineEdit(row: row, viewColumn: viewColumn, dataColumn: column)
         }
 
         private func cellIsInlineEditable(row: Int, column: Int) -> Bool {
@@ -295,21 +338,21 @@ struct KTDataGrid: NSViewRepresentable {
             return true
         }
 
-        private func beginInlineEdit(row: Int, column: Int) {
+        private func beginInlineEdit(row: Int, viewColumn: Int, dataColumn: Int) {
             guard let table,
-                  let field = table.view(atColumn: column, row: row, makeIfNecessary: true) as? NSTextField
+                  let field = table.view(atColumn: viewColumn, row: row, makeIfNecessary: true) as? NSTextField
             else { return }
             committedEdit = false
             editingRow = row
-            editingColumn = column
+            editingColumn = dataColumn
             editingField = field
-            let cell = result.rows[row][column]
+            let cell = result.rows[row][dataColumn]
             field.stringValue = cell.displayText ?? ""
             field.textColor = Self.editingTextColor
             field.isEditable = true
             field.drawsBackground = true
             field.backgroundColor = Self.editingColor
-            table.editColumn(column, row: row, with: nil, select: true)
+            table.editColumn(viewColumn, row: row, with: nil, select: true)
         }
 
         func controlTextDidEndEditing(_ obj: Notification) {
@@ -363,6 +406,16 @@ final class KTGridTableView: NSTableView {
             selectRowIndexes(IndexSet(integer: menuRow), byExtendingSelection: false)
         }
         return super.menu(for: event)
+    }
+}
+
+final class KTGridRowView: NSTableRowView {
+    private static let selectionFill = NSColor(srgbRed: 47/255, green: 107/255, blue: 255/255, alpha: 0.10)
+
+    override func drawSelection(in dirtyRect: NSRect) {
+        guard isSelected else { return }
+        Self.selectionFill.setFill()
+        bounds.fill()
     }
 }
 
