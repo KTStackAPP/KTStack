@@ -290,6 +290,7 @@ struct DatabaseV2Root: View {
                 .overlay(alignment: .bottom) {
                     if isActive { Rectangle().fill(KTEditorTheme.accent).frame(height: 1.5) }
                 }
+                .contentShape(Rectangle())
                 .onTapGesture { activeTab = tab }
             }
             Spacer()
