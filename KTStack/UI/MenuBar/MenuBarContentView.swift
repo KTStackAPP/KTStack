@@ -108,6 +108,11 @@ struct MenuBarContentView: View {
                 }
             }
             settingsFooterItem
+            #if DEBUG
+            footerButton("SQL Editor Drafts", systemImage: "paintbrush.pointed", shortcut: "") {
+                SQLEditorDraftsWindowController.shared.present()
+            }
+            #endif
             footerButton("Check for Updates…", systemImage: "arrow.down.circle", shortcut: "") {
                 AppActivationPolicy.activateRegular()
                 updater.checkForUpdates()
