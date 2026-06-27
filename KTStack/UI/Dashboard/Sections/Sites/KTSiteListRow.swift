@@ -75,7 +75,7 @@ struct KTSiteListRow: View {
         .onChange(of: site.nodeCommand) { new in nodeCommandDraft = new ?? "" }
     }
 
-    private var nodePollKey: String { "\(site.id)-\(site.nodeEnabled)" }
+    private var nodePollKey: String { "\(site.id)-\(site.nodeEnabled)-\(site.nodeCommand ?? "")" }
 
     private var mainRow: some View {
         HStack(spacing: 11) {
@@ -142,7 +142,6 @@ struct KTSiteListRow: View {
         let command = nodeCommandDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !command.isEmpty else { return }
         server.setNodeCommand(site, command)
-        Task { await refreshNodeState() }
     }
 
     private func installNodeDeps() {
