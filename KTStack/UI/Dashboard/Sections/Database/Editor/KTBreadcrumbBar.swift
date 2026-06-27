@@ -7,25 +7,18 @@ struct KTBreadcrumbBar: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(KTEditorTheme.accent)
-                    .frame(width: 22, height: 22)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
             ForEach(Array(trail.enumerated()), id: \.offset) { index, name in
+                let isCurrent = index == trail.count - 1
                 if index > 0 {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 8, weight: .semibold))
-                        .foregroundStyle(KTEditorTheme.label3)
+                        .font(.system(size: 9))
+                        .foregroundStyle(KTEditorTheme.faint)
                 }
                 Text(name)
-                    .font(.jbMono(12, index == trail.count - 1 ? .medium : .regular))
-                    .foregroundStyle(index == trail.count - 1 ? KTEditorTheme.label : KTEditorTheme.label2)
+                    .font(isCurrent ? .system(size: 12, weight: .medium) : .system(size: 12))
+                    .foregroundStyle(isCurrent ? KTEditorTheme.label : KTEditorTheme.accent)
                     .lineLimit(1)
+                    .onTapGesture { if !isCurrent { onBack() } }
             }
             Spacer()
         }

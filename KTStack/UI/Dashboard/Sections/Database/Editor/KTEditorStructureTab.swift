@@ -110,7 +110,7 @@ struct KTEditorStructureTab: View {
         HStack(spacing: 0) {
             ForEach(Array(columns.enumerated()), id: \.offset) { index, title in
                 Text(title)
-                    .font(.jbMono(12.5, .regular))
+                    .font(.system(size: 12))
                     .foregroundStyle(KTEditorTheme.label2)
                     .padding(.horizontal, 16).padding(.vertical, 9)
                     .frame(width: widths[index], alignment: .leading)

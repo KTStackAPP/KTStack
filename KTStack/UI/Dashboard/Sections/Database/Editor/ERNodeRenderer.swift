@@ -62,7 +62,7 @@ enum ERNodeRenderer {
                          anchor: .leading)
 
             let type = Text(truncate(column.dataType, max: maxTypeChars))
-                .font(.jbMono(10)).foregroundColor(KTEditorTheme.label2)
+                .font(.jbMono(11)).foregroundColor(KTEditorTheme.label2)
             clipped.draw(clipped.resolve(type),
                          at: CGPoint(x: rect.maxX - typeRightMargin, y: rowY),
                          anchor: .trailing)

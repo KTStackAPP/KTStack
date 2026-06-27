@@ -91,7 +91,16 @@ struct KTDataGrid: NSViewRepresentable {
         static let cellFont: NSFont =
             NSFont(name: "JetBrainsMono-Medium", size: 12.5)
             ?? .monospacedSystemFont(ofSize: 12, weight: .regular)
+        static let headerFont: NSFont =
+            NSFont(name: "JetBrainsMono-SemiBold", size: 11)
+            ?? .monospacedSystemFont(ofSize: 11, weight: .semibold)
+        static let nullFont: NSFont = {
+            let base = NSFont.monospacedSystemFont(ofSize: 12.5, weight: .regular)
+            let descriptor = base.fontDescriptor.withSymbolicTraits(.italic)
+            return NSFont(descriptor: descriptor, size: 12.5) ?? base
+        }()
         static let gridBackground = NSColor(hexValue: 0xFFFFFF)
+        static let headerBackground = NSColor(hexValue: 0xF7F7FA)
         static let textColor = NSColor(hexValue: 0x1D1D1F)
         static let nullColor = NSColor(hexValue: 0x9A9AA5)
         static let editingColor = NSColor(hexValue: 0xE6EDFF)
@@ -253,12 +262,17 @@ struct KTDataGrid: NSViewRepresentable {
             let rownum = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(Self.rownumIdentifier))
             rownum.title = ""
             rownum.width = 50; rownum.minWidth = 40; rownum.maxWidth = 72
+            rownum.headerCell.drawsBackground = true
+            rownum.headerCell.backgroundColor = Self.headerBackground
             table.addTableColumn(rownum)
             for (index, meta) in result.columns.enumerated() {
                 let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("col-\(index)"))
                 column.title = meta.name
                 column.minWidth = 60
                 column.width = 150
+                column.headerCell.font = Self.headerFont
+                column.headerCell.drawsBackground = true
+                column.headerCell.backgroundColor = Self.headerBackground
                 table.addTableColumn(column)
             }
         }
@@ -295,6 +309,7 @@ struct KTDataGrid: NSViewRepresentable {
             field.drawsBackground = false
             let cell = result.rows[row][columnIndex]
             if let text = cell.displayText {
+                field.font = Self.cellFont
                 field.stringValue = text
                 if foreignKeyColumns.contains(result.columns[columnIndex].name) {
                     field.textColor = Self.foreignKeyColor
@@ -307,6 +322,7 @@ struct KTDataGrid: NSViewRepresentable {
                     field.alignment = .left
                 }
             } else {
+                field.font = Self.nullFont
                 field.stringValue = "NULL"
                 field.textColor = Self.nullColor
                 field.alignment = .left

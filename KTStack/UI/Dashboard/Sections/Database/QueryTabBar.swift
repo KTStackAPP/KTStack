@@ -24,7 +24,7 @@ struct QueryTabBar: View {
                 ProgressView().controlSize(.mini).scaleEffect(0.65).frame(width: 12, height: 12)
             }
             Text(tab.title)
-                .font(.jbMono(12))
+                .font(.system(size: 12))
                 .foregroundStyle(active ? KTEditorTheme.label : KTEditorTheme.label2)
                 .lineLimit(1)
                 .frame(maxWidth: 150, alignment: .leading)

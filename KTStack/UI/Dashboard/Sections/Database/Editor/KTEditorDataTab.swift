@@ -164,8 +164,12 @@ struct KTEditorDataTab: View {
     private var contentHeader: some View {
         HStack(spacing: 10) {
             if let table = vm.selectedTable {
-                Image(systemName: table.isView ? "eye" : "tablecells")
-                    .font(.system(size: 14)).foregroundStyle(KTEditorTheme.label2)
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(hex: 0xFFF1E0))
+                    .frame(width: 22, height: 22)
+                    .overlay(Image(systemName: table.isView ? "eye" : "tablecells")
+                        .font(.system(size: 11))
+                        .foregroundStyle(KTEditorTheme.switcherIcon))
                 Text(table.name)
                     .font(.jbMono(14, .regular))
                     .foregroundStyle(KTEditorTheme.label)

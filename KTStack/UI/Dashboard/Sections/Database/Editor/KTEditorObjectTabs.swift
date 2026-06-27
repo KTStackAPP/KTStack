@@ -19,10 +19,10 @@ struct KTEditorObjectTabs<Value: Hashable>: View {
                 Button { selection = item.value } label: {
                     HStack(spacing: 6) {
                         Image(systemName: item.systemImage)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: 11))
                             .opacity(0.8)
                         Text(item.label)
-                            .font(.jbMono(12, active ? .medium : .regular))
+                            .font(.system(size: 12))
                     }
                     .foregroundStyle(active ? KTEditorTheme.label : KTEditorTheme.label2)
                     .padding(.horizontal, 14)

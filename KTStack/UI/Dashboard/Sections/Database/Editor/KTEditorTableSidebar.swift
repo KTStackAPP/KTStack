@@ -53,7 +53,7 @@ struct KTEditorTableSidebar: View {
                     .foregroundStyle(vm.selectedDatabase == nil ? KTEditorTheme.label3 : KTEditorTheme.label)
                     .lineLimit(1)
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.down").font(.system(size: 10)).foregroundStyle(KTEditorTheme.label3)
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 10)).foregroundStyle(KTEditorTheme.label3)
             }
             .padding(.horizontal, 14).padding(.vertical, 10)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -70,7 +70,7 @@ struct KTEditorTableSidebar: View {
     private var header: some View {
         HStack(spacing: 8) {
             Text("TABLES")
-                .font(.jbMono(12.5, .bold))
+                .font(.jbMono(11, .bold))
                 .foregroundStyle(KTEditorTheme.label2)
                 .frame(maxWidth: .infinity, alignment: .leading)
             iconButton("arrow.clockwise", action: onRefresh)
@@ -82,7 +82,7 @@ struct KTEditorTableSidebar: View {
     private func iconButton(_ symbol: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 11))
                 .foregroundStyle(KTEditorTheme.label2)
                 .frame(width: 26, height: 26)
                 .contentShape(Rectangle())
@@ -95,7 +95,7 @@ struct KTEditorTableSidebar: View {
             Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(KTEditorTheme.label3)
             TextField("Filter tables…", text: $filter)
                 .textFieldStyle(.plain)
-                .font(.jbMono(13))
+                .font(.system(size: 12.5))
                 .foregroundStyle(KTEditorTheme.label)
         }
         .padding(.horizontal, 11).padding(.vertical, 7)

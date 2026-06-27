@@ -58,14 +58,14 @@ struct KTDatabaseEditorRoot: View {
     private var titlebar: some View {
         HStack(spacing: 11) {
             KTIconTile(tint: KTIconTint.db, size: 26, radius: 7) {
-                Image(systemName: "cylinder.split.1x2").font(.system(size: 13, weight: .medium))
+                Image(systemName: "cylinder.split.1x2").font(.system(size: 12))
             }
             HStack(spacing: 6) {
                 Text("SQL Editor")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(KTEditorTheme.label)
                 Text(schemaName)
-                    .font(.jbMono(13, .medium))
+                    .font(.jbMono(12))
                     .foregroundStyle(KTEditorTheme.label2)
             }
             Spacer()
