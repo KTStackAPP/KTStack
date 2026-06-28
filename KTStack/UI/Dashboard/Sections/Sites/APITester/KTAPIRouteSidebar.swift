@@ -32,7 +32,7 @@ struct KTAPIRouteSidebar: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if !vm.isGenericMode { tabs }
+            if vm.showsTabs { tabs }
             searchField
             newRequestButton
             list
@@ -145,7 +145,8 @@ struct KTAPIRouteSidebar: View {
 
     private var emptyMessage: String {
         if vm.isGenericMode { return "Compose a request above, or hit New request." }
-        return vm.routes.isEmpty ? "No routes" : "No routes in this group"
+        if vm.routes.isEmpty { return "No routes" }
+        return vm.showsTabs ? "No routes in this group" : "No routes match your filter"
     }
 
     private func row(_ route: APIRoute) -> some View {

@@ -49,6 +49,7 @@ final class APITesterViewModel: ObservableObject {
     @Published var sendError: String?
     @Published var metadataWarning: String?
     @Published var isGenericMode = false
+    @Published var showsTabs = false
     @Published var draftMethod = "GET"
     @Published var draftPath = "/"
 
@@ -74,7 +75,10 @@ final class APITesterViewModel: ObservableObject {
     var webRoutes: [APIRoute] { filtered(routes.filter { !$0.isApi }) }
     var apiRoutes: [APIRoute] { filtered(routes.filter { $0.isApi }) }
 
-    var visibleRoutes: [APIRoute] { tab == .web ? webRoutes : apiRoutes }
+    var visibleRoutes: [APIRoute] {
+        guard showsTabs else { return filtered(routes) }
+        return tab == .web ? webRoutes : apiRoutes
+    }
 
     var hasUnresolvedPathParams: Bool {
         requestDraft.pathParams.contains { $0.value.trimmingCharacters(in: .whitespaces).isEmpty }
@@ -101,12 +105,11 @@ final class APITesterViewModel: ObservableObject {
         }
         let folder = URL(fileURLWithPath: site.path)
         guard LaravelSiteProbe().isLaravel(siteAt: folder) else {
-            isGenericMode = true
-            routes = []
-            newRequest()
+            await loadDiscovered(site: site, folder: folder)
             isLoadingRoutes = false
             return
         }
+        showsTabs = true
         isGenericMode = false
         let paths = AppSupportPaths()
         let php = paths.phpBinary(version: site.phpVersion)
@@ -131,6 +134,24 @@ final class APITesterViewModel: ObservableObject {
             loadError = error.localizedDescription
         }
         isLoadingRoutes = false
+    }
+
+    private func loadDiscovered(site: Site, folder: URL) async {
+        showsTabs = false
+        let scheme = site.secure ? "https" : "http"
+        let baseURL = URL(string: "\(scheme)://\(site.domain)")
+        let discovered = await Task.detached(priority: .userInitiated) {
+            await GenericRouteDiscovery().discover(baseURL: baseURL, folder: folder)
+        }.value
+        if discovered.isEmpty {
+            isGenericMode = true
+            routes = []
+            newRequest()
+        } else {
+            isGenericMode = false
+            routes = discovered
+            if let first = visibleRoutes.first { select(first) } else { newRequest() }
+        }
     }
 
     func newRequest() {
