@@ -2,6 +2,8 @@ import SwiftUI
 import AppKit
 import KTStackKit
 
+enum NewSiteMode: Hashable { case create, importFolder }
+
 struct KTNewSiteForm: View {
     @ObservedObject var registry: SiteRegistry
     let availableVersions: [String]
@@ -11,6 +13,7 @@ struct KTNewSiteForm: View {
     let onClose: () -> Void
 
     @StateObject private var model = NewSiteModel()
+    @State private var mode: NewSiteMode = .create
     @State private var name = ""
     @State private var kind: NewSiteKind = .empty
     @State private var phpVersion = BundledPHP.defaultVersion
@@ -18,20 +21,25 @@ struct KTNewSiteForm: View {
     @State private var advanced = false
     @State private var serveHTTPS = true
     @State private var createDatabase = false
+    @State private var importFolder: URL?
+    @State private var importName = ""
 
     private var slug: String { SiteInspector.slug(name) }
     private var domain: String { "\(slug).\(tld)" }
+    private var importSlug: String { SiteInspector.slug(importName) }
+    private var importDomain: String { "\(importSlug).\(tld)" }
     private var hasOverlay: Bool { model.installing || model.finished || model.error != nil }
 
     var body: some View {
         VStack(spacing: 0) {
+            if !hasOverlay { modeSwitcher }
             if hasOverlay {
                 SiteInstallProgressView(events: model.events, error: model.error)
                     .padding(22)
                     .frame(maxHeight: 360)
             } else {
-                ScrollView { form.padding(.horizontal, 24).padding(.vertical, 20) }
-                    .frame(maxHeight: 460)
+                ScrollView { activeForm.padding(.horizontal, 24).padding(.vertical, 18) }
+                    .frame(maxHeight: 440)
             }
             footer
         }
@@ -39,7 +47,30 @@ struct KTNewSiteForm: View {
         .onChange(of: kind) { newKind in createDatabase = newKind != .empty }
     }
 
-    private var form: some View {
+    private var modeSwitcher: some View {
+        HStack {
+            KTSegmentedTabs(items: [
+                KTSegmentedTabs.Item(value: .create, label: "Create New"),
+                KTSegmentedTabs.Item(value: .importFolder, label: "Import Folder")
+            ], selection: $mode, large: true)
+            Spacer()
+        }
+        .padding(.horizontal, 24).padding(.top, 18).padding(.bottom, 2)
+    }
+
+    @ViewBuilder
+    private var activeForm: some View {
+        switch mode {
+        case .create:
+            createForm
+        case .importFolder:
+            KTImportFolderForm(folder: $importFolder, name: $importName,
+                               phpVersion: $phpVersion, serveHTTPS: $serveHTTPS,
+                               createDatabase: $createDatabase, availableVersions: availableVersions)
+        }
+    }
+
+    private var createForm: some View {
         VStack(alignment: .leading, spacing: 18) {
             row("Site Name", topAligned: true) {
                 VStack(alignment: .leading, spacing: 7) {
@@ -84,7 +115,7 @@ struct KTNewSiteForm: View {
                 }
             }
 
-            Rectangle().fill(Color(hex: 0xF0F0F3)).frame(height: 0.5)
+            KTSiteFormControls.hairline
 
             Button { withAnimation(.easeInOut(duration: 0.15)) { advanced.toggle() } } label: {
                 HStack(spacing: 11) {
@@ -107,7 +138,12 @@ struct KTNewSiteForm: View {
         }
     }
 
+    @ViewBuilder
     private var footer: some View {
+        if mode == .importFolder { importFooter } else { createFooter }
+    }
+
+    private var createFooter: some View {
         HStack(spacing: 10) {
             if model.finished {
                 Spacer()
@@ -120,10 +156,7 @@ struct KTNewSiteForm: View {
                 KTButton(title: "Back", kind: .secondary) { model.reset() }
                 KTButton(title: "Try Again", kind: .primary) { create() }
             } else {
-                Text("Resolves at ")
-                    .font(.jbMono(12.5)).foregroundColor(KTColor.muted)
-                + Text(domain.isEmpty ? "" : domain)
-                    .font(.jbMono(12.5, .regular)).foregroundColor(KTColor.accent)
+                resolvesLabel(domain)
                 Spacer()
                 KTButton(title: "Cancel", kind: .secondary) { onClose() }
                 KTButton(title: "Create Site", systemImage: "plus", kind: .primary) { create() }
@@ -132,7 +165,39 @@ struct KTNewSiteForm: View {
         }
         .padding(16)
         .padding(.horizontal, 8)
-        .overlay(alignment: .top) { Rectangle().fill(Color(hex: 0xF0F0F3)).frame(height: 0.5) }
+        .overlay(alignment: .top) { KTSiteFormControls.hairline }
+    }
+
+    private var importFooter: some View {
+        HStack(spacing: 10) {
+            if model.finished {
+                Spacer()
+                KTButton(title: "Done", kind: .primary) { onClose() }
+            } else if model.installing {
+                Spacer()
+                KTButton(title: "Cancel", kind: .secondary) { model.cancel() }
+            } else if model.error != nil {
+                Spacer()
+                KTButton(title: "Back", kind: .secondary) { model.reset() }
+                KTButton(title: "Try Again", kind: .primary) { importSite() }
+            } else {
+                resolvesLabel(importDomain)
+                Spacer()
+                KTButton(title: "Cancel", kind: .secondary) { onClose() }
+                KTButton(title: "Import Site", systemImage: "square.and.arrow.down", kind: .primary) { importSite() }
+                    .disabled(importFolder == nil || importSlug.isEmpty || availableVersions.isEmpty)
+            }
+        }
+        .padding(16)
+        .padding(.horizontal, 8)
+        .overlay(alignment: .top) { KTSiteFormControls.hairline }
+    }
+
+    private func resolvesLabel(_ value: String) -> some View {
+        Text("Resolves at ")
+            .font(.jbMono(12.5)).foregroundColor(KTColor.muted)
+        + Text(value.isEmpty ? "" : value)
+            .font(.jbMono(12.5, .regular)).foregroundColor(KTColor.accent)
     }
 
     private func create() {
@@ -145,75 +210,40 @@ struct KTNewSiteForm: View {
         model.install(request: request, registry: registry, openOnFinish: true, enableHTTPS: serveHTTPS)
     }
 
-    // MARK helpers
+    private func importSite() {
+        guard let importFolder else { return }
+        model.importExisting(folder: importFolder, domain: importDomain, phpVersion: phpVersion,
+                             createDatabase: createDatabase, enableHTTPS: serveHTTPS,
+                             registry: registry, openOnFinish: true)
+    }
 
     private func row<V: View>(_ label: String, topAligned: Bool = false, @ViewBuilder content: () -> V) -> some View {
-        HStack(alignment: topAligned ? .top : .center, spacing: 16) {
-            Text(label).font(.jbMono(14.5, .regular)).foregroundStyle(KTColor.ink)
-                .frame(width: 138, alignment: .leading)
-                .padding(.top, topAligned ? 10 : 0)
-            content()
-            Spacer(minLength: 0)
-        }
+        KTSiteFormControls.row(label, topAligned: topAligned, content: content)
     }
 
     private func fieldBox<V: View>(@ViewBuilder content: () -> V) -> some View {
-        HStack(spacing: 10) { content() }
-            .padding(.vertical, 8).padding(.horizontal, 12)
-            .frame(maxWidth: .infinity)
-            .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(.white))
-            .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(KTColor.fieldBorderStrong, lineWidth: 1.5))
+        KTSiteFormControls.fieldBox(content: content)
     }
 
     private func formDropdown<L: View>(width: CGFloat, options: [KTDropdownOption],
                                        @ViewBuilder leading: () -> L, value: String) -> some View {
-        let lead = leading()
-        return KTDropdown(width: width, options: options) {
-            HStack(spacing: 11) {
-                lead
-                Text(value).font(.jbMono(14.5, .medium)).foregroundStyle(KTColor.ink)
-                Spacer()
-                Image(systemName: "chevron.down").font(.system(size: 11, weight: .bold)).foregroundStyle(KTColor.muted)
-            }
-            .padding(.vertical, 8).padding(.horizontal, 12)
-            .frame(maxWidth: .infinity)
-            .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(.white))
-            .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(KTColor.fieldBorderStrong, lineWidth: 1.5))
-        }
+        KTSiteFormControls.formDropdown(width: width, options: options, leading: leading, value: value)
     }
 
     private func smallTile<V: View>(_ tint: KTTint, @ViewBuilder content: () -> V) -> some View {
-        content().foregroundStyle(tint.fg).frame(width: 27, height: 27)
-            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(tint.bg))
+        KTSiteFormControls.smallTile(tint, content: content)
     }
 
-    private var phpBadge: some View {
-        Text("php").font(.jbMono(10, .bold)).foregroundStyle(.white)
-            .padding(.vertical, 3).padding(.horizontal, 7)
-            .background(Capsule().fill(Color(hex: 0x777BB3)))
-    }
+    private var phpBadge: some View { KTSiteFormControls.phpBadge }
 
     private func iconButton(_ symbol: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol).font(.system(size: 13, weight: .regular)).foregroundStyle(KTColor.ink3)
-                .frame(width: 26, height: 26).contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
+        KTSiteFormControls.iconButton(symbol, action: action)
     }
 
-    private func helper(_ text: String) -> some View {
-        Text(text).font(.jbMono(12.5)).foregroundStyle(KTColor.muted)
-    }
+    private func helper(_ text: String) -> some View { KTSiteFormControls.helper(text) }
 
     private func advancedToggle(_ title: String, _ subtitle: String, _ binding: Binding<Bool>) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.jbMono(14, .regular)).foregroundStyle(KTColor.ink)
-                Text(subtitle).font(.jbMono(12.5)).foregroundStyle(KTColor.muted)
-            }
-            Spacer()
-            KTToggle(isOn: binding.wrappedValue) { binding.wrappedValue.toggle() }
-        }
+        KTSiteFormControls.advancedToggle(title, subtitle, binding)
     }
 
     private func kindLabel(_ k: NewSiteKind) -> String {

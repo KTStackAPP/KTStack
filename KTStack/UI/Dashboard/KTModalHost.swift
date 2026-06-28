@@ -12,7 +12,7 @@ struct KTWindowModals: View {
         ZStack {
             if overlay.newSitePresented {
                 KTModalCard(icon: "plus.app", tint: KTIconTint.cube,
-                            title: "New Site", subtitle: "Create a new local development site",
+                            title: "New Site", subtitle: "Create a new site or import an existing folder",
                             width: 680, onClose: { overlay.newSitePresented = false }) {
                     KTNewSiteForm(registry: server.registry,
                                   availableVersions: server.availableVersions,
