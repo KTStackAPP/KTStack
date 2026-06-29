@@ -38,7 +38,6 @@ private struct KTSitesContent: View {
     @State private var searchText = ""
     @State private var gridView = false
     @State private var showScan = false
-    @State private var showImport = false
     @State private var restoreSite: Site?
     @State private var removingSiteID: UUID?
     @State private var actionError: String?
@@ -56,7 +55,6 @@ private struct KTSitesContent: View {
             KTSitesHeader(
                 siteCount: registry.sites.count,
                 onScan: { showScan = true },
-                onImport: { showImport = true },
                 onNewSite: { overlay.newSitePresented = true }
             )
             .padding(.horizontal, KTSpacing.screenGutter)
@@ -90,7 +88,6 @@ private struct KTSitesContent: View {
         .ktTooltipHost()
         .background(KTColor.contentBg)
         .sheet(isPresented: $showScan) { ScanImportSheet(registry: registry, sitesRoot: preferences.sitesRootURL) }
-        .sheet(isPresented: $showImport) { MigrateImportSheet(registry: registry, availableVersions: server.availableVersions) }
         .sheet(item: $restoreSite) { RestoreBackupSheet(site: $0, registry: registry, server: server) }
     }
 
