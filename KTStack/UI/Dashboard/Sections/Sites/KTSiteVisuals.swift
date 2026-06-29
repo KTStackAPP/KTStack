@@ -49,6 +49,23 @@ enum KTSiteActions {
         NSWorkspace.shared.open(url)
     }
 
+    static func startNodeInTerminal(_ site: Site) {
+        guard let port = site.nodePort else { return }
+        let quotedDir = "'" + site.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
+        let hint = "KTStack: PORT=\(port) set for \(site.domain). Run your dev server, e.g. npm run dev"
+        let shell = "cd \(quotedDir) && export PORT=\(port) && clear && echo \"\(hint)\""
+        let escaped = shell
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        proc.arguments = [
+            "-e", "tell application \"Terminal\" to do script \"\(escaped)\"",
+            "-e", "tell application \"Terminal\" to activate",
+        ]
+        try? proc.run()
+    }
+
     @discardableResult
     static func configureVSCode(_ site: Site) throws -> URL {
         let written = try IDEDebugConfigWriter().writeVSCode(

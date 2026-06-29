@@ -108,14 +108,14 @@ struct KTSiteListRow: View {
             } else if site.type == .node {
                 HStack(spacing: 8) {
                     KTBadge(text: site.type.label, tint: KTSiteVisuals.tint(for: site.type), radius: 8)
-                    nodePortField
+                    nodeRoute
                 }
             } else {
                 KTBadge(text: site.type.label, tint: KTSiteVisuals.tint(for: site.type), radius: 8)
             }
 
             if site.type == .node {
-                KTNodeStatusBadge(state: nodeState)
+                nodeStatusControl
             } else {
                 KTStatusLabel(running: canOpen).frame(width: 78, alignment: .leading)
             }
@@ -132,7 +132,7 @@ struct KTSiteListRow: View {
             )
 
             KTButton(title: "Open", kind: .secondary, action: onOpen)
-                .disabled(!canOpen)
+                .disabled(!openEnabled)
                 .ktTip("Open \(site.domain) in your browser")
 
             KTSiteActionsMenu(
@@ -148,13 +148,41 @@ struct KTSiteListRow: View {
         .padding(.horizontal, 16)
     }
 
+    private var openEnabled: Bool {
+        site.type == .node ? (canOpen && nodeState == .running) : canOpen
+    }
+
+    private var nodeRoute: some View {
+        HStack(spacing: 4) {
+            Text("→ localhost:").font(.jbMono(12.5)).foregroundStyle(KTColor.faint)
+            nodePortField
+        }
+    }
+
+    @ViewBuilder
+    private var nodeStatusControl: some View {
+        Group {
+            if nodeState == .running {
+                KTOnlineLabel(text: "live")
+            } else if site.nodePort != nil {
+                KTButton(title: "Start", kind: .secondary) { KTSiteActions.startNodeInTerminal(site) }
+                    .ktTip("Open Terminal at the project with PORT set; run your dev server there")
+            } else {
+                Text("set a port").font(.jbMono(12)).foregroundStyle(KTColor.faint)
+            }
+        }
+        .frame(width: 104, alignment: .leading)
+    }
+
     private var nodePortField: some View {
         TextField("port", text: $nodePortDraft)
             .textFieldStyle(.plain)
             .font(.jbMono(12.5))
             .foregroundStyle(KTColor.ink)
-            .frame(width: 52)
+            .frame(width: 46)
             .multilineTextAlignment(.center)
+            .padding(.vertical, 2).padding(.horizontal, 6)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(KTColor.pillBg))
             .onSubmit(saveNodePort)
             .ktTip("Port your Node app listens on; KTStack proxies this site to it")
             .accessibilityLabel("Node port for \(site.domain)")
@@ -172,7 +200,9 @@ struct KTSiteListRow: View {
             return
         }
         if let other = server.registry.sites.first(where: { $0.id != site.id && $0.nodePort == port }) {
-            onError("Port \(port) is also set on \(other.domain). Both sites will proxy to the same server.")
+            nodePortDraft = site.nodePort.map(String.init) ?? ""
+            onError("Port \(port) is already used by \(other.domain). Each Node site needs its own port.")
+            return
         }
         server.setNodePort(site, port)
     }
