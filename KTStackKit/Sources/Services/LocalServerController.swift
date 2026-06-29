@@ -162,6 +162,7 @@ public final class LocalServerController: ObservableObject {
         Task.detached(priority: .userInitiated) { [stager, self] in
             do {
                 LogRotator().rotateOversized(in: paths)
+                purgeLegacyNodeAgents()
                 try stager.stageIfNeeded()
                 let missing = try await applyConfiguration(sites: sites, port: port, startNginx: true)
                 await finish(missing: missing, error: nil)
@@ -188,6 +189,15 @@ public final class LocalServerController: ObservableObject {
     public func shutdownForQuit() {
         watcher.stop()
         agents.bootoutAll()
+    }
+
+    private nonisolated func purgeLegacyNodeAgents() {
+        let legacyPrefix = "com.ktstack.node."
+        let labels = agents.loadedLabels(withPrefix: legacyPrefix)
+        agents.bootout(matchingPrefix: legacyPrefix)
+        for label in labels {
+            try? FileManager.default.removeItem(at: paths.launchAgentPlist(label))
+        }
     }
 
     public var phpRunning: Bool {
