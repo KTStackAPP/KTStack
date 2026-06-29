@@ -33,9 +33,6 @@ struct KTSiteActionsMenu: View {
                     row("Open Terminal Here", "terminal", "⌥⌘T") { KTSiteActions.openTerminal(site) }
                     sectionLabel("Develop")
                     row("Logs", "text.alignleft", "⌘L", action: onOpenLogs)
-                    if site.type == .node {
-                        row("Node Logs", "shippingbox", "") { KTSiteActions.openNodeLog(site) }
-                    }
                     row("API Tester", "network", "") { overlay.apiTesterSite = site }
                     if site.type == .php {
                         row("Configure VS Code Debug", "curlybraces", "") {

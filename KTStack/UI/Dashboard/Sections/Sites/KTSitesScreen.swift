@@ -168,7 +168,6 @@ private struct KTSitesContent: View {
                     onToggleShare: { toggleShare(site, $0) },
                     onRemove: { confirmRemove(site) },
                     onError: { actionError = $0 },
-                    onOpenRuntimes: { onNavigate(.runtimes) },
                     onRestore: { restoreSite = site }
                 )
                 if index < filteredSites.count - 1 {

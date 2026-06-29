@@ -18,7 +18,6 @@ struct KTSiteListRow: View {
     let onToggleShare: (Bool) -> Void
     let onRemove: () -> Void
     var onError: (String) -> Void = { _ in }
-    var onOpenRuntimes: () -> Void = {}
     var onRestore: () -> Void = {}
 
     @EnvironmentObject private var server: LocalServerController
@@ -26,8 +25,7 @@ struct KTSiteListRow: View {
     @State private var domainError = false
     @State private var hovering = false
     @State private var nodeState: NodeSiteController.State = .stopped
-    @State private var nodeCommandDraft: String
-    @State private var nodeInstalling = false
+    @State private var nodePortDraft: String
     @State private var phpFramework: PHPFramework = .plain
 
     init(
@@ -46,7 +44,6 @@ struct KTSiteListRow: View {
         onToggleShare: @escaping (Bool) -> Void,
         onRemove: @escaping () -> Void,
         onError: @escaping (String) -> Void = { _ in },
-        onOpenRuntimes: @escaping () -> Void = {},
         onRestore: @escaping () -> Void = {}
     ) {
         self.site = site
@@ -64,37 +61,24 @@ struct KTSiteListRow: View {
         self.onToggleShare = onToggleShare
         self.onRemove = onRemove
         self.onError = onError
-        self.onOpenRuntimes = onOpenRuntimes
         self.onRestore = onRestore
         _domainDraft = State(initialValue: site.domain)
-        _nodeCommandDraft = State(initialValue: site.nodeCommand ?? "")
+        _nodePortDraft = State(initialValue: site.nodePort.map(String.init) ?? "")
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            mainRow
-            if site.type == .node {
-                KTNodeBanner(
-                    state: nodeState,
-                    commandDraft: $nodeCommandDraft,
-                    installing: nodeInstalling,
-                    onSaveCommand: saveNodeCommand,
-                    onInstall: installNodeDeps,
-                    onOpenRuntimes: onOpenRuntimes
-                )
-            }
-        }
-        .background(hovering ? KTColor.rowHover : Color.clear)
-        .contentShape(Rectangle())
-        .onHover { hovering = $0 }
-        .task(id: nodePollKey) { await pollNodeState() }
-        .task(id: site.path) { await detectFramework() }
-        .onChange(of: site.domain) { new in domainDraft = new; domainError = false }
-        .onChange(of: site.nodeCommand) { new in nodeCommandDraft = new ?? "" }
+        mainRow
+            .background(hovering ? KTColor.rowHover : Color.clear)
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
+            .task(id: nodePollKey) { await pollNodeState() }
+            .task(id: site.path) { await detectFramework() }
+            .onChange(of: site.domain) { new in domainDraft = new; domainError = false }
+            .onChange(of: site.nodePort) { new in nodePortDraft = new.map(String.init) ?? "" }
     }
 
     private var nodePollKey: String {
-        "\(site.id)-\(site.nodeEnabled)-\(site.nodeCommand ?? "")"
+        "\(site.id)-\(site.nodePort ?? 0)"
     }
 
     private var mainRow: some View {
@@ -124,9 +108,7 @@ struct KTSiteListRow: View {
             } else if site.type == .node {
                 HStack(spacing: 8) {
                     KTBadge(text: site.type.label, tint: KTSiteVisuals.tint(for: site.type), radius: 8)
-                    KTToggle(isOn: site.nodeEnabled, action: toggleNode)
-                        .ktTip("Run this Node app and reverse-proxy the site to it")
-                        .accessibilityLabel("Serve \(site.domain) with Node")
+                    nodePortField
                 }
             } else {
                 KTBadge(text: site.type.label, tint: KTSiteVisuals.tint(for: site.type), radius: 8)
@@ -166,26 +148,33 @@ struct KTSiteListRow: View {
         .padding(.horizontal, 16)
     }
 
-    private func toggleNode() {
-        server.toggleNode(site)
-        Task { await refreshNodeState() }
+    private var nodePortField: some View {
+        TextField("port", text: $nodePortDraft)
+            .textFieldStyle(.plain)
+            .font(.jbMono(12.5))
+            .foregroundStyle(KTColor.ink)
+            .frame(width: 52)
+            .multilineTextAlignment(.center)
+            .onSubmit(saveNodePort)
+            .ktTip("Port your Node app listens on; KTStack proxies this site to it")
+            .accessibilityLabel("Node port for \(site.domain)")
     }
 
-    private func saveNodeCommand() {
-        let command = nodeCommandDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !command.isEmpty else { return }
-        server.setNodeCommand(site, command)
-    }
-
-    private func installNodeDeps() {
-        guard !nodeInstalling else { return }
-        nodeInstalling = true
-        Task {
-            do { try await server.installNodeDeps(site) }
-            catch { onError(error.localizedDescription) }
-            nodeInstalling = false
-            await refreshNodeState()
+    private func saveNodePort() {
+        let trimmed = nodePortDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            server.setNodePort(site, nil)
+            return
         }
+        guard let port = Int(trimmed), (1 ... 65535).contains(port) else {
+            nodePortDraft = site.nodePort.map(String.init) ?? ""
+            onError("Enter a port between 1 and 65535.")
+            return
+        }
+        if let other = server.registry.sites.first(where: { $0.id != site.id && $0.nodePort == port }) {
+            onError("Port \(port) is also set on \(other.domain). Both sites will proxy to the same server.")
+        }
+        server.setNodePort(site, port)
     }
 
     private func pollNodeState() async {
@@ -197,13 +186,8 @@ struct KTSiteListRow: View {
     }
 
     private func refreshNodeState() async {
-        guard site.type == .node, site.nodeEnabled else { nodeState = .stopped; return }
-        switch server.nodeReadiness(site) {
-        case .needsRuntime: nodeState = .needsRuntime
-        case .needsCommand: nodeState = .needsCommand
-        case .needsInstall: nodeState = .needsInstall
-        case .ready: nodeState = await server.probeNode(site)
-        }
+        guard site.type == .node else { nodeState = .stopped; return }
+        nodeState = await server.probeNode(site)
     }
 
     private func detectFramework() async {
