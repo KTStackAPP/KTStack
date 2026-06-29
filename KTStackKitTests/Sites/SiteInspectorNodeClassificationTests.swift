@@ -36,4 +36,22 @@ final class SiteInspectorNodeClassificationTests: XCTestCase {
         defer { try? fm.removeItem(at: folder) }
         XCTAssertEqual(inspector.inspect(folder: folder).type, .staticSite)
     }
+
+    func testSuggestsDevScriptOverStart() throws {
+        let folder = try makeFolder(packageJSON: #"{"scripts": {"start": "node server.js", "dev": "vite"}}"#)
+        defer { try? fm.removeItem(at: folder) }
+        XCTAssertEqual(inspector.suggestedNodeCommand(at: folder), "npm run dev")
+    }
+
+    func testSuggestsStartWhenNoDevScript() throws {
+        let folder = try makeFolder(packageJSON: #"{"scripts": {"start": "node server.js"}}"#)
+        defer { try? fm.removeItem(at: folder) }
+        XCTAssertEqual(inspector.suggestedNodeCommand(at: folder), "npm start")
+    }
+
+    func testNoSuggestionWhenNoUsableScript() throws {
+        let folder = try makeFolder(packageJSON: #"{"scripts": {"build": "tsc"}}"#)
+        defer { try? fm.removeItem(at: folder) }
+        XCTAssertNil(inspector.suggestedNodeCommand(at: folder))
+    }
 }

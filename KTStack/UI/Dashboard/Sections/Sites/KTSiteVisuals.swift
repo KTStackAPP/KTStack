@@ -52,8 +52,14 @@ enum KTSiteActions {
     static func startNodeInTerminal(_ site: Site) {
         guard let port = site.nodePort else { return }
         let quotedDir = "'" + site.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
-        let hint = "KTStack: PORT=\(port) set for \(site.domain). Run your dev server, e.g. npm run dev"
-        let shell = "cd \(quotedDir) && export PORT=\(port) && clear && echo \"\(hint)\""
+        let base = "cd \(quotedDir) && export PORT=\(port)"
+        let shell: String
+        if let command = resolvedStartCommand(site) {
+            shell = base + " && " + command
+        } else {
+            let hint = "KTStack: PORT=\(port) set for \(site.domain). Run your dev server, e.g. npm run dev"
+            shell = base + " && clear && echo \"\(hint)\""
+        }
         let escaped = shell
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
@@ -64,6 +70,13 @@ enum KTSiteActions {
             "-e", "tell application \"Terminal\" to activate",
         ]
         try? proc.run()
+    }
+
+    private static func resolvedStartCommand(_ site: Site) -> String? {
+        if let stored = site.nodeCommand?.trimmingCharacters(in: .whitespacesAndNewlines), !stored.isEmpty {
+            return stored
+        }
+        return SiteInspector().suggestedNodeCommand(at: URL(fileURLWithPath: site.path))
     }
 
     @discardableResult
