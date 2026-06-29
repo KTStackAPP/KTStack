@@ -99,6 +99,28 @@ public struct ServiceBinaryCatalog: Sendable {
                 "x86_64": URL(string: "https://fastdl.mongodb.org/osx/mongodb-macos-x86_64-7.0.37.tgz")!,
             ]
         ),
+        ServiceBinaryRelease(
+            kind: .mongodb, version: "6.0",
+            sha256ByArch: [
+                "arm64": "d0e6c7424cb5aee2e2b2e4c377f66c0e27861ac871b2b13adb809fddf9d1f1b4",
+                "x86_64": "e2946068d98850d6be79caebed39211f3e4d4a31d88cb3fa004e375a192d28b5",
+            ],
+            urlOverridesByArch: [
+                "arm64": URL(string: "https://fastdl.mongodb.org/osx/mongodb-macos-arm64-6.0.20.tgz")!,
+                "x86_64": URL(string: "https://fastdl.mongodb.org/osx/mongodb-macos-x86_64-6.0.20.tgz")!,
+            ]
+        ),
+        ServiceBinaryRelease(
+            kind: .mongodb, version: "8.0",
+            sha256ByArch: [
+                "arm64": "219e3b3d7b31c049ff7bcf7470d38eff704e56df2ac18d4df78425e2985ccf58",
+                "x86_64": "61af8722544f5973e9f5a5f5025460921fe97ca460c61a8d7a9ffabae011982a",
+            ],
+            urlOverridesByArch: [
+                "arm64": URL(string: "https://fastdl.mongodb.org/osx/mongodb-macos-arm64-8.0.4.tgz")!,
+                "x86_64": URL(string: "https://fastdl.mongodb.org/osx/mongodb-macos-x86_64-8.0.4.tgz")!,
+            ]
+        ),
     ]
 
     private let paths: AppSupportPaths

@@ -363,7 +363,10 @@ final class ServiceManagementTests: XCTestCase {
         XCTAssertTrue(catalog.isInstalled(.mongodb))
         XCTAssertEqual(catalog.installedVersion(.mongodb), "7.0")
         XCTAssertEqual(catalog.binary(.mongodb, "bin/mongod")?.lastPathComponent, "mongod")
-        XCTAssertNil(catalog.availableRelease(.mongodb), "installed engine is not offered for install")
+        let availableAfterInstall = catalog.availableReleases(.mongodb).map(\.version)
+        XCTAssertFalse(availableAfterInstall.contains("7.0"), "installed version is not offered for install")
+        XCTAssertTrue(availableAfterInstall.contains("6.0"))
+        XCTAssertTrue(availableAfterInstall.contains("8.0"))
     }
 
     func testRedisControllerIsInstalledOnlyWithBinUnderBinDir() throws {
