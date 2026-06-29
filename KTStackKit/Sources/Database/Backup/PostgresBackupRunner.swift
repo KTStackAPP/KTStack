@@ -2,7 +2,7 @@ import Foundation
 
 /// Process + credential plumbing for the PostgreSQL client tools. Passwords ride a `PGPASSFILE`
 /// created mode 0600 and `defer`-deleted, never argv/env, mirroring the MySQL defaults-file contract.
-struct PostgresBackupRunner: Sendable {
+struct PostgresBackupRunner {
     let catalog: ServiceBinaryCatalog
 
     init(catalog: ServiceBinaryCatalog = ServiceBinaryCatalog(paths: AppSupportPaths())) {
@@ -21,13 +21,16 @@ struct PostgresBackupRunner: Sendable {
 
     func binary(_ relPath: String) throws -> URL {
         guard let url = catalog.binary(.postgres, relPath),
-              FileManager.default.isExecutableFile(atPath: url.path) else {
+              FileManager.default.isExecutableFile(atPath: url.path)
+        else {
             throw DatabaseError.engineNotInstalled(kind: "PostgreSQL")
         }
         return url
     }
 
-    func installedVersion() -> String? { catalog.installedVersion(.postgres) }
+    func installedVersion() -> String? {
+        catalog.installedVersion(.postgres)
+    }
 
     /// `host:port:database:user:password` with wildcards; pgpass is `:`-delimited so a `:`/newline in
     /// the password can't be represented and is rejected. Returns nil when there is no password (the
@@ -42,7 +45,8 @@ struct PostgresBackupRunner: Sendable {
         let created = FileManager.default.createFile(
             atPath: url.path,
             contents: Data("*:*:*:*:\(password)\n".utf8),
-            attributes: [.posixPermissions: 0o600])
+            attributes: [.posixPermissions: 0o600]
+        )
         guard created else {
             throw DatabaseError.connection("Couldn't write the temporary PostgreSQL client config.")
         }
@@ -74,7 +78,8 @@ struct PostgresBackupRunner: Sendable {
                     try proc.run()
                 } catch {
                     cont.resume(throwing: DatabaseError.connection(
-                        "Couldn't launch \(executable.lastPathComponent): \(error.localizedDescription)"))
+                        "Couldn't launch \(executable.lastPathComponent): \(error.localizedDescription)"
+                    ))
                     return
                 }
                 let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
@@ -85,8 +90,11 @@ struct PostgresBackupRunner: Sendable {
                 } else {
                     let message = String(data: errData, encoding: .utf8)?
                         .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                    cont.resume(throwing: Self.classify(message, tool: executable.lastPathComponent,
-                                                        status: proc.terminationStatus))
+                    cont.resume(throwing: Self.classify(
+                        message,
+                        tool: executable.lastPathComponent,
+                        status: proc.terminationStatus
+                    ))
                 }
             }
         }
@@ -96,7 +104,8 @@ struct PostgresBackupRunner: Sendable {
         let lower = stderr.lowercased()
         if lower.contains("permission denied") || lower.contains("must be owner") || lower.contains("must be superuser") {
             return .authenticationFailed(
-                "The connection role lacks the privilege needed for this operation: \(stderr)")
+                "The connection role lacks the privilege needed for this operation: \(stderr)"
+            )
         }
         return .connection("\(tool) failed (exit \(status)): \(stderr)")
     }

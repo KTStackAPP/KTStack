@@ -7,20 +7,16 @@ import XCTest
 final class ServiceManagementTests: XCTestCase {
     private let paths = AppSupportPaths(root: URL(fileURLWithPath: "/tmp/ktstack-svc-test"))
 
-    // MARK: - ServiceKind identity
-
     func testServiceKindIdentityMapping() {
         XCTAssertEqual(ServiceKind.mysql.defaultPort, 3306)
         XCTAssertEqual(ServiceKind.redis.launchdLabel, "com.ktstack.redis")
         XCTAssertEqual(ServiceKind.mailpit.binaryName, "mailpit")
-        XCTAssertNil(ServiceKind.phpFpm.defaultPort)            // socket-based, no single port
+        XCTAssertNil(ServiceKind.phpFpm.defaultPort) // socket-based, no single port
         XCTAssertEqual(ServiceKind.mongodb.defaultPort, 27017)
         XCTAssertEqual(ServiceKind.mongodb.launchdLabel, "com.ktstack.mongodb")
         XCTAssertEqual(ServiceKind.mongodb.binaryName, "mongod")
         XCTAssertEqual(Set(ServiceKind.allCases).count, 8)
     }
-
-    // MARK: - AppSupportPaths additions
 
     func testServiceDataAndLaunchAgentPaths() {
         XCTAssertEqual(paths.serviceData("mysql").lastPathComponent, "mysql")
@@ -32,8 +28,6 @@ final class ServiceManagementTests: XCTestCase {
         XCTAssertTrue(paths.allDirectories.contains(paths.launchAgents))
     }
 
-    // MARK: - LaunchAgentManager plist rendering
-
     func testLaunchAgentPlistRendersKeyFields() throws {
         let mgr = LaunchAgentManager(paths: paths)
         let spec = LaunchAgentSpec(
@@ -42,7 +36,8 @@ final class ServiceManagementTests: XCTestCase {
             workingDirectory: "/data/redis",
             stdoutPath: "/logs/redis.log",
             stderrPath: "/logs/redis.log",
-            fileDescriptorLimit: 8192)
+            fileDescriptorLimit: 8192
+        )
         let data = try mgr.plistData(for: spec)
         let plist = try PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any]
         XCTAssertEqual(plist?["Label"] as? String, "com.ktstack.redis")
@@ -110,40 +105,36 @@ final class ServiceManagementTests: XCTestCase {
         let labels = LaunchAgentManager.parseLoadedLabels(from: fixture)
         XCTAssertEqual(labels, ["com.ktstack.redis", "com.ktstack.php-fpm.8.4", "com.ktstack.nginx"])
         XCTAssertFalse(labels.contains("com.apple.Finder"))
-        XCTAssertFalse(labels.contains("com.ktstack.ignored.endpoint"))   // outside services block
+        XCTAssertFalse(labels.contains("com.ktstack.ignored.endpoint")) // outside services block
     }
-
-    // MARK: - RestartPolicy
 
     func testRestartPolicyStaysStartingThroughLaunchdThrottleThenErrors() {
         // A controllable clock proves the escalation is TIME-based (tolerates launchd's ~10s
         // relaunch throttle) and not probe-count-based.
-        var fakeNow = Date(timeIntervalSince1970: 1_000)
+        var fakeNow = Date(timeIntervalSince1970: 1000)
         let policy = RestartPolicy(errorAfter: 20, now: { fakeNow })
 
-        XCTAssertEqual(policy.record(.mysql, healthy: false).status, .starting)   // t=0
-        fakeNow.addTimeInterval(9)                                                 // mid-throttle
+        XCTAssertEqual(policy.record(.mysql, healthy: false).status, .starting) // t=0
+        fakeNow.addTimeInterval(9) // mid-throttle
         XCTAssertEqual(policy.record(.mysql, healthy: false).status, .starting)
-        fakeNow.addTimeInterval(9)                                                 // t=18, still < 20
+        fakeNow.addTimeInterval(9) // t=18, still < 20
         XCTAssertEqual(policy.record(.mysql, healthy: false).status, .starting)
-        fakeNow.addTimeInterval(5)                                                 // t=23 ≥ 20 → error
+        fakeNow.addTimeInterval(5) // t=23 ≥ 20 → error
         let exhausted = policy.record(.mysql, healthy: false)
         XCTAssertEqual(exhausted.status, .error)
         XCTAssertTrue(exhausted.exhausted)
     }
 
     func testRestartPolicyResetsOnHealthyProbe() {
-        var fakeNow = Date(timeIntervalSince1970: 1_000)
+        var fakeNow = Date(timeIntervalSince1970: 1000)
         let policy = RestartPolicy(errorAfter: 20, now: { fakeNow })
         _ = policy.record(.redis, healthy: false)
         XCTAssertTrue(policy.isFailing(.redis))
-        fakeNow.addTimeInterval(30)                       // would be error if still failing
-        let ok = policy.record(.redis, healthy: true)     // a healthy probe clears the window
+        fakeNow.addTimeInterval(30) // would be error if still failing
+        let ok = policy.record(.redis, healthy: true) // a healthy probe clears the window
         XCTAssertEqual(ok.status, .running)
         XCTAssertFalse(policy.isFailing(.redis))
     }
-
-    // MARK: - HealthChecker
 
     func testTCPProbeFailsOnClosedPort() {
         // Port 1 is virtually never listening on a dev mac; a closed port must read false fast.
@@ -154,8 +145,6 @@ final class ServiceManagementTests: XCTestCase {
         XCTAssertFalse(HealthChecker.unixConnect(path: "/tmp/ktstack-nonexistent-\(UUID()).sock"))
     }
 
-    // MARK: - PortPreflight named conflicts
-
     func testPreflightNamesDatabaseConflicts() {
         XCTAssertTrue(PortPreflight.conflictMessage(port: 3306, process: "mysqld").contains("MySQL"))
         XCTAssertTrue(PortPreflight.conflictMessage(port: 5432, process: "postgres").contains("PostgreSQL"))
@@ -164,11 +153,11 @@ final class ServiceManagementTests: XCTestCase {
 
     func testFirstConflictReturnsAvailableForFreePorts() {
         // Two high, almost-certainly-free ports → available (bind test succeeds).
-        let outcome = PortPreflight().firstConflict(in: [54_421, 54_422])
+        let outcome = PortPreflight().firstConflict(in: [54421, 54422])
         XCTAssertEqual(outcome, .available)
     }
 
-    func testLoopbackListenerIsDetectedByConnectProbeNotWildcardBind() throws {
+    func testLoopbackListenerIsDetectedByConnectProbeNotWildcardBind() {
         let listenFD = socket(AF_INET, SOCK_STREAM, 0)
         XCTAssertGreaterThanOrEqual(listenFD, 0)
         defer { close(listenFD) }
@@ -194,45 +183,44 @@ final class ServiceManagementTests: XCTestCase {
         }
         let port = Int(UInt16(bigEndian: assigned.sin_port))
 
-        XCTAssertTrue(HealthChecker.tcpConnect(host: "127.0.0.1", port: port, timeout: 0.5),
-                      "connect probe must detect a 127.0.0.1-bound listener")
-        XCTAssertEqual(PortPreflight().check(port: port), .available,
-                       "wildcard bind probe cannot see a loopback-only listener — hence the connect probe")
+        XCTAssertTrue(
+            HealthChecker.tcpConnect(host: "127.0.0.1", port: port, timeout: 0.5),
+            "connect probe must detect a 127.0.0.1-bound listener"
+        )
+        XCTAssertEqual(
+            PortPreflight().check(port: port),
+            .available,
+            "wildcard bind probe cannot see a loopback-only listener — hence the connect probe"
+        )
     }
-
-    // MARK: - ServiceInitializer
 
     func testIsInitializedDetectsMarkerAndEmptiness() throws {
         let tmp = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("ktstack-init-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: tmp) }
         try ServiceInitializer.ensureDir(tmp)
-        XCTAssertFalse(ServiceInitializer.isInitialized(tmp))                       // empty
+        XCTAssertFalse(ServiceInitializer.isInitialized(tmp)) // empty
         try Data().write(to: tmp.appendingPathComponent("PG_VERSION"))
         XCTAssertTrue(ServiceInitializer.isInitialized(tmp, marker: "PG_VERSION")) // marker present
-        XCTAssertTrue(ServiceInitializer.isInitialized(tmp))                        // non-empty
+        XCTAssertTrue(ServiceInitializer.isInitialized(tmp)) // non-empty
     }
-
-    // MARK: - BinaryStager optional set
 
     func testOnlyMailpitIsBundledOptionally() {
         // DB engines install on-demand (ServiceBinaryCatalog), not bundled — only Mailpit ships.
         XCTAssertEqual(Set(BinaryStager.optionalBinaryNames), ["mailpit"])
     }
 
-    // MARK: - Controller installed-state + spec wiring (no launchd)
-
     func testRedisControllerReportsNotInstalledWithoutBinary() {
         let redis = RedisController(paths: paths, agents: LaunchAgentManager(paths: paths))
         XCTAssertEqual(redis.kind, .redis)
-        XCTAssertFalse(redis.isInstalled)            // no on-demand install in the test tree
+        XCTAssertFalse(redis.isInstalled) // no on-demand install in the test tree
         XCTAssertEqual(redis.detail, ":6379")
     }
 
     func testMongoDBControllerReportsNotInstalledWithoutBinary() {
         let mongo = MongoDBController(paths: paths, agents: LaunchAgentManager(paths: paths))
         XCTAssertEqual(mongo.kind, .mongodb)
-        XCTAssertFalse(mongo.isInstalled)            // no on-demand install in the test tree
+        XCTAssertFalse(mongo.isInstalled) // no on-demand install in the test tree
         XCTAssertEqual(mongo.detail, ":27017")
     }
 
@@ -245,8 +233,11 @@ final class ServiceManagementTests: XCTestCase {
         XCTAssertFalse(mongo.isInstalled)
         let bin = p.runtimeBin("mongodb", "7.0")
         try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
-        FileManager.default.createFile(atPath: bin.appendingPathComponent("mongod").path,
-                                       contents: Data(), attributes: [.posixPermissions: 0o755])
+        FileManager.default.createFile(
+            atPath: bin.appendingPathComponent("mongod").path,
+            contents: Data(),
+            attributes: [.posixPermissions: 0o755]
+        )
         XCTAssertTrue(mongo.isInstalled, "mongod under bin/ must mark the controller installed")
     }
 
@@ -264,14 +255,13 @@ final class ServiceManagementTests: XCTestCase {
         XCTAssertTrue(args.contains("27017"))
     }
 
-    // MARK: - ServiceManager order + reset-data
-
     @MainActor
     func testServiceManagerOrderIncludesMongoDB() {
         let order = ServiceManager.order
         guard let redisIdx = order.firstIndex(of: .redis),
               let mongoIdx = order.firstIndex(of: .mongodb),
-              let mailpitIdx = order.firstIndex(of: .mailpit) else {
+              let mailpitIdx = order.firstIndex(of: .mailpit)
+        else {
             return XCTFail("order missing an expected kind")
         }
         XCTAssertEqual(mongoIdx, redisIdx + 1, "MongoDB must sit right after Redis")
@@ -291,8 +281,6 @@ final class ServiceManagementTests: XCTestCase {
         ServiceManager.removeServiceData(.mongodb, paths: paths)
         XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path), "reset must delete the data dir")
     }
-
-    // MARK: - ServiceBinaryCatalog (on-demand DB install)
 
     func testServiceManifestWellFormed() {
         XCTAssertFalse(ServiceBinaryCatalog.manifest.isEmpty)
@@ -324,8 +312,11 @@ final class ServiceManagementTests: XCTestCase {
         // Simulate an on-demand install: runtimes/redis/7.4.2/bin/redis-server.
         let bin = paths.runtimeBin("redis", "7.4.2")
         try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
-        FileManager.default.createFile(atPath: bin.appendingPathComponent("redis-server").path,
-                                       contents: Data(), attributes: [.posixPermissions: 0o755])
+        FileManager.default.createFile(
+            atPath: bin.appendingPathComponent("redis-server").path,
+            contents: Data(),
+            attributes: [.posixPermissions: 0o755]
+        )
 
         XCTAssertTrue(catalog.isInstalled(.redis))
         XCTAssertEqual(catalog.installedVersion(.redis), "7.4.2")
@@ -348,8 +339,11 @@ final class ServiceManagementTests: XCTestCase {
         // Simulate an on-demand install: runtimes/mongodb/7.0/bin/mongod.
         let bin = paths.runtimeBin("mongodb", "7.0")
         try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
-        FileManager.default.createFile(atPath: bin.appendingPathComponent("mongod").path,
-                                       contents: Data(), attributes: [.posixPermissions: 0o755])
+        FileManager.default.createFile(
+            atPath: bin.appendingPathComponent("mongod").path,
+            contents: Data(),
+            attributes: [.posixPermissions: 0o755]
+        )
 
         XCTAssertTrue(catalog.isInstalled(.mongodb))
         XCTAssertEqual(catalog.installedVersion(.mongodb), "7.0")
@@ -368,8 +362,11 @@ final class ServiceManagementTests: XCTestCase {
         XCTAssertFalse(redis.isInstalled)
         let bin = p.runtimeBin("redis", "7.4.2")
         try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
-        FileManager.default.createFile(atPath: bin.appendingPathComponent("redis-server").path,
-                                       contents: Data(), attributes: [.posixPermissions: 0o755])
+        FileManager.default.createFile(
+            atPath: bin.appendingPathComponent("redis-server").path,
+            contents: Data(),
+            attributes: [.posixPermissions: 0o755]
+        )
         XCTAssertTrue(redis.isInstalled, "redis-server under bin/ must mark the controller installed")
     }
 

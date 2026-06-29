@@ -4,18 +4,30 @@ import XCTest
 final class NodeSiteControllerSpecTests: XCTestCase {
     private let paths = AppSupportPaths(root: URL(fileURLWithPath: "/tmp/ktstack-node-test"))
 
-    private func controller(versions: [String] = ["22.22.3"],
-                            hasModules: Bool = true) -> NodeSiteController {
-        NodeSiteController(paths: paths,
-                           agents: LaunchAgentManager(paths: paths),
-                           installedNodeVersions: { versions },
-                           nodeModulesPresent: { _ in hasModules })
+    private func controller(
+        versions: [String] = ["22.22.3"],
+        hasModules: Bool = true
+    ) -> NodeSiteController {
+        NodeSiteController(
+            paths: paths,
+            agents: LaunchAgentManager(paths: paths),
+            installedNodeVersions: { versions },
+            nodeModulesPresent: { _ in hasModules }
+        )
     }
 
     private func site(command: String? = "npm run dev", port: Int? = 3001) -> Site {
-        Site(name: "app", path: "/Users/me/Sites/app", docroot: "/Users/me/Sites/app",
-             domain: "app.test", phpVersion: "8.4", type: .node,
-             nodePort: port, nodeCommand: command, nodeEnabled: true)
+        Site(
+            name: "app",
+            path: "/Users/me/Sites/app",
+            docroot: "/Users/me/Sites/app",
+            domain: "app.test",
+            phpVersion: "8.4",
+            type: .node,
+            nodePort: port,
+            nodeCommand: command,
+            nodeEnabled: true
+        )
     }
 
     func testBuildSpecCarriesLabelEnvWorkingDirAndLogs() throws {

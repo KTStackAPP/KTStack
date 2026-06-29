@@ -1,8 +1,6 @@
 import Foundation
 
 public extension DatabaseViewModel {
-
-  
     func insertRow(_ values: [ColumnValue]) async {
         await performWrite { driver, database, table in
             try await driver.insert(database: database, table: table, values: values)
@@ -19,7 +17,6 @@ public extension DatabaseViewModel {
         }
     }
 
-   
     func deleteRow(at rowIndex: Int) async {
         guard let key = keyForRow(rowIndex) else {
             editError = "Can't identify this row to delete (no usable primary key)."
@@ -50,7 +47,8 @@ public extension DatabaseViewModel {
     }
 
     private func performWrite(
-        _ op: (RelationalDriver, String, String) async throws -> Void) async {
+        _ op: (RelationalDriver, String, String) async throws -> Void
+    ) async {
         guard canEditRows, let driver, let database = selectedDatabase, let table = selectedTable
         else { return }
         editError = nil

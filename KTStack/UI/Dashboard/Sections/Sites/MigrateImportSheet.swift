@@ -1,5 +1,5 @@
-import SwiftUI
 import KTStackKit
+import SwiftUI
 
 @MainActor
 final class MigrateImportModel: ObservableObject {
@@ -95,14 +95,18 @@ struct MigrateImportSheet: View {
                 Text((resolved ?? site.path).path).font(KDFont.footnote).foregroundStyle(.secondary)
                     .lineLimit(1).truncationMode(.middle)
                 if resolved == nil {
-                    Label("Folder missing or not owned by you — will be skipped",
-                          systemImage: "xmark.octagon")
-                        .font(KDFont.footnote).foregroundStyle(Color.KDStatus.error)
+                    Label(
+                        "Folder missing or not owned by you — will be skipped",
+                        systemImage: "xmark.octagon"
+                    )
+                    .font(KDFont.footnote).foregroundStyle(Color.KDStatus.error)
                 }
                 if let near, !near.exact {
-                    Label("PHP \(site.phpVersion ?? "?") not installed — using \(near.version)",
-                          systemImage: "exclamationmark.triangle")
-                        .font(KDFont.footnote).foregroundStyle(Color.KDStatus.warning)
+                    Label(
+                        "PHP \(site.phpVersion ?? "?") not installed — using \(near.version)",
+                        systemImage: "exclamationmark.triangle"
+                    )
+                    .font(KDFont.footnote).foregroundStyle(Color.KDStatus.warning)
                 }
             }
         }

@@ -1,5 +1,5 @@
-import SwiftUI
 import KTStackKit
+import SwiftUI
 
 struct KTNodeStatusBadge: View {
     let state: NodeSiteController.State
@@ -26,13 +26,19 @@ struct KTNodeBanner: View {
     var body: some View {
         switch state {
         case .needsRuntime:
-            banner(icon: "exclamationmark.triangle.fill", tint: Color.KDStatus.warning,
-                   text: "Node runtime is not installed.") {
+            banner(
+                icon: "exclamationmark.triangle.fill",
+                tint: Color.KDStatus.warning,
+                text: "Node runtime is not installed."
+            ) {
                 KTButton(title: "Download Node", kind: .secondary, action: onOpenRuntimes)
             }
         case .needsCommand:
-            banner(icon: "terminal", tint: KTColor.muted,
-                   text: "Enter the command that starts this app (it must read process.env.PORT).") {
+            banner(
+                icon: "terminal",
+                tint: KTColor.muted,
+                text: "Enter the command that starts this app (it must read process.env.PORT)."
+            ) {
                 HStack(spacing: 8) {
                     TextField("node server.js", text: $commandDraft)
                         .textFieldStyle(.plain)
@@ -44,20 +50,29 @@ struct KTNodeBanner: View {
                 }
             }
         case .needsInstall:
-            banner(icon: "shippingbox", tint: Color.KDStatus.warning,
-                   text: "Dependencies are not installed (node_modules missing).") {
-                KTButton(title: installing ? "Installing…" : "Run npm install",
-                         kind: .secondary, action: onInstall)
-                    .disabled(installing)
+            banner(
+                icon: "shippingbox",
+                tint: Color.KDStatus.warning,
+                text: "Dependencies are not installed (node_modules missing)."
+            ) {
+                KTButton(
+                    title: installing ? "Installing…" : "Run npm install",
+                    kind: .secondary,
+                    action: onInstall
+                )
+                .disabled(installing)
             }
         case .running, .crashed, .stopped:
             EmptyView()
         }
     }
 
-    @ViewBuilder
-    private func banner<Trailing: View>(icon: String, tint: Color, text: String,
-                                        @ViewBuilder trailing: () -> Trailing) -> some View {
+    private func banner(
+        icon: String,
+        tint: Color,
+        text: String,
+        @ViewBuilder trailing: () -> some View
+    ) -> some View {
         HStack(spacing: 10) {
             Image(systemName: icon).font(.system(size: 13)).foregroundStyle(tint)
             Text(text).font(.jbMono(12)).foregroundStyle(KTColor.muted)

@@ -1,5 +1,5 @@
-import SwiftUI
 import KTStackKit
+import SwiftUI
 
 struct KTServicesScreen: View {
     var onNavigate: (SidebarItem) -> Void = { _ in }
@@ -10,8 +10,13 @@ struct KTServicesScreen: View {
     @EnvironmentObject private var overlay: KTOverlayCenter
     @EnvironmentObject private var caTrust: CATrustService
 
-    private var caExists: Bool { caTrust.status != .notInstalled }
-    private var caTrusted: Bool { caTrust.isTrusted }
+    private var caExists: Bool {
+        caTrust.status != .notInstalled
+    }
+
+    private var caTrusted: Bool {
+        caTrust.isTrusted
+    }
 
     private static let groups: [(title: String, kinds: [ServiceKind])] = [
         ("Core Proxy & DNS", [.nginx, .dnsmasq]),
@@ -31,8 +36,13 @@ struct KTServicesScreen: View {
                     if !banners.isEmpty {
                         VStack(spacing: 8) {
                             ForEach(banners) { banner in
-                                ServiceErrorBanner(status: banner.status, title: banner.title,
-                                                   message: banner.message, ctaTitle: banner.ctaTitle, action: banner.action)
+                                ServiceErrorBanner(
+                                    status: banner.status,
+                                    title: banner.title,
+                                    message: banner.message,
+                                    ctaTitle: banner.ctaTitle,
+                                    action: banner.action
+                                )
                             }
                         }
                         .padding(.bottom, 8)
@@ -82,7 +92,8 @@ struct KTServicesScreen: View {
                     onOpenLogs: { onOpenLogs(Self.logSourceID(for: snapshot.kind)) },
                     onInstall: { services.install(snapshot.kind) },
                     onCancelInstall: { services.cancelInstall(snapshot.kind) },
-                    onResetData: { services.resetData(snapshot.kind) })
+                    onResetData: { services.resetData(snapshot.kind) }
+                )
                 if index < rows.count - 1 {
                     Rectangle().fill(KTColor.sepFaint).frame(height: 0.5).padding(.leading, 18)
                 }
@@ -94,18 +105,19 @@ struct KTServicesScreen: View {
         ServicesBannerBuilder.banners(
             snapshots: services.snapshots, dns: dns, caTrusted: caTrusted, caExists: caExists,
             onEnableDNS: { dns.enable() }, onResetDNS: { dns.reset() },
-            onOpenTLSSettings: { onNavigate(.settings) }, onRestart: { services.restart($0) })
+            onOpenTLSSettings: { onNavigate(.settings) }, onRestart: { services.restart($0) }
+        )
     }
 
     private static func logSourceID(for kind: ServiceKind) -> String? {
         switch kind {
-        case .nginx:    return "nginx-error"
-        case .mysql:    return "mysql"
-        case .postgres: return "postgres"
-        case .redis:    return "redis"
-        case .mongodb:  return "mongodb"
-        case .mailpit:  return "mailpit"
-        case .phpFpm, .dnsmasq: return nil
+        case .nginx: "nginx-error"
+        case .mysql: "mysql"
+        case .postgres: "postgres"
+        case .redis: "redis"
+        case .mongodb: "mongodb"
+        case .mailpit: "mailpit"
+        case .phpFpm, .dnsmasq: nil
         }
     }
 }

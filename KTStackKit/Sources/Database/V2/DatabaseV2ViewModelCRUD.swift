@@ -1,18 +1,17 @@
 import Foundation
 
-extension DatabaseV2ViewModel {
-
-    public var canEdit: Bool {
+public extension DatabaseV2ViewModel {
+    var canEdit: Bool {
         !columns.primaryKeyColumns.isEmpty
     }
 
-    public var editableColumns: Set<String> {
+    var editableColumns: Set<String> {
         guard canEdit else { return [] }
         let pkNames = Set(columns.primaryKeyColumns.map(\.name))
         return Set(columns.map(\.name)).subtracting(pkNames)
     }
 
-    public func updateCell(row: Int, column: Int, newValue: String) async {
+    func updateCell(row: Int, column: Int, newValue: String) async {
         guard let result = rows,
               row >= 0, row < result.rows.count,
               column >= 0, column < result.columns.count else { return }
@@ -42,7 +41,7 @@ extension DatabaseV2ViewModel {
         }
     }
 
-    public func insertRow(_ values: [ColumnValue]) async {
+    func insertRow(_ values: [ColumnValue]) async {
         guard let driver, let database = selectedDatabase, let table = selectedTable else { return }
         let token = generation
         editError = nil
@@ -56,7 +55,7 @@ extension DatabaseV2ViewModel {
         }
     }
 
-    public func deleteRow(_ row: Int) async {
+    func deleteRow(_ row: Int) async {
         guard let key = keyForRow(row) else {
             editError = "Can't identify this row to delete (no primary key)."
             return

@@ -7,8 +7,10 @@ public struct BackupSession: Sendable {
     public let library: BackupLibrary
     public let resolveEngineVersion: @Sendable (DatabaseKind) -> String?
 
-    public init(library: BackupLibrary = BackupLibrary(),
-                resolveEngineVersion: @escaping @Sendable (DatabaseKind) -> String? = { _ in nil }) {
+    public init(
+        library: BackupLibrary = BackupLibrary(),
+        resolveEngineVersion: @escaping @Sendable (DatabaseKind) -> String? = { _ in nil }
+    ) {
         self.library = library
         self.resolveEngineVersion = resolveEngineVersion
     }
@@ -22,58 +24,77 @@ public struct BackupSession: Sendable {
             library: BackupLibrary(paths: paths),
             resolveEngineVersion: { kind in
                 switch kind {
-                case .mysql:    return catalog.installedVersion(.mysql)
-                case .postgres: return catalog.installedVersion(.postgres)
-                case .mongodb:  return catalog.installedVersion(.mongodb)
-                case .sqlite:   return nil
+                case .mysql: catalog.installedVersion(.mysql)
+                case .postgres: catalog.installedVersion(.postgres)
+                case .mongodb: catalog.installedVersion(.mongodb)
+                case .sqlite: nil
                 }
-            })
+            }
+        )
     }
 
     public func provider(for kind: DatabaseKind) -> BackupProviderResult {
         BackupProviderFactory.make(for: kind)
     }
 
-    public func create(profile: ConnectionProfile, password: String?,
-                       databases: [String]) async throws -> BackupSet {
+    public func create(
+        profile: ConnectionProfile,
+        password: String?,
+        databases: [String]
+    ) async throws -> BackupSet {
         guard let provider = providerOrThrow(profile.kind) else {
             throw DatabaseError.connection("Backup isn't available for \(profile.kind.rawValue).")
         }
         return try await library.create(
             kind: profile.kind, profile: profile, databases: databases,
             using: provider, password: password,
-            engineVersion: resolveEngineVersion(profile.kind))
+            engineVersion: resolveEngineVersion(profile.kind)
+        )
     }
 
-    public func restore(set: BackupSet, database: String, profile: ConnectionProfile,
-                        password: String?, target: RestoreTarget) async throws {
+    public func restore(
+        set: BackupSet,
+        database: String,
+        profile: ConnectionProfile,
+        password: String?,
+        target: RestoreTarget
+    ) async throws {
         guard set.kind == profile.kind else {
             throw DatabaseError.connection(
-                "Backup engine (\(set.kind.rawValue)) doesn't match the active connection (\(profile.kind.rawValue)).")
+                "Backup engine (\(set.kind.rawValue)) doesn't match the active connection (\(profile.kind.rawValue))."
+            )
         }
         try requireCompatibleVersion(set: set, kind: profile.kind)
         guard let provider = providerOrThrow(profile.kind) else {
             throw DatabaseError.connection("Restore isn't available for \(profile.kind.rawValue).")
         }
-        let artifact = artifactURL(in: library.directory(for: set),
-                                   database: database, provider: provider)
-        try await provider.restore(profile: profile, password: password,
-                                   from: artifact, into: target)
+        let artifact = artifactURL(
+            in: library.directory(for: set),
+            database: database,
+            provider: provider
+        )
+        try await provider.restore(
+            profile: profile,
+            password: password,
+            from: artifact,
+            into: target
+        )
     }
 
     public func artifactURL(in setDir: URL, database: String, provider: BackupProvider) -> URL {
         setDir.appendingPathComponent(provider.artifactName(for: database))
     }
 
-    public func delete(_ set: BackupSet) throws { try library.delete(set) }
+    public func delete(_ set: BackupSet) throws {
+        try library.delete(set)
+    }
+
     public func exportSet(_ set: BackupSet, to destination: URL) throws {
         try library.export(set, to: destination)
     }
 
-    // MARK: - Private
-
     private func providerOrThrow(_ kind: DatabaseKind) -> BackupProvider? {
-        if case .available(let provider) = BackupProviderFactory.make(for: kind) { return provider }
+        if case let .available(provider) = BackupProviderFactory.make(for: kind) { return provider }
         return nil
     }
 
@@ -86,7 +107,8 @@ public struct BackupSession: Sendable {
         guard Self.majorVersion(stored) != Self.majorVersion(current) else { return }
         throw DatabaseError.connection(
             "This backup was made on \(kind.rawValue) \(stored); the installed engine is \(current). "
-            + "Restore aborted before any destructive step.")
+                + "Restore aborted before any destructive step."
+        )
     }
 
     static func majorVersion(_ version: String) -> String {
@@ -98,12 +120,11 @@ public struct BackupSession: Sendable {
     /// `admin/local/config` carry server state that shouldn't be restored over a user DB. Each set
     /// is the documented system-database list for that engine — no heuristic guess.
     public static func userDatabaseNames(_ names: [String], for kind: DatabaseKind) -> [String] {
-        let system: Set<String>
-        switch kind {
-        case .mysql:    system = ["information_schema", "performance_schema", "mysql", "sys"]
-        case .postgres: system = ["template0", "template1"]
-        case .mongodb:  system = ["admin", "local", "config"]
-        case .sqlite:   system = []
+        let system: Set<String> = switch kind {
+        case .mysql: ["information_schema", "performance_schema", "mysql", "sys"]
+        case .postgres: ["template0", "template1"]
+        case .mongodb: ["admin", "local", "config"]
+        case .sqlite: []
         }
         return names.filter { !system.contains($0.lowercased()) }
     }

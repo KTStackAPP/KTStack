@@ -22,11 +22,13 @@ public struct NodeSiteController: Sendable {
     private let installedNodeVersions: @Sendable () -> [String]
     private let nodeModulesPresent: @Sendable (Site) -> Bool
 
-    public init(paths: AppSupportPaths,
-                agents: LaunchAgentManager,
-                startTimeout: TimeInterval = 12,
-                installedNodeVersions: @escaping @Sendable () -> [String],
-                nodeModulesPresent: @escaping @Sendable (Site) -> Bool = NodeSiteController.fileSystemNodeModulesCheck) {
+    public init(
+        paths: AppSupportPaths,
+        agents: LaunchAgentManager,
+        startTimeout: TimeInterval = 12,
+        installedNodeVersions: @escaping @Sendable () -> [String],
+        nodeModulesPresent: @escaping @Sendable (Site) -> Bool = NodeSiteController.fileSystemNodeModulesCheck
+    ) {
         self.paths = paths
         self.agents = agents
         self.startTimeout = startTimeout
@@ -36,11 +38,17 @@ public struct NodeSiteController: Sendable {
 
     public init(paths: AppSupportPaths, agents: LaunchAgentManager, startTimeout: TimeInterval = 12) {
         let catalog = RuntimeCatalog(paths: paths)
-        self.init(paths: paths, agents: agents, startTimeout: startTimeout,
-                  installedNodeVersions: { catalog.installedVersions(.node) })
+        self.init(
+            paths: paths,
+            agents: agents,
+            startTimeout: startTimeout,
+            installedNodeVersions: { catalog.installedVersions(.node) }
+        )
     }
 
-    public static func label(domain: String) -> String { labelPrefix + domain }
+    public static func label(domain: String) -> String {
+        labelPrefix + domain
+    }
 
     public static let fileSystemNodeModulesCheck: @Sendable (Site) -> Bool = { site in
         var isDir: ObjCBool = false
@@ -69,7 +77,8 @@ public struct NodeSiteController: Sendable {
             stdoutPath: paths.nodeOutLog(site.domain).path,
             stderrPath: paths.nodeErrLog(site.domain).path,
             keepAliveOnCrash: true,
-            runAtLoad: true)
+            runAtLoad: true
+        )
     }
 
     func resolvedVersion() -> String? {
@@ -94,9 +103,11 @@ public struct NodeSiteController: Sendable {
     }
 
     static func environment(port: Int, nodeBin: URL) -> [String: String] {
-        ["PORT": String(port),
-         "PATH": nodeBin.path + ":/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
-         "NODE_ENV": "development"]
+        [
+            "PORT": String(port),
+            "PATH": nodeBin.path + ":/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "NODE_ENV": "development",
+        ]
     }
 
     @discardableResult
@@ -105,7 +116,7 @@ public struct NodeSiteController: Sendable {
         case .needsRuntime: return .needsRuntime
         case .needsCommand: return .needsCommand
         case .needsInstall: return .needsInstall
-        case .ready(let version):
+        case let .ready(version):
             guard let spec = buildSpec(for: site, version: version), let port = site.nodePort else {
                 return .needsCommand
             }
@@ -186,26 +197,28 @@ public struct NodeSiteController: Sendable {
     }
 }
 
-extension NodeSiteController.State {
-    public var badgeLabel: String {
+public extension NodeSiteController.State {
+    var badgeLabel: String {
         switch self {
-        case .running:      return "Running"
-        case .crashed:      return "Crashed"
-        case .stopped:      return "Stopped"
-        case .needsRuntime: return "Needs Node"
-        case .needsInstall: return "Needs Install"
-        case .needsCommand: return "Needs Command"
+        case .running: "Running"
+        case .crashed: "Crashed"
+        case .stopped: "Stopped"
+        case .needsRuntime: "Needs Node"
+        case .needsInstall: "Needs Install"
+        case .needsCommand: "Needs Command"
         }
     }
 
-    public var isHealthy: Bool { self == .running }
+    var isHealthy: Bool {
+        self == .running
+    }
 
-    public var serviceStatus: ServiceStatus {
+    var serviceStatus: ServiceStatus {
         switch self {
-        case .running:      return .running
-        case .crashed:      return .error
-        case .stopped:      return .stopped
-        case .needsRuntime, .needsInstall, .needsCommand: return .warning
+        case .running: .running
+        case .crashed: .error
+        case .stopped: .stopped
+        case .needsRuntime, .needsInstall, .needsCommand: .warning
         }
     }
 }

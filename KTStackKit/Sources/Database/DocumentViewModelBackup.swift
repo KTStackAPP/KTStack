@@ -1,7 +1,6 @@
 import Foundation
 
 public extension DocumentViewModel {
-
     typealias BackupStatus = DatabaseViewModel.BackupStatus
 
     var canBackup: Bool {
@@ -15,13 +14,17 @@ public extension DocumentViewModel {
         guard kind == .mongodb else { return "Use the relational track for \(kind.rawValue) backups." }
         switch BackupProviderFactory.make(for: .mongodb) {
         case .available: return nil
-        case .unavailable(let reason): return reason
+        case let .unavailable(reason): return reason
         }
     }
 
-    var canManualImport: Bool { canBackup && !isReadOnlyConnection }
+    var canManualImport: Bool {
+        canBackup && !isReadOnlyConnection
+    }
 
-    var canCreateDatabase: Bool { selectedProfile?.kind == .mongodb && !isReadOnlyConnection }
+    var canCreateDatabase: Bool {
+        selectedProfile?.kind == .mongodb && !isReadOnlyConnection
+    }
 
     var manualImportUnavailableReason: String? {
         guard selectedProfile?.kind == .mongodb else { return "Pick a MongoDB connection first." }
@@ -36,8 +39,11 @@ public extension DocumentViewModel {
         }
         backupStatus = .running("Backing up \(database)…")
         do {
-            let set = try await session.create(profile: profile, password: passwordFor(profile),
-                                                databases: [database])
+            let set = try await session.create(
+                profile: profile,
+                password: passwordFor(profile),
+                databases: [database]
+            )
             backupStatus = .done("Backed up \(database).")
             return set
         } catch {
@@ -66,8 +72,11 @@ public extension DocumentViewModel {
         }
         backupStatus = .running("Backing up \(names.count) databases…")
         do {
-            let set = try await session.create(profile: profile, password: passwordFor(profile),
-                                                databases: names)
+            let set = try await session.create(
+                profile: profile,
+                password: passwordFor(profile),
+                databases: names
+            )
             backupStatus = .done("Backed up \(names.count) databases.")
             return set
         } catch {
@@ -86,8 +95,13 @@ public extension DocumentViewModel {
         for database in set.databases {
             backupStatus = .running("Restoring \(database) (\(succeeded + 1)/\(set.databases.count))…")
             do {
-                try await session.restore(set: set, database: database, profile: profile,
-                                           password: passwordFor(profile), target: .overwrite)
+                try await session.restore(
+                    set: set,
+                    database: database,
+                    profile: profile,
+                    password: passwordFor(profile),
+                    target: .overwrite
+                )
                 succeeded += 1
             } catch {
                 backupStatus = .failed("Failed restoring \(database): \(Self.asDatabaseError(error).message)")
@@ -101,8 +115,12 @@ public extension DocumentViewModel {
         return true
     }
 
-    func restoreBackup(_ set: BackupSet, database: String, target: RestoreTarget,
-                       session: BackupSession) async -> Bool {
+    func restoreBackup(
+        _ set: BackupSet,
+        database: String,
+        target: RestoreTarget,
+        session: BackupSession
+    ) async -> Bool {
         guard let profile = selectedProfile else { return false }
         guard !isReadOnlyConnection else {
             backupStatus = .failed("This connection is read-only; restore is disabled.")
@@ -110,8 +128,13 @@ public extension DocumentViewModel {
         }
         backupStatus = .running("Restoring \(database)…")
         do {
-            try await session.restore(set: set, database: database, profile: profile,
-                                       password: passwordFor(profile), target: target)
+            try await session.restore(
+                set: set,
+                database: database,
+                profile: profile,
+                password: passwordFor(profile),
+                target: target
+            )
             backupStatus = .done("Restored \(database).")
             if let refreshed = try? await driver?.listDatabases() {
                 databases = refreshed
@@ -141,16 +164,20 @@ public extension DocumentViewModel {
         }
     }
 
-    func clearBackupStatus() { backupStatus = .idle }
+    func clearBackupStatus() {
+        backupStatus = .idle
+    }
 
     func targetDatabaseExists(_ name: String) async -> Bool {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let driver else { return false }
-        let names = (try? await driver.listDatabases().map(\.name)) ?? databases.map(\.name)
+        let names = await (try? driver.listDatabases().map(\.name)) ?? databases.map(\.name)
         return names.contains(trimmed)
     }
 
-    func failBackupStatus(_ message: String) { backupStatus = .failed(message) }
+    func failBackupStatus(_ message: String) {
+        backupStatus = .failed(message)
+    }
 
     func importDatabase(into database: String, from input: URL, replaceExisting: Bool) async {
         guard let profile = selectedProfile else { return }
@@ -160,9 +187,13 @@ public extension DocumentViewModel {
         }
         backupStatus = .running("Importing \(database)…")
         do {
-            try await MongoBackupProvider().restore(profile: profile, password: passwordFor(profile),
-                                                    from: input, intoDatabase: database,
-                                                    replaceExisting: replaceExisting)
+            try await MongoBackupProvider().restore(
+                profile: profile,
+                password: passwordFor(profile),
+                from: input,
+                intoDatabase: database,
+                replaceExisting: replaceExisting
+            )
             backupStatus = .done("Imported \(input.lastPathComponent) into \(database).")
             if let refreshed = try? await driver?.listDatabases() {
                 databases = refreshed

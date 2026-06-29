@@ -1,7 +1,6 @@
 import Foundation
 
 public extension DocumentViewModel {
-
     static func validateJSON(_ json: String) -> String? {
         let trimmed = json.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "The document is empty." }
@@ -63,7 +62,9 @@ public extension DocumentViewModel {
         return succeeded
     }
 
-    func clearEditError() { editError = nil }
+    func clearEditError() {
+        editError = nil
+    }
 
     private func runCollectionOp(_ operation: @Sendable () async throws -> Void) async -> Bool {
         editError = nil

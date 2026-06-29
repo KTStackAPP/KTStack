@@ -102,8 +102,11 @@ extension DatabaseViewModel {
             let raw = try await driver.query(limited.sql, database: selectedDatabase)
             guard isCurrentQueryOperation(tabID, token: token) else { return }
             let r = limited.applied
-                ? QueryResult(columns: raw.columns, rows: raw.rows,
-                              truncated: raw.rowCount >= SQLAutoLimit.defaultMax)
+                ? QueryResult(
+                    columns: raw.columns,
+                    rows: raw.rows,
+                    truncated: raw.rowCount >= SQLAutoLimit.defaultMax
+                )
                 : raw
             recordQueryHistory(trimmed)
             if tabID == nil {
@@ -167,9 +170,11 @@ extension DatabaseViewModel {
     }
 
     func recordQueryHistory(_ sql: String) {
-        try? historyStore.record(sql: sql,
-                                 connectionLabel: selectedProfile?.name ?? "Unknown connection",
-                                 database: selectedDatabase)
+        try? historyStore.record(
+            sql: sql,
+            connectionLabel: selectedProfile?.name ?? "Unknown connection",
+            database: selectedDatabase
+        )
         queryHistoryEntries = historyStore.entries()
     }
 }

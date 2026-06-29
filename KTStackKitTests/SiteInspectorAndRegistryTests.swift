@@ -49,7 +49,7 @@ final class SiteInspectorTests: XCTestCase {
         try "<html>".write(to: folder.appendingPathComponent("index.html"), atomically: true, encoding: .utf8)
         let r = inspector.inspect(folder: folder)
         XCTAssertEqual(r.type, .staticSite)
-        XCTAssertEqual(r.docroot, folder)   // no public/ → root
+        XCTAssertEqual(r.docroot, folder) // no public/ → root
     }
 
     func testNodeWhenPackageJsonAndNoPHP() throws {
@@ -99,7 +99,7 @@ final class SiteRegistryTests: XCTestCase {
 
     func testAddPersistsDatabaseName() throws {
         let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
-        let site = try reg.add(folder: try phpFolder(in: dir, named: "shop"), databaseName: "shop_db")
+        let site = try reg.add(folder: phpFolder(in: dir, named: "shop"), databaseName: "shop_db")
         XCTAssertEqual(site.databaseName, "shop_db")
         let reloaded = SiteRegistry(storeURL: dir.appendingPathComponent("sites.json"))
         XCTAssertEqual(reloaded.sites.first?.databaseName, "shop_db")
@@ -170,23 +170,23 @@ final class SiteRegistryTests: XCTestCase {
 
     func testDuplicateDefaultDomainGetsSuffix() throws {
         let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
-        _ = try reg.add(folder: try phpFolder(in: dir.appendingPathComponent("a", isDirectory: true), named: "blog"))
-        let second = try reg.add(folder: try phpFolder(in: dir.appendingPathComponent("b", isDirectory: true), named: "blog"))
+        _ = try reg.add(folder: phpFolder(in: dir.appendingPathComponent("a", isDirectory: true), named: "blog"))
+        let second = try reg.add(folder: phpFolder(in: dir.appendingPathComponent("b", isDirectory: true), named: "blog"))
         XCTAssertEqual(second.domain, "blog-2.test")
     }
 
     func testDomainValidationRejectsNonTestTLDAndDuplicates() throws {
         let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
-        let site = try reg.add(folder: try phpFolder(in: dir, named: "app"))
-        XCTAssertThrowsError(try reg.editDomain(site, to: "app.localhost"))   // wrong TLD
+        let site = try reg.add(folder: phpFolder(in: dir, named: "app"))
+        XCTAssertThrowsError(try reg.editDomain(site, to: "app.localhost")) // wrong TLD
         XCTAssertThrowsError(try reg.editDomain(site, to: "bad domain.test")) // invalid chars
-        let other = try reg.add(folder: try phpFolder(in: dir.appendingPathComponent("x", isDirectory: true), named: "other"))
-        XCTAssertThrowsError(try reg.editDomain(other, to: "app.test"))       // taken
+        let other = try reg.add(folder: phpFolder(in: dir.appendingPathComponent("x", isDirectory: true), named: "other"))
+        XCTAssertThrowsError(try reg.editDomain(other, to: "app.test")) // taken
     }
 
     func testEditDomainAndSetVersionApply() throws {
         let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
-        let site = try reg.add(folder: try phpFolder(in: dir, named: "site"))
+        let site = try reg.add(folder: phpFolder(in: dir, named: "site"))
         try reg.editDomain(site, to: "custom.test")
         reg.setPHPVersion(reg.sites[0], to: "8.1")
         XCTAssertEqual(reg.sites[0].domain, "custom.test")
@@ -200,7 +200,8 @@ final class SiteRemovalCoordinatorTests: XCTestCase {
         let coordinator = SiteRemovalCoordinator(
             deleteFolder: { site in await events.append("delete-folder:\(site.domain)") },
             dropDatabase: { database in await events.append("drop-database:\(database)") },
-            removeRecord: { site in await events.append("remove-record:\(site.domain)") })
+            removeRecord: { site in await events.append("remove-record:\(site.domain)") }
+        )
         let site = site(databaseName: "shop_db")
 
         try await coordinator.remove(site)
@@ -218,7 +219,8 @@ final class SiteRemovalCoordinatorTests: XCTestCase {
         let coordinator = SiteRemovalCoordinator(
             deleteFolder: { site in await events.append("delete-folder:\(site.domain)") },
             dropDatabase: { database in await events.append("drop-database:\(database)") },
-            removeRecord: { site in await events.append("remove-record:\(site.domain)") })
+            removeRecord: { site in await events.append("remove-record:\(site.domain)") }
+        )
         let site = site(databaseName: nil)
 
         try await coordinator.remove(site)
@@ -238,7 +240,8 @@ final class SiteRemovalCoordinatorTests: XCTestCase {
                 throw RemovalFailure.folder
             },
             dropDatabase: { database in await events.append("drop-database:\(database)") },
-            removeRecord: { site in await events.append("remove-record:\(site.domain)") })
+            removeRecord: { site in await events.append("remove-record:\(site.domain)") }
+        )
 
         do {
             try await coordinator.remove(site(databaseName: "shop_db"))
@@ -258,7 +261,8 @@ final class SiteRemovalCoordinatorTests: XCTestCase {
                 await events.append("drop-database:\(database)")
                 throw RemovalFailure.database
             },
-            removeRecord: { site in await events.append("remove-record:\(site.domain)") })
+            removeRecord: { site in await events.append("remove-record:\(site.domain)") }
+        )
 
         do {
             try await coordinator.remove(site(databaseName: "shop_db"))
@@ -274,13 +278,15 @@ final class SiteRemovalCoordinatorTests: XCTestCase {
     }
 
     private func site(databaseName: String?) -> Site {
-        Site(name: "shop",
-             path: "/tmp/shop",
-             docroot: "/tmp/shop/public",
-             domain: "shop.test",
-             phpVersion: "8.4",
-             type: .php,
-             databaseName: databaseName)
+        Site(
+            name: "shop",
+            path: "/tmp/shop",
+            docroot: "/tmp/shop/public",
+            domain: "shop.test",
+            phpVersion: "8.4",
+            type: .php,
+            databaseName: databaseName
+        )
     }
 }
 

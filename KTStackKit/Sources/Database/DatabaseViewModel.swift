@@ -1,9 +1,8 @@
-import Foundation
 import Combine
+import Foundation
 
 @MainActor
 public final class DatabaseViewModel: ObservableObject {
-
     public enum Connection: Equatable {
         case idle
         case connecting
@@ -30,7 +29,7 @@ public final class DatabaseViewModel: ObservableObject {
     @Published public internal(set) var queryTabs: [QueryTab] = [QueryTab(title: "Query 1")]
     @Published public internal(set) var activeQueryTabID: UUID?
     @Published public internal(set) var queryHistoryEntries: [QueryHistoryEntry] = []
- 
+
     @Published public internal(set) var isBusy = false
     @Published public private(set) var pageOffset = 0
 
@@ -48,7 +47,9 @@ public final class DatabaseViewModel: ObservableObject {
     private var schemaColumnsLoaded = false
     private var schemaDetailedLoaded = false
 
-    private var browseDialect: SQLDialect { SQLDialect.forKind(selectedProfile?.kind ?? .mysql) }
+    private var browseDialect: SQLDialect {
+        SQLDialect.forKind(selectedProfile?.kind ?? .mysql)
+    }
 
     @Published public internal(set) var currentColumns: [ColumnInfo] = []
 
@@ -69,19 +70,20 @@ public final class DatabaseViewModel: ObservableObject {
 
     @Published public internal(set) var editError: String?
 
-  
     public var pageSize = 100
-
 
     public var isTableBrowse: Bool {
         if case .table = resultSource { return true }
         return false
     }
 
-    public var primaryKeyColumns: [ColumnInfo] { currentColumns.primaryKeyColumns }
+    public var primaryKeyColumns: [ColumnInfo] {
+        currentColumns.primaryKeyColumns
+    }
 
-    public var isReadOnlyConnection: Bool { selectedProfile?.readOnly ?? false }
-
+    public var isReadOnlyConnection: Bool {
+        selectedProfile?.readOnly ?? false
+    }
 
     public var editDisabledReason: String? {
         if isReadOnlyConnection { return "This connection is read-only." }
@@ -92,8 +94,9 @@ public final class DatabaseViewModel: ObservableObject {
         return nil
     }
 
-   
-    public var canEditRows: Bool { editDisabledReason == nil }
+    public var canEditRows: Bool {
+        editDisabledReason == nil
+    }
 
     public typealias DriverFactory = @Sendable (ConnectionProfile, String?) -> RelationalDriver?
 
@@ -113,22 +116,23 @@ public final class DatabaseViewModel: ObservableObject {
 
     private(set) var driver: RelationalDriver?
 
-
     private var generation = 0
     var queryGenerations: [UUID: Int] = [:]
 
-    public init(makeDriver: @escaping DriverFactory = DatabaseViewModel.defaultDriver,
-                passwordFor: @escaping @Sendable (ConnectionProfile) -> String? = DatabaseViewModel.defaultPassword,
-                dumpService: DumpService = DumpService(),
-                historyStore: QueryHistoryStore = QueryHistoryStore(),
-                lastUsedStore: LastUsedDatabaseStore = LastUsedDatabaseStore()) {
+    public init(
+        makeDriver: @escaping DriverFactory = DatabaseViewModel.defaultDriver,
+        passwordFor: @escaping @Sendable (ConnectionProfile) -> String? = DatabaseViewModel.defaultPassword,
+        dumpService: DumpService = DumpService(),
+        historyStore: QueryHistoryStore = QueryHistoryStore(),
+        lastUsedStore: LastUsedDatabaseStore = LastUsedDatabaseStore()
+    ) {
         self.makeDriver = makeDriver
         self.passwordFor = passwordFor
         self.dumpService = dumpService
         self.historyStore = historyStore
         self.lastUsedStore = lastUsedStore
-        self.queryHistoryEntries = historyStore.entries()
-        self.activeQueryTabID = queryTabs.first?.id
+        queryHistoryEntries = historyStore.entries()
+        activeQueryTabID = queryTabs.first?.id
     }
 
     public func lastDatabase(for profileID: UUID) -> String? {
@@ -142,9 +146,6 @@ public final class DatabaseViewModel: ObservableObject {
         if available.contains(profile.database) { return profile.database }
         return available.first
     }
-
-    // MARK: - Connection
-
 
     public func deselect() {
         let previousDriver = driver
@@ -206,8 +207,6 @@ public final class DatabaseViewModel: ObservableObject {
         if token == generation { isBusy = false; currentActivityLabel = nil }
     }
 
-    // MARK: - Schema
-
     public func select(database: String) async {
         guard prepareDatabaseSelection(database) else { return }
         await loadTables(of: database)
@@ -256,10 +255,12 @@ public final class DatabaseViewModel: ObservableObject {
         do {
             let map = try await driver.allColumns(database: database)
             guard token == generation else { schemaColumnsLoaded = false; return }
-            schemaCatalog = SchemaCatalog(tables: schemaCatalog.tables,
-                                          columnsByTable: map,
-                                          detailedColumnsByTable: schemaCatalog.detailedColumnsByTable,
-                                          relations: schemaCatalog.relations)
+            schemaCatalog = SchemaCatalog(
+                tables: schemaCatalog.tables,
+                columnsByTable: map,
+                detailedColumnsByTable: schemaCatalog.detailedColumnsByTable,
+                relations: schemaCatalog.relations
+            )
         } catch {
             schemaColumnsLoaded = false
         }
@@ -282,7 +283,7 @@ public final class DatabaseViewModel: ObservableObject {
         guard let driver, let database = selectedDatabase else { return }
         guard schemaCatalog.relations.isEmpty else { return }
         let token = generation
-        let relations = (try? await driver.foreignKeys(database: database)) ?? []
+        let relations = await (try? driver.foreignKeys(database: database)) ?? []
         guard token == generation else { return }
         schemaCatalog = schemaCatalog.withRelations(relations)
     }
@@ -292,8 +293,11 @@ public final class DatabaseViewModel: ObservableObject {
         await loadSelectedTable(table, filters: [], sort: nil)
     }
 
-    func loadSelectedTable(_ table: TableInfo,
-                           filters: [FilterCondition], sort: SortSpec?) async {
+    func loadSelectedTable(
+        _ table: TableInfo,
+        filters: [FilterCondition],
+        sort: SortSpec?
+    ) async {
         guard let driver, let database = selectedDatabase else { return }
         selectedTable = table
         pageOffset = 0
@@ -316,8 +320,6 @@ public final class DatabaseViewModel: ObservableObject {
         await loadPage()
     }
 
-    // MARK: - Filter + sort
-
     public func applyFilters(_ filters: [FilterCondition]) async {
         activeFilters = filters.filter { columnIsBrowsable($0.column) }
         pageOffset = 0; isIncrementalBrowse = false
@@ -333,11 +335,10 @@ public final class DatabaseViewModel: ObservableObject {
 
     public func toggleSort(column: String) async {
         guard columnIsBrowsable(column) else { return }
-        let next: SortSpec?
-        if activeSort?.column == column {
-            next = activeSort?.ascending == true ? SortSpec(column: column, ascending: false) : nil
+        let next: SortSpec? = if activeSort?.column == column {
+            activeSort?.ascending == true ? SortSpec(column: column, ascending: false) : nil
         } else {
-            next = SortSpec(column: column, ascending: true)
+            SortSpec(column: column, ascending: true)
         }
         await applySort(next)
     }
@@ -353,20 +354,27 @@ public final class DatabaseViewModel: ObservableObject {
         currentColumns.contains { $0.name == name }
     }
 
-    private func fetchBrowsePage(database: String, table: String,
-                                 limit: Int, offset: Int) async throws -> QueryResult {
+    private func fetchBrowsePage(
+        database: String,
+        table: String,
+        limit: Int,
+        offset: Int
+    ) async throws -> QueryResult {
         guard let driver else { throw DatabaseError.connection("No active connection") }
         if activeFilters.isEmpty, activeSort == nil {
-            return try await driver.paginatedRows(database: database, table: table,
-                                                  limit: limit, offset: offset)
+            return try await driver.paginatedRows(
+                database: database,
+                table: table,
+                limit: limit,
+                offset: offset
+            )
         }
         let statement = try browseDialect.browseSelect(
             schema: database, table: table,
-            filters: activeFilters, sort: activeSort, limit: limit, offset: offset)
+            filters: activeFilters, sort: activeSort, limit: limit, offset: offset
+        )
         return try await driver.runSelect(statement, database: database)
     }
-
-    // MARK: - Pagination
 
     public func nextPage() async {
         guard hasMorePages else { return }
@@ -394,7 +402,8 @@ public final class DatabaseViewModel: ObservableObject {
         defer { isFetchingMore = false; currentActivityLabel = nil }
         do {
             let page = try await fetchBrowsePage(
-                database: database, table: table.name, limit: pageSize + 1, offset: nextOffset)
+                database: database, table: table.name, limit: pageSize + 1, offset: nextOffset
+            )
             guard token == generation, let latest = result, latest.columns == expectedColumns else { return }
             if page.rows.isEmpty {
                 hasMorePages = false
@@ -427,7 +436,8 @@ public final class DatabaseViewModel: ObservableObject {
         let token = beginOperation()
         do {
             let page = try await fetchBrowsePage(
-                database: database, table: table.name, limit: loadedCount + 1, offset: 0)
+                database: database, table: table.name, limit: loadedCount + 1, offset: 0
+            )
             guard token == generation else { return }
             let hasMore = page.rowCount > loadedCount
             result = hasMore
@@ -451,7 +461,8 @@ public final class DatabaseViewModel: ObservableObject {
         currentActivityLabel = "Loading rows…"
         do {
             let page = try await fetchBrowsePage(
-                database: database, table: table.name, limit: pageSize + 1, offset: pageOffset)
+                database: database, table: table.name, limit: pageSize + 1, offset: pageOffset
+            )
             guard token == generation else { return }
             let hasMore = page.rowCount > pageSize
             result = hasMore
@@ -469,9 +480,9 @@ public final class DatabaseViewModel: ObservableObject {
         if token == generation { isBusy = false; currentActivityLabel = nil }
     }
 
-    public func clearEditError() { editError = nil }
-
-    // MARK: - Helpers
+    public func clearEditError() {
+        editError = nil
+    }
 
     private func beginOperation() -> Int {
         generation += 1

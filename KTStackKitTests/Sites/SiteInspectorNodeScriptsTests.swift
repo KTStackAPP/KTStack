@@ -10,8 +10,11 @@ final class SiteInspectorNodeScriptsTests: XCTestCase {
             .appendingPathComponent("kd-node-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: folder, withIntermediateDirectories: true)
         if let packageJSON {
-            try packageJSON.write(to: folder.appendingPathComponent("package.json"),
-                                  atomically: true, encoding: .utf8)
+            try packageJSON.write(
+                to: folder.appendingPathComponent("package.json"),
+                atomically: true,
+                encoding: .utf8
+            )
         }
         return folder
     }

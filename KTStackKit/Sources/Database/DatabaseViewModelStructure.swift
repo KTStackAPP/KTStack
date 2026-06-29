@@ -1,10 +1,11 @@
 import Foundation
 
 public extension DatabaseViewModel {
+    private var ddlDialect: SQLDialect {
+        SQLDialect.forKind(selectedProfile?.kind ?? .mysql)
+    }
 
-    private var ddlDialect: SQLDialect { SQLDialect.forKind(selectedProfile?.kind ?? .mysql) }
-
-    public var canDropDatabase: Bool {
+    var canDropDatabase: Bool {
         selectedProfile?.kind == .mysql || selectedProfile?.kind == .postgres
     }
 
@@ -14,9 +15,9 @@ public extension DatabaseViewModel {
             return
         }
         if currentColumns.isEmpty {
-            currentColumns = (try? await driver.columns(database: database, table: table.name)) ?? []
+            currentColumns = await (try? driver.columns(database: database, table: table.name)) ?? []
         }
-        currentIndexes = (try? await driver.indexes(database: database, table: table.name)) ?? []
+        currentIndexes = await (try? driver.indexes(database: database, table: table.name)) ?? []
     }
 
     func prepareCreateTable(name: String, columns: [ColumnDefinition]) {
@@ -64,9 +65,13 @@ public extension DatabaseViewModel {
         }
     }
 
-    func cancelDDL() { pendingDDL = nil }
+    func cancelDDL() {
+        pendingDDL = nil
+    }
 
-    func clearDDLError() { ddlError = nil }
+    func clearDDLError() {
+        ddlError = nil
+    }
 
     func confirmDDL() async {
         guard let sql = pendingDDL else { return }
@@ -77,7 +82,7 @@ public extension DatabaseViewModel {
         }
         guard await runConfirmedDDL(sql, database: selectedDatabase) else { return }
         if let database = selectedDatabase {
-            tables = (try? await driver?.listTables(database: database)) ?? tables
+            tables = await (try? driver?.listTables(database: database)) ?? tables
         }
         await loadStructure()
     }

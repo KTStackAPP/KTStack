@@ -1,9 +1,8 @@
-import Foundation
 import Combine
+import Foundation
 
 @MainActor
 public final class DocumentViewModel: ObservableObject {
-
     public enum Connection: Equatable {
         case idle
         case connecting
@@ -28,7 +27,9 @@ public final class DocumentViewModel: ObservableObject {
 
     public var pageSize = 50
 
-    public var isReadOnlyConnection: Bool { selectedProfile?.readOnly ?? false }
+    public var isReadOnlyConnection: Bool {
+        selectedProfile?.readOnly ?? false
+    }
 
     public typealias DriverFactory = @Sendable (ConnectionProfile, String?) -> DocumentDriver?
 
@@ -37,8 +38,10 @@ public final class DocumentViewModel: ObservableObject {
     private(set) var driver: DocumentDriver?
     private var generation = 0
 
-    public init(makeDriver: @escaping DriverFactory = DocumentViewModel.defaultDriver,
-                passwordFor: @escaping @Sendable (ConnectionProfile) -> String? = DocumentViewModel.defaultPassword) {
+    public init(
+        makeDriver: @escaping DriverFactory = DocumentViewModel.defaultDriver,
+        passwordFor: @escaping @Sendable (ConnectionProfile) -> String? = DocumentViewModel.defaultPassword
+    ) {
         self.makeDriver = makeDriver
         self.passwordFor = passwordFor
     }
@@ -130,7 +133,8 @@ public final class DocumentViewModel: ObservableObject {
             let page = try await driver.find(
                 database: database, collection: collection,
                 filterJSON: filter.isEmpty ? nil : filter,
-                limit: pageSize, skip: pageOffset)
+                limit: pageSize, skip: pageOffset
+            )
             guard token == generation else { return }
             documents = page
             resultError = nil

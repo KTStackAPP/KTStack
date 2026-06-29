@@ -4,8 +4,9 @@ import Foundation
 /// safety) lives in `DumpService`; here we resolve the password for the active profile, track
 /// `dumpStatus`, and refresh the schema after a successful import.
 public extension DatabaseViewModel {
-
-    var canDump: Bool { selectedProfile?.kind == .mysql && dumpService.isEngineInstalled }
+    var canDump: Bool {
+        selectedProfile?.kind == .mysql && dumpService.isEngineInstalled
+    }
 
     var canManualImport: Bool {
         guard let kind = selectedProfile?.kind else { return false }
@@ -41,14 +42,16 @@ public extension DatabaseViewModel {
         case .postgres, .sqlite:
             switch BackupProviderFactory.make(for: kind) {
             case .available: return nil
-            case .unavailable(let reason): return reason
+            case let .unavailable(reason): return reason
             }
         case .mongodb:
             return "Use the MongoDB document track for dump folders."
         }
     }
 
-    func clearDumpStatus() { dumpStatus = .idle }
+    func clearDumpStatus() {
+        dumpStatus = .idle
+    }
 
     func targetDatabaseExists(_ name: String) async -> Bool {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -56,11 +59,12 @@ public extension DatabaseViewModel {
         switch profile.kind {
         case .mysql:
             guard let driver else { return false }
-            let names = (try? await driver.listDatabases().map(\.name)) ?? []
+            let names = await (try? driver.listDatabases().map(\.name)) ?? []
             return names.contains(trimmed)
         case .postgres:
-            return (try? await PostgresBackupProvider().databaseExists(
-                profile: profile, password: passwordFor(profile), database: trimmed)) ?? false
+            return await (try? PostgresBackupProvider().databaseExists(
+                profile: profile, password: passwordFor(profile), database: trimmed
+            )) ?? false
         case .sqlite, .mongodb:
             return false
         }
@@ -92,14 +96,18 @@ public extension DatabaseViewModel {
         }
         dumpStatus = .running
         do {
-            try await SQLiteBackupProvider().restore(profile: profile, password: passwordFor(profile),
-                                                     from: input, into: target)
+            try await SQLiteBackupProvider().restore(
+                profile: profile,
+                password: passwordFor(profile),
+                from: input,
+                into: target
+            )
             switch target {
             case .overwrite:
                 let name = URL(fileURLWithPath: profile.filePath ?? profile.database).lastPathComponent
                 dumpStatus = .done("Imported \(input.lastPathComponent) into \(name).")
                 if selectedDatabase != nil { await select(database: SQLiteDriver.mainDatabase) }
-            case .newDatabase(let path):
+            case let .newDatabase(path):
                 dumpStatus = .done("Saved \(input.lastPathComponent) to \(URL(fileURLWithPath: path).lastPathComponent).")
             }
         } catch {
@@ -126,8 +134,13 @@ public extension DatabaseViewModel {
         guard let profile = selectedProfile, let database = selectedDatabase else { return }
         dumpStatus = .running
         do {
-            try await dumpService.export(profile: profile, password: passwordFor(profile),
-                                         database: database, table: table, to: output)
+            try await dumpService.export(
+                profile: profile,
+                password: passwordFor(profile),
+                database: database,
+                table: table,
+                to: output
+            )
             dumpStatus = .done("Exported \(table ?? database) to \(output.lastPathComponent).")
         } catch {
             dumpStatus = .failed(Self.asDatabaseError(error).message)
@@ -150,15 +163,24 @@ public extension DatabaseViewModel {
         do {
             switch profile.kind {
             case .mysql:
-                try await dumpService.importDump(profile: profile, password: passwordFor(profile),
-                                                 database: database, from: input)
+                try await dumpService.importDump(
+                    profile: profile,
+                    password: passwordFor(profile),
+                    database: database,
+                    from: input
+                )
             case .postgres:
                 try await PostgresBackupProvider().importManual(
                     profile: profile, password: passwordFor(profile), from: input,
-                    database: database, replaceExisting: replaceExisting)
+                    database: database, replaceExisting: replaceExisting
+                )
             case .sqlite:
-                try await SQLiteBackupProvider().restore(profile: profile, password: passwordFor(profile),
-                                                         from: input, into: .overwrite)
+                try await SQLiteBackupProvider().restore(
+                    profile: profile,
+                    password: passwordFor(profile),
+                    from: input,
+                    into: .overwrite
+                )
             case .mongodb:
                 throw DatabaseError.connection("Use the MongoDB document track for dump folder import.")
             }
@@ -189,11 +211,15 @@ public extension DatabaseViewModel {
         do {
             switch profile.kind {
             case .mysql:
-                try await dumpService.createDatabase(profile: profile, password: passwordFor(profile),
-                                                     database: database)
+                try await dumpService.createDatabase(
+                    profile: profile,
+                    password: passwordFor(profile),
+                    database: database
+                )
             case .postgres:
                 try await PostgresBackupProvider().createDatabase(
-                    profile: profile, password: passwordFor(profile), database: database)
+                    profile: profile, password: passwordFor(profile), database: database
+                )
             case .sqlite, .mongodb:
                 throw DatabaseError.connection("Create Database isn't available for \(profile.kind.rawValue).")
             }

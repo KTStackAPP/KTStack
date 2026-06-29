@@ -1,11 +1,10 @@
 import Foundation
 
 public extension DocumentViewModel {
-
     static let defaultDriver: DriverFactory = { profile, password in
         switch profile.kind {
-        case .mongodb:                      return MongoDriver(profile: profile, password: password)
-        case .mysql, .postgres, .sqlite:    return nil
+        case .mongodb: MongoDriver(profile: profile, password: password)
+        case .mysql, .postgres, .sqlite: nil
         }
     }
 

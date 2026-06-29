@@ -1,9 +1,8 @@
-import Foundation
 import Combine
+import Foundation
 
 @MainActor
 public final class ServiceManager: ObservableObject {
-   
     public static let order: [ServiceKind] = [.nginx, .phpFpm, .dnsmasq, .mysql, .postgres, .redis, .mongodb, .mailpit]
 
     @Published public private(set) var snapshots: [ServiceSnapshot] = []
@@ -12,12 +11,12 @@ public final class ServiceManager: ObservableObject {
     private let dns: DNSAutomationService
     private let paths: AppSupportPaths
     private let agents: LaunchAgentManager
-    
+
     private let services: [ServiceKind: ManagedService]
     private let restart = RestartPolicy()
     private var busy: Set<ServiceKind> = []
     private var pollTask: Task<Void, Never>?
-   
+
     private let catalog: ServiceBinaryCatalog
     private let downloader: RuntimeDownloader
     private let metricsSampler = ServiceMetricsSampler()
@@ -26,26 +25,28 @@ public final class ServiceManager: ObservableObject {
     private var installTasks: [ServiceKind: Task<Void, Never>] = [:]
     private var cancellables = Set<AnyCancellable>()
 
-    public init(server: LocalServerController, dns: DNSAutomationService,
-                paths: AppSupportPaths = AppSupportPaths()) {
+    public init(
+        server: LocalServerController,
+        dns: DNSAutomationService,
+        paths: AppSupportPaths = AppSupportPaths()
+    ) {
         self.server = server
         self.dns = dns
         self.paths = paths
         let agents = LaunchAgentManager(paths: paths)
         self.agents = agents
-        self.catalog = ServiceBinaryCatalog(paths: paths)
-        self.downloader = RuntimeDownloader(paths: paths)
-        self.services = [
-            .dnsmasq:  DnsmasqProxyService(dns: dns),
-            .mysql:    MySQLController(paths: paths, agents: agents),
+        catalog = ServiceBinaryCatalog(paths: paths)
+        downloader = RuntimeDownloader(paths: paths)
+        services = [
+            .dnsmasq: DnsmasqProxyService(dns: dns),
+            .mysql: MySQLController(paths: paths, agents: agents),
             .postgres: PostgreSQLController(paths: paths, agents: agents),
-            .redis:    RedisController(paths: paths, agents: agents),
-            .mongodb:  MongoDBController(paths: paths, agents: agents),
-            .mailpit:  MailpitController(paths: paths, agents: agents),
+            .redis: RedisController(paths: paths, agents: agents),
+            .mongodb: MongoDBController(paths: paths, agents: agents),
+            .mailpit: MailpitController(paths: paths, agents: agents),
         ]
         snapshots = Self.order.map { ServiceSnapshot(kind: $0, status: .stopped, detail: "", isInstalled: true) }
 
-      
         server.objectWillChange
             .merge(with: dns.objectWillChange)
             .receive(on: DispatchQueue.main)
@@ -55,8 +56,11 @@ public final class ServiceManager: ObservableObject {
 
     private func syncControllerSnapshots() {
         guard !snapshots.isEmpty else { return }
-        replaceSnapshot(webSnapshot(.nginx, status: server.nginxStatus,
-                                    detail: server.isRunning ? ":80/:443" : "off"))
+        replaceSnapshot(webSnapshot(
+            .nginx,
+            status: server.nginxStatus,
+            detail: server.isRunning ? ":80/:443" : "off"
+        ))
         replaceSnapshot(webSnapshot(.phpFpm, status: server.phpStatus, detail: phpDetail()))
     }
 
@@ -66,7 +70,6 @@ public final class ServiceManager: ObservableObject {
         }
     }
 
-   
     public func startPolling(interval: TimeInterval = 0.9) {
         guard pollTask == nil else { return }
         pollTask = Task { [weak self] in
@@ -77,10 +80,9 @@ public final class ServiceManager: ObservableObject {
         }
     }
 
-    public func stopPolling() { pollTask?.cancel(); pollTask = nil }
-
-    // MARK: - Actions
-
+    public func stopPolling() {
+        pollTask?.cancel(); pollTask = nil
+    }
 
     public func toggle(_ kind: ServiceKind) {
         let running = snapshot(kind)?.status == .running
@@ -110,12 +112,10 @@ public final class ServiceManager: ObservableObject {
     public func startAll() {
         if !server.isRunning { server.start() }
         for kind in [ServiceKind.mysql, .postgres, .redis, .mongodb, .mailpit] {
-
             guard let svc = services[kind], svc.isInstalled, installTasks[kind] == nil else { continue }
             perform(kind) { try await svc.start() }
         }
     }
-
 
     public func stopAll() {
         if server.isRunning { server.stop() }
@@ -133,13 +133,12 @@ public final class ServiceManager: ObservableObject {
         }
     }
 
-    // MARK: - On-demand engine install
-
     public func install(_ kind: ServiceKind) {
         guard installTasks[kind] == nil else { return }
         guard let release = catalog.availableRelease(kind) else {
             if !catalog.isInstalled(kind),
-               ServiceBinaryCatalog.manifest.contains(where: { $0.kind == kind }) {
+               ServiceBinaryCatalog.manifest.contains(where: { $0.kind == kind })
+            {
                 installError[kind] = "\(kind.displayName) isn’t available for \(ServiceBinaryCatalog.arch) yet."
             }
             return
@@ -148,7 +147,7 @@ public final class ServiceManager: ObservableObject {
         let dest = catalog.installDir(release)
         downloadFraction[kind] = 0
         installError[kind] = nil
-        let downloader = self.downloader
+        let downloader = downloader
         installTasks[kind] = Task { [weak self] in
             do {
                 try await downloader.installArchive(
@@ -178,34 +177,29 @@ public final class ServiceManager: ObservableObject {
         installTasks[kind] = nil
         downloadFraction[kind] = nil
         if let error { installError[kind] = error }
-        
     }
-
-    // MARK: - Reset data (unclean-shutdown escape hatch)
 
     public func resetData(_ kind: ServiceKind) {
         guard let svc = services[kind] else { return }
-        let paths = self.paths
+        let paths = paths
         perform(kind) {
             try? await svc.stop()
             Self.removeServiceData(kind, paths: paths)
         }
     }
 
-    nonisolated public static func removeServiceData(_ kind: ServiceKind, paths: AppSupportPaths) {
+    public nonisolated static func removeServiceData(_ kind: ServiceKind, paths: AppSupportPaths) {
         try? FileManager.default.removeItem(at: paths.serviceData(kind.rawValue))
     }
-
-    // MARK: - Polling
 
     private func refresh() async {
         server.refreshStatus()
         var next: [ServiceSnapshot] = []
         for kind in Self.order {
             switch kind {
-            case .nginx:  next.append(webSnapshot(kind, status: server.nginxStatus, detail: server.isRunning ? ":80/:443" : "off"))
+            case .nginx: next.append(webSnapshot(kind, status: server.nginxStatus, detail: server.isRunning ? ":80/:443" : "off"))
             case .phpFpm: next.append(webSnapshot(kind, status: server.phpStatus, detail: phpDetail()))
-            default:      next.append(await independentSnapshot(kind))
+            default: await next.append(independentSnapshot(kind))
             }
         }
 
@@ -230,52 +224,67 @@ public final class ServiceManager: ObservableObject {
                 isInstalled: false, isBusy: busy.contains(kind),
                 errorMessage: installError[kind],
                 installable: catalog.availableRelease(kind) != nil,
-                downloadFraction: downloadFraction[kind])
+                downloadFraction: downloadFraction[kind]
+            )
         }
-      
+
         if kind == .dnsmasq {
             let status = await svc.probe()
-            return ServiceSnapshot(kind: kind, status: status, detail: svc.detail,
-                                   isInstalled: true, isBusy: busy.contains(kind))
+            return ServiceSnapshot(
+                kind: kind,
+                status: status,
+                detail: svc.detail,
+                isInstalled: true,
+                isBusy: busy.contains(kind)
+            )
         }
-     
+
         let status: ServiceStatus
         if !agents.isLoaded(kind.launchdLabel) {
             restart.reset(kind)
             status = .stopped
         } else {
-            
             let healthy = await svc.probe() == .running
             status = restart.record(kind, healthy: healthy).status
         }
-        return ServiceSnapshot(kind: kind, status: status, detail: svc.detail,
-                               isInstalled: true, isBusy: busy.contains(kind),
-                               errorMessage: status == .error ? lastErrorMessage(kind) : nil)
+        return ServiceSnapshot(
+            kind: kind,
+            status: status,
+            detail: svc.detail,
+            isInstalled: true,
+            isBusy: busy.contains(kind),
+            errorMessage: status == .error ? lastErrorMessage(kind) : nil
+        )
     }
 
     private func webSnapshot(_ kind: ServiceKind, status: ServiceStatus, detail: String) -> ServiceSnapshot {
-        ServiceSnapshot(kind: kind, status: status, detail: detail, isInstalled: true,
-                        isBusy: status == .starting || status == .stopping, errorMessage: nil)
+        ServiceSnapshot(
+            kind: kind,
+            status: status,
+            detail: detail,
+            isInstalled: true,
+            isBusy: status == .starting || status == .stopping,
+            errorMessage: nil
+        )
     }
 
     private func phpDetail() -> String {
         server.isRunning ? server.availableVersions.joined(separator: ", ") : "off"
     }
 
-    // MARK: - Helpers
-
-    private func snapshot(_ kind: ServiceKind) -> ServiceSnapshot? { snapshots.first { $0.kind == kind } }
+    private func snapshot(_ kind: ServiceKind) -> ServiceSnapshot? {
+        snapshots.first { $0.kind == kind }
+    }
 
     private func lastErrorMessage(_ kind: ServiceKind) -> String {
         "\(kind.displayName) kept crashing on restart. Restart it manually or check its logs."
     }
 
-   
     private func perform(_ kind: ServiceKind, _ action: @escaping @Sendable () async throws -> Void) {
         guard !busy.contains(kind) else { return }
         busy.insert(kind)
         restart.reset(kind)
-        
+
         setSnapshotBusy(kind, true)
         Task { [weak self] in
             var message: String?
@@ -285,7 +294,7 @@ public final class ServiceManager: ObservableObject {
                 self.busy.remove(kind)
                 self.setSnapshotBusy(kind, false, errorMessage: message)
             }
-            
+
             await self?.refresh()
         }
     }

@@ -2,8 +2,13 @@ import Foundation
 
 public final class RedisController: ManagedService, @unchecked Sendable {
     public let kind = ServiceKind.redis
-    public var detail: String { ":6379" }
-    public var logsURL: URL? { paths.serviceLog("redis") }
+    public var detail: String {
+        ":6379"
+    }
+
+    public var logsURL: URL? {
+        paths.serviceLog("redis")
+    }
 
     public var isInstalled: Bool {
         guard let binary else { return false }
@@ -13,15 +18,18 @@ public final class RedisController: ManagedService, @unchecked Sendable {
     private let paths: AppSupportPaths
     private let runner: LaunchdServiceRunner
     private let catalog: ServiceBinaryCatalog
-   
-    private var binary: URL? { catalog.binary(.redis, "bin/redis-server") }
+
+    private var binary: URL? {
+        catalog.binary(.redis, "bin/redis-server")
+    }
 
     public init(paths: AppSupportPaths, agents: LaunchAgentManager) {
         self.paths = paths
-        self.catalog = ServiceBinaryCatalog(paths: paths)
-        self.runner = LaunchdServiceRunner(
+        catalog = ServiceBinaryCatalog(paths: paths)
+        runner = LaunchdServiceRunner(
             kind: .redis, label: ServiceKind.redis.launchdLabel,
-            preflightPorts: [6379], probe: .tcp(port: 6379), agents: agents)
+            preflightPorts: [6379], probe: .tcp(port: 6379), agents: agents
+        )
     }
 
     public func start() async throws {
@@ -30,15 +38,21 @@ public final class RedisController: ManagedService, @unchecked Sendable {
         try writeConfig()
         try await runner.start(spec: spec(binary: binary))
     }
-    public func stop() async throws { try runner.stop() }
+
+    public func stop() async throws {
+        try runner.stop()
+    }
+
     public func restart() async throws {
         guard let binary else { throw ServiceNotInstalled(.redis) }
         try await runner.restart(spec: spec(binary: binary))
     }
-    public func probe() async -> ServiceStatus { isInstalled ? await runner.probe() : .stopped }
+
+    public func probe() async -> ServiceStatus {
+        isInstalled ? await runner.probe() : .stopped
+    }
 
     private func writeConfig() throws {
-       
         let config = """
         bind 127.0.0.1
         port 6379
@@ -56,6 +70,7 @@ public final class RedisController: ManagedService, @unchecked Sendable {
             programArguments: [binary.path, paths.serviceConfig("redis").path],
             workingDirectory: paths.serviceData("redis").path,
             stdoutPath: paths.serviceLog("redis").path,
-            stderrPath: paths.serviceLog("redis").path)
+            stderrPath: paths.serviceLog("redis").path
+        )
     }
 }

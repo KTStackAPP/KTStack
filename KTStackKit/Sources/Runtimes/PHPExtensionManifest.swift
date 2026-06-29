@@ -1,42 +1,100 @@
 import Foundation
 
 extension PHPExtensionCatalog {
-
-
     public static let descriptors: [PHPExtension] = optionalDescriptors + builtInDescriptors
 
     static let optionalDescriptors: [PHPExtension] = [
-        PHPExtension(id: "apcu", displayName: "APCu", type: .cache,
-                     summary: "In-memory user-data cache (APC User Cache)."),
-        PHPExtension(id: "redis", displayName: "Redis", type: .cache,
-                     summary: "Redis client (phpredis) — caching, sessions, queues."),
-        PHPExtension(id: "memcached", displayName: "Memcached", type: .cache,
-                     summary: "Memcached client (libmemcached) — distributed object caching."),
-        PHPExtension(id: "imagick", displayName: "Imagick", type: .graphics,
-                     summary: "ImageMagick bindings for image creation and manipulation."),
-        PHPExtension(id: "xdebug", displayName: "Xdebug", type: .debugger,
-                     summary: "Step debugger, profiler, and stack traces.",
-                     loadDirective: .zendExtension),
-        PHPExtension(id: "xhprof", displayName: "XHProf", type: .debugger,
-                     summary: "Hierarchical profiler for production-grade performance analysis."),
-        PHPExtension(id: "grpc", displayName: "gRPC", type: .rpc,
-                     summary: "gRPC client/server runtime for high-performance RPC."),
-        PHPExtension(id: "protobuf", displayName: "Protobuf", type: .data,
-                     summary: "Protocol Buffers runtime (C extension) for gRPC/serialization."),
-        PHPExtension(id: "swoole", displayName: "Swoole", type: .runtime,
-                     summary: "Async coroutine runtime — used via CLI (php server.php), not under php-fpm."),
-        PHPExtension(id: "event", displayName: "Event", type: .runtime,
-                     summary: "libevent bindings for event-driven, async I/O servers."),
-        PHPExtension(id: "mongodb", displayName: "MongoDB", type: .database,
-                     summary: "MongoDB driver (ext-mongodb, libmongoc/libbson) — for MongoDB from PHP/Laravel."),
-        PHPExtension(id: "ssh2", displayName: "SSH2", type: .network,
-                     summary: "libssh2 bindings — SSH connections, SFTP, remote exec from PHP."),
-        PHPExtension(id: "snmp", displayName: "SNMP", type: .network,
-                     summary: "net-snmp bindings for querying SNMP-managed devices."),
-        PHPExtension(id: "zstd", displayName: "Zstd", type: .data,
-                     summary: "Zstandard compression bindings."),
-        PHPExtension(id: "xlswriter", displayName: "XLSWriter", type: .data,
-                     summary: "High-performance Excel (xlsx) reader/writer."),
+        PHPExtension(
+            id: "apcu",
+            displayName: "APCu",
+            type: .cache,
+            summary: "In-memory user-data cache (APC User Cache)."
+        ),
+        PHPExtension(
+            id: "redis",
+            displayName: "Redis",
+            type: .cache,
+            summary: "Redis client (phpredis) — caching, sessions, queues."
+        ),
+        PHPExtension(
+            id: "memcached",
+            displayName: "Memcached",
+            type: .cache,
+            summary: "Memcached client (libmemcached) — distributed object caching."
+        ),
+        PHPExtension(
+            id: "imagick",
+            displayName: "Imagick",
+            type: .graphics,
+            summary: "ImageMagick bindings for image creation and manipulation."
+        ),
+        PHPExtension(
+            id: "xdebug",
+            displayName: "Xdebug",
+            type: .debugger,
+            summary: "Step debugger, profiler, and stack traces.",
+            loadDirective: .zendExtension
+        ),
+        PHPExtension(
+            id: "xhprof",
+            displayName: "XHProf",
+            type: .debugger,
+            summary: "Hierarchical profiler for production-grade performance analysis."
+        ),
+        PHPExtension(
+            id: "grpc",
+            displayName: "gRPC",
+            type: .rpc,
+            summary: "gRPC client/server runtime for high-performance RPC."
+        ),
+        PHPExtension(
+            id: "protobuf",
+            displayName: "Protobuf",
+            type: .data,
+            summary: "Protocol Buffers runtime (C extension) for gRPC/serialization."
+        ),
+        PHPExtension(
+            id: "swoole",
+            displayName: "Swoole",
+            type: .runtime,
+            summary: "Async coroutine runtime — used via CLI (php server.php), not under php-fpm."
+        ),
+        PHPExtension(
+            id: "event",
+            displayName: "Event",
+            type: .runtime,
+            summary: "libevent bindings for event-driven, async I/O servers."
+        ),
+        PHPExtension(
+            id: "mongodb",
+            displayName: "MongoDB",
+            type: .database,
+            summary: "MongoDB driver (ext-mongodb, libmongoc/libbson) — for MongoDB from PHP/Laravel."
+        ),
+        PHPExtension(
+            id: "ssh2",
+            displayName: "SSH2",
+            type: .network,
+            summary: "libssh2 bindings — SSH connections, SFTP, remote exec from PHP."
+        ),
+        PHPExtension(
+            id: "snmp",
+            displayName: "SNMP",
+            type: .network,
+            summary: "net-snmp bindings for querying SNMP-managed devices."
+        ),
+        PHPExtension(
+            id: "zstd",
+            displayName: "Zstd",
+            type: .data,
+            summary: "Zstandard compression bindings."
+        ),
+        PHPExtension(
+            id: "xlswriter",
+            displayName: "XLSWriter",
+            type: .data,
+            summary: "High-performance Excel (xlsx) reader/writer."
+        ),
     ]
 
     static let builtInDescriptors: [PHPExtension] = [
@@ -49,8 +107,13 @@ extension PHPExtensionCatalog {
         ("ldap", "LDAP", .network), ("bz2", "Bzip2", .data),
         ("sysvshm", "SysV SHM", .utility), ("calendar", "Calendar", .utility), ("gmp", "GMP", .data),
         ("sysvmsg", "SysV Msg", .utility),
-    ].map { PHPExtension(id: $0.0, displayName: $0.1, type: $0.2, summary: "Compiled into the base PHP.",
-                         isBuiltIn: true) }
+    ].map { PHPExtension(
+        id: $0.0,
+        displayName: $0.1,
+        type: $0.2,
+        summary: "Compiled into the base PHP.",
+        isBuiltIn: true
+    ) }
 
     public static let manifest: [PHPExtensionRelease] = [
         ext("apcu", "7.4", "13b2cfbc94618fb75ae5218b3e2f13d09d10e8cff5b8efd8961000f4a7472e27"),
@@ -137,7 +200,6 @@ extension PHPExtensionCatalog {
         ext("zstd", "8.4", "7a675caa517ee6f9f471bea7d7b48805341498a883865eabb3938c22151f53be"),
     ]
 
-   
     private static func ext(_ id: String, _ version: String, _ arm64: String) -> PHPExtensionRelease {
         var sha256ByArch = ["arm64": arm64]
         if let x86 = extChecksumsX86["\(id)-\(version)"] { sha256ByArch["x86_64"] = x86 }

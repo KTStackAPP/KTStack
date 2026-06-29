@@ -18,7 +18,6 @@ public struct BreadcrumbEntry: Equatable, Identifiable {
 }
 
 public extension DatabaseViewModel {
-
     func navigableForeignKeys(forTable table: String) -> [String: ForeignKeyRelation] {
         let relations = schemaCatalog.relations.filter { $0.fromTable == table }
         var membersByConstraint: [String: Int] = [:]
@@ -42,7 +41,8 @@ public extension DatabaseViewModel {
         await loadSelectedTable(
             TableInfo(name: relation.toTable),
             filters: [FilterCondition(column: relation.toColumn, op: .equals, value: value)],
-            sort: nil)
+            sort: nil
+        )
     }
 
     func popNavigation() async {

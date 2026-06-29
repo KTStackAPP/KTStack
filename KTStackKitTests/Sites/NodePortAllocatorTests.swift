@@ -10,11 +10,17 @@ final class NodePortAllocatorTests: XCTestCase {
     }
 
     func testSkipsReservedServicePorts() {
-        let port = allocator.allocate(existing: [], range: 3305...3307,
-                                      reserved: [3306]) { _ in true }
+        let port = allocator.allocate(
+            existing: [],
+            range: 3305...3307,
+            reserved: [3306]
+        ) { _ in true }
         XCTAssertEqual(port, 3305)
-        let next = allocator.allocate(existing: [3305], range: 3305...3307,
-                                      reserved: [3306]) { _ in true }
+        let next = allocator.allocate(
+            existing: [3305],
+            range: 3305...3307,
+            reserved: [3306]
+        ) { _ in true }
         XCTAssertEqual(next, 3307)
     }
 
@@ -29,7 +35,7 @@ final class NodePortAllocatorTests: XCTestCase {
     }
 
     func testSkipsPortsReportedBusy() {
-        let busy: Set<Int> = [3000, 3001]
+        let busy: Set = [3000, 3001]
         let port = allocator.allocate(existing: [], range: 3000...3002, reserved: []) { !busy.contains($0) }
         XCTAssertEqual(port, 3002)
     }

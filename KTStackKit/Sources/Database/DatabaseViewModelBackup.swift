@@ -1,7 +1,6 @@
 import Foundation
 
 public extension DatabaseViewModel {
-
     enum BackupStatus: Equatable {
         case idle
         case running(String)
@@ -22,7 +21,7 @@ public extension DatabaseViewModel {
         if kind == .mongodb { return "Use the document track for MongoDB backups." }
         switch BackupProviderFactory.make(for: kind) {
         case .available: return nil
-        case .unavailable(let reason): return reason
+        case let .unavailable(reason): return reason
         }
     }
 
@@ -33,8 +32,11 @@ public extension DatabaseViewModel {
         }
         backupStatus = .running("Backing up \(database)…")
         do {
-            let set = try await session.create(profile: profile, password: passwordFor(profile),
-                                                databases: [database])
+            let set = try await session.create(
+                profile: profile,
+                password: passwordFor(profile),
+                databases: [database]
+            )
             backupStatus = .done("Backed up \(database).")
             return set
         } catch {
@@ -63,8 +65,11 @@ public extension DatabaseViewModel {
         }
         backupStatus = .running("Backing up \(dbs.count) databases…")
         do {
-            let set = try await session.create(profile: profile, password: passwordFor(profile),
-                                                databases: dbs)
+            let set = try await session.create(
+                profile: profile,
+                password: passwordFor(profile),
+                databases: dbs
+            )
             backupStatus = .done("Backed up \(dbs.count) databases.")
             return set
         } catch {
@@ -83,8 +88,13 @@ public extension DatabaseViewModel {
         for database in set.databases {
             backupStatus = .running("Restoring \(database) (\(succeeded + 1)/\(set.databases.count))…")
             do {
-                try await session.restore(set: set, database: database, profile: profile,
-                                           password: passwordFor(profile), target: .overwrite)
+                try await session.restore(
+                    set: set,
+                    database: database,
+                    profile: profile,
+                    password: passwordFor(profile),
+                    target: .overwrite
+                )
                 succeeded += 1
             } catch {
                 backupStatus = .failed("Failed restoring \(database): \(Self.asDatabaseError(error).message)")
@@ -98,8 +108,12 @@ public extension DatabaseViewModel {
         return true
     }
 
-    func restoreBackup(_ set: BackupSet, database: String, target: RestoreTarget,
-                       session: BackupSession) async -> Bool {
+    func restoreBackup(
+        _ set: BackupSet,
+        database: String,
+        target: RestoreTarget,
+        session: BackupSession
+    ) async -> Bool {
         guard let profile = selectedProfile else { return false }
         guard !isReadOnlyConnection else {
             backupStatus = .failed("This connection is read-only; restore is disabled.")
@@ -107,8 +121,13 @@ public extension DatabaseViewModel {
         }
         backupStatus = .running("Restoring \(database)…")
         do {
-            try await session.restore(set: set, database: database, profile: profile,
-                                       password: passwordFor(profile), target: target)
+            try await session.restore(
+                set: set,
+                database: database,
+                profile: profile,
+                password: passwordFor(profile),
+                target: target
+            )
             backupStatus = .done("Restored \(database).")
             if let refreshed = try? await driver?.listDatabases() {
                 databases = refreshed
@@ -138,7 +157,11 @@ public extension DatabaseViewModel {
         }
     }
 
-    func clearBackupStatus() { backupStatus = .idle }
+    func clearBackupStatus() {
+        backupStatus = .idle
+    }
 
-    func failBackupStatus(_ message: String) { backupStatus = .failed(message) }
+    func failBackupStatus(_ message: String) {
+        backupStatus = .failed(message)
+    }
 }

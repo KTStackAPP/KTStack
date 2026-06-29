@@ -5,10 +5,12 @@ public struct NodePortAllocator: Sendable {
 
     public init() {}
 
-    public func allocate(existing: [Int],
-                         range: ClosedRange<Int> = 3000...3999,
-                         reserved: Set<Int> = NodePortAllocator.reservedPorts,
-                         isFree: (Int) -> Bool) -> Int? {
+    public func allocate(
+        existing: [Int],
+        range: ClosedRange<Int> = 3000...3999,
+        reserved: Set<Int> = NodePortAllocator.reservedPorts,
+        isFree: (Int) -> Bool
+    ) -> Int? {
         let excluded = Set(existing).union(reserved)
         for port in range where !excluded.contains(port) && isFree(port) {
             return port

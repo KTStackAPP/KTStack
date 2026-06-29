@@ -1,12 +1,11 @@
 import Foundation
 
-extension DatabaseV2ViewModel {
-
+public extension DatabaseV2ViewModel {
     private var ddlDialect: SQLDialect {
         SQLDialect.forKind(driver?.kind ?? .mysql)
     }
 
-    public func composeCreateTable(name: String, columns: [ColumnDefinition]) -> String {
+    func composeCreateTable(name: String, columns: [ColumnDefinition]) -> String {
         guard let database = selectedDatabase else {
             ddlError = "Select a database first."
             return ""
@@ -20,7 +19,7 @@ extension DatabaseV2ViewModel {
         }
     }
 
-    public func composeAddColumn(_ column: ColumnDefinition) -> String {
+    func composeAddColumn(_ column: ColumnDefinition) -> String {
         guard let database = selectedDatabase, let table = selectedTable else {
             ddlError = "Select a table first."
             return ""
@@ -34,7 +33,7 @@ extension DatabaseV2ViewModel {
         }
     }
 
-    public func composeDropColumn(_ column: String) -> String {
+    func composeDropColumn(_ column: String) -> String {
         guard let database = selectedDatabase, let table = selectedTable else {
             ddlError = "Select a table first."
             return ""
@@ -48,7 +47,7 @@ extension DatabaseV2ViewModel {
         }
     }
 
-    public func composeDropTable() -> String {
+    func composeDropTable() -> String {
         guard let database = selectedDatabase, let table = selectedTable else {
             ddlError = "Select a table first."
             return ""
@@ -62,7 +61,7 @@ extension DatabaseV2ViewModel {
         }
     }
 
-    public func runDDL(_ sql: String) async {
+    func runDDL(_ sql: String) async {
         guard !sql.isEmpty, let driver else { return }
         let token = generation
         isDDLBusy = true
@@ -78,7 +77,7 @@ extension DatabaseV2ViewModel {
         }
     }
 
-    public func clearDDLError() {
+    func clearDDLError() {
         ddlError = nil
     }
 }

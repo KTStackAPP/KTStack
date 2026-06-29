@@ -13,9 +13,17 @@ final class SiteConfigGeneratorNodeTests: XCTestCase {
     }
 
     private func nodeSite(enabled: Bool, port: Int?) -> Site {
-        Site(name: "app", path: "/tmp/app", docroot: "/tmp/app",
-             domain: "app.test", phpVersion: "8.4", type: .node,
-             nodePort: port, nodeCommand: "npm run dev", nodeEnabled: enabled)
+        Site(
+            name: "app",
+            path: "/tmp/app",
+            docroot: "/tmp/app",
+            domain: "app.test",
+            phpVersion: "8.4",
+            type: .node,
+            nodePort: port,
+            nodeCommand: "npm run dev",
+            nodeEnabled: enabled
+        )
     }
 
     func testEnabledNodeSiteEmitsProxyVhost() {

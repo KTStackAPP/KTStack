@@ -1,13 +1,13 @@
-import SwiftUI
 import KTStackKit
+import SwiftUI
 
 enum KTDatabaseVisuals {
     static func engineLabel(_ kind: DatabaseKind) -> String {
         switch kind {
-        case .mysql: return "MySQL"
-        case .postgres: return "PostgreSQL"
-        case .sqlite: return "SQLite"
-        case .mongodb: return "MongoDB"
+        case .mysql: "MySQL"
+        case .postgres: "PostgreSQL"
+        case .sqlite: "SQLite"
+        case .mongodb: "MongoDB"
         }
     }
 }
@@ -22,8 +22,13 @@ struct KTServerRow: View {
 
     @State private var hovering = false
 
-    private var isOnline: Bool { status == .online }
-    private var engineTint: KTTint { KTEngineTint.of(profile.kind.rawValue) }
+    private var isOnline: Bool {
+        status == .online
+    }
+
+    private var engineTint: KTTint {
+        KTEngineTint.of(profile.kind.rawValue)
+    }
 
     var body: some View {
         HStack(spacing: 14) {
@@ -38,8 +43,11 @@ struct KTServerRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     Text(profile.name).font(KTType.rowName).foregroundStyle(KTColor.ink)
-                    KTBadge(text: KTDatabaseVisuals.engineLabel(profile.kind),
-                            tint: engineTint, radius: 5)
+                    KTBadge(
+                        text: KTDatabaseVisuals.engineLabel(profile.kind),
+                        tint: engineTint,
+                        radius: 5
+                    )
                     if profile.isManaged {
                         Text("bundled").font(KTType.sub).foregroundStyle(KTColor.muted)
                     }
@@ -78,17 +86,17 @@ struct KTServerRow: View {
 
     private var statusColor: Color {
         switch status {
-        case .online:     return KTColor.online
-        case .connecting: return KTColor.accent
-        case .offline:    return KTColor.muted
+        case .online: KTColor.online
+        case .connecting: KTColor.accent
+        case .offline: KTColor.muted
         }
     }
 
     private var statusText: String {
         switch status {
-        case .online:     return "Online · \(endpoint)\(databaseSuffix)"
-        case .connecting: return "Connecting… · \(endpoint)"
-        case .offline:    return profile.isManaged ? "Offline · engine not running" : "Offline"
+        case .online: "Online · \(endpoint)\(databaseSuffix)"
+        case .connecting: "Connecting… · \(endpoint)"
+        case .offline: profile.isManaged ? "Offline · engine not running" : "Offline"
         }
     }
 

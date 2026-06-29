@@ -25,14 +25,13 @@ public struct V2QueryTab: Identifiable, Equatable {
     }
 }
 
-extension DatabaseV2ViewModel {
-
-    public var activeQueryTab: V2QueryTab? {
+public extension DatabaseV2ViewModel {
+    var activeQueryTab: V2QueryTab? {
         guard let activeQueryTabID else { return queryTabs.first }
         return queryTabs.first { $0.id == activeQueryTabID } ?? queryTabs.first
     }
 
-    public var queryText: String {
+    var queryText: String {
         get { activeQueryTab?.text ?? "" }
         set {
             guard let id = activeQueryTab?.id,
@@ -41,17 +40,25 @@ extension DatabaseV2ViewModel {
         }
     }
 
-    public var queryResult: QueryResult? { activeQueryTab?.result }
-    public var queryError: String? { activeQueryTab?.error }
-    public var isRunning: Bool { activeQueryTab?.isRunning ?? false }
+    var queryResult: QueryResult? {
+        activeQueryTab?.result
+    }
 
-    public func addQueryTab() {
+    var queryError: String? {
+        activeQueryTab?.error
+    }
+
+    var isRunning: Bool {
+        activeQueryTab?.isRunning ?? false
+    }
+
+    func addQueryTab() {
         let tab = V2QueryTab(title: "Query \(queryTabs.count + 1)")
         queryTabs.append(tab)
         activeQueryTabID = tab.id
     }
 
-    public func closeQueryTab(id: UUID) {
+    func closeQueryTab(id: UUID) {
         guard queryTabs.count > 1 else { return }
         guard let index = queryTabs.firstIndex(where: { $0.id == id }) else { return }
         let wasActive = activeQueryTabID == id
@@ -61,12 +68,12 @@ extension DatabaseV2ViewModel {
         }
     }
 
-    public func selectQueryTab(id: UUID) {
+    func selectQueryTab(id: UUID) {
         guard queryTabs.contains(where: { $0.id == id }) else { return }
         activeQueryTabID = id
     }
 
-    public func runQuery() async {
+    func runQuery() async {
         guard let driver, let tab = activeQueryTab else { return }
         let tabID = tab.id
         let text = tab.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -90,7 +97,7 @@ extension DatabaseV2ViewModel {
         }
     }
 
-    public func cancelQuery() async {
+    func cancelQuery() async {
         await driver?.cancelCurrentQuery()
         guard let id = activeQueryTab?.id,
               let idx = queryTabs.firstIndex(where: { $0.id == id }) else { return }

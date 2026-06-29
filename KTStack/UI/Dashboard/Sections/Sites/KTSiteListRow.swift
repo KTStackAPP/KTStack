@@ -1,6 +1,6 @@
-import SwiftUI
 import AppKit
 import KTStackKit
+import SwiftUI
 
 struct KTSiteListRow: View {
     let site: Site
@@ -8,8 +8,8 @@ struct KTSiteListRow: View {
     let canOpen: Bool
     let isSharing: Bool
     var shareStarting: Bool = false
-    var shareURL: URL? = nil
-    var shareExpiresAt: Date? = nil
+    var shareURL: URL?
+    var shareExpiresAt: Date?
     let onOpen: () -> Void
     let onSetVersion: (String) -> Void
     let onSetSecure: (Bool) -> Void
@@ -30,13 +30,25 @@ struct KTSiteListRow: View {
     @State private var nodeInstalling = false
     @State private var phpFramework: PHPFramework = .plain
 
-    init(site: Site, availableVersions: [String], canOpen: Bool, isSharing: Bool,
-         shareStarting: Bool = false, shareURL: URL? = nil, shareExpiresAt: Date? = nil,
-         onOpen: @escaping () -> Void, onSetVersion: @escaping (String) -> Void,
-         onSetSecure: @escaping (Bool) -> Void, onEditDomain: @escaping (String) throws -> Void,
-         onOpenLogs: @escaping () -> Void, onToggleShare: @escaping (Bool) -> Void,
-         onRemove: @escaping () -> Void, onError: @escaping (String) -> Void = { _ in },
-         onOpenRuntimes: @escaping () -> Void = {}, onRestore: @escaping () -> Void = {}) {
+    init(
+        site: Site,
+        availableVersions: [String],
+        canOpen: Bool,
+        isSharing: Bool,
+        shareStarting: Bool = false,
+        shareURL: URL? = nil,
+        shareExpiresAt: Date? = nil,
+        onOpen: @escaping () -> Void,
+        onSetVersion: @escaping (String) -> Void,
+        onSetSecure: @escaping (Bool) -> Void,
+        onEditDomain: @escaping (String) throws -> Void,
+        onOpenLogs: @escaping () -> Void,
+        onToggleShare: @escaping (Bool) -> Void,
+        onRemove: @escaping () -> Void,
+        onError: @escaping (String) -> Void = { _ in },
+        onOpenRuntimes: @escaping () -> Void = {},
+        onRestore: @escaping () -> Void = {}
+    ) {
         self.site = site
         self.availableVersions = availableVersions
         self.canOpen = canOpen
@@ -62,10 +74,14 @@ struct KTSiteListRow: View {
         VStack(spacing: 0) {
             mainRow
             if site.type == .node {
-                KTNodeBanner(state: nodeState, commandDraft: $nodeCommandDraft,
-                             installing: nodeInstalling,
-                             onSaveCommand: saveNodeCommand, onInstall: installNodeDeps,
-                             onOpenRuntimes: onOpenRuntimes)
+                KTNodeBanner(
+                    state: nodeState,
+                    commandDraft: $nodeCommandDraft,
+                    installing: nodeInstalling,
+                    onSaveCommand: saveNodeCommand,
+                    onInstall: installNodeDeps,
+                    onOpenRuntimes: onOpenRuntimes
+                )
             }
         }
         .background(hovering ? KTColor.rowHover : Color.clear)
@@ -77,13 +93,18 @@ struct KTSiteListRow: View {
         .onChange(of: site.nodeCommand) { new in nodeCommandDraft = new ?? "" }
     }
 
-    private var nodePollKey: String { "\(site.id)-\(site.nodeEnabled)-\(site.nodeCommand ?? "")" }
+    private var nodePollKey: String {
+        "\(site.id)-\(site.nodeEnabled)-\(site.nodeCommand ?? "")"
+    }
 
     private var mainRow: some View {
         HStack(spacing: 11) {
             KTIconTile(tint: KTSiteVisuals.tint(for: site.type)) {
-                KTSiteGlyph(kind: KTSiteVisuals.kind(for: site.type), size: 19,
-                            color: KTSiteVisuals.tint(for: site.type).fg)
+                KTSiteGlyph(
+                    kind: KTSiteVisuals.kind(for: site.type),
+                    size: 19,
+                    color: KTSiteVisuals.tint(for: site.type).fg
+                )
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(site.name).font(KTType.rowName).foregroundStyle(KTColor.ink).lineLimit(1)
@@ -121,16 +142,25 @@ struct KTSiteListRow: View {
                 .ktTip("Serve over HTTPS with a locally-trusted certificate")
                 .accessibilityLabel("Serve \(site.domain) over HTTPS")
 
-            KTSiteShareControls(shareStarting: shareStarting, shareURL: shareURL,
-                                shareExpiresAt: shareExpiresAt, onToggleShare: onToggleShare)
+            KTSiteShareControls(
+                shareStarting: shareStarting,
+                shareURL: shareURL,
+                shareExpiresAt: shareExpiresAt,
+                onToggleShare: onToggleShare
+            )
 
             KTButton(title: "Open", kind: .secondary, action: onOpen)
                 .disabled(!canOpen)
                 .ktTip("Open \(site.domain) in your browser")
 
-            KTSiteActionsMenu(site: site, canOpen: canOpen,
-                              onOpenLogs: onOpenLogs, onRemove: onRemove,
-                              onRestore: onRestore, onError: onError)
+            KTSiteActionsMenu(
+                site: site,
+                canOpen: canOpen,
+                onOpenLogs: onOpenLogs,
+                onRemove: onRemove,
+                onRestore: onRestore,
+                onError: onError
+            )
         }
         .padding(.vertical, 13)
         .padding(.horizontal, 16)
@@ -172,7 +202,7 @@ struct KTSiteListRow: View {
         case .needsRuntime: nodeState = .needsRuntime
         case .needsCommand: nodeState = .needsCommand
         case .needsInstall: nodeState = .needsInstall
-        case .ready:        nodeState = await server.probeNode(site)
+        case .ready: nodeState = await server.probeNode(site)
         }
     }
 

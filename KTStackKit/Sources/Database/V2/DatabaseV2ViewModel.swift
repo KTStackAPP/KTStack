@@ -1,9 +1,8 @@
-import Foundation
 import Combine
+import Foundation
 
 @MainActor
 public final class DatabaseV2ViewModel: ObservableObject {
-
     public enum ConnectionState {
         case idle
         case connecting
@@ -40,7 +39,10 @@ public final class DatabaseV2ViewModel: ObservableObject {
     public private(set) var connectionProfileID: String?
     @Published public private(set) var connectionKind: DatabaseKind?
 
-    public var schemaName: String { selectedDatabase ?? "" }
+    public var schemaName: String {
+        selectedDatabase ?? ""
+    }
+
     public let pageSize: Int = 200
 
     public var schemaCatalog: SchemaCatalog {
@@ -64,8 +66,8 @@ public final class DatabaseV2ViewModel: ObservableObject {
         self.makeDriver = makeDriver
         self.passwordFor = passwordFor
         let initialTab = V2QueryTab(title: "Query 1")
-        self.queryTabs = [initialTab]
-        self.activeQueryTabID = initialTab.id
+        queryTabs = [initialTab]
+        activeQueryTabID = initialTab.id
     }
 
     public func connect(profile: ConnectionProfile) async {
@@ -290,7 +292,7 @@ public final class DatabaseV2ViewModel: ObservableObject {
 
     func reloadAfterDDL() async {
         if let database = selectedDatabase {
-            tables = (try? await driver?.listTables(database: database)) ?? tables
+            tables = await (try? driver?.listTables(database: database)) ?? tables
         }
         if let table = selectedTable {
             await loadStructure(table: table)
