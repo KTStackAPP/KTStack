@@ -4,6 +4,7 @@ import SwiftUI
 
 struct KTDatabaseScreen: View {
     @EnvironmentObject private var vm: DatabaseViewModel
+    @EnvironmentObject private var documentVM: DocumentViewModel
     @EnvironmentObject private var connectionStore: ConnectionStore
     @EnvironmentObject private var services: ServiceManager
     @EnvironmentObject private var overlay: KTOverlayCenter
@@ -155,6 +156,10 @@ struct KTDatabaseScreen: View {
     }
 
     private func databaseCount(for profile: ConnectionProfile) -> Int? {
+        if profile.kind == .mongodb {
+            guard documentVM.connection == .connected, documentVM.selectedProfile?.id == profile.id else { return nil }
+            return documentVM.databases.count
+        }
         guard vm.connection == .connected, vm.selectedProfile?.id == profile.id else { return nil }
         return vm.databases.count
     }
@@ -231,18 +236,27 @@ struct KTDatabaseScreen: View {
         guard !opening else { return }
         opening = true
         Task {
-            await vm.select(profile: profile)
             defer { opening = false }
-            guard vm.connection == .connected else {
-                if case let .failed(error) = vm.connection { overlay.toast(error.message) }
-                return
-            }
-            if let database = vm.resolvePreferredDatabase(for: profile) {
-                await vm.select(database: database)
+            if profile.kind == .mongodb {
+                await documentVM.select(profile: profile)
+                guard documentVM.connection == .connected else {
+                    if case let .failed(error) = documentVM.connection { overlay.toast(error.message) }
+                    return
+                }
+                DocumentWindowController.shared.present(documentVM: documentVM, services: services)
             } else {
-                overlay.toast("Connected to “\(profile.name)” — no databases found")
+                await vm.select(profile: profile)
+                guard vm.connection == .connected else {
+                    if case let .failed(error) = vm.connection { overlay.toast(error.message) }
+                    return
+                }
+                if let database = vm.resolvePreferredDatabase(for: profile) {
+                    await vm.select(database: database)
+                } else {
+                    overlay.toast("Connected to \"\(profile.name)\" - no databases found")
+                }
+                DatabaseV2WindowController.shared.present(profile: profile)
             }
-            DatabaseV2WindowController.shared.present(profile: profile)
         }
     }
 
