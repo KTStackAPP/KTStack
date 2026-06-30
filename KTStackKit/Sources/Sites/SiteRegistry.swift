@@ -40,6 +40,7 @@ public final class SiteRegistry: ObservableObject {
     private let storeURL: URL
     private let inspector = SiteInspector()
     private let versionResolver = ProjectVersionResolver()
+    private let preflight = PortPreflight()
 
     private let installedPHP: @Sendable () -> [String]
 
@@ -60,6 +61,7 @@ public final class SiteRegistry: ObservableObject {
         case domainTaken(String)
         case notADirectory(String)
         case unsafeDeletePath(String)
+        case noFreeBackendPort
 
         public var errorDescription: String? {
             switch self {
@@ -68,6 +70,7 @@ public final class SiteRegistry: ObservableObject {
             case let .domainTaken(d): "Another site already uses “\(d)”."
             case let .notADirectory(p): "“\(p)” is not a folder."
             case let .unsafeDeletePath(p): "Refusing to delete unsafe site folder “\(p)”."
+            case .noFreeBackendPort: "No free loopback port in 4000-4999 for a site backend."
             }
         }
     }
@@ -99,6 +102,8 @@ public final class SiteRegistry: ObservableObject {
             databaseName: databaseName
         )
         if info.type == .node { site.nodePort = nextFreeNodePort() }
+        // PHP sites route through a loopback backend; static/node are front-served, no port.
+        if info.type == .php { site.backendPort = try? nextFreeBackendPort() }
         sites.append(site)
         persist()
         return site
@@ -111,6 +116,30 @@ public final class SiteRegistry: ObservableObject {
             return port
         }
         return 3000
+    }
+
+    // Backend range 4000-4999 is disjoint from Node (3000-3999) and the reserved DB ports.
+    // Probes the OS so a port a non-KTStack process already holds is skipped, not handed out.
+    public func nextFreeBackendPort() throws -> Int {
+        let used = Set(sites.compactMap(\.backendPort))
+        for port in 4000 ... 4999 where !used.contains(port) {
+            if case .available = preflight.check(port: port) { return port }
+        }
+        throw RegistryError.noFreeBackendPort
+    }
+
+    // Old installs decode with backendPort == nil; assign one to every PHP site lacking it
+    // before the front renders, else the front would proxy_pass to an empty port.
+    @discardableResult
+    public func assignBackendPortsIfNeeded() -> Bool {
+        var changed = false
+        for idx in sites.indices where sites[idx].type == .php && sites[idx].backendPort == nil {
+            guard let port = try? nextFreeBackendPort() else { break }
+            sites[idx].backendPort = port
+            changed = true
+        }
+        if changed { persist() }
+        return changed
     }
 
     public func remove(_ site: Site) {
@@ -170,6 +199,13 @@ public final class SiteRegistry: ObservableObject {
 
     public func setNodePort(_ site: Site, _ port: Int?) {
         update(site.id) { $0.nodePort = port }
+    }
+
+    // PHP-only: static/node are front-served and have no per-site engine. Triggers a reconcile
+    // (onChange) that rewrites the backend config and switches that one site's backend process.
+    public func setServerEngine(_ site: Site, _ engine: WebServerEngine) {
+        guard site.type == .php else { return }
+        update(site.id) { $0.serverEngine = engine }
     }
 
     public func reinspect(_ site: Site) {

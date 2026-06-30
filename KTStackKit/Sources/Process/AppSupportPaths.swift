@@ -40,6 +40,27 @@ public struct AppSupportPaths: Sendable {
         nginxConfigDir.appendingPathComponent("sites-enabled", isDirectory: true)
     }
 
+    // Each PHP site's loopback backend gets its own standalone nginx config here.
+    public var backendsConfigDir: URL {
+        nginxConfigDir.appendingPathComponent("backends", isDirectory: true)
+    }
+
+    public func siteBackendConf(_ id: String) -> URL {
+        backendsConfigDir.appendingPathComponent("\(id).conf")
+    }
+
+    public func siteBackendPid(_ id: String) -> URL {
+        run.appendingPathComponent("site-\(id).pid")
+    }
+
+    // Engine (raw value) is in the label so switching a site Nginx↔Apache yields a new label: the
+    // supervisor reaps the old-engine process and starts the new one, restarting only that backend.
+    // Takes a String, not WebServerEngine, because this file also compiles into the helper/resolver
+    // targets that do not include the WebServer sources.
+    public func siteBackendLabel(_ id: String, engine: String) -> String {
+        "com.ktstack.site.\(id).\(engine)"
+    }
+
     public var phpFpmConfigDir: URL {
         config.appendingPathComponent("php-fpm", isDirectory: true)
     }
@@ -101,6 +122,7 @@ public struct AppSupportPaths: Sendable {
             config,
             nginxConfigDir,
             sitesEnabled,
+            backendsConfigDir,
             phpFpmConfigDir,
             phpConfigDir,
             sitesConfigDir,
@@ -155,6 +177,20 @@ public struct AppSupportPaths: Sendable {
 
     public var nginxBinary: URL {
         bin.appendingPathComponent("nginx")
+    }
+
+    // Apache is an on-demand per-site engine, never bundled in the .app; the runtime download
+    // populates this relocated install. httpd runs with ServerRoot here and loads modules/*.so.
+    public var apacheRoot: URL {
+        toolsDir("apache")
+    }
+
+    public var apacheBinary: URL {
+        apacheRoot.appendingPathComponent("bin/httpd")
+    }
+
+    public func apacheAvailable(fileManager: FileManager = .default) -> Bool {
+        fileManager.isExecutableFile(atPath: apacheBinary.path)
     }
 
     public var mkcertBinary: URL {

@@ -128,6 +128,56 @@ final class SiteRegistryTests: XCTestCase {
         XCTAssertEqual(reg.nextFreeNodePort(), 3002)
     }
 
+    func testAddPHPSiteAssignsBackendPortInRange() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        let site = try reg.add(folder: phpFolder(in: dir, named: "shop"))
+        let port = try XCTUnwrap(site.backendPort)
+        XCTAssertTrue((4000 ... 4999).contains(port))
+        XCTAssertEqual(SiteRegistry(storeURL: dir.appendingPathComponent("sites.json")).sites.first?.backendPort, port)
+    }
+
+    func testNodeSiteGetsNoBackendPort() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        let site = try reg.add(folder: nodeFolder(in: dir, named: "api"))
+        XCTAssertNil(site.backendPort)
+    }
+
+    func testSetServerEnginePersistsForPHPAndIgnoresNonPHP() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        let php = try reg.add(folder: phpFolder(in: dir, named: "shop"))
+        let node = try reg.add(folder: nodeFolder(in: dir, named: "api"))
+
+        reg.setServerEngine(php, .apache)
+        reg.setServerEngine(node, .apache) // ignored: node has no per-site engine
+
+        XCTAssertEqual(SiteRegistry(storeURL: dir.appendingPathComponent("sites.json"))
+            .sites.first(where: { $0.domain == "shop.test" })?.serverEngine, .apache)
+        XCTAssertEqual(reg.sites.first(where: { $0.domain == "api.test" })?.serverEngine, .nginx)
+    }
+
+    func testBackfillAssignsBackendPortToPreUpgradePHPSites() throws {
+        let (_, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        let store = dir.appendingPathComponent("sites.json")
+        let legacy = """
+        [
+          {"id":"\(UUID().uuidString)","name":"a","path":"\(dir.path)/a","docroot":"\(dir.path)/a/public","domain":"a.test","phpVersion":"8.4","type":"php","secure":false},
+          {"id":"\(UUID().uuidString)","name":"s","path":"\(dir.path)/s","docroot":"\(dir.path)/s","domain":"s.test","phpVersion":"8.4","type":"staticSite","secure":false}
+        ]
+        """
+        try legacy.write(to: store, atomically: true, encoding: .utf8)
+
+        let reg = SiteRegistry(storeURL: store)
+        XCTAssertNil(reg.sites.first(where: { $0.domain == "a.test" })?.backendPort)
+        XCTAssertTrue(reg.assignBackendPortsIfNeeded())
+
+        let php = try XCTUnwrap(reg.sites.first(where: { $0.domain == "a.test" }))
+        XCTAssertNotNil(php.backendPort)
+        // Static site stays portless; it is front-served.
+        XCTAssertNil(reg.sites.first(where: { $0.domain == "s.test" })?.backendPort)
+        // Idempotent: a second pass changes nothing.
+        XCTAssertFalse(reg.assignBackendPortsIfNeeded())
+    }
+
     func testLegacySiteJSONWithoutDatabaseNameDecodesAsNil() throws {
         let (_, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
         let store = dir.appendingPathComponent("sites.json")

@@ -296,7 +296,7 @@ final class SiteConfigGeneratorTLSTests: XCTestCase {
         try "cert".write(to: p.siteCert(site.domain), atomically: true, encoding: .utf8)
         try "key".write(to: p.siteKey(site.domain), atomically: true, encoding: .utf8)
 
-        let v = gen.vhostText(for: site, port: 80)
+        let v = gen.frontVhostText(for: site)
         XCTAssertTrue(v.contains("listen 0.0.0.0:443 ssl;"))
         XCTAssertTrue(v.contains("return 301 https://$host$request_uri;"))
     }
@@ -305,7 +305,7 @@ final class SiteConfigGeneratorTLSTests: XCTestCase {
         let (p, root) = makePaths(); defer { try? fm.removeItem(at: root) }
         let gen = SiteConfigGenerator(paths: p)
         // secure flag set but NO cert staged → must not emit a broken https vhost.
-        let v = gen.vhostText(for: secureSite("nocert.test"), port: 80)
+        let v = gen.frontVhostText(for: secureSite("nocert.test"))
         XCTAssertFalse(v.contains(":443"))
         XCTAssertTrue(v.contains("listen 0.0.0.0:80;"))
     }

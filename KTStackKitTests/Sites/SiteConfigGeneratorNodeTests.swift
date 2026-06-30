@@ -29,7 +29,7 @@ final class SiteConfigGeneratorNodeTests: XCTestCase {
     func testNodeSiteWithPortEmitsProxyVhost() {
         let (paths, root) = makePaths(); defer { try? fm.removeItem(at: root) }
         let gen = SiteConfigGenerator(paths: paths)
-        let vhost = gen.vhostText(for: nodeSite(enabled: true, port: 3001), port: 80)
+        let vhost = gen.frontVhostText(for: nodeSite(enabled: true, port: 3001))
         XCTAssertTrue(vhost.contains("proxy_pass http://127.0.0.1:3001;"))
         XCTAssertFalse(vhost.contains("try_files"))
     }
@@ -37,7 +37,7 @@ final class SiteConfigGeneratorNodeTests: XCTestCase {
     func testNodeSiteWithPortProxiesRegardlessOfEnabledFlag() {
         let (paths, root) = makePaths(); defer { try? fm.removeItem(at: root) }
         let gen = SiteConfigGenerator(paths: paths)
-        let vhost = gen.vhostText(for: nodeSite(enabled: false, port: 3001), port: 80)
+        let vhost = gen.frontVhostText(for: nodeSite(enabled: false, port: 3001))
         XCTAssertTrue(vhost.contains("proxy_pass http://127.0.0.1:3001;"))
         XCTAssertFalse(vhost.contains("try_files"))
     }
@@ -45,7 +45,7 @@ final class SiteConfigGeneratorNodeTests: XCTestCase {
     func testNodeSiteWithoutPortStaysStatic() {
         let (paths, root) = makePaths(); defer { try? fm.removeItem(at: root) }
         let gen = SiteConfigGenerator(paths: paths)
-        let vhost = gen.vhostText(for: nodeSite(enabled: true, port: nil), port: 80)
+        let vhost = gen.frontVhostText(for: nodeSite(enabled: true, port: nil))
         XCTAssertFalse(vhost.contains("proxy_pass"))
         XCTAssertTrue(vhost.contains("try_files $uri $uri/ =404;"))
     }
@@ -60,7 +60,7 @@ final class SiteConfigGeneratorNodeTests: XCTestCase {
         var site = nodeSite(enabled: true, port: 3001)
         site.secure = true
         let gen = SiteConfigGenerator(paths: paths)
-        let vhost = gen.vhostText(for: site, port: 80)
+        let vhost = gen.frontVhostText(for: site)
         XCTAssertTrue(vhost.contains("listen 0.0.0.0:443 ssl;"))
         XCTAssertTrue(vhost.contains("proxy_pass http://127.0.0.1:3001;"))
         XCTAssertTrue(vhost.contains("return 301 https://$host$request_uri;"))

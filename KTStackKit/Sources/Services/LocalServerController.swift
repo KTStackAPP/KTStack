@@ -7,6 +7,9 @@ public final class LocalServerController: ObservableObject {
     @Published public private(set) var phpStatus: ServiceStatus = .stopped
     @Published public private(set) var isBusy = false
     @Published public private(set) var lastError: String?
+    @Published public private(set) var apacheInstalled = false
+    @Published public private(set) var apacheInstalling = false
+    @Published public private(set) var apacheInstallError: String?
 
     public let httpPort = 80
     public let registry: SiteRegistry
@@ -17,6 +20,7 @@ public final class LocalServerController: ObservableObject {
     private nonisolated let paths: AppSupportPaths
     private nonisolated let agents: LaunchAgentManager
     private nonisolated let nginx: NginxController
+    private nonisolated let backends: SiteBackendSupervisor
     private nonisolated let pools: PHPFPMPoolManager
     private nonisolated let nodeSites: NodeSiteController
     private nonisolated let generator: SiteConfigGenerator
@@ -43,6 +47,7 @@ public final class LocalServerController: ObservableObject {
             installedPHP: { BundledPHP.availableVersions(php: paths.phpRuntimesRoot) }
         )
         nginx = NginxController(paths: paths, agents: agents)
+        backends = SiteBackendSupervisor(paths: paths, agents: agents)
         pools = PHPFPMPoolManager(paths: paths, agents: agents)
         nodeSites = NodeSiteController()
         generator = SiteConfigGenerator(paths: paths)
@@ -61,6 +66,10 @@ public final class LocalServerController: ObservableObject {
             Task { @MainActor in self?.handleFolderChange(folder) }
         }
 
+        // Pre-upgrade PHP sites decode with no backendPort; assign one before the front renders.
+        registry.assignBackendPortsIfNeeded()
+        apacheInstalled = paths.apacheAvailable()
+
         if nginx.isRunning { reattachOnLaunch() } else { recomputeStatus() }
     }
 
@@ -74,6 +83,15 @@ public final class LocalServerController: ObservableObject {
         _ = try? pools.reconcile(required: required)
         recomputeStatus()
         refreshWatches()
+        // Front is already up; bring each site's backend up too. Take the busy lock so a user
+        // start/stop can't race this on the same com.ktstack.site.* labels.
+        guard !isBusy else { return }
+        isBusy = true
+        let sites = registry.sites
+        Task.detached(priority: .userInitiated) { [backends, self] in
+            await backends.reconcile(sites: sites)
+            await MainActor.run { self.isBusy = false }
+        }
     }
 
     public func restart() {
@@ -84,13 +102,13 @@ public final class LocalServerController: ObservableObject {
         let sites = registry.sites
         let port = httpPort
         Task.detached(priority: .userInitiated) { [self] in
-            nginx.stop(); pools.stopAll()
+            nginx.stop(); backends.stopAll(); pools.stopAll()
             do {
                 try stager.stageIfNeeded()
                 let missing = try await applyConfiguration(sites: sites, port: port, startNginx: true, runPreflight: false)
                 await finish(missing: missing, error: nil)
             } catch {
-                pools.stopAll(); nginx.stop()
+                pools.stopAll(); backends.stopAll(); nginx.stop()
                 await finish(missing: [], error: error.localizedDescription)
             }
         }
@@ -134,6 +152,36 @@ public final class LocalServerController: ObservableObject {
         registry.setNodePort(site, port)
     }
 
+    // Switch a site's engine; the registry change triggers a reconcile that rewrites the backend
+    // config and restarts only that site's backend (engine is in the launchd label).
+    public func setSiteEngine(_ site: Site, _ engine: WebServerEngine) {
+        registry.setServerEngine(site, engine)
+    }
+
+    // Download the on-demand Apache engine; on success any apache-set site switches to it.
+    public func installApache() {
+        guard !apacheInstalling, !apacheInstalled else { return }
+        apacheInstalling = true; apacheInstallError = nil
+        let paths = paths
+        Task.detached(priority: .userInitiated) {
+            var failure: String?
+            do {
+                try await RuntimeDownloader(paths: paths).installArchive(
+                    url: WebEngineCatalog.apacheURL,
+                    sha256: WebEngineCatalog.apacheSHA256,
+                    into: paths.apacheRoot,
+                    markerRelPath: "bin/httpd",
+                    onProgress: { _ in }
+                )
+            } catch { failure = error.localizedDescription }
+            await MainActor.run {
+                self.apacheInstalling = false
+                if let failure { self.apacheInstallError = failure }
+                else { self.apacheInstalled = true; self.reconcileAfterRuntimeChange() }
+            }
+        }
+    }
+
     public func probeNode(_ site: Site) async -> NodeSiteController.State {
         await nodeSites.probe(site)
     }
@@ -167,7 +215,7 @@ public final class LocalServerController: ObservableObject {
                 let missing = try await applyConfiguration(sites: sites, port: port, startNginx: true)
                 await finish(missing: missing, error: nil)
             } catch {
-                pools.stopAll(); nginx.stop()
+                pools.stopAll(); backends.stopAll(); nginx.stop()
                 await finish(missing: [], error: error.localizedDescription)
             }
         }
@@ -176,8 +224,9 @@ public final class LocalServerController: ObservableObject {
     public func stop() {
         guard !isBusy else { return }
         isBusy = true; nginxStatus = .stopping; phpStatus = .stopping
-        Task.detached(priority: .userInitiated) { [nginx, pools, self] in
+        Task.detached(priority: .userInitiated) { [nginx, backends, pools, self] in
             nginx.stop()
+            backends.stopAll()
             pools.stopAll()
             await MainActor.run {
                 self.nginxStatus = .stopped; self.phpStatus = .stopped; self.isBusy = false
@@ -223,7 +272,8 @@ public final class LocalServerController: ObservableObject {
             do {
                 try stager.stageIfNeeded()
                 _ = try generator.generate(sites: sites, port: port)
-                switch preflight.check(port: port) {
+                await backends.reconcile(sites: sites)
+                switch preflight.firstConflict(in: frontPorts(for: sites, httpPort: port)) {
                 case .available: break
                 case let .inUse(_, message), let .blocked(message):
                     throw NSError(domain: "KTStack", code: 2, userInfo: [NSLocalizedDescriptionKey: message])
@@ -231,7 +281,7 @@ public final class LocalServerController: ObservableObject {
                 try nginx.start()
                 await finish(missing: [], error: nil)
             } catch {
-                nginx.stop()
+                backends.stopAll(); nginx.stop()
                 await finish(missing: [], error: error.localizedDescription)
             }
         }
@@ -240,8 +290,9 @@ public final class LocalServerController: ObservableObject {
     public func stopNginx() {
         guard !isBusy else { return }
         isBusy = true; nginxStatus = .stopping
-        Task.detached(priority: .userInitiated) { [nginx, self] in
+        Task.detached(priority: .userInitiated) { [nginx, backends, self] in
             nginx.stop()
+            backends.stopAll()
             await MainActor.run { self.isBusy = false; self.recomputeStatus() }
         }
     }
@@ -289,10 +340,11 @@ public final class LocalServerController: ObservableObject {
             do {
                 try stager.stageIfNeeded()
                 _ = try generator.generate(sites: sites, port: port)
+                await backends.reconcile(sites: sites)
                 try nginx.start()
                 await finish(missing: [], error: nil)
             } catch {
-                nginx.stop()
+                backends.stopAll(); nginx.stop()
                 await finish(missing: [], error: error.localizedDescription)
             }
         }
@@ -359,12 +411,15 @@ public final class LocalServerController: ObservableObject {
                 try await Self.waitForSocket(pools.socket(for: version))
             }
         }
+        // Per-site backends must be listening before the front routes to them, else the front
+        // reloads into a dead loopback port and 502s the host. Per-site failures are isolated.
+        await backends.reconcile(sites: sites)
         let installedPHP = Set(BundledPHP.availableVersions(php: paths.phpRuntimesRoot))
         let missing = SiteConfigGenerator.requiredVersions(for: sites)
             .subtracting(installedPHP).sorted()
         if startNginx {
             if runPreflight {
-                switch preflight.check(port: port) {
+                switch preflight.firstConflict(in: frontPorts(for: sites, httpPort: port)) {
                 case .available: break
                 case let .inUse(_, m), let .blocked(m): throw NSError(
                         domain: "KTStack",
@@ -427,6 +482,12 @@ public final class LocalServerController: ObservableObject {
         let demo = AppSupportPaths.defaultSitesRoot.appendingPathComponent("demo", isDirectory: true)
         try? Self.provisionSampleSite(at: demo.appendingPathComponent("public", isDirectory: true), domain: "demo.\(tld)")
         try? registry.add(folder: demo)
+    }
+
+    // Front owns :80 always and :443 only when a secure site's cert exists (same predicate the
+    // config writer uses to emit the :443 listener), so preflight matches what nginx will bind.
+    private nonisolated func frontPorts(for sites: [Site], httpPort: Int) -> [Int] {
+        generator.frontBindsTLS(for: sites) ? [httpPort, 443] : [httpPort]
     }
 
     private nonisolated static func waitForSocket(_ url: URL, timeout: TimeInterval = 5) async throws {

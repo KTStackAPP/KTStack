@@ -19,24 +19,68 @@ final class SiteConfigGeneratorTests: XCTestCase {
             docroot: "/tmp/\(domain)/public",
             domain: domain,
             phpVersion: version,
-            type: type
+            type: type,
+            backendPort: type == .php ? 4001 : nil
         )
     }
 
-    func testPHPVhostRoutesToVersionSocketStaticDoesNot() {
+    func testPHPFrontProxiesToBackendWhichRoutesToVersionSocket() {
         let (paths, root) = makePaths(); defer { try? fm.removeItem(at: root) }
         let gen = SiteConfigGenerator(paths: paths)
+        let phpSite = site("demo.test", type: .php, version: "8.4")
 
-        let php = gen.vhostText(for: site("demo.test", type: .php, version: "8.4"), port: 80)
-        XCTAssertTrue(php.contains("fastcgi_pass \"unix:\(paths.phpFpmSocket("8.4").path)\";"))
-        XCTAssertTrue(php.contains("listen 0.0.0.0:80;"))
+        // Front proxies to the loopback backend; it does not touch PHP-FPM itself.
+        let front = gen.frontVhostText(for: phpSite)
+        XCTAssertTrue(front.contains("proxy_pass http://127.0.0.1:4001;"))
+        XCTAssertTrue(front.contains("listen 0.0.0.0:80;"))
+        XCTAssertFalse(front.contains("fastcgi_pass"))
 
-        let stat = gen.vhostText(for: site("html.test", type: .staticSite), port: 80)
+        // The backend is what speaks FastCGI to the version socket.
+        let backend = gen.backendConfigText(for: phpSite, backendPort: 4001)
+        XCTAssertTrue(backend.contains("fastcgi_pass \"unix:\(paths.phpFpmSocket("8.4").path)\";"))
+        XCTAssertTrue(backend.contains("listen 127.0.0.1:4001;"))
+
+        let stat = gen.frontVhostText(for: site("html.test", type: .staticSite))
         XCTAssertFalse(stat.contains("fastcgi_pass"))
         XCTAssertTrue(stat.contains("try_files $uri $uri/ =404;"))
 
-        let node = gen.vhostText(for: site("node.test", type: .node), port: 80)
+        let node = gen.frontVhostText(for: site("node.test", type: .node))
         XCTAssertFalse(node.contains("fastcgi_pass")) // node not served through PHP-FPM
+    }
+
+    func testPHPSiteWithoutBackendPortIsNotServed() throws {
+        let (paths, root) = makePaths(); defer { try? fm.removeItem(at: root) }
+        let gen = SiteConfigGenerator(paths: paths)
+        var portless = site("noport.test", type: .php)
+        portless.backendPort = nil // simulate allocator exhaustion / un-backfilled
+
+        _ = try gen.generate(sites: [portless])
+        // No broken proxy_pass-to-:0 vhost is emitted; the site is simply skipped this pass.
+        XCTAssertFalse(fm.fileExists(atPath: paths.vhost("noport.test").path))
+        XCTAssertFalse(fm.fileExists(atPath: paths.siteBackendConf(portless.id.uuidString).path))
+    }
+
+    func testStaticAndNodeFrontVhostsAreByteIdenticalToWriters() {
+        let (paths, root) = makePaths(); defer { try? fm.removeItem(at: root) }
+        let gen = SiteConfigGenerator(paths: paths)
+        let writer = NginxConfigWriter()
+
+        let stat = site("html.test", type: .staticSite)
+        XCTAssertEqual(gen.frontVhostText(for: stat), writer.vhostStatic(
+            domain: "html.test",
+            root: URL(fileURLWithPath: stat.docroot),
+            accessLog: paths.siteAccessLog("html.test"),
+            errorLog: paths.siteErrorLog("html.test")
+        ))
+
+        var node = site("node.test", type: .node)
+        node.nodePort = 3001
+        XCTAssertEqual(gen.frontVhostText(for: node), writer.vhostNodeProxy(
+            domain: "node.test",
+            nodePort: 3001,
+            accessLog: paths.siteAccessLog("node.test"),
+            errorLog: paths.siteErrorLog("node.test")
+        ))
     }
 
     func testRequiredVersionsOnlyCountsPHPSites() {
@@ -91,10 +135,10 @@ final class SiteConfigGeneratorTests: XCTestCase {
         ]
         // Both PHP sites collapse onto the one installed version → a single 8.1 pool.
         XCTAssertEqual(gen.poolVersions(for: sites), ["8.1"])
-        // The 8.4 site's vhost routes to the 8.1 fallback socket (so nginx has a live upstream).
-        let vhost = gen.vhostText(for: site("a.test", type: .php, version: "8.4"), port: 80)
+        // The 8.4 site's backend routes to the 8.1 fallback socket (so it has a live upstream).
+        let backend = gen.backendConfigText(for: site("a.test", type: .php, version: "8.4"), backendPort: 4001)
         XCTAssertTrue(
-            vhost.contains("fastcgi_pass \"unix:\(paths.phpFpmSocket("8.1").path)\";"),
+            backend.contains("fastcgi_pass \"unix:\(paths.phpFpmSocket("8.1").path)\";"),
             "an 8.4 site must route to the 8.1 fallback socket"
         )
     }
@@ -103,13 +147,17 @@ final class SiteConfigGeneratorTests: XCTestCase {
         let (paths, root) = makePaths(); defer { try? fm.removeItem(at: root) }
         let gen = SiteConfigGenerator(paths: paths)
 
-        XCTAssertTrue(try gen.generate(sites: [site("demo.test", type: .php)])) // first write: changed
-        XCTAssertFalse(try gen.generate(sites: [site("demo.test", type: .php)])) // identical: no change
+        let demo = site("demo.test", type: .php)
+        let backendConf = paths.siteBackendConf(demo.id.uuidString)
+        XCTAssertTrue(try gen.generate(sites: [demo])) // first write: changed
+        XCTAssertFalse(try gen.generate(sites: [demo])) // identical: no change
         XCTAssertTrue(fm.fileExists(atPath: paths.vhost("demo.test").path))
+        XCTAssertTrue(fm.fileExists(atPath: backendConf.path))
 
-        // Removing the site deletes its vhost (orphan cleanup).
+        // Removing the site deletes its front vhost and its backend config (orphan cleanup).
         XCTAssertTrue(try gen.generate(sites: []))
         XCTAssertFalse(fm.fileExists(atPath: paths.vhost("demo.test").path))
+        XCTAssertFalse(fm.fileExists(atPath: backendConf.path))
     }
 
     func testSkippedSiteKeepsItsExistingVhost() throws {

@@ -75,6 +75,10 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
     public var nodePort: Int?
     public var nodeCommand: String?
     public var nodeEnabled: Bool
+    public var serverEngine: WebServerEngine
+    // Loopback port the front terminator routes this site's PHP backend to. Only PHP sites
+    // have one; static/node are served by the front directly. Assigned by SiteRegistry.
+    public var backendPort: Int?
 
     public init(
         id: UUID = UUID(),
@@ -88,7 +92,9 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         secure: Bool = false,
         nodePort: Int? = nil,
         nodeCommand: String? = nil,
-        nodeEnabled: Bool = false
+        nodeEnabled: Bool = false,
+        serverEngine: WebServerEngine = .nginx,
+        backendPort: Int? = nil
     ) {
         self.id = id
         self.name = name
@@ -102,11 +108,13 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         self.nodePort = nodePort
         self.nodeCommand = nodeCommand
         self.nodeEnabled = nodeEnabled
+        self.serverEngine = serverEngine
+        self.backendPort = backendPort
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, name, path, docroot, domain, phpVersion, type, databaseName, secure
-        case nodePort, nodeCommand, nodeEnabled
+        case nodePort, nodeCommand, nodeEnabled, serverEngine, backendPort
     }
 
     public init(from decoder: Decoder) throws {
@@ -123,6 +131,10 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         nodePort = try c.decodeIfPresent(Int.self, forKey: .nodePort)
         nodeCommand = try c.decodeIfPresent(String.self, forKey: .nodeCommand)
         nodeEnabled = try c.decodeIfPresent(Bool.self, forKey: .nodeEnabled) ?? false
+        // Old sites.json has no serverEngine; default to nginx so existing installs are untouched.
+        serverEngine = try c.decodeIfPresent(WebServerEngine.self, forKey: .serverEngine) ?? .nginx
+        // nil for old installs; SiteRegistry backfills a port for PHP sites before the front renders.
+        backendPort = try c.decodeIfPresent(Int.self, forKey: .backendPort)
     }
 
     public static let sample: [Site] = []
