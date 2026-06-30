@@ -75,6 +75,7 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
     public var nodePort: Int?
     public var nodeCommand: String?
     public var nodeEnabled: Bool
+    public var serverEngine: WebServerEngine
 
     public init(
         id: UUID = UUID(),
@@ -88,7 +89,8 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         secure: Bool = false,
         nodePort: Int? = nil,
         nodeCommand: String? = nil,
-        nodeEnabled: Bool = false
+        nodeEnabled: Bool = false,
+        serverEngine: WebServerEngine = .nginx
     ) {
         self.id = id
         self.name = name
@@ -102,11 +104,12 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         self.nodePort = nodePort
         self.nodeCommand = nodeCommand
         self.nodeEnabled = nodeEnabled
+        self.serverEngine = serverEngine
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, name, path, docroot, domain, phpVersion, type, databaseName, secure
-        case nodePort, nodeCommand, nodeEnabled
+        case nodePort, nodeCommand, nodeEnabled, serverEngine
     }
 
     public init(from decoder: Decoder) throws {
@@ -123,6 +126,7 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         nodePort = try c.decodeIfPresent(Int.self, forKey: .nodePort)
         nodeCommand = try c.decodeIfPresent(String.self, forKey: .nodeCommand)
         nodeEnabled = try c.decodeIfPresent(Bool.self, forKey: .nodeEnabled) ?? false
+        serverEngine = try c.decodeIfPresent(WebServerEngine.self, forKey: .serverEngine) ?? .nginx
     }
 
     public static let sample: [Site] = []
