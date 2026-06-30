@@ -43,6 +43,8 @@ brew_for_arch() {
         echo "arch -x86_64 /usr/local/bin/brew"
     elif [[ "$a" == "x86_64" ]]; then
         echo "/usr/local/bin/brew"
+    elif [[ -x /opt/homebrew/bin/brew ]]; then
+        echo "/opt/homebrew/bin/brew"
     else
         echo "brew"
     fi

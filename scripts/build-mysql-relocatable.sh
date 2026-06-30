@@ -21,7 +21,7 @@ MYSQL_VER="${MYSQL_VER:-8.4.3}"
 MYSQL_SERIES="${MYSQL_SERIES:-8.4}"
 ARCH="${ARCH:-$(uname -m)}"
 ARTIFACTS="${ARTIFACTS:-$ROOT/.build-cache/artifacts}"
-BUILD="${BUILD:-$ROOT/.build-cache/mysql-$ARCH}"
+BUILD="${BUILD:-$ROOT/.build-cache/mysql-$ARCH-$MYSQL_VER}"
 PREFIX="$BUILD/buildroot"
 source "$ROOT/scripts/lib-relocatable.sh"
 
@@ -37,7 +37,7 @@ cd "$BUILD"
 SRC="mysql-$MYSQL_VER"
 if [[ ! -d "$SRC" ]]; then
     echo "=== fetch mysql source ($MYSQL_VER) ==="
-    BASE="https://cdn.mysql.com/Downloads/MySQL-${MYSQL_SERIES}"
+    BASE="https://dev.mysql.com/get/Downloads/MySQL-${MYSQL_SERIES}"
     # MySQL 8.x ships a bundled-boost source tarball; 9.x dropped it — fall back to the plain source
     # (cmake then downloads the matching boost itself, see DOWNLOAD_BOOST below).
     curl -fsSL "$BASE/mysql-boost-${MYSQL_VER}.tar.gz" -o mysql.tgz \
@@ -63,7 +63,7 @@ if [[ ! -x "$PREFIX/bin/mysqld" ]]; then
         -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
         -DCMAKE_SYSTEM_PROCESSOR="$ARCH" \
         -DCMAKE_INSTALL_PREFIX="$PREFIX" \
-        "${BOOST_FLAGS[@]}" "${XLIB_FLAGS[@]}" \
+        "${BOOST_FLAGS[@]}" ${XLIB_FLAGS[@]+"${XLIB_FLAGS[@]}"} \
         -DWITH_SSL="$OPENSSL_PREFIX" \
         -DWITH_UNIT_TESTS=OFF -DWITH_ROUTER=OFF -DWITH_MYSQLX=OFF >/dev/null
     echo "=== make + install (this is the long part) ==="
