@@ -9,7 +9,7 @@ struct AboutSettingsView: View {
         let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
         let buildPart = build.isEmpty ? "" : " · Build \(build)"
-        return "Version \(short)\(buildPart) · Minh Trang"
+        return "Version \(short)\(buildPart)"
     }
 
     var body: some View {
@@ -23,7 +23,7 @@ struct AboutSettingsView: View {
                 .multilineTextAlignment(.center).lineSpacing(4).frame(maxWidth: 420).padding(.top, 18)
             checkButton.padding(.top, 24)
             linkRow.padding(.top, 26)
-            Text("© 2026 KTStack. Built with ❤️ by Nguyên Khôi")
+            Text("© 2026 KTStack. Built with ❤️ by Minh Trang - Nguyên Khôi")
                 .font(.jbMono(12)).foregroundStyle(Color(hex: 0xB0B0B8)).padding(.top, 34)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
