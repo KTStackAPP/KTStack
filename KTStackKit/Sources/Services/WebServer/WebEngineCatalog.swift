@@ -10,8 +10,8 @@ public enum WebEngineCatalog {
         URL(string: "https://github.com/KTStackAPP/KTStack/releases/download/binaries-v1")!
 
     private static let apacheSHA256ByArch: [String: String] = [
-        "arm64": "461342f45797d36c5c3af78a9cd721ffcebc004a8be7d495cfec32e822d97989",
-        "x86_64": "d5042753ddaa9dc9e06b30aa44ced1396136500457fcdaed3d9c2b1d5510568e",
+        "arm64": "fd56278cec77b49be49e1b47637365a8655fc84bd01d61d4fe87e4dd448a642b",
+        "x86_64": "7141bd26b9f47f6ad4e03026f67990db86efffee40aefd9e39ae1ed430acb76c",
     ]
 
     public static var apacheURL: URL {

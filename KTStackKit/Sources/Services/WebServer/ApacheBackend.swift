@@ -60,18 +60,29 @@ public struct ApacheBackend: WebServerBackend {
         """
     }
 
-    // mod_proxy + mod_proxy_fcgi for PHP-FPM; rewrite/headers for .htaccess parity; the rest is
-    // the minimum to boot httpd standalone (mpm, auth, mime, dir, env, logging).
+    // mod_proxy + mod_proxy_fcgi for PHP-FPM. The rest matches a typical shared-hosting Apache so
+    // real-world .htaccess and caching plugins behave the same locally: rewrite/headers/alias,
+    // expires + deflate/filter (browser cache + gzip), access_compat (old `Order allow,deny`
+    // syntax → 500 without it), authz_host, negotiation/autoindex. KEEP IN SYNC with the MODULES
+    // list in scripts/build-apache-relocatable.sh (the tarball must ship every .so loaded here).
     static let loadModules = """
     LoadModule mpm_event_module modules/mod_mpm_event.so
     LoadModule authz_core_module modules/mod_authz_core.so
+    LoadModule authz_host_module modules/mod_authz_host.so
+    LoadModule access_compat_module modules/mod_access_compat.so
     LoadModule unixd_module modules/mod_unixd.so
     LoadModule log_config_module modules/mod_log_config.so
     LoadModule mime_module modules/mod_mime.so
     LoadModule dir_module modules/mod_dir.so
+    LoadModule autoindex_module modules/mod_autoindex.so
+    LoadModule negotiation_module modules/mod_negotiation.so
     LoadModule env_module modules/mod_env.so
     LoadModule setenvif_module modules/mod_setenvif.so
+    LoadModule filter_module modules/mod_filter.so
+    LoadModule deflate_module modules/mod_deflate.so
+    LoadModule expires_module modules/mod_expires.so
     LoadModule headers_module modules/mod_headers.so
+    LoadModule alias_module modules/mod_alias.so
     LoadModule rewrite_module modules/mod_rewrite.so
     LoadModule proxy_module modules/mod_proxy.so
     LoadModule proxy_fcgi_module modules/mod_proxy_fcgi.so

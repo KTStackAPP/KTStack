@@ -20,11 +20,13 @@ STAGE_ROOT="${STAGE_ROOT:-$ROOT/.build-cache/apache-$ARCH}"
 source "$ROOT/scripts/lib-relocatable.sh"
 BREW="$(brew_for_arch)"
 
-# Modules KTStack's per-site backend needs: mod_proxy_fcgi → PHP-FPM, rewrite/headers for .htaccess
-# parity, plus the minimum to boot httpd standalone. Keep in sync with ApacheBackend.loadModules.
+# Modules the per-site backend ships: mod_proxy_fcgi → PHP-FPM, plus a shared-hosting-parity set
+# so real-world .htaccess and caching plugins work locally. KEEP IN SYNC with
+# ApacheBackend.loadModules (every module loaded there must be packaged here).
 MODULES=(
-    mod_mpm_event mod_authz_core mod_unixd mod_log_config mod_mime mod_dir
-    mod_env mod_setenvif mod_headers mod_rewrite mod_proxy mod_proxy_fcgi
+    mod_mpm_event mod_authz_core mod_authz_host mod_access_compat mod_unixd mod_log_config
+    mod_mime mod_dir mod_autoindex mod_negotiation mod_env mod_setenvif mod_filter mod_deflate
+    mod_expires mod_headers mod_alias mod_rewrite mod_proxy mod_proxy_fcgi
 )
 
 echo "=== Apache build (${ARCH}) from Homebrew bottle ==="
