@@ -12,6 +12,11 @@ final class NginxCatchAllConfigTests: XCTestCase {
         XCTAssertTrue(conf.contains("return 444;"))
     }
 
+    func testMasterConfigSetsClientMaxBodySize() {
+        let conf = writer.masterConfig(paths: paths)
+        XCTAssertTrue(conf.contains("client_max_body_size 256M;"))
+    }
+
     func testMasterConfigOmitsSecureCatchAllByDefault() {
         let conf = writer.masterConfig(paths: paths)
         XCTAssertFalse(conf.contains("listen 0.0.0.0:443 ssl default_server;"))
