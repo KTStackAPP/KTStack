@@ -124,7 +124,9 @@ struct NginxIncludeEditorSheet: View {
     }
 
     private func reset() {
-        _ = try? store.resetToDefault()
+        // Buffer-only, mirroring PHPIniEditorSheet: replace the editor contents with
+        // the default template but do not touch disk. Save persists, validates, and
+        // reloads; Cancel discards. This avoids a one-click non-undoable overwrite.
         text = NginxUserIncludeTemplate.default
         phase = .idle
     }
