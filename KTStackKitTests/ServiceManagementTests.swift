@@ -747,7 +747,23 @@ final class ServiceManagementTests: XCTestCase {
     func testNginxGateBlocksReloadWhenTestFails() throws {
         let (p, root) = try makeNginxRoot()
         defer { try? FileManager.default.removeItem(at: root) }
-        try stageFakeNginx(at: p, script: "#!/bin/sh\necho 'nginx: [emerg] unknown directive' >&2\nexit 1\n")
+        let logURL = root.appendingPathComponent("nginx-calls.log")
+        let logPath = logURL.path
+        // -t exits non-zero; -s reload would exit zero.
+        // This branching proves reload() aborted at the -t gate, not at the reload step.
+        // If try test() were removed, nginx -s reload would succeed and XCTAssertThrowsError would fail.
+        let script = """
+        #!/bin/sh
+        printf '%s\\n' "$*" >> "\(logPath)"
+        for arg in "$@"; do
+            if [ "$arg" = "-t" ]; then
+                printf 'nginx: [emerg] unknown directive\\n' >&2
+                exit 1
+            fi
+        done
+        exit 0
+        """
+        try stageFakeNginx(at: p, script: script)
         let nginx = NginxController(paths: p, agents: LaunchAgentManager(paths: p))
         XCTAssertThrowsError(try nginx.reload()) { error in
             XCTAssertTrue(
@@ -755,22 +771,58 @@ final class ServiceManagementTests: XCTestCase {
                 "Gate failure must surface nginx -t stderr: \(error.localizedDescription)"
             )
         }
+        // Verify -t was invoked and -s reload was NOT (gate aborted before reaching reload)
+        let log = (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
+        XCTAssertTrue(log.contains("-t"), "nginx -t must have been invoked by the gate")
+        XCTAssertFalse(log.contains("reload"),
+                       "nginx -s reload must NOT have been invoked; gate must have aborted at -t")
     }
 
     func testNginxGateAllowsReloadWhenTestSucceeds() throws {
         let (p, root) = try makeNginxRoot()
         defer { try? FileManager.default.removeItem(at: root) }
-        try stageFakeNginx(at: p, script: "#!/bin/sh\nexit 0\n")
+        let logURL = root.appendingPathComponent("nginx-calls.log")
+        let logPath = logURL.path
+        // Always exit 0: -t passes, then -s reload is reached and also passes.
+        let script = """
+        #!/bin/sh
+        printf '%s\\n' "$*" >> "\(logPath)"
+        exit 0
+        """
+        try stageFakeNginx(at: p, script: script)
         let nginx = NginxController(paths: p, agents: LaunchAgentManager(paths: p))
         XCTAssertNoThrow(try nginx.reload())
+        // Verify gate ran -t AND then issued -s reload (both must appear in the log)
+        let log = (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
+        XCTAssertTrue(log.contains("-t"), "nginx -t gate must have been invoked before reload")
+        XCTAssertTrue(log.contains("reload"), "nginx -s reload must have been invoked after gate passed")
     }
 
     func testNginxStartPreflightBlocksOnBrokenConfig() throws {
         let (p, root) = try makeNginxRoot()
         defer { try? FileManager.default.removeItem(at: root) }
-        try stageFakeNginx(at: p, script: "#!/bin/sh\nexit 1\n")
+        let logURL = root.appendingPathComponent("nginx-calls.log")
+        let logPath = logURL.path
+        // -t exits non-zero; anything else exits zero.
+        // If try test() were removed from start(), agents.bootstrap() would be attempted instead
+        // and start() would throw a launchctl error rather than a gate error — or worse, succeed.
+        let script = """
+        #!/bin/sh
+        printf '%s\\n' "$*" >> "\(logPath)"
+        for arg in "$@"; do
+            if [ "$arg" = "-t" ]; then
+                printf 'nginx: [emerg] broken config\\n' >&2
+                exit 1
+            fi
+        done
+        exit 0
+        """
+        try stageFakeNginx(at: p, script: script)
         let nginx = NginxController(paths: p, agents: LaunchAgentManager(paths: p))
         XCTAssertThrowsError(try nginx.start())
+        // Verify the preflight -t was what threw (gate was checked)
+        let log = (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
+        XCTAssertTrue(log.contains("-t"), "nginx -t preflight must have been invoked before start() aborted")
     }
 
     // MARK: - A5.1 LocalServerController passthrough tests
