@@ -72,6 +72,20 @@ public struct ServiceBinaryCatalog: Sendable {
             ]
         ),
         ServiceBinaryRelease(
+            kind: .mysql,
+            version: "8.4.5",
+            sha256ByArch: [
+                "arm64": "4029a0a88f66959be825c3851eeaa9e58d1b9cdbcb887bf8133557b1fc78cf62",
+            ]
+        ),
+        ServiceBinaryRelease(
+            kind: .mysql,
+            version: "8.0.43",
+            sha256ByArch: [
+                "arm64": "6721b89f9e38e0f192aad617b65ea3e6fa99b8a11b841e44242bb74685962427",
+            ]
+        ),
+        ServiceBinaryRelease(
             kind: .redis,
             version: "7.4.2",
             sha256ByArch: [
