@@ -1,0 +1,38 @@
+excluded:
+  - Resources/bin
+  - spikes
+  - .build
+  - build
+  - dist
+  - vendor
+  - Pods
+  - KTStack.xcodeproj
+
+opt_in_rules:
+  - commented_code
+
+disabled_rules:
+  - todo
+
+line_length:
+  warning: 160
+  error: 300
+
+file_length:
+  warning: 500
+  error: 800
+
+type_body_length:
+  warning: 400
+  error: 600
+
+function_body_length:
+  warning: 80
+  error: 160
+
+cyclomatic_complexity:
+  warning: 20
+  error: 40
+
+identifier_name:
+  min_length: 2
