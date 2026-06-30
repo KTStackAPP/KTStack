@@ -142,6 +142,19 @@ final class SiteRegistryTests: XCTestCase {
         XCTAssertNil(site.backendPort)
     }
 
+    func testSetServerEnginePersistsForPHPAndIgnoresNonPHP() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        let php = try reg.add(folder: phpFolder(in: dir, named: "shop"))
+        let node = try reg.add(folder: nodeFolder(in: dir, named: "api"))
+
+        reg.setServerEngine(php, .apache)
+        reg.setServerEngine(node, .apache) // ignored: node has no per-site engine
+
+        XCTAssertEqual(SiteRegistry(storeURL: dir.appendingPathComponent("sites.json"))
+            .sites.first(where: { $0.domain == "shop.test" })?.serverEngine, .apache)
+        XCTAssertEqual(reg.sites.first(where: { $0.domain == "api.test" })?.serverEngine, .nginx)
+    }
+
     func testBackfillAssignsBackendPortToPreUpgradePHPSites() throws {
         let (_, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
         let store = dir.appendingPathComponent("sites.json")

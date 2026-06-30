@@ -33,13 +33,21 @@ public struct SiteBackendSupervisor: Sendable {
         sites.filter { $0.type == .php && $0.backendPort != nil }
     }
 
+    private func engine(for site: Site) -> WebServerEngine {
+        WebServerBackendFactory.effectiveEngine(site.serverEngine, paths: paths)
+    }
+
+    private func label(for site: Site) -> String {
+        paths.siteBackendLabel(site.id.uuidString, engine: engine(for: site).rawValue)
+    }
+
     // Launch the engine the site will actually run (apache only if its binary is installed). Must
     // match the config SiteConfigGenerator wrote, which uses the same effectiveEngine resolution.
     private func controller(for site: Site) -> LoopbackBackendController {
-        let label = paths.siteBackendLabel(site.id.uuidString)
+        let label = label(for: site)
         let conf = paths.siteBackendConf(site.id.uuidString)
         let errorLog = paths.siteErrorLog(site.domain)
-        switch WebServerBackendFactory.effectiveEngine(site.serverEngine, paths: paths) {
+        switch engine(for: site) {
         case .nginx:
             return NginxController(
                 paths: paths,
@@ -58,14 +66,14 @@ public struct SiteBackendSupervisor: Sendable {
     // not-yet-listening backend.
     public func reconcile(sites: [Site]) async {
         let managed = Self.managed(sites)
-        let desiredLabels = Set(managed.map { paths.siteBackendLabel($0.id.uuidString) })
+        let desiredLabels = Set(managed.map { label(for: $0) })
         reapExcept(keeping: desiredLabels)
 
         for site in managed {
             guard let port = site.backendPort else { continue }
             do {
                 let ctrl = controller(for: site)
-                if agents.isLoadedNow(paths.siteBackendLabel(site.id.uuidString)) {
+                if agents.isLoadedNow(label(for: site)) {
                     try ctrl.reload()
                 } else {
                     try ctrl.start()
@@ -81,10 +89,6 @@ public struct SiteBackendSupervisor: Sendable {
         for label in agents.loadedLabels(withPrefix: Self.labelPrefix) {
             tearDown(label: label)
         }
-    }
-
-    public func stop(site: Site) {
-        tearDown(label: paths.siteBackendLabel(site.id.uuidString))
     }
 
     private func reapExcept(keeping desiredLabels: Set<String>) {

@@ -7,6 +7,9 @@ public final class LocalServerController: ObservableObject {
     @Published public private(set) var phpStatus: ServiceStatus = .stopped
     @Published public private(set) var isBusy = false
     @Published public private(set) var lastError: String?
+    @Published public private(set) var apacheInstalled = false
+    @Published public private(set) var apacheInstalling = false
+    @Published public private(set) var apacheInstallError: String?
 
     public let httpPort = 80
     public let registry: SiteRegistry
@@ -65,6 +68,7 @@ public final class LocalServerController: ObservableObject {
 
         // Pre-upgrade PHP sites decode with no backendPort; assign one before the front renders.
         registry.assignBackendPortsIfNeeded()
+        apacheInstalled = paths.apacheAvailable()
 
         if nginx.isRunning { reattachOnLaunch() } else { recomputeStatus() }
     }
@@ -146,6 +150,36 @@ public final class LocalServerController: ObservableObject {
 
     public func setNodePort(_ site: Site, _ port: Int?) {
         registry.setNodePort(site, port)
+    }
+
+    // Switch a site's engine; the registry change triggers a reconcile that rewrites the backend
+    // config and restarts only that site's backend (engine is in the launchd label).
+    public func setSiteEngine(_ site: Site, _ engine: WebServerEngine) {
+        registry.setServerEngine(site, engine)
+    }
+
+    // Download the on-demand Apache engine; on success any apache-set site switches to it.
+    public func installApache() {
+        guard !apacheInstalling, !apacheInstalled else { return }
+        apacheInstalling = true; apacheInstallError = nil
+        let paths = paths
+        Task.detached(priority: .userInitiated) {
+            var failure: String?
+            do {
+                try await RuntimeDownloader(paths: paths).installArchive(
+                    url: WebEngineCatalog.apacheURL,
+                    sha256: WebEngineCatalog.apacheSHA256,
+                    into: paths.apacheRoot,
+                    markerRelPath: "bin/httpd",
+                    onProgress: { _ in }
+                )
+            } catch { failure = error.localizedDescription }
+            await MainActor.run {
+                self.apacheInstalling = false
+                if let failure { self.apacheInstallError = failure }
+                else { self.apacheInstalled = true; self.reconcileAfterRuntimeChange() }
+            }
+        }
     }
 
     public func probeNode(_ site: Site) async -> NodeSiteController.State {

@@ -53,8 +53,12 @@ public struct AppSupportPaths: Sendable {
         run.appendingPathComponent("site-\(id).pid")
     }
 
-    public func siteBackendLabel(_ id: String) -> String {
-        "com.ktstack.site.\(id)"
+    // Engine (raw value) is in the label so switching a site Nginx↔Apache yields a new label: the
+    // supervisor reaps the old-engine process and starts the new one, restarting only that backend.
+    // Takes a String, not WebServerEngine, because this file also compiles into the helper/resolver
+    // targets that do not include the WebServer sources.
+    public func siteBackendLabel(_ id: String, engine: String) -> String {
+        "com.ktstack.site.\(id).\(engine)"
     }
 
     public var phpFpmConfigDir: URL {

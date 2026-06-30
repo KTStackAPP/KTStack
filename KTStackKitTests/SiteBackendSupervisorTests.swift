@@ -18,8 +18,9 @@ final class SiteBackendSupervisorTests: XCTestCase {
 
     func testBackendPathsAreScopedPerSiteID() {
         let paths = AppSupportPaths(root: URL(fileURLWithPath: "/tmp/ktstack-test"))
-        XCTAssertEqual(paths.siteBackendLabel("ABC"), "com.ktstack.site.ABC")
-        XCTAssertTrue(paths.siteBackendLabel("ABC").hasPrefix(SiteBackendSupervisor.labelPrefix))
+        XCTAssertEqual(paths.siteBackendLabel("ABC", engine: "nginx"), "com.ktstack.site.ABC.nginx")
+        XCTAssertEqual(paths.siteBackendLabel("ABC", engine: "apache"), "com.ktstack.site.ABC.apache")
+        XCTAssertTrue(paths.siteBackendLabel("ABC", engine: "nginx").hasPrefix(SiteBackendSupervisor.labelPrefix))
         XCTAssertTrue(paths.siteBackendConf("ABC").path.hasSuffix("nginx/backends/ABC.conf"))
         XCTAssertTrue(paths.siteBackendPid("ABC").path.hasSuffix("run/site-ABC.pid"))
     }

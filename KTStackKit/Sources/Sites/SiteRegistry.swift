@@ -201,6 +201,13 @@ public final class SiteRegistry: ObservableObject {
         update(site.id) { $0.nodePort = port }
     }
 
+    // PHP-only: static/node are front-served and have no per-site engine. Triggers a reconcile
+    // (onChange) that rewrites the backend config and switches that one site's backend process.
+    public func setServerEngine(_ site: Site, _ engine: WebServerEngine) {
+        guard site.type == .php else { return }
+        update(site.id) { $0.serverEngine = engine }
+    }
+
     public func reinspect(_ site: Site) {
         let info = inspector.inspect(folder: URL(fileURLWithPath: site.path), tld: tld)
         guard info.docroot.path != site.docroot || info.type != site.type else { return }
