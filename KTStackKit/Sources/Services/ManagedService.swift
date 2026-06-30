@@ -5,7 +5,8 @@ public enum ServiceKind: String, CaseIterable, Sendable, Hashable {
 
     public var displayName: String {
         switch self {
-        case .nginx: "Nginx"
+        // The front terminator plus every per-site backend (nginx and apache); not just nginx.
+        case .nginx: "Web Server"
         case .phpFpm: "PHP-FPM"
         case .dnsmasq: "dnsmasq"
         case .mysql: "MySQL"
