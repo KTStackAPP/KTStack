@@ -7,9 +7,10 @@ source "$ROOT/scripts/lib-relocatable.sh"
 DEV_ID="${DEV_ID:?set DEV_ID to your 'Developer ID Application: … (TEAMID)' identity}"
 TEAM_ID="${TEAM_ID:-$(printf '%s' "$DEV_ID" | sed -n 's/.*(\([A-Z0-9]\{10\}\)).*/\1/p')}"
 ARCH="${ARCH:-$(uname -m)}"
+ARTIFACT_PREFIX="${ARTIFACT_PREFIX:-php}"
 ARTIFACTS="${ARTIFACTS:-$ROOT/.build-cache/artifacts}"
-NOTARIZE_DIR="${NOTARIZE_DIR:-$ROOT/.build-cache/notarize-$ARCH}"
-SHA_OUT="${SHA_OUT:-$ARTIFACTS/php-signed-sha.tsv}"
+NOTARIZE_DIR="${NOTARIZE_DIR:-$ROOT/.build-cache/notarize-$ARTIFACT_PREFIX-$ARCH}"
+SHA_OUT="${SHA_OUT:-$ARTIFACTS/$ARTIFACT_PREFIX-signed-sha.tsv}"
 
 [[ -n "$TEAM_ID" ]] || { echo "cannot derive TEAM_ID from DEV_ID" >&2; exit 1; }
 echo "=== Developer-ID sign — identity: $DEV_ID (team $TEAM_ID) ==="
@@ -56,7 +57,7 @@ process_artifact() {
 }
 
 FAILED=()
-for tgz in "$ARTIFACTS"/php-*-"$ARCH".tar.gz; do
+for tgz in "$ARTIFACTS"/"$ARTIFACT_PREFIX"-*-"$ARCH".tar.gz; do
     [[ -e "$tgz" ]] || continue
     process_artifact "$tgz" || FAILED+=("$(basename "$tgz")")
 done
