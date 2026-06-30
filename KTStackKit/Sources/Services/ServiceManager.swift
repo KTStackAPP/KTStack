@@ -421,13 +421,15 @@ public final class ServiceManager: ObservableObject {
         Task { [weak self] in
             var message: String?
             do { try await action() } catch { message = error.localizedDescription }
+            // Refresh status BEFORE clearing busy: otherwise the row briefly shows the toggle at
+            // its stale (pre-op) state, then jumps, which reads as a stutter. While still busy the
+            // toggle stays dimmed, so it slides straight to the settled state when busy clears.
+            await self?.refresh()
             await MainActor.run {
                 guard let self else { return }
                 self.busy.remove(kind)
                 self.setSnapshotBusy(kind, false, errorMessage: message)
             }
-
-            await self?.refresh()
         }
     }
 

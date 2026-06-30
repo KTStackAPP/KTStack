@@ -75,12 +75,13 @@ struct KTServiceRow: View, Equatable {
             }
         } else if !snapshot.isInstalled, snapshot.installable {
             KTButton(title: "Install", kind: .primary, action: onInstall)
-        } else if snapshot.isBusy {
-            ProgressView().controlSize(.small).frame(width: 40)
         } else {
+            // Keep the toggle (dimmed while busy) instead of swapping in a spinner: the swap, plus
+            // the brief stale-state flash, is what reads as a stutter. The knob just slides once
+            // the status settles.
             KTToggle(isOn: snapshot.status == .running, action: onToggle)
-                .disabled(!canToggle || !snapshot.isInstalled)
-                .opacity(canToggle && snapshot.isInstalled ? 1 : 0.45)
+                .disabled(snapshot.isBusy || !canToggle || !snapshot.isInstalled)
+                .opacity(snapshot.isBusy ? 0.5 : (canToggle && snapshot.isInstalled ? 1 : 0.45))
         }
     }
 
