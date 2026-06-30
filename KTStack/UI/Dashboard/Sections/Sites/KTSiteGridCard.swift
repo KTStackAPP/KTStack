@@ -18,6 +18,7 @@ struct KTSiteGridCard: View {
     var onError: (String) -> Void = { _ in }
     var onRestore: () -> Void = {}
 
+    @EnvironmentObject private var server: LocalServerController
     @State private var phpFramework: PHPFramework = .plain
 
     var body: some View {
@@ -44,6 +45,14 @@ struct KTSiteGridCard: View {
                 if site.type == .php {
                     KTBadge(text: phpFramework.label, tint: KTSiteVisuals.tint(for: phpFramework), radius: 7)
                     KTPhpMenu(current: site.phpVersion, versions: availableVersions, onSelect: onSetVersion)
+                    KTEngineMenu(
+                        current: site.serverEngine,
+                        port: site.backendPort,
+                        apacheInstalled: server.apacheInstalled,
+                        apacheInstalling: server.apacheInstalling,
+                        onSelect: { server.setSiteEngine(site, $0) },
+                        onInstallApache: { server.installApache() }
+                    )
                 } else {
                     KTBadge(text: site.type.label, tint: KTSiteVisuals.tint(for: site.type), radius: 7)
                 }

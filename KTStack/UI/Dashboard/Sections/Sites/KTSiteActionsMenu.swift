@@ -10,7 +10,6 @@ struct KTSiteActionsMenu: View {
     var onError: (String) -> Void = { _ in }
 
     @EnvironmentObject private var overlay: KTOverlayCenter
-    @EnvironmentObject private var server: LocalServerController
     @State private var open = false
 
     var body: some View {
@@ -41,7 +40,6 @@ struct KTSiteActionsMenu: View {
                             catch { onError(error.localizedDescription) }
                         }
                         row("Restore from Backup…", "arrow.uturn.backward.circle", "", action: onRestore)
-                        engineSection
                     }
                 }
                 .padding(.horizontal, 6)
@@ -72,24 +70,6 @@ struct KTSiteActionsMenu: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 14).padding(.bottom, 8)
-    }
-
-    // PHP sites pick a per-site web engine. Apache is offered once its on-demand binary is
-    // installed; until then the row triggers the download.
-    @ViewBuilder private var engineSection: some View {
-        sectionLabel("Engine")
-        row("Nginx", site.serverEngine == .nginx ? "checkmark" : "circle", "") {
-            server.setSiteEngine(site, .nginx)
-        }
-        if server.apacheInstalled {
-            row("Apache", site.serverEngine == .apache ? "checkmark" : "circle", "") {
-                server.setSiteEngine(site, .apache)
-            }
-        } else if server.apacheInstalling {
-            row("Installing Apache…", "arrow.down.circle", "", enabled: false) {}
-        } else {
-            row("Install Apache…", "arrow.down.circle", "") { server.installApache() }
-        }
     }
 
     private var runtimeLabel: String {

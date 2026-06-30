@@ -105,6 +105,14 @@ struct KTSiteListRow: View {
             if site.type == .php {
                 KTBadge(text: phpFramework.label, tint: KTSiteVisuals.tint(for: phpFramework), radius: 8)
                 KTPhpMenu(current: site.phpVersion, versions: availableVersions, onSelect: onSetVersion)
+                KTEngineMenu(
+                    current: site.serverEngine,
+                    port: site.backendPort,
+                    apacheInstalled: server.apacheInstalled,
+                    apacheInstalling: server.apacheInstalling,
+                    onSelect: { server.setSiteEngine(site, $0) },
+                    onInstallApache: { server.installApache() }
+                )
             } else if site.type == .node {
                 HStack(spacing: 8) {
                     KTBadge(text: site.type.label, tint: KTSiteVisuals.tint(for: site.type), radius: 8)
