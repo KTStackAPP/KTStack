@@ -16,7 +16,7 @@ ROOT="$PWD"
 PG_VER="${PG_VER:-17.10}"
 ARCH="${ARCH:-$(uname -m)}"
 ARTIFACTS="${ARTIFACTS:-$ROOT/.build-cache/artifacts}"
-BUILD="${BUILD:-$ROOT/.build-cache/postgres-$ARCH}"
+BUILD="${BUILD:-$ROOT/.build-cache/postgres-$ARCH-$PG_VER}"
 PREFIX="$BUILD/buildroot"
 source "$ROOT/scripts/lib-relocatable.sh"
 
