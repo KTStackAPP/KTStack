@@ -1,6 +1,16 @@
 import Combine
 import Foundation
 
+/// The outcome of a `validateNginxConfig()` call.
+/// - `valid`: nginx -t exited 0 — config is OK.
+/// - `invalid(String)`: nginx -t exited non-zero — stderr describes the problem.
+/// - `couldNotRun`: the nginx binary is absent or not executable; result is indeterminate.
+public enum NginxValidationResult: Sendable, Equatable {
+    case valid
+    case invalid(String)
+    case couldNotRun
+}
+
 @MainActor
 public final class LocalServerController: ObservableObject {
     @Published public private(set) var nginxStatus: ServiceStatus = .stopped
@@ -190,6 +200,31 @@ public final class LocalServerController: ObservableObject {
         let pools = pools
         try await Task.detached(priority: .userInitiated) {
             try pools.reload(version: version)
+        }.value
+    }
+
+    public func validateNginxConfig() async -> NginxValidationResult {
+        let nginx = self.nginx
+        let paths = self.paths
+        return await Task.detached(priority: .userInitiated) {
+            guard FileManager.default.isExecutableFile(atPath: paths.nginxBinary.path) else {
+                return .couldNotRun
+            }
+            do {
+                try nginx.test()
+                return .valid
+            } catch let NginxController.ControlError.commandFailed(_, _, out) {
+                return .invalid(out.isEmpty ? "nginx -t failed" : out)
+            } catch {
+                return .couldNotRun
+            }
+        }.value
+    }
+
+    public func reloadNginxConfig() async throws {
+        let nginx = self.nginx
+        try await Task.detached(priority: .userInitiated) {
+            try nginx.reload()
         }.value
     }
 

@@ -60,8 +60,13 @@ final class ServiceManagementTests: XCTestCase {
         let p = AppSupportPaths(root: root)
         try p.ensureDirectoryTree()
         let script = p.nginxBinary
+        // Pass the `nginx -t` preflight gate (exit 0) so the failure under test is
+        // reload's own `-s reload` command, not the gate. Otherwise this test would
+        // duplicate testNginxGateBlocksReloadWhenTestFails and leave reload's command
+        // failure path uncovered.
         let contents = """
         #!/bin/sh
+        for arg in "$@"; do [ "$arg" = "-t" ] && exit 0; done
         echo reload failed >&2
         exit 7
         """
@@ -726,5 +731,152 @@ final class ServiceManagementTests: XCTestCase {
         _ = cat.installDir(release)
         XCTAssertEqual(release.id, "redis-7.4.2", "release id must be kind-version")
         XCTAssertNil(nil as Double?, "installProgress returns nil when no download task is registered")
+    }
+
+    // MARK: - A4.1 NginxController gate tests
+
+    private func makeNginxRoot() throws -> (AppSupportPaths, URL) {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("ktstack-nginx-gate-\(UUID().uuidString)", isDirectory: true)
+        let p = AppSupportPaths(root: root)
+        try p.ensureDirectoryTree()
+        return (p, root)
+    }
+
+    private func stageFakeNginx(at paths: AppSupportPaths, script: String) throws {
+        try script.write(to: paths.nginxBinary, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: paths.nginxBinary.path)
+    }
+
+    func testNginxGateBlocksReloadWhenTestFails() throws {
+        let (p, root) = try makeNginxRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let logURL = root.appendingPathComponent("nginx-calls.log")
+        let logPath = logURL.path
+        // -t exits non-zero; -s reload would exit zero.
+        // This branching proves reload() aborted at the -t gate, not at the reload step.
+        // If try test() were removed, nginx -s reload would succeed and XCTAssertThrowsError would fail.
+        let script = """
+        #!/bin/sh
+        printf '%s\\n' "$*" >> "\(logPath)"
+        for arg in "$@"; do
+            if [ "$arg" = "-t" ]; then
+                printf 'nginx: [emerg] unknown directive\\n' >&2
+                exit 1
+            fi
+        done
+        exit 0
+        """
+        try stageFakeNginx(at: p, script: script)
+        let nginx = NginxController(paths: p, agents: LaunchAgentManager(paths: p))
+        XCTAssertThrowsError(try nginx.reload()) { error in
+            XCTAssertTrue(
+                error.localizedDescription.contains("[emerg]"),
+                "Gate failure must surface nginx -t stderr: \(error.localizedDescription)"
+            )
+        }
+        // Verify -t was invoked and -s reload was NOT (gate aborted before reaching reload)
+        let log = (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
+        XCTAssertTrue(log.contains("-t"), "nginx -t must have been invoked by the gate")
+        XCTAssertFalse(log.contains("reload"),
+                       "nginx -s reload must NOT have been invoked; gate must have aborted at -t")
+    }
+
+    func testNginxGateAllowsReloadWhenTestSucceeds() throws {
+        let (p, root) = try makeNginxRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let logURL = root.appendingPathComponent("nginx-calls.log")
+        let logPath = logURL.path
+        // Always exit 0: -t passes, then -s reload is reached and also passes.
+        let script = """
+        #!/bin/sh
+        printf '%s\\n' "$*" >> "\(logPath)"
+        exit 0
+        """
+        try stageFakeNginx(at: p, script: script)
+        let nginx = NginxController(paths: p, agents: LaunchAgentManager(paths: p))
+        XCTAssertNoThrow(try nginx.reload())
+        // Verify gate ran -t AND then issued -s reload (both must appear in the log)
+        let log = (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
+        XCTAssertTrue(log.contains("-t"), "nginx -t gate must have been invoked before reload")
+        XCTAssertTrue(log.contains("reload"), "nginx -s reload must have been invoked after gate passed")
+    }
+
+    func testNginxStartPreflightBlocksOnBrokenConfig() throws {
+        let (p, root) = try makeNginxRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let logURL = root.appendingPathComponent("nginx-calls.log")
+        let logPath = logURL.path
+        // -t exits non-zero; anything else exits zero.
+        // If try test() were removed from start(), agents.bootstrap() would be attempted instead
+        // and start() would throw a launchctl error rather than a gate error — or worse, succeed.
+        let script = """
+        #!/bin/sh
+        printf '%s\\n' "$*" >> "\(logPath)"
+        for arg in "$@"; do
+            if [ "$arg" = "-t" ]; then
+                printf 'nginx: [emerg] broken config\\n' >&2
+                exit 1
+            fi
+        done
+        exit 0
+        """
+        try stageFakeNginx(at: p, script: script)
+        let nginx = NginxController(paths: p, agents: LaunchAgentManager(paths: p))
+        XCTAssertThrowsError(try nginx.start())
+        // Verify the preflight -t was what threw (gate was checked)
+        let log = (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
+        XCTAssertTrue(log.contains("-t"), "nginx -t preflight must have been invoked before start() aborted")
+    }
+
+    // MARK: - A5.1 LocalServerController passthrough tests
+
+    @MainActor
+    func testValidateNginxConfigReturnsRawStderrOnGateFailure() async throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("ktstack-lsc-val-\(UUID().uuidString)", isDirectory: true)
+        let p = AppSupportPaths(root: root)
+        try p.ensureDirectoryTree()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let script = "#!/bin/sh\necho 'nginx: [emerg] unknown directive' >&2\nexit 1\n"
+        try script.write(to: p.nginxBinary, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: p.nginxBinary.path)
+        let server = LocalServerController(bundleBinDir: URL(fileURLWithPath: "/dev/null"), paths: p)
+        let result = await server.validateNginxConfig()
+        guard case let .invalid(msg) = result else {
+            XCTFail("Expected .invalid when nginx -t fails, got \(result)")
+            return
+        }
+        XCTAssertTrue(msg.contains("emerg"), "Expected 'emerg' in stderr output: \(msg)")
+    }
+
+    @MainActor
+    func testValidateNginxConfigReturnsCantRunWhenBinaryAbsent() async throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("ktstack-lsc-absent-\(UUID().uuidString)", isDirectory: true)
+        let p = AppSupportPaths(root: root)
+        try p.ensureDirectoryTree()
+        defer { try? FileManager.default.removeItem(at: root) }
+        // No binary staged under temp root — the binary path is not executable
+        let server = LocalServerController(bundleBinDir: URL(fileURLWithPath: "/dev/null"), paths: p)
+        let result = await server.validateNginxConfig()
+        guard case .couldNotRun = result else {
+            XCTFail("Expected .couldNotRun when nginx binary is absent, got \(result)")
+            return
+        }
+    }
+
+    @MainActor
+    func testReloadNginxConfigSucceedsWhenGatePasses() async throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("ktstack-lsc-reload-\(UUID().uuidString)", isDirectory: true)
+        let p = AppSupportPaths(root: root)
+        try p.ensureDirectoryTree()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let script = "#!/bin/sh\nexit 0\n"
+        try script.write(to: p.nginxBinary, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: p.nginxBinary.path)
+        let server = LocalServerController(bundleBinDir: URL(fileURLWithPath: "/dev/null"), paths: p)
+        try await server.reloadNginxConfig()
     }
 }

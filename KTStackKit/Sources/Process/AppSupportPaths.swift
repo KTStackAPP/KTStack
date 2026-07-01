@@ -301,6 +301,10 @@ public struct AppSupportPaths: Sendable {
         siteCertDir(name).appendingPathComponent("key.pem")
     }
 
+    public var nginxUserConf: URL {
+        nginxConfigDir.appendingPathComponent("nginx-extra.conf")
+    }
+
     public var nginxConf: URL {
         nginxConfigDir.appendingPathComponent("nginx.conf")
     }

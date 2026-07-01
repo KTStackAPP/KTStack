@@ -31,9 +31,13 @@ final class NginxCatchAllConfigTests: XCTestCase {
 
     func testCatchAllPrecedesSitesInclude() {
         let conf = writer.masterConfig(paths: paths)
-        let catchAll = conf.range(of: "default_server")!
-        let include = conf.range(of: "include ")!
-        XCTAssertTrue(catchAll.lowerBound < include.lowerBound)
+        let sitesIncludeSuffix = "*.conf\";"
+        guard let catchAll = conf.range(of: "default_server"),
+              let include = conf.range(of: sitesIncludeSuffix) else {
+            return XCTFail("masterConfig missing expected substrings")
+        }
+        XCTAssertTrue(catchAll.lowerBound < include.lowerBound,
+                      "catch-all server{} must precede sites-enabled wildcard include")
     }
 
     func testEnsureGeneratesParseableSelfSignedCertIdempotently() throws {

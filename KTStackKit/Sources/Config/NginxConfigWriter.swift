@@ -37,6 +37,7 @@ public struct NginxConfigWriter {
             sendfile on;
             keepalive_timeout 65;
             client_max_body_size 256M;
+            include \(Self.q(paths.nginxUserConf.path));
 
         \(catchAllServers(paths: paths, secure: secureCatchAll))
             include \(Self.q(paths.sitesEnabled.path + "/*.conf"));

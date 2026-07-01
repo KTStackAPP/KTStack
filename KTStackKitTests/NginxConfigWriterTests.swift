@@ -93,6 +93,33 @@ final class NginxConfigWriterTests: XCTestCase {
         XCTAssertTrue(conf.contains("error_log \"\(paths.nginxErrorLog.path)\""))
     }
 
+    // MARK: - A3.1 Include-placement tests
+
+    func testMasterConfigIncludesNginxUserConf() {
+        let conf = writer.masterConfig(paths: paths)
+        XCTAssertTrue(
+            conf.contains("include \"\(paths.nginxUserConf.path)\";"),
+            "masterConfig must include nginx-extra.conf"
+        )
+    }
+
+    func testUserConfIncludePlacedAfterClientMaxBodySizeAndBeforeServerBlocks() {
+        let conf = writer.masterConfig(paths: paths)
+        guard let idxUserConf = conf.range(of: "include \"\(paths.nginxUserConf.path)\";")?.lowerBound,
+              let idxClientMaxBodySize = conf.range(of: "client_max_body_size 256M;")?.lowerBound,
+              let idxCatchAllServer = conf.range(of: "server {")?.lowerBound,
+              let idxSitesEnabledInclude = conf.range(of: "include \"\(paths.sitesEnabled.path)/*.conf\";")?.lowerBound
+        else {
+            return XCTFail("masterConfig missing expected substrings")
+        }
+        XCTAssertGreaterThan(idxUserConf, idxClientMaxBodySize,
+                             "user conf include must appear after client_max_body_size")
+        XCTAssertLessThan(idxUserConf, idxCatchAllServer,
+                          "user conf include must appear before the first server{} block")
+        XCTAssertLessThan(idxUserConf, idxSitesEnabledInclude,
+                          "user conf include must appear before sites-enabled include")
+    }
+
     /// Regression: the real app-support tree lives under "Application Support" (a space), so every
     /// emitted path MUST be double-quoted or nginx errors "invalid number of arguments in pid".
     func testPathsWithSpacesAreQuoted() {
