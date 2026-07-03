@@ -115,7 +115,7 @@ public final class LocalServerController: ObservableObject {
             nginx.stop(); backends.stopAll(); pools.stopAll()
             do {
                 try stager.stageIfNeeded()
-                let missing = try await applyConfiguration(sites: sites, port: port, startNginx: true, runPreflight: false)
+                let missing = try await applyConfiguration(sites: sites, port: port, startNginx: true)
                 await finish(missing: missing, error: nil)
             } catch {
                 pools.stopAll(); backends.stopAll(); nginx.stop()
@@ -315,6 +315,7 @@ public final class LocalServerController: ObservableObject {
                     throw NSError(domain: "KTStack", code: 2, userInfo: [NSLocalizedDescriptionKey: message])
                 }
                 try nginx.start()
+                try await Self.waitForListening(frontPorts(for: sites, httpPort: port))
                 await finish(missing: [], error: nil)
             } catch {
                 ServiceDiagnostics(paths: paths).log(.error, "nginx start failed: \(error.localizedDescription)")
@@ -379,7 +380,13 @@ public final class LocalServerController: ObservableObject {
                 try stager.stageIfNeeded()
                 _ = try generator.generate(sites: sites, port: port)
                 await backends.reconcile(sites: sites)
+                switch preflight.firstConflict(in: frontPorts(for: sites, httpPort: port)) {
+                case .available: break
+                case let .inUse(_, message), let .blocked(message):
+                    throw NSError(domain: "KTStack", code: 2, userInfo: [NSLocalizedDescriptionKey: message])
+                }
                 try nginx.start()
+                try await Self.waitForListening(frontPorts(for: sites, httpPort: port))
                 await finish(missing: [], error: nil)
             } catch {
                 ServiceDiagnostics(paths: paths).log(.error, "nginx start failed: \(error.localizedDescription)")
@@ -469,6 +476,7 @@ public final class LocalServerController: ObservableObject {
                 }
             }
             try nginx.start()
+            try await Self.waitForListening(frontPorts(for: sites, httpPort: port))
         } else if changed {
             do { try nginx.reload() }
             catch { NSLog("KTStack: nginx reload failed: \(error.localizedDescription)") }
@@ -528,6 +536,28 @@ public final class LocalServerController: ObservableObject {
     // config writer uses to emit the :443 listener), so preflight matches what nginx will bind.
     private nonisolated func frontPorts(for sites: [Site], httpPort: Int) -> [Int] {
         generator.frontBindsTLS(for: sites) ? [httpPort, 443] : [httpPort]
+    }
+
+    // `launchctl bootstrap` returning 0 only means the job registered, not that nginx bound its ports.
+    // Under KeepAlive a bind failure (port conflict, crash-loop) would otherwise read as "running" with
+    // nothing on :443. Probe each front port so the failure surfaces as an error instead.
+    private nonisolated static func waitForListening(_ ports: [Int], timeout: TimeInterval = 4) async throws {
+        let checker = HealthChecker()
+        for port in ports {
+            let deadline = Date().addingTimeInterval(timeout)
+            while await checker.check(.tcp(port: port)) != .running {
+                if Date() >= deadline {
+                    throw NSError(
+                        domain: "KTStack",
+                        code: 3,
+                        userInfo: [NSLocalizedDescriptionKey:
+                            "nginx started but nothing is listening on port \(port). It likely failed to bind "
+                                + "(port already in use) and launchd is restarting it. See the nginx error log."]
+                    )
+                }
+                try await Task.sleep(nanoseconds: 100_000_000)
+            }
+        }
     }
 
     private nonisolated static func waitForSocket(_ url: URL, timeout: TimeInterval = 5) async throws {
