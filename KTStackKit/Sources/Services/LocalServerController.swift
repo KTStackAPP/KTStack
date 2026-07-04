@@ -20,6 +20,8 @@ public final class LocalServerController: ObservableObject {
     @Published public private(set) var apacheInstalled = false
     @Published public private(set) var apacheInstalling = false
     @Published public private(set) var apacheInstallError: String?
+    // Non-nil while the server start is downloading the default PHP runtime on a fresh install.
+    @Published public private(set) var bootstrapStatus: String?
 
     public let httpPort = 80
     public let registry: SiteRegistry
@@ -115,6 +117,7 @@ public final class LocalServerController: ObservableObject {
             nginx.stop(); backends.stopAll(); pools.stopAll()
             do {
                 try stager.stageIfNeeded()
+                try await ensureDefaultPHPInstalled()
                 let missing = try await applyConfiguration(sites: sites, port: port, startNginx: true)
                 await finish(missing: missing, error: nil)
             } catch {
@@ -285,6 +288,7 @@ public final class LocalServerController: ObservableObject {
                 LogRotator().rotateOversized(in: paths)
                 purgeLegacyNodeAgents()
                 try stager.stageIfNeeded()
+                try await ensureDefaultPHPInstalled()
                 let missing = try await applyConfiguration(sites: sites, port: port, startNginx: true)
                 await finish(missing: missing, error: nil)
             } catch {
@@ -478,6 +482,37 @@ public final class LocalServerController: ObservableObject {
             } catch {
                 await finish(missing: [], error: error.localizedDescription)
             }
+        }
+    }
+
+    // A fresh install ships no PHP runtime (it is an on-demand download, never bundled). Without it
+    // php-fpm never starts and every PHP site 502s with no obvious cause, so download the default
+    // version once before the first serve and fail loudly with an actionable message if it can't.
+    private nonisolated func ensureDefaultPHPInstalled() async throws {
+        guard BundledPHP.availableVersions(php: paths.phpRuntimesRoot).isEmpty else { return }
+        let version = BundledPHP.defaultVersion
+        guard let release = RuntimeCatalog.manifest.first(where: { $0.language == .php && $0.version == version }),
+              release.supportsCurrentArch
+        else {
+            throw NSError(domain: "KTStack", code: 5, userInfo: [NSLocalizedDescriptionKey:
+                "No PHP is installed and no download is available for this Mac. Install PHP from Runtimes."])
+        }
+        await MainActor.run { self.bootstrapStatus = "Downloading PHP \(version)…" }
+        defer { Task { @MainActor in self.bootstrapStatus = nil } }
+        do {
+            try await RuntimeDownloader(paths: paths).installArchive(
+                url: release.url,
+                sha256: release.sha256,
+                into: paths.runtimeDir(RuntimeLanguage.php.rawValue, version),
+                markerRelPath: RuntimeLanguage.php.executableRelPath,
+                onProgress: { p in
+                    let pct = Int(p.fraction * 100)
+                    Task { @MainActor in self.bootstrapStatus = "Downloading PHP \(version)… \(pct)%" }
+                }
+            )
+        } catch {
+            throw NSError(domain: "KTStack", code: 6, userInfo: [NSLocalizedDescriptionKey:
+                "Could not download PHP \(version): \(error.localizedDescription). Install it from Runtimes."])
         }
     }
 
