@@ -117,7 +117,7 @@ public final class LocalServerController: ObservableObject {
             nginx.stop(); backends.stopAll(); pools.stopAll()
             do {
                 try stager.stageIfNeeded()
-                try await ensureDefaultPHPInstalled()
+                await ensureDefaultPHPInstalled(sites: sites)
                 let missing = try await applyConfiguration(sites: sites, port: port, startNginx: true)
                 await finish(missing: missing, error: nil)
             } catch {
@@ -187,7 +187,12 @@ public final class LocalServerController: ObservableObject {
                 let newPort = try await MainActor.run { try registry.nextFreeBackendPort() }
                 await MainActor.run { registry.setEngineAndPort(siteID, engine: resolved, port: newPort) }
                 let sites = await MainActor.run { registry.sites }
-                guard let newSite = sites.first(where: { $0.id == siteID }) else { return }
+                // Site deleted mid-swap: release the busy lock (else isBusy sticks true and wedges
+                // the whole server UI) and let the trailing reconcile settle config.
+                guard let newSite = sites.first(where: { $0.id == siteID }) else {
+                    await finish(missing: [], error: nil)
+                    return
+                }
 
                 // Write the new backend conf + front vhost (now pointing at newPort) to disk, but do
                 // not reload the front yet: the old backend on oldPort keeps serving until step 3.
@@ -288,7 +293,7 @@ public final class LocalServerController: ObservableObject {
                 LogRotator().rotateOversized(in: paths)
                 purgeLegacyNodeAgents()
                 try stager.stageIfNeeded()
-                try await ensureDefaultPHPInstalled()
+                await ensureDefaultPHPInstalled(sites: sites)
                 let missing = try await applyConfiguration(sites: sites, port: port, startNginx: true)
                 await finish(missing: missing, error: nil)
             } catch {
@@ -485,18 +490,19 @@ public final class LocalServerController: ObservableObject {
         }
     }
 
-    // A fresh install ships no PHP runtime (it is an on-demand download, never bundled). Without it
-    // php-fpm never starts and every PHP site 502s with no obvious cause, so download the default
-    // version once before the first serve and fail loudly with an actionable message if it can't.
-    private nonisolated func ensureDefaultPHPInstalled() async throws {
-        guard BundledPHP.availableVersions(php: paths.phpRuntimesRoot).isEmpty else { return }
+    // A fresh install ships no PHP runtime (it is an on-demand download, never bundled), so a PHP
+    // site 502s with no obvious cause. Best-effort: fetch the default version before the first serve
+    // when a PHP site actually needs it. A failure must NOT abort start(), or an offline or
+    // node/static-only user would get no server at all; php-fpm's `missing` path then surfaces the
+    // "Install PHP from Runtimes" banner and static/node sites keep working.
+    private nonisolated func ensureDefaultPHPInstalled(sites: [Site]) async {
+        guard sites.contains(where: { $0.type == .php }),
+              BundledPHP.availableVersions(php: paths.phpRuntimesRoot).isEmpty
+        else { return }
         let version = BundledPHP.defaultVersion
         guard let release = RuntimeCatalog.manifest.first(where: { $0.language == .php && $0.version == version }),
               release.supportsCurrentArch
-        else {
-            throw NSError(domain: "KTStack", code: 5, userInfo: [NSLocalizedDescriptionKey:
-                "No PHP is installed and no download is available for this Mac. Install PHP from Runtimes."])
-        }
+        else { return }
         await MainActor.run { self.bootstrapStatus = "Downloading PHP \(version)…" }
         defer { Task { @MainActor in self.bootstrapStatus = nil } }
         do {
@@ -511,8 +517,7 @@ public final class LocalServerController: ObservableObject {
                 }
             )
         } catch {
-            throw NSError(domain: "KTStack", code: 6, userInfo: [NSLocalizedDescriptionKey:
-                "Could not download PHP \(version): \(error.localizedDescription). Install it from Runtimes."])
+            NSLog("KTStack: default PHP \(version) download failed, PHP sites will 502 until installed: \(error.localizedDescription)")
         }
     }
 
