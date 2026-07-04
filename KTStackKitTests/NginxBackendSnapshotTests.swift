@@ -13,7 +13,7 @@ final class NginxBackendSnapshotTests: XCTestCase {
             phpFpmSocket: paths.phpFpmSocket("8.4"),
             backendPort: 4001,
             secure: secure,
-            pidFile: paths.siteBackendPid("ID"),
+            pidFile: paths.siteBackendPid("ID", engine: "nginx"),
             accessLog: paths.siteAccessLog(domain),
             errorLog: paths.siteErrorLog(domain)
         )

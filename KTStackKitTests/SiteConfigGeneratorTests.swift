@@ -48,6 +48,16 @@ final class SiteConfigGeneratorTests: XCTestCase {
         XCTAssertFalse(node.contains("fastcgi_pass")) // node not served through PHP-FPM
     }
 
+    func testBackendPidIsEngineKeyed() {
+        let (paths, root) = makePaths(); defer { try? fm.removeItem(at: root) }
+        let gen = SiteConfigGenerator(paths: paths)
+        let phpSite = site("demo.test", type: .php) // apache binary absent → resolves to nginx
+        // The pid path carries the engine so a zero-downtime swap runs both backends without a
+        // shared pid file (the departing process would otherwise delete the incoming one's pid).
+        let backend = gen.backendConfigText(for: phpSite, backendPort: 4001)
+        XCTAssertTrue(backend.contains("site-\(phpSite.id.uuidString).nginx.pid"))
+    }
+
     func testPHPSiteWithoutBackendPortIsNotServed() throws {
         let (paths, root) = makePaths(); defer { try? fm.removeItem(at: root) }
         let gen = SiteConfigGenerator(paths: paths)
