@@ -162,10 +162,48 @@ public final class LocalServerController: ObservableObject {
         registry.setNodePort(site, port)
     }
 
-    // Switch a site's engine; the registry change triggers a reconcile that rewrites the backend
-    // config and restarts only that site's backend (engine is in the launchd label).
+    // Switch a site's engine with a zero-downtime handoff: bring the requested engine up on a
+    // fresh backendPort, repoint the front to it, then reap the old backend. No Web Server restart.
+    // Falls back to a plain persist when nothing is running (the next start applies it) or when the
+    // request resolves to the engine already in use (apache requested but not installed → nginx).
     public func setSiteEngine(_ site: Site, _ engine: WebServerEngine) {
-        registry.setServerEngine(site, engine)
+        guard site.type == .php else { return }
+        let resolved = WebServerBackendFactory.effectiveEngine(engine, paths: paths)
+        guard isRunning, !isBusy, let oldPort = site.backendPort, resolved != site.serverEngine else {
+            registry.setServerEngine(site, engine)
+            return
+        }
+
+        isBusy = true; lastError = nil
+        let oldEngine = site.serverEngine
+        let siteID = site.id
+        let port = httpPort
+
+        Task.detached(priority: .userInitiated) { [self] in
+            do {
+                let newPort = try await MainActor.run { try registry.nextFreeBackendPort() }
+                await MainActor.run { registry.setEngineAndPort(siteID, engine: resolved, port: newPort) }
+                let sites = await MainActor.run { registry.sites }
+                guard let newSite = sites.first(where: { $0.id == siteID }) else { return }
+
+                // Write the new backend conf + front vhost (now pointing at newPort) to disk, but do
+                // not reload the front yet: the old backend on oldPort keeps serving until step 3.
+                _ = try generator.generate(sites: sites, port: port)
+                try await backends.startOne(site: newSite)   // new engine listening on newPort
+                try nginx.reload()                           // front now routes the site to newPort
+                // Let the front's pre-reload workers drain before reaping the old backend; they
+                // still route to oldPort until they exit, so an immediate reap 502s those requests.
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                backends.reap(siteID: siteID.uuidString, engine: oldEngine)
+                await finish(missing: [], error: nil)
+            } catch {
+                // The old backend never stopped serving, so roll back to it and clean the half-started
+                // new one; the trailing reconcile rewrites the front vhost back to oldPort.
+                await MainActor.run { registry.setEngineAndPort(siteID, engine: oldEngine, port: oldPort) }
+                backends.reap(siteID: siteID.uuidString, engine: resolved)
+                await finish(missing: [], error: error.localizedDescription)
+            }
+        }
     }
 
     // Download the on-demand Apache engine; on success any apache-set site switches to it.
