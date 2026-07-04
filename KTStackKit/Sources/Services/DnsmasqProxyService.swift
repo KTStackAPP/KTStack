@@ -21,15 +21,15 @@ public final class DnsmasqProxyService: ManagedService, @unchecked Sendable {
     }
 
     public func start() async throws {
-        await MainActor.run { dns.enable() }
+        try await dns.enableAndWait()
     }
 
     public func stop() async throws {
-        await MainActor.run { dns.disable() }
+        try await dns.disableAndWait()
     }
 
     public func restart() async throws {
-        await MainActor.run { dns.reset() }
+        try await dns.resetAndWait()
     }
 
     public func probe() async -> ServiceStatus {
