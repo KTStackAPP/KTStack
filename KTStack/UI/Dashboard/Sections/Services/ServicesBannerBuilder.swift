@@ -10,6 +10,14 @@ struct ServiceBanner: Identifiable {
     var action: (() -> Void)?
 }
 
+struct ServiceBannerActions {
+    let onEnableDNS: () -> Void
+    let onResetDNS: () -> Void
+    let onOpenTLSSettings: () -> Void
+    let onOpenLoginItems: () -> Void
+    let onRestart: (ServiceKind) -> Void
+}
+
 enum ServicesBannerBuilder {
     @MainActor
     static func banners(
@@ -17,11 +25,7 @@ enum ServicesBannerBuilder {
         dns: DNSAutomationService,
         caTrusted: Bool,
         caExists: Bool,
-        onEnableDNS: @escaping () -> Void,
-        onResetDNS: @escaping () -> Void,
-        onOpenTLSSettings: @escaping () -> Void,
-        onOpenLoginItems: @escaping () -> Void,
-        onRestart: @escaping (ServiceKind) -> Void
+        actions: ServiceBannerActions
     ) -> [ServiceBanner] {
         var result: [ServiceBanner] = []
 
@@ -30,7 +34,7 @@ enum ServicesBannerBuilder {
                 id: "dns-conflict", status: .error,
                 title: "DNS port is in use",
                 message: "“\(proc)” is holding port 53, so `.test` resolution is blocked. Reset DNS to take it over.",
-                ctaTitle: "Reset DNS", action: onResetDNS
+                ctaTitle: "Reset DNS", action: actions.onResetDNS
             ))
         } else if let error = dns.lastError, dns.status == .disabled {
             // Enable failed. On signed builds the cause is usually an unapproved helper, which
@@ -44,7 +48,7 @@ enum ServicesBannerBuilder {
                     ? "\(error) Approve KTStack's helper in System Settings > General > Login Items & Extensions, then enable DNS again."
                     : error,
                 ctaTitle: needsApproval ? "Open Login Items" : "Try again",
-                action: needsApproval ? onOpenLoginItems : onEnableDNS
+                action: needsApproval ? actions.onOpenLoginItems : actions.onEnableDNS
             ))
         } else if dns.status == .disabled, dns.helperNeedsApproval {
             // The helper registered but isn't allowed yet, so Enable DNS would silently do nothing.
@@ -54,14 +58,14 @@ enum ServicesBannerBuilder {
                 title: "Approve KTStack's DNS helper",
                 message: "macOS needs you to allow KTStack's background helper before `.test` DNS can start. "
                     + "Open Login Items, turn on KTStack under “Allow in the Background”, then enable DNS.",
-                ctaTitle: "Open Login Items", action: onOpenLoginItems
+                ctaTitle: "Open Login Items", action: actions.onOpenLoginItems
             ))
         } else if dns.status == .disabled {
             result.append(ServiceBanner(
                 id: "dns-off", status: .warning,
                 title: "`.test` DNS is off",
                 message: "Sites won't resolve until the DNS resolver is enabled (privileged helper or one-time sudo).",
-                ctaTitle: "Enable DNS", action: onEnableDNS
+                ctaTitle: "Enable DNS", action: actions.onEnableDNS
             ))
         }
 
@@ -70,7 +74,7 @@ enum ServicesBannerBuilder {
                 id: "ca-untrusted", status: .warning,
                 title: "Local HTTPS CA isn't trusted",
                 message: "Secure `.test` sites will warn until KTStack's root CA is trusted in the System Keychain.",
-                ctaTitle: "Open TLS Settings", action: onOpenTLSSettings
+                ctaTitle: "Open TLS Settings", action: actions.onOpenTLSSettings
             ))
         }
 
@@ -79,7 +83,7 @@ enum ServicesBannerBuilder {
                 id: "error-\(snap.kind.rawValue)", status: .error,
                 title: "\(snap.displayName) stopped responding",
                 message: snap.errorMessage ?? "\(snap.displayName) failed to stay running. Restart it or check its logs.",
-                ctaTitle: "Restart", action: { onRestart(snap.kind) }
+                ctaTitle: "Restart", action: { actions.onRestart(snap.kind) }
             ))
         }
 
