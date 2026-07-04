@@ -66,7 +66,8 @@ final class NewSiteModel: ObservableObject {
                     await MainActor.run {
                         self.events.append(InstallEvent(phase: .finalizing, message: "Enabling HTTPS…"))
                     }
-                    try httpsProvisioner.enableHTTPS(for: site)
+                    // Off the main actor: enabling HTTPS trusts the CA via a blocking helper round-trip.
+                    try await Task.detached { try httpsProvisioner.enableHTTPS(for: site) }.value
                     registry.setSecure(site, true)
                 }
                 finished = true
@@ -159,7 +160,8 @@ final class NewSiteModel: ObservableObject {
                 }
                 if enableHTTPS {
                     emit(.finalizing, "Enabling HTTPS…")
-                    try httpsProvisioner.enableHTTPS(for: site)
+                    // Off the main actor: enabling HTTPS trusts the CA via a blocking helper round-trip.
+                    try await Task.detached { try httpsProvisioner.enableHTTPS(for: site) }.value
                     await MainActor.run { registry.setSecure(site, true) }
                 }
                 finished = true

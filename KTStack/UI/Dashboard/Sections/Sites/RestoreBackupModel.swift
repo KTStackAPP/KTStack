@@ -79,7 +79,8 @@ final class RestoreBackupModel: ObservableObject {
             ensureEngine: { try await mysql.start() },
             applyServerConfig: { await MainActor.run { server.reconcileAfterRuntimeChange() } },
             enableHTTPS: {
-                try httpsProvisioner.enableHTTPS(for: site)
+                // Off the main actor: enabling HTTPS trusts the CA via a blocking helper round-trip.
+                try await Task.detached { try httpsProvisioner.enableHTTPS(for: site) }.value
                 await MainActor.run { registry.setSecure(site, true) }
             },
             finalizeSite: { database in

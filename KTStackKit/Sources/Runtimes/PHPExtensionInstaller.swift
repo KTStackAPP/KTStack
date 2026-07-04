@@ -287,7 +287,10 @@ public struct PHPExtensionInstaller: Sendable {
         let data = out.fileHandleForReading.readDataToEndOfFile()
         proc.waitUntilExit()
         guard proc.terminationStatus == 0, let text = String(data: data, encoding: .utf8) else { return false }
-        return PHPModules.parse(text).contains(extID.lowercased())
+        // `php -m` prints opcache as "Zend OPcache", so an exact id match misses the built-in and
+        // the caller would load opcache.so on top of it and segfault. Substring-match the id.
+        let needle = extID.lowercased()
+        return PHPModules.parse(text).contains { $0 == needle || $0.contains(needle) }
     }
 
     private func soURL(_ extID: String, _ phpVersion: String) -> URL {

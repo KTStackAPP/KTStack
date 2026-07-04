@@ -202,10 +202,13 @@ struct KTServicesScreen: View {
     private var banners: [ServiceBanner] {
         ServicesBannerBuilder.banners(
             snapshots: services.snapshots, dns: dns, caTrusted: caTrusted, caExists: caExists,
-            onEnableDNS: { dns.enable() }, onResetDNS: { dns.reset() },
-            onOpenTLSSettings: { onNavigate(.settings) },
-            onOpenLoginItems: { Self.openLoginItems() },
-            onRestart: { services.restart($0) }
+            actions: ServiceBannerActions(
+                onEnableDNS: { dns.enable() },
+                onResetDNS: { dns.reset() },
+                onOpenTLSSettings: { onNavigate(.settings) },
+                onOpenLoginItems: { Self.openLoginItems() },
+                onRestart: { services.restart($0) }
+            )
         )
     }
 
