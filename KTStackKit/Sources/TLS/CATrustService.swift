@@ -18,6 +18,7 @@ public final class CATrustService: ObservableObject {
 
     public nonisolated let runner: MkcertRunner
     private nonisolated let paths: AppSupportPaths
+    private nonisolated let helper = HelperConnection()
 
     public init(paths: AppSupportPaths, mkcertBinary: URL) {
         self.paths = paths
@@ -42,7 +43,8 @@ public final class CATrustService: ObservableObject {
     }
 
     public func install() {
-        run { try self.runner.install() }
+        let runner = runner, helper = helper, usesHelper = usesHelper, caCert = paths.caRootCert
+        run { try CATrustInstaller.trust(caCert: caCert, runner: runner, helper: helper, usesHelper: usesHelper) }
     }
 
     public func untrust() {
@@ -50,7 +52,8 @@ public final class CATrustService: ObservableObject {
     }
 
     public func ensureTrusted() throws {
-        if !isTrusted { try runner.install() }
+        guard !isTrusted else { return }
+        try CATrustInstaller.trust(caCert: paths.caRootCert, runner: runner, helper: helper, usesHelper: usesHelper)
     }
 
     private func run(_ work: @escaping @Sendable () throws -> Void) {

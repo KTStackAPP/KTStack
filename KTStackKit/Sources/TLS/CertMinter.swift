@@ -110,7 +110,14 @@ public struct SiteHTTPSProvisioner: Sendable {
             caCert: paths.caRootCert,
             tld: tld,
             trustQuery: trustQuery,
-            installCA: { try mkcert.install() },
+            installCA: {
+                try CATrustInstaller.trust(
+                    caCert: paths.caRootCert,
+                    runner: mkcert,
+                    helper: HelperConnection(),
+                    usesHelper: HelperIdentity.hasSigningIdentity
+                )
+            },
             mintLeaf: { domain, tld in
                 try certMinter.mint(name: domain, domain: domain, tld: tld)
             }
