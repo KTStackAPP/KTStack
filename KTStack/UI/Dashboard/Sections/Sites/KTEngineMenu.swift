@@ -2,8 +2,8 @@ import KTStackKit
 import SwiftUI
 
 // Per-site web-engine picker (PHP only). Shows the running engine + backend port, lets the user
-// switch Nginx↔Apache or install Apache on demand. The change is persisted immediately but the
-// menu reminds that the Web Server must be restarted to pick it up.
+// switch Nginx↔Apache or install Apache on demand. Switching applies live: the new engine comes
+// up on a fresh port and the front repoints to it, no Web Server restart.
 struct KTEngineMenu: View {
     let current: WebServerEngine
     let port: Int?
@@ -17,7 +17,7 @@ struct KTEngineMenu: View {
             KTDropdownChevronLabel(text: label)
         }
         .fixedSize()
-        .ktTip("Web engine for this site. Restart the Web Server after changing it to apply.")
+        .ktTip("Web engine for this site. Switching applies live, no Web Server restart.")
     }
 
     private var label: String {
@@ -35,7 +35,6 @@ struct KTEngineMenu: View {
         } else {
             opts.append(KTDropdownOption(label: "Install Apache…", active: false) { onInstallApache() })
         }
-        opts.append(KTDropdownOption(label: "↻ Restart Web Server to apply", active: false) {})
         return opts
     }
 }
