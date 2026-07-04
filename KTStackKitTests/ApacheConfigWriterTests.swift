@@ -12,7 +12,7 @@ final class ApacheConfigWriterTests: XCTestCase {
             phpFpmSocket: paths.phpFpmSocket("8.4"),
             backendPort: 4002,
             secure: secure,
-            pidFile: paths.siteBackendPid("ID"),
+            pidFile: paths.siteBackendPid("ID", engine: "apache"),
             accessLog: paths.siteAccessLog("demo.test"),
             errorLog: paths.siteErrorLog("demo.test")
         ))

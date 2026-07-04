@@ -121,6 +121,10 @@ public struct PHPExtensionInstaller: Sendable {
         for base in Self.baseSharedObjects {
             let so = soURL(base.id, phpVersion)
             guard FileManager.default.fileExists(atPath: so.path) else { continue }
+            // Static-php-cli engines compile opcache/intl in. Loading the .so on top of a built-in
+            // (opcache as a zend_extension especially) double-registers it and segfaults php-fpm at
+            // startup, so skip the load directive when the engine already has the extension.
+            if isCompiledIn(base.id, phpVersion: phpVersion) { continue }
             let body = switch base.directive {
             case .module: "extension=\(base.id).so\n"
             case .zendExtension: "zend_extension=\(so.path)\n"
@@ -266,6 +270,24 @@ public struct PHPExtensionInstaller: Sendable {
                 || $0.range(of: "Failed loading", options: .caseInsensitive) != nil
             }
         return (loaded, loaded ? nil : warning)
+    }
+
+    // True if the engine has this extension compiled in. `php -n` ignores every ini and scan dir,
+    // so `-m` then lists only built-in modules.
+    private func isCompiledIn(_ extID: String, phpVersion: String) -> Bool {
+        let php = paths.phpBinary(version: phpVersion)
+        guard FileManager.default.isExecutableFile(atPath: php.path) else { return false }
+        let proc = Process()
+        proc.executableURL = php
+        proc.arguments = ["-n", "-m"]
+        let out = Pipe()
+        proc.standardOutput = out
+        proc.standardError = Pipe()
+        do { try proc.run() } catch { return false }
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        proc.waitUntilExit()
+        guard proc.terminationStatus == 0, let text = String(data: data, encoding: .utf8) else { return false }
+        return PHPModules.parse(text).contains(extID.lowercased())
     }
 
     private func soURL(_ extID: String, _ phpVersion: String) -> URL {

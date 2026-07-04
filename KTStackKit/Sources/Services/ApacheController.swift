@@ -38,11 +38,21 @@ public final class ApacheController: @unchecked Sendable {
         agents.isLoaded(label)
     }
 
+    // `httpd -t`. Fail-closed: start/reload validate before launching or signaling, so a bad conf
+    // surfaces an error instead of a crash-looping backend the front would 502 into.
+    public func test() throws {
+        try runControlCommand(["-t"])
+    }
+
     public func start() throws {
+        try test()
         try agents.bootstrap(spec())
     }
 
+    // graceful does not re-open Listen sockets, so a port change never rides a reload; the engine
+    // swap starts a fresh process on the new port and reaps the old one instead.
     public func reload() throws {
+        try test()
         try runControlCommand(["-k", "graceful"])
     }
 

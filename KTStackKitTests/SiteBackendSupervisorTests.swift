@@ -22,6 +22,7 @@ final class SiteBackendSupervisorTests: XCTestCase {
         XCTAssertEqual(paths.siteBackendLabel("ABC", engine: "apache"), "com.ktstack.site.ABC.apache")
         XCTAssertTrue(paths.siteBackendLabel("ABC", engine: "nginx").hasPrefix(SiteBackendSupervisor.labelPrefix))
         XCTAssertTrue(paths.siteBackendConf("ABC").path.hasSuffix("nginx/backends/ABC.conf"))
-        XCTAssertTrue(paths.siteBackendPid("ABC").path.hasSuffix("run/site-ABC.pid"))
+        XCTAssertTrue(paths.siteBackendPid("ABC", engine: "nginx").path.hasSuffix("run/site-ABC.nginx.pid"))
+        XCTAssertTrue(paths.siteBackendPid("ABC", engine: "apache").path.hasSuffix("run/site-ABC.apache.pid"))
     }
 }

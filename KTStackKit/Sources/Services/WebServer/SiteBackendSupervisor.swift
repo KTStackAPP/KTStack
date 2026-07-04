@@ -95,6 +95,22 @@ public struct SiteBackendSupervisor: Sendable {
         agents.bootout(matchingPrefix: Self.labelPrefix)
     }
 
+    // Start one site's backend (its effective engine) and block until it listens. Used by the
+    // zero-downtime engine swap to bring the new engine up on a fresh port before the front is
+    // repointed, so the old backend keeps serving until the handoff completes.
+    public func startOne(site: Site) async throws {
+        guard let port = site.backendPort else { return }
+        try controller(for: site).start()
+        try await Self.waitForListen(port: port)
+    }
+
+    // Boot out one site's backend for a specific engine and drop its plist + engine-keyed pid.
+    // Engine is explicit (not effectiveEngine) so the swap can reap the *departing* engine.
+    public func reap(siteID: String, engine: WebServerEngine) {
+        tearDown(label: paths.siteBackendLabel(siteID, engine: engine.rawValue))
+        try? FileManager.default.removeItem(at: paths.siteBackendPid(siteID, engine: engine.rawValue))
+    }
+
     private func tearDown(label: String) {
         try? agents.bootout(label)
         try? FileManager.default.removeItem(at: paths.launchAgentPlist(label))

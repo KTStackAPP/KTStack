@@ -58,7 +58,7 @@ public struct SiteConfigGenerator {
             phpFpmSocket: paths.phpFpmSocket(effectivePHPVersion(site.phpVersion)),
             backendPort: backendPort,
             secure: site.secure && certPresent(for: site),
-            pidFile: paths.siteBackendPid(site.id.uuidString),
+            pidFile: paths.siteBackendPid(site.id.uuidString, engine: engine.rawValue),
             accessLog: paths.siteAccessLog(site.domain),
             errorLog: paths.siteErrorLog(site.domain)
         )

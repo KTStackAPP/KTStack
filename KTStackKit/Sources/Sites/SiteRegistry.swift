@@ -208,6 +208,12 @@ public final class SiteRegistry: ObservableObject {
         update(site.id) { $0.serverEngine = engine }
     }
 
+    // Atomic engine+port change for a zero-downtime swap: the new engine gets a fresh backendPort
+    // so it can come up alongside the old one. One update so a decode never sees engine≠port.
+    public func setEngineAndPort(_ id: UUID, engine: WebServerEngine, port: Int) {
+        update(id) { $0.serverEngine = engine; $0.backendPort = port }
+    }
+
     public func reinspect(_ site: Site) {
         let info = inspector.inspect(folder: URL(fileURLWithPath: site.path), tld: tld)
         guard info.docroot.path != site.docroot || info.type != site.type else { return }

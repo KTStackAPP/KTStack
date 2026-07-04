@@ -49,8 +49,10 @@ public struct AppSupportPaths: Sendable {
         backendsConfigDir.appendingPathComponent("\(id).conf")
     }
 
-    public func siteBackendPid(_ id: String) -> URL {
-        run.appendingPathComponent("site-\(id).pid")
+    // Engine-keyed so a zero-downtime engine swap can run the old and new backend at once without
+    // sharing a pid file: the departing process must not delete the incoming process's pid on exit.
+    public func siteBackendPid(_ id: String, engine: String) -> URL {
+        run.appendingPathComponent("site-\(id).\(engine).pid")
     }
 
     // Engine (raw value) is in the label so switching a site Nginx↔Apache yields a new label: the
