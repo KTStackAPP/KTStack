@@ -45,6 +45,13 @@ esac
 # Without it mbstring loads but mb_split is undefined (fatal). Keep it alongside mbstring.
 EXTENSIONS="${EXTENSIONS:-bcmath,bz2,calendar,curl,dom,event,exif,ffi,fileinfo,filter,ftp,gd,gettext,gmp,iconv,igbinary,intl,ldap,mbstring,mbregex,memcached,mysqli,opcache,openssl,pcntl,pdo,pdo_mysql,pdo_pgsql,pdo_sqlite,pgsql,phar,posix,protobuf,readline,redis,session,shmop,snmp,soap,sockets,sodium,sqlite3,ssh2,sysvmsg,sysvsem,sysvshm,tidy,tokenizer,xhprof,xlswriter,xml,xmlwriter,xsl,zip,zlib,zstd}"
 
+# libxml2 2.15 renamed the XPath stack API (valuePush/valuePop → xmlXPathValuePush/Pop), which
+# PHP <= 8.4's ext/dom still references, so linking against spc's default (latest) libxml2 fails with
+# "Undefined symbols: _valuePop/_valuePush". Pin the last 2.13 release, which keeps the old names.
+# Override LIBXML2_URL for a PHP version whose ext/dom has moved to the new API (e.g. 8.5+).
+LIBXML2_URL="${LIBXML2_URL:-https://download.gnome.org/sources/libxml2/2.13/libxml2-2.13.8.tar.xz}"
+LIBXML2_PIN=(--custom-url "libxml2:$LIBXML2_URL")
+
 # Optional install/uninstall extensions, built as relocatable shared objects (.so) OVER the same
 # static base — they are NOT compiled into php; the version identity is unchanged. One artifact per
 # (ext, version). Building these never alters the base php/php-fpm binaries (already packaged before
@@ -83,7 +90,7 @@ else
 fi
 
 echo "=== download PHP ${PHP_VER} source + extension deps ==="
-"$SPC" download --with-php="$PHP_VER" --for-extensions="$EXTENSIONS" --prefer-pre-built
+"$SPC" download --with-php="$PHP_VER" --for-extensions="$EXTENSIONS" --prefer-pre-built "${LIBXML2_PIN[@]}"
 
 echo "=== build (cli + fpm), static ==="
 "$SPC" build "$EXTENSIONS" --build-cli --build-fpm
@@ -156,7 +163,7 @@ if [[ -n "$SHARED_EXTENSIONS" ]]; then
     }
 
     echo "=== download shared-ext deps ==="
-    "$SPC" download --with-php="$PHP_VER" --for-extensions="$SHARED_EXTENSIONS" --prefer-pre-built
+    "$SPC" download --with-php="$PHP_VER" --for-extensions="$SHARED_EXTENSIONS" --prefer-pre-built "${LIBXML2_PIN[@]}"
 
     # Fast path: one combined build pays the base recompile ONCE, then adds each ext via phpize in
     # seconds. spc aborts the whole batch at the first ext that fails to build, so any ext after the
