@@ -28,6 +28,11 @@ sign_lib() { # <path> — shared libraries carry no app entitlements
     codesign --force --options runtime --timestamp --sign "$DEV_ID" "$1"
 }
 
+sign_helper() { # <path> — command-line tools otherwise inherit the executable filename as ID
+    codesign --force --options runtime --timestamp --sign "$DEV_ID" \
+        --identifier com.ktstack.helper --entitlements "$ENT/helper.entitlements" "$1"
+}
+
 # JIT runtimes (PHP-with-opcache.jit, Node/V8, Java, Ruby) need allow-jit; everything else base.
 needs_jit() {
     case "$(basename "$1")" in
@@ -41,7 +46,8 @@ is_library() { case "$(basename "$1")" in *.dylib|*.so) return 0 ;; *) return 1 
 
 sign_by_kind() { # <path> — JIT → jit ent, library → no ent, else → base ent
     local b; b="$(basename "$1")"
-    if needs_jit "$1"; then echo "  jit  $b"; sign "$JIT_ENT" "$1"
+    if [[ "$b" == "KTStackHelper" ]]; then echo "  help $b"; sign_helper "$1"
+    elif needs_jit "$1"; then echo "  jit  $b"; sign "$JIT_ENT" "$1"
     elif is_library "$1"; then echo "  lib  $b"; sign_lib "$1"
     else echo "  exe  $b"; sign "$BASE_ENT" "$1"; fi
 }
@@ -86,7 +92,7 @@ fi
 
 echo "=== 3. privileged helper ==="
 HELPER="$APP/Contents/MacOS/KTStackHelper"
-[[ -f "$HELPER" ]] && sign "$ENT/helper.entitlements" "$HELPER"
+[[ -f "$HELPER" ]] && sign_helper "$HELPER"
 
 echo "=== 4. the app bundle (last) ==="
 sign "$BASE_ENT" "$APP"
@@ -126,6 +132,7 @@ codesign --verify --deep --strict --verbose=2 "$APP"
 
 echo "=== 6. guard: app and helper share one TeamIdentifier ==="
 team_of() { codesign -dvv "$1" 2>&1 | sed -n 's/^TeamIdentifier=//p'; }
+identifier_of() { codesign -dvv "$1" 2>&1 | sed -n 's/^Identifier=//p'; }
 app_team="$(team_of "$APP")"
 helper_bin="$(find "$APP" -type f -name 'KTStackHelper' -print -quit)"
 if [[ -n "$helper_bin" ]]; then
@@ -134,7 +141,13 @@ if [[ -n "$helper_bin" ]]; then
         echo "FATAL: app team '$app_team' != helper team '$helper_team'" >&2
         exit 1
     fi
+    helper_identifier="$(identifier_of "$helper_bin")"
+    if [[ "$helper_identifier" != "com.ktstack.helper" ]]; then
+        echo "FATAL: helper identifier '$helper_identifier' != 'com.ktstack.helper'" >&2
+        exit 1
+    fi
     echo "  team match: $app_team"
+    echo "  helper identifier: $helper_identifier"
 else
     echo "  helper not embedded (pre-Phase-9); skipping team-match guard"
 fi
