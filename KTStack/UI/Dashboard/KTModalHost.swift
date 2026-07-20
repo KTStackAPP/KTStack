@@ -6,6 +6,7 @@ import SwiftUI
 struct KTWindowModals: View {
     @EnvironmentObject private var server: LocalServerController
     @EnvironmentObject private var preferences: AppPreferences
+    @EnvironmentObject private var runtimes: RuntimeManager
     @EnvironmentObject private var overlay: KTOverlayCenter
 
     var body: some View {
@@ -24,6 +25,7 @@ struct KTWindowModals: View {
                         availableVersions: server.availableVersions,
                         sitesRoot: preferences.sitesRootURL,
                         tld: server.registry.tld,
+                        defaultPHPVersion: runtimes.defaultVersion(.php) ?? BundledPHP.defaultVersion,
                         defaultHTTPS: preferences.serveHTTPSByDefault,
                         onClose: { overlay.newSitePresented = false }
                     )
