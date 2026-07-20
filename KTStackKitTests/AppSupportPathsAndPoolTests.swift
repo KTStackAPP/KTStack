@@ -47,6 +47,15 @@ final class AppSupportPathsAndPoolTests: XCTestCase {
         XCTAssertFalse(conf.contains("php_value[mysql.default_socket]"))
     }
 
+    func testPoolConfigShellEscapesMailpitPathWithSpaces() {
+        let spaced = AppSupportPaths(root: URL(fileURLWithPath: "/tmp/KTStack Test"))
+        let conf = PHPFPMPoolWriter().poolConfig(paths: spaced, poolName: "8.4", user: "tester")
+        XCTAssertTrue(conf.contains(
+            "php_admin_value[sendmail_path] = /tmp/KTStack\\ Test/bin/mailpit sendmail -S 127.0.0.1:1025"
+        ))
+        XCTAssertFalse(conf.contains("'/tmp/KTStack Test/bin/mailpit'"))
+    }
+
     func testPortPreflightConflictMessageNamesApache() {
         let msg = PortPreflight.conflictMessage(port: 80, process: "httpd")
         XCTAssertTrue(msg.contains("Apache"))
