@@ -74,7 +74,10 @@ public struct PHPFPMPoolWriter {
     }
 
     private func shellEscaped(_ value: String) throws -> String {
-        guard !value.unicodeScalars.contains(where: { scalar in
+        // Foundation percent-encodes null bytes in file URL paths (for example, as "%00").
+        // Validate the decoded form so encoded control bytes cannot bypass this guard.
+        let validationValue = value.removingPercentEncoding ?? value
+        guard !validationValue.unicodeScalars.contains(where: { scalar in
             scalar.value == 0 || scalar.value == 10 || scalar.value == 13
         }) else {
             throw PHPFPMPoolWriterError.invalidSendmailPath
