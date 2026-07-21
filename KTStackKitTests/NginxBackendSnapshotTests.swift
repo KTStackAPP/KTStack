@@ -51,6 +51,11 @@ final class NginxBackendSnapshotTests: XCTestCase {
         XCTAssertFalse(config.contains("$server_port"))
     }
 
+    func testBackendKeepsNativeRedirectsRelative() {
+        let config = backend.backendConfig(context: context(domain: "demo.test", secure: true))
+        XCTAssertTrue(config.contains("absolute_redirect off;"))
+    }
+
     func testFactoryReturnsNginxForNginxEngine() {
         XCTAssertEqual(WebServerBackendFactory.backend(for: .nginx, paths: paths).engine, .nginx)
     }
