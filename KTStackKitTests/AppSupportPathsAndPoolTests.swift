@@ -63,6 +63,10 @@ final class AppSupportPathsAndPoolTests: XCTestCase {
                 try PHPFPMPoolWriter().poolConfig(paths: invalid, poolName: "8.4", user: "tester")
             ) { error in
                 XCTAssertEqual(error as? PHPFPMPoolWriterError, .invalidSendmailPath)
+                XCTAssertEqual(
+                    error.localizedDescription,
+                    "The Mailpit executable path contains a line break or null byte and cannot be written safely to PHP-FPM configuration."
+                )
             }
         }
     }

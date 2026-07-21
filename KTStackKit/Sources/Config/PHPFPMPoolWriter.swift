@@ -1,7 +1,14 @@
 import Foundation
 
-public enum PHPFPMPoolWriterError: Error, Equatable {
+public enum PHPFPMPoolWriterError: LocalizedError, Equatable {
     case invalidSendmailPath
+
+    public var errorDescription: String? {
+        switch self {
+        case .invalidSendmailPath:
+            "The Mailpit executable path contains a line break or null byte and cannot be written safely to PHP-FPM configuration."
+        }
+    }
 }
 
 public struct PHPFPMPoolWriter {
