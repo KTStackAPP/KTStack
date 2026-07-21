@@ -4,7 +4,7 @@ This page walks you through KTStack's settings window, where you configure globa
 
 ## Opening Settings
 
-1. Click the **KTStack menu-bar icon** (lightning bolt).
+1. Click the **KTStack menu-bar icon**.
 2. Click the **gear icon** (⚙) in the dashboard header.
 3. The Settings window opens in a tab showing all available options.
 
@@ -32,7 +32,7 @@ These options control how KTStack behaves on your Mac.
 
 ### Show in menu bar
 
-**What it does**: Displays the KTStack lightning-bolt icon in your menu bar for quick access.
+**What it does**: Displays the KTStack icon in your menu bar for quick access.
 
 1. Toggle **Show in menu bar** on or off.
 2. If you turn it off, the menu bar icon is hidden (you can still access KTStack from Finder > Applications).
@@ -191,7 +191,7 @@ For complete uninstall instructions, see [17 — Uninstall & reset](17-uninstall
 
 Now that you understand settings, head to [17 — Uninstall & reset](17-uninstall-and-reset.md) to learn how to cleanly remove KTStack if needed. Or jump to [06 — Services](06-services.md) to manage your background services.
 
-![Settings window with general options](images/16-settings-general.png)
+![Settings window with the monochrome menu bar option enabled](images/16-monochrome-menu-bar-setting.png)
 
 ![Sites & Network settings](images/16-settings-sites-network.png)
 
