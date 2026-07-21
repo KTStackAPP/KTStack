@@ -176,7 +176,7 @@ public final class DNSAutomationService: ObservableObject {
     ) async throws {
         let dnsmasqData: Data
         switch op {
-        case .enable, .reset: dnsmasqData = try loadDNSMasq(at: bundledDnsmasq)
+        case .enable, .reset: dnsmasqData = try await loadDNSMasqOffMain(at: bundledDnsmasq)
         case .disable: dnsmasqData = Data()
         }
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
@@ -247,6 +247,12 @@ public final class DNSAutomationService: ObservableObject {
             )
         }
         return data
+    }
+
+    private nonisolated static func loadDNSMasqOffMain(at url: URL) async throws -> Data {
+        try await Task.detached(priority: .userInitiated) {
+            try loadDNSMasq(at: url)
+        }.value
     }
 
     // A hung-but-alive helper fires neither the reply nor the XPC invalidation handler, so without a
