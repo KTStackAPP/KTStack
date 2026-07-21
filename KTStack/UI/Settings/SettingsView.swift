@@ -81,8 +81,15 @@ struct SettingsView: View {
             KTSettingsRow(title: "Auto-start server", subtitle: "Bring the server up automatically on launch.") {
                 KTToggle(isOn: preferences.autoStartServer) { preferences.autoStartServer.toggle() }
             }
-            KTSettingsRow(title: "Show in menu bar", subtitle: "Quick-access icon. If hidden, reopen KTStack from Finder.", showDivider: false) {
+            KTSettingsRow(title: "Show in menu bar", subtitle: "Quick-access icon. If hidden, reopen KTStack from Finder.") {
                 KTToggle(isOn: preferences.showInMenuBar) { preferences.showInMenuBar.toggle() }
+            }
+            KTSettingsRow(
+                title: "Monochrome menu bar icon",
+                subtitle: "Use a native black-and-white server symbol that follows macOS appearance.",
+                showDivider: false
+            ) {
+                KTToggle(isOn: preferences.monochromeMenuBarIcon) { preferences.monochromeMenuBarIcon.toggle() }
             }
         }
     }

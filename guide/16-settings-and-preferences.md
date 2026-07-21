@@ -38,6 +38,14 @@ These options control how KTStack behaves on your Mac.
 2. If you turn it off, the menu bar icon is hidden (you can still access KTStack from Finder > Applications).
 3. If you turn it back on, the icon reappears.
 
+### Monochrome menu bar icon
+
+**What it does**: Replaces the full-color KTStack icon with a native black-and-white server symbol that follows the current macOS menu-bar appearance.
+
+1. Toggle **Monochrome menu bar icon** on to use the server symbol.
+2. Toggle it off to restore the full-color KTStack icon.
+3. The icon updates immediately; KTStack does not need to restart.
+
 ## Sites & Network Settings
 
 These options set defaults for how your sites are served.
