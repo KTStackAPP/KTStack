@@ -1,5 +1,9 @@
 import Foundation
 
+public enum PHPFPMPoolWriterError: Error, Equatable {
+    case invalidSendmailPath
+}
+
 public struct PHPFPMPoolWriter {
     public init() {}
 
@@ -7,7 +11,7 @@ public struct PHPFPMPoolWriter {
         paths: AppSupportPaths,
         poolName: String,
         user: String = NSUserName()
-    ) -> String {
+    ) throws -> String {
         let socket = paths.phpFpmSocket(poolName).path
         let log = paths.phpFpmLog(poolName).path
 
@@ -15,7 +19,7 @@ public struct PHPFPMPoolWriter {
         // "Application Support" therefore reaches /bin/sh as separate arguments. Backslash-escape
         // the executable path instead; it keeps the command absolute (PHP does not prefix it) and
         // preserves spaces and shell metacharacters when mail() launches Mailpit.
-        let sendmailPath = shellEscaped(paths.binary("mailpit").path)
+        let sendmailPath = try shellEscaped(paths.binary("mailpit").path)
         let sendmail = "\(sendmailPath) sendmail -S 127.0.0.1:1025"
 
         let mysqlSocket = paths.serviceSocket("mysql").path
@@ -62,7 +66,12 @@ public struct PHPFPMPoolWriter {
         return url
     }
 
-    private func shellEscaped(_ value: String) -> String {
+    private func shellEscaped(_ value: String) throws -> String {
+        guard !value.unicodeScalars.contains(where: { scalar in
+            scalar.value == 0 || scalar.value == 10 || scalar.value == 13
+        }) else {
+            throw PHPFPMPoolWriterError.invalidSendmailPath
+        }
         let safe = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "/@%_+=:,.-"))
         return value.unicodeScalars.map { scalar in
             safe.contains(scalar) ? String(scalar) : "\\\(scalar)"

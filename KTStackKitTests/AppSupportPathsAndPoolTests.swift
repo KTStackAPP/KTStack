@@ -27,16 +27,16 @@ final class AppSupportPathsAndPoolTests: XCTestCase {
         }
     }
 
-    func testPoolConfigListensOnUnixSocket() {
-        let conf = PHPFPMPoolWriter().poolConfig(paths: paths, poolName: "demo", user: "tester")
+    func testPoolConfigListensOnUnixSocket() throws {
+        let conf = try PHPFPMPoolWriter().poolConfig(paths: paths, poolName: "demo", user: "tester")
         XCTAssertTrue(conf.contains("listen = \(paths.phpFpmSocket("demo").path)"))
         XCTAssertTrue(conf.contains("[demo]"))
         XCTAssertTrue(conf.contains("daemonize = no"))
         XCTAssertTrue(conf.contains("user = tester"))
     }
 
-    func testPoolConfigRoutesLocalhostMySQLToBundledSocket() {
-        let conf = PHPFPMPoolWriter().poolConfig(paths: paths, poolName: "8.4", user: "tester")
+    func testPoolConfigRoutesLocalhostMySQLToBundledSocket() throws {
+        let conf = try PHPFPMPoolWriter().poolConfig(paths: paths, poolName: "8.4", user: "tester")
         let sock = paths.serviceSocket("mysql").path
         // localhost DB connections must reach the bundled MySQL socket (Laragon-style), for both
         // mysqli (WordPress) and pdo_mysql (Laravel).
@@ -47,13 +47,24 @@ final class AppSupportPathsAndPoolTests: XCTestCase {
         XCTAssertFalse(conf.contains("php_value[mysql.default_socket]"))
     }
 
-    func testPoolConfigShellEscapesMailpitPathWithSpaces() {
+    func testPoolConfigShellEscapesMailpitPathWithSpaces() throws {
         let spaced = AppSupportPaths(root: URL(fileURLWithPath: "/tmp/KTStack Test"))
-        let conf = PHPFPMPoolWriter().poolConfig(paths: spaced, poolName: "8.4", user: "tester")
+        let conf = try PHPFPMPoolWriter().poolConfig(paths: spaced, poolName: "8.4", user: "tester")
         XCTAssertTrue(conf.contains(
             "php_admin_value[sendmail_path] = /tmp/KTStack\\ Test/bin/mailpit sendmail -S 127.0.0.1:1025"
         ))
         XCTAssertFalse(conf.contains("'/tmp/KTStack Test/bin/mailpit'"))
+    }
+
+    func testPoolConfigRejectsLineBreakingMailpitPaths() {
+        for scalar in ["\n", "\r", "\0"] {
+            let invalid = AppSupportPaths(root: URL(fileURLWithPath: "/tmp/KTStack\(scalar)Test"))
+            XCTAssertThrowsError(
+                try PHPFPMPoolWriter().poolConfig(paths: invalid, poolName: "8.4", user: "tester")
+            ) { error in
+                XCTAssertEqual(error as? PHPFPMPoolWriterError, .invalidSendmailPath)
+            }
+        }
     }
 
     func testPortPreflightConflictMessageNamesApache() {
