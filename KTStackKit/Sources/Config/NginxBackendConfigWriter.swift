@@ -3,7 +3,8 @@ import Foundation
 // Standalone nginx config for one PHP site's loopback backend. The front terminates TLS and
 // proxies here over plain HTTP, so SERVER_PORT/SERVER_ADDR/HTTPS are pinned from the
 // front-terminated state, not derived from $server_port (which would be the loopback port and
-// break framework-generated redirect URLs).
+// break framework-generated redirect URLs). Native nginx redirects stay relative for the same
+// reason, so directory redirects cannot expose the loopback scheme or port.
 public struct NginxBackendConfigWriter: Sendable {
     public init() {}
 
@@ -40,6 +41,7 @@ public struct NginxBackendConfigWriter: Sendable {
             server {
                 listen 127.0.0.1:\(backendPort);
                 server_name \(domain);
+                absolute_redirect off;
                 root \(q(root.path));
                 index index.php index.html;
 
