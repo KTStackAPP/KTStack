@@ -57,7 +57,9 @@ final class AppSupportPathsAndPoolTests: XCTestCase {
     }
 
     func testPoolConfigRejectsLineBreakingMailpitPaths() {
-        for scalar in ["\n", "\r", "\0"] {
+        // NUL is covered by the writer's guard but can't be driven through here: URL(fileURLWithPath:)
+        // truncates at the NUL, so it never reaches poolConfig as a path byte.
+        for scalar in ["\n", "\r"] {
             let invalid = AppSupportPaths(root: URL(fileURLWithPath: "/tmp/KTStack\(scalar)Test"))
             XCTAssertThrowsError(
                 try PHPFPMPoolWriter().poolConfig(paths: invalid, poolName: "8.4", user: "tester")
