@@ -44,6 +44,16 @@ struct KTSiteGridCard: View {
                 Spacer()
                 if site.type == .php {
                     KTBadge(text: phpFramework.label, tint: KTSiteVisuals.tint(for: phpFramework), radius: 7)
+                } else {
+                    KTBadge(text: site.type.label, tint: KTSiteVisuals.tint(for: site.type), radius: 7)
+                }
+            }
+            .padding(.top, 13)
+
+            // The two runtime menus are fixedSize; on a narrow grid card they cannot share a row with
+            // the status label without squeezing the badge into a vertical strip, so give them their own row.
+            if site.type == .php {
+                HStack(spacing: 7) {
                     KTPhpMenu(current: site.phpVersion, versions: availableVersions, onSelect: onSetVersion)
                     KTEngineMenu(
                         current: site.serverEngine,
@@ -53,11 +63,10 @@ struct KTSiteGridCard: View {
                         onSelect: { server.setSiteEngine(site, $0) },
                         onInstallApache: { server.installApache() }
                     )
-                } else {
-                    KTBadge(text: site.type.label, tint: KTSiteVisuals.tint(for: site.type), radius: 7)
+                    Spacer()
                 }
+                .padding(.top, 8)
             }
-            .padding(.top, 13)
 
             HStack(spacing: 8) {
                 KTButton(title: "Open", kind: .secondary, action: onOpen)

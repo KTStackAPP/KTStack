@@ -22,6 +22,8 @@ struct KTBadge: View {
     var body: some View {
         Text(text)
             .font(.jbMono(11.5, .regular))
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
             .foregroundStyle(tint.fg)
             .padding(.vertical, 3)
             .padding(.horizontal, 9)
