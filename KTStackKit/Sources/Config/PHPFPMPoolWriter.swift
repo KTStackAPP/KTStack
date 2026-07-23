@@ -1,5 +1,16 @@
 import Foundation
 
+public enum PHPFPMPoolWriterError: LocalizedError, Equatable {
+    case invalidSendmailPath
+
+    public var errorDescription: String? {
+        switch self {
+        case .invalidSendmailPath:
+            "The Mailpit executable path contains a line break or null byte and cannot be written safely to PHP-FPM configuration."
+        }
+    }
+}
+
 public struct PHPFPMPoolWriter {
     public init() {}
 
@@ -7,11 +18,16 @@ public struct PHPFPMPoolWriter {
         paths: AppSupportPaths,
         poolName: String,
         user: String = NSUserName()
-    ) -> String {
+    ) throws -> String {
         let socket = paths.phpFpmSocket(poolName).path
         let log = paths.phpFpmLog(poolName).path
 
-        let sendmail = "'\(paths.binary("mailpit").path)' sendmail -S 127.0.0.1:1025"
+        // PHP-FPM strips shell quotes from php_admin_value entries. A quoted Mailpit path under
+        // "Application Support" therefore reaches /bin/sh as separate arguments. Backslash-escape
+        // the executable path instead; it keeps the command absolute (PHP does not prefix it) and
+        // preserves spaces and shell metacharacters when mail() launches Mailpit.
+        let sendmailPath = try shellEscaped(paths.binary("mailpit").path)
+        let sendmail = "\(sendmailPath) sendmail -S 127.0.0.1:1025"
 
         let mysqlSocket = paths.serviceSocket("mysql").path
         // error_log and sendmail_path use php_admin_value so a user-edited php.ini cannot redirect
@@ -55,5 +71,20 @@ public struct PHPFPMPoolWriter {
         try poolConfig(paths: paths, poolName: poolName)
             .write(to: url, atomically: true, encoding: .utf8)
         return url
+    }
+
+    private func shellEscaped(_ value: String) throws -> String {
+        // Foundation percent-encodes null bytes in file URL paths (for example, as "%00").
+        // Validate the decoded form so encoded control bytes cannot bypass this guard.
+        let validationValue = value.removingPercentEncoding ?? value
+        guard !validationValue.unicodeScalars.contains(where: { scalar in
+            scalar.value == 0 || scalar.value == 10 || scalar.value == 13
+        }) else {
+            throw PHPFPMPoolWriterError.invalidSendmailPath
+        }
+        let safe = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "/@%_+=:,.-"))
+        return value.unicodeScalars.map { scalar in
+            safe.contains(scalar) ? String(scalar) : "\\\(scalar)"
+        }.joined()
     }
 }

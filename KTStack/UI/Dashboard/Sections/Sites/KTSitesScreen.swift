@@ -9,6 +9,7 @@ struct KTSitesScreen: View {
     @EnvironmentObject private var server: LocalServerController
     @EnvironmentObject private var dns: DNSAutomationService
     @EnvironmentObject private var preferences: AppPreferences
+    @EnvironmentObject private var runtimes: RuntimeManager
     @EnvironmentObject private var tunnels: TunnelManager
 
     var body: some View {
@@ -17,6 +18,7 @@ struct KTSitesScreen: View {
             registry: server.registry,
             dns: dns,
             preferences: preferences,
+            defaultPHPVersion: runtimes.defaultVersion(.php) ?? BundledPHP.defaultVersion,
             tunnels: tunnels,
             onOpenLogs: onOpenLogs,
             onNavigate: onNavigate
@@ -29,6 +31,7 @@ private struct KTSitesContent: View {
     @ObservedObject var registry: SiteRegistry
     @ObservedObject var dns: DNSAutomationService
     @ObservedObject var preferences: AppPreferences
+    let defaultPHPVersion: String
     @ObservedObject var tunnels: TunnelManager
     var onOpenLogs: (String?) -> Void
     var onNavigate: (SidebarItem) -> Void
@@ -87,7 +90,13 @@ private struct KTSitesContent: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .ktTooltipHost()
         .background(KTColor.contentBg)
-        .sheet(isPresented: $showScan) { ScanImportSheet(registry: registry, sitesRoot: preferences.sitesRootURL) }
+        .sheet(isPresented: $showScan) {
+            ScanImportSheet(
+                registry: registry,
+                sitesRoot: preferences.sitesRootURL,
+                defaultPHPVersion: defaultPHPVersion
+            )
+        }
         .sheet(item: $restoreSite) { RestoreBackupSheet(site: $0, registry: registry, server: server) }
     }
 

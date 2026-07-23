@@ -1,14 +1,18 @@
 import Foundation
 
 final class HelperDNSManager {
-    func enableDNS(tld: String) -> (Bool, String?) {
+    func enableDNS(tld: String, dnsmasqData: Data) -> (Bool, String?) {
         guard let resolverPath = try? DNSConstants.resolverPathChecked(for: tld) else {
             return (false, "Invalid TLD.")
+        }
+        guard !dnsmasqData.isEmpty else {
+            return (false, "Bundled dnsmasq is missing or empty.")
         }
         if let owner = port53Owner(), !ownerIsTakeable(owner) {
             return (false, "Port 53 is already held by “\(owner.command)”. Stop it (another DNS tool?) and retry.")
         }
         do {
+            try writeRootData(dnsmasqData, to: DNSConstants.dnsmasqBinaryPath, mode: 0o755)
             try writeRootFile(DNSConstants.dnsmasqConf(for: tld), to: DNSConstants.dnsmasqConfPath, mode: 0o644)
             try writeRootFile(DNSConstants.daemonPlist, to: DNSConstants.daemonPlistPath, mode: 0o644)
             try writeRootFile(DNSConstants.resolverContents, to: resolverPath, mode: 0o644)
@@ -29,12 +33,12 @@ final class HelperDNSManager {
         return (true, nil)
     }
 
-    func resetDNS(tld: String) -> (Bool, String?) {
+    func resetDNS(tld: String, dnsmasqData: Data) -> (Bool, String?) {
         _ = disableDNS(tld: tld)
-        return enableDNS(tld: tld)
+        return enableDNS(tld: tld, dnsmasqData: dnsmasqData)
     }
 
-    func setTLD(old: String, new: String) -> (Bool, String?) {
+    func setTLD(old: String, new: String, dnsmasqData: Data) -> (Bool, String?) {
         guard let oldResolver = try? DNSConstants.resolverPathChecked(for: old),
               (try? DNSConstants.validatedTLD(new)) != nil
         else {
@@ -43,7 +47,7 @@ final class HelperDNSManager {
         if old != new {
             try? FileManager.default.removeItem(atPath: oldResolver)
         }
-        let result = enableDNS(tld: new)
+        let result = enableDNS(tld: new, dnsmasqData: dnsmasqData)
         _ = run("/usr/bin/dscacheutil", ["-flushcache"])
         return result
     }
@@ -98,6 +102,16 @@ final class HelperDNSManager {
             withIntermediateDirectories: true
         )
         try contents.write(to: url, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: mode], ofItemAtPath: path)
+    }
+
+    private func writeRootData(_ contents: Data, to path: String, mode: Int) throws {
+        let url = URL(fileURLWithPath: path)
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try contents.write(to: url, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: mode], ofItemAtPath: path)
     }
 

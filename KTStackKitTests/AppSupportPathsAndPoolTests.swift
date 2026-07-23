@@ -27,16 +27,16 @@ final class AppSupportPathsAndPoolTests: XCTestCase {
         }
     }
 
-    func testPoolConfigListensOnUnixSocket() {
-        let conf = PHPFPMPoolWriter().poolConfig(paths: paths, poolName: "demo", user: "tester")
+    func testPoolConfigListensOnUnixSocket() throws {
+        let conf = try PHPFPMPoolWriter().poolConfig(paths: paths, poolName: "demo", user: "tester")
         XCTAssertTrue(conf.contains("listen = \(paths.phpFpmSocket("demo").path)"))
         XCTAssertTrue(conf.contains("[demo]"))
         XCTAssertTrue(conf.contains("daemonize = no"))
         XCTAssertTrue(conf.contains("user = tester"))
     }
 
-    func testPoolConfigRoutesLocalhostMySQLToBundledSocket() {
-        let conf = PHPFPMPoolWriter().poolConfig(paths: paths, poolName: "8.4", user: "tester")
+    func testPoolConfigRoutesLocalhostMySQLToBundledSocket() throws {
+        let conf = try PHPFPMPoolWriter().poolConfig(paths: paths, poolName: "8.4", user: "tester")
         let sock = paths.serviceSocket("mysql").path
         // localhost DB connections must reach the bundled MySQL socket (Laragon-style), for both
         // mysqli (WordPress) and pdo_mysql (Laravel).
@@ -45,6 +45,32 @@ final class AppSupportPathsAndPoolTests: XCTestCase {
         // The legacy ext/mysql directive was removed in PHP 7 — setting it makes php-fpm log
         // "Unable to set php_value 'mysql.default_socket'" on every worker. Must not be emitted.
         XCTAssertFalse(conf.contains("php_value[mysql.default_socket]"))
+    }
+
+    func testPoolConfigShellEscapesMailpitPathWithSpaces() throws {
+        let spaced = AppSupportPaths(root: URL(fileURLWithPath: "/tmp/KTStack Test"))
+        let conf = try PHPFPMPoolWriter().poolConfig(paths: spaced, poolName: "8.4", user: "tester")
+        XCTAssertTrue(conf.contains(
+            "php_admin_value[sendmail_path] = /tmp/KTStack\\ Test/bin/mailpit sendmail -S 127.0.0.1:1025"
+        ))
+        XCTAssertFalse(conf.contains("'/tmp/KTStack Test/bin/mailpit'"))
+    }
+
+    func testPoolConfigRejectsLineBreakingMailpitPaths() {
+        // NUL is covered by the writer's guard but can't be driven through here: URL(fileURLWithPath:)
+        // truncates at the NUL, so it never reaches poolConfig as a path byte.
+        for scalar in ["\n", "\r"] {
+            let invalid = AppSupportPaths(root: URL(fileURLWithPath: "/tmp/KTStack\(scalar)Test"))
+            XCTAssertThrowsError(
+                try PHPFPMPoolWriter().poolConfig(paths: invalid, poolName: "8.4", user: "tester")
+            ) { error in
+                XCTAssertEqual(error as? PHPFPMPoolWriterError, .invalidSendmailPath)
+                XCTAssertEqual(
+                    error.localizedDescription,
+                    "The Mailpit executable path contains a line break or null byte and cannot be written safely to PHP-FPM configuration."
+                )
+            }
+        }
     }
 
     func testPortPreflightConflictMessageNamesApache() {

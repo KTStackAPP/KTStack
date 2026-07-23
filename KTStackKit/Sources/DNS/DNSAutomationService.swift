@@ -22,11 +22,13 @@ public final class DNSAutomationService: ObservableObject {
     public let tld: String
 
     private nonisolated let fallback: SudoFallbackInstaller
+    private nonisolated let bundledDnsmasq: URL
     private nonisolated let port53 = Port53ConflictDetector()
     private nonisolated let helper = HelperConnection()
 
     public init(bundledDnsmasq: URL, tld: String = AppPreferences.defaultTLD) {
         self.tld = tld
+        self.bundledDnsmasq = bundledDnsmasq
         fallback = SudoFallbackInstaller(bundledDnsmasq: bundledDnsmasq, tld: tld)
         refresh()
     }
@@ -85,6 +87,7 @@ public final class DNSAutomationService: ObservableObject {
         guard newTLD != tld else { completion(.success(())); return }
         isBusy = true; lastError = nil
         let usesHelper = usesHelper, fallback = fallback, helper = helper, old = tld, port53 = port53
+        let bundledDnsmasq = bundledDnsmasq
         Task.detached(priority: .userInitiated) {
             var failure: Error?
             do {
@@ -93,7 +96,14 @@ public final class DNSAutomationService: ObservableObject {
                     throw NSError(domain: "KTStack", code: -4,
                                   userInfo: [NSLocalizedDescriptionKey: conflict.message])
                 }
-                if usesHelper { try await Self.viaHelperSetTLD(helper, old: old, new: newTLD) }
+                if usesHelper {
+                    try await Self.viaHelperSetTLD(
+                        helper,
+                        old: old,
+                        new: newTLD,
+                        bundledDnsmasq: bundledDnsmasq
+                    )
+                }
                 else { try fallback.runSetTLDWithAdminPrivileges(old: old, new: newTLD) }
             } catch {
                 failure = error
@@ -130,7 +140,9 @@ public final class DNSAutomationService: ObservableObject {
                 throw NSError(domain: "KTStack", code: -4,
                               userInfo: [NSLocalizedDescriptionKey: conflict.message])
             }
-            if usesHelper { try await Self.viaHelper(helper, op, tld: tld) }
+            if usesHelper {
+                try await Self.viaHelper(helper, op, tld: tld, bundledDnsmasq: bundledDnsmasq)
+            }
             else { try await Self.viaFallbackOffMain(fallback, op) }
             refresh()
         } catch {
@@ -156,7 +168,17 @@ public final class DNSAutomationService: ObservableObject {
         }
     }
 
-    private nonisolated static func viaHelper(_ helper: HelperConnection, _ op: Op, tld: String) async throws {
+    private nonisolated static func viaHelper(
+        _ helper: HelperConnection,
+        _ op: Op,
+        tld: String,
+        bundledDnsmasq: URL
+    ) async throws {
+        let dnsmasqData: Data
+        switch op {
+        case .enable, .reset: dnsmasqData = try await loadDNSMasqOffMain(at: bundledDnsmasq)
+        case .disable: dnsmasqData = Data()
+        }
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             let guard1 = ResumeOnce(cont)
             let timeout = Task { try? await Task.sleep(nanoseconds: helperTimeout); guard1.fail(timeoutError()) }
@@ -178,14 +200,20 @@ public final class DNSAutomationService: ObservableObject {
                 )) }
             }
             switch op {
-            case .enable: proxy.enableDNS(tld: tld, reply: reply)
+            case .enable: proxy.enableDNS(tld: tld, dnsmasqData: dnsmasqData, reply: reply)
             case .disable: proxy.disableDNS(tld: tld, reply: reply)
-            case .reset: proxy.resetDNS(tld: tld, reply: reply)
+            case .reset: proxy.resetDNS(tld: tld, dnsmasqData: dnsmasqData, reply: reply)
             }
         }
     }
 
-    private nonisolated static func viaHelperSetTLD(_ helper: HelperConnection, old: String, new: String) async throws {
+    private nonisolated static func viaHelperSetTLD(
+        _ helper: HelperConnection,
+        old: String,
+        new: String,
+        bundledDnsmasq: URL
+    ) async throws {
+        let dnsmasqData = try loadDNSMasq(at: bundledDnsmasq)
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             let guard1 = ResumeOnce(cont)
             let timeout = Task { try? await Task.sleep(nanoseconds: helperTimeout); guard1.fail(timeoutError()) }
@@ -198,7 +226,7 @@ public final class DNSAutomationService: ObservableObject {
                 ))
                 return
             }
-            proxy.setTLD(old: old, new: new) { ok, msg in
+            proxy.setTLD(old: old, new: new, dnsmasqData: dnsmasqData) { ok, msg in
                 if ok { guard1.succeed() }
                 else { guard1.fail(NSError(
                     domain: "KTStack",
@@ -207,6 +235,24 @@ public final class DNSAutomationService: ObservableObject {
                 )) }
             }
         }
+    }
+
+    private nonisolated static func loadDNSMasq(at url: URL) throws -> Data {
+        let data = try Data(contentsOf: url, options: .mappedIfSafe)
+        guard !data.isEmpty else {
+            throw NSError(
+                domain: "KTStack",
+                code: -6,
+                userInfo: [NSLocalizedDescriptionKey: "Bundled dnsmasq is missing or empty."]
+            )
+        }
+        return data
+    }
+
+    private nonisolated static func loadDNSMasqOffMain(at url: URL) async throws -> Data {
+        try await Task.detached(priority: .userInitiated) {
+            try loadDNSMasq(at: url)
+        }.value
     }
 
     // A hung-but-alive helper fires neither the reply nor the XPC invalidation handler, so without a

@@ -4,6 +4,7 @@ import SwiftUI
 struct ScanImportSheet: View {
     @ObservedObject var registry: SiteRegistry
     let sitesRoot: URL
+    let defaultPHPVersion: String
     @Environment(\.dismiss) private var dismiss
 
     @State private var scanned: [SiteScanner.ScannedSite] = []
@@ -93,7 +94,7 @@ struct ScanImportSheet: View {
     private func importSelected() {
         for row in scanned where selected.contains(row.folder.path) && !row.alreadyRegistered {
             do {
-                try registry.add(folder: row.folder)
+                try registry.add(folder: row.folder, phpVersion: defaultPHPVersion)
             } catch {
                 NSLog("KTStack: scan import skipped \(row.folder.lastPathComponent): \(error.localizedDescription)")
             }

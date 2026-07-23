@@ -14,20 +14,20 @@ final class HelperService: NSObject, HelperXPCProtocol {
         reply(helperBundleVersion)
     }
 
-    func enableDNS(tld: String, reply: @escaping (Bool, String?) -> Void) {
-        let r = dns.enableDNS(tld: tld); reply(r.0, r.1)
+    func enableDNS(tld: String, dnsmasqData: Data, reply: @escaping (Bool, String?) -> Void) {
+        let r = dns.enableDNS(tld: tld, dnsmasqData: dnsmasqData); reply(r.0, r.1)
     }
 
     func disableDNS(tld: String, reply: @escaping (Bool, String?) -> Void) {
         let r = dns.disableDNS(tld: tld); reply(r.0, r.1)
     }
 
-    func resetDNS(tld: String, reply: @escaping (Bool, String?) -> Void) {
-        let r = dns.resetDNS(tld: tld); reply(r.0, r.1)
+    func resetDNS(tld: String, dnsmasqData: Data, reply: @escaping (Bool, String?) -> Void) {
+        let r = dns.resetDNS(tld: tld, dnsmasqData: dnsmasqData); reply(r.0, r.1)
     }
 
-    func setTLD(old: String, new: String, reply: @escaping (Bool, String?) -> Void) {
-        let r = dns.setTLD(old: old, new: new); reply(r.0, r.1)
+    func setTLD(old: String, new: String, dnsmasqData: Data, reply: @escaping (Bool, String?) -> Void) {
+        let r = dns.setTLD(old: old, new: new, dnsmasqData: dnsmasqData); reply(r.0, r.1)
     }
 
     func dnsStatus(tld: String, reply: @escaping (Bool, Bool, String?) -> Void) {

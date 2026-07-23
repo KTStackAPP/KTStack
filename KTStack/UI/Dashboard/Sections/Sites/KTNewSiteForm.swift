@@ -9,6 +9,7 @@ struct KTNewSiteForm: View {
     let availableVersions: [String]
     let sitesRoot: URL
     let tld: String
+    let defaultPHPVersion: String
     var defaultHTTPS = true
     let onClose: () -> Void
 
@@ -57,7 +58,12 @@ struct KTNewSiteForm: View {
             }
             footer
         }
-        .onAppear { serveHTTPS = defaultHTTPS }
+        .onAppear {
+            serveHTTPS = defaultHTTPS
+            phpVersion = availableVersions.contains(defaultPHPVersion)
+                ? defaultPHPVersion
+                : (availableVersions.first ?? BundledPHP.defaultVersion)
+        }
         .onChange(of: kind) { newKind in createDatabase = newKind != .empty }
     }
 

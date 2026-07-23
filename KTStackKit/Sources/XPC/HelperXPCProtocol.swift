@@ -4,13 +4,13 @@ import Foundation
 public protocol HelperXPCProtocol {
     func ping(reply: @escaping (String) -> Void)
 
-    func enableDNS(tld: String, reply: @escaping (Bool, String?) -> Void)
+    func enableDNS(tld: String, dnsmasqData: Data, reply: @escaping (Bool, String?) -> Void)
 
     func disableDNS(tld: String, reply: @escaping (Bool, String?) -> Void)
 
-    func resetDNS(tld: String, reply: @escaping (Bool, String?) -> Void)
+    func resetDNS(tld: String, dnsmasqData: Data, reply: @escaping (Bool, String?) -> Void)
 
-    func setTLD(old: String, new: String, reply: @escaping (Bool, String?) -> Void)
+    func setTLD(old: String, new: String, dnsmasqData: Data, reply: @escaping (Bool, String?) -> Void)
 
     func dnsStatus(tld: String, reply: @escaping (Bool, Bool, String?) -> Void)
 
