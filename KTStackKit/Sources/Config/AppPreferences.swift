@@ -37,6 +37,10 @@ public final class AppPreferences: ObservableObject {
         didSet { defaults.set(showInMenuBar, forKey: Key.showInMenuBar) }
     }
 
+    @Published public var monochromeMenuBarIcon: Bool {
+        didSet { defaults.set(monochromeMenuBarIcon, forKey: Key.monochromeMenuBarIcon) }
+    }
+
     @Published public var serveHTTPSByDefault: Bool {
         didSet { defaults.set(serveHTTPSByDefault, forKey: Key.serveHTTPS) }
     }
@@ -67,6 +71,7 @@ public final class AppPreferences: ObservableObject {
         static let launchAtLogin = "KTStack.launchAtLogin"
         static let autoStartServer = "KTStack.autoStartServer"
         static let showInMenuBar = "KTStack.showInMenuBar"
+        static let monochromeMenuBarIcon = "KTStack.monochromeMenuBarIcon"
         static let serveHTTPS = "KTStack.serveHTTPSByDefault"
         static let automaticUpdates = "KTStack.automaticUpdates"
         static let releaseChannel = "KTStack.releaseChannel"
@@ -83,6 +88,7 @@ public final class AppPreferences: ObservableObject {
         launchAtLogin = defaults.bool(forKey: Key.launchAtLogin)
         autoStartServer = defaults.bool(forKey: Key.autoStartServer)
         showInMenuBar = defaults.object(forKey: Key.showInMenuBar) as? Bool ?? true
+        monochromeMenuBarIcon = defaults.bool(forKey: Key.monochromeMenuBarIcon)
         serveHTTPSByDefault = defaults.object(forKey: Key.serveHTTPS) as? Bool ?? true
         automaticUpdates = defaults.object(forKey: Key.automaticUpdates) as? Bool ?? true
         releaseChannel = ReleaseChannel(rawValue: defaults.string(forKey: Key.releaseChannel) ?? "") ?? .stable

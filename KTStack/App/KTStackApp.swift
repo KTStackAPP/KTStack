@@ -5,22 +5,31 @@ import SwiftUI
 
 private struct MenuBarLaunchLabel: View {
     @Environment(\.openWindow) private var openWindow
+    @AppStorage("KTStack.monochromeMenuBarIcon") private var monochromeMenuBarIcon = false
     @State private var didLaunchWindow = false
 
     var body: some View {
-        Image("MenuBarGlyph")
-            .onAppear {
-                guard !didLaunchWindow else { return }
-                didLaunchWindow = true
-                AppActivationPolicy.activateRegular()
-                if !AppActivationPolicy.focusExistingWindow(titled: "KTStack Dashboard") {
-                    openWindow(id: DashboardWindow.windowID)
-                }
-                DispatchQueue.main.async {
-                    AppActivationPolicy.activateRegular()
-                    AppActivationPolicy.resizeWindow(titled: "KTStack Dashboard", toFraction: 0.8)
-                }
+        Group {
+            if monochromeMenuBarIcon {
+                Image(systemName: "server.rack")
+                    .symbolRenderingMode(.monochrome)
+            } else {
+                Image("MenuBarGlyph")
             }
+        }
+        .accessibilityLabel("KTStack")
+        .onAppear {
+            guard !didLaunchWindow else { return }
+            didLaunchWindow = true
+            AppActivationPolicy.activateRegular()
+            if !AppActivationPolicy.focusExistingWindow(titled: "KTStack Dashboard") {
+                openWindow(id: DashboardWindow.windowID)
+            }
+            DispatchQueue.main.async {
+                AppActivationPolicy.activateRegular()
+                AppActivationPolicy.resizeWindow(titled: "KTStack Dashboard", toFraction: 0.8)
+            }
+        }
     }
 }
 

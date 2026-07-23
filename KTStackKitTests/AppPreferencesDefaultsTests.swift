@@ -13,6 +13,7 @@ final class AppPreferencesDefaultsTests: XCTestCase {
     func testTogglesDefaultToExpectedValues() {
         let prefs = AppPreferences(defaults: freshDefaults())
         XCTAssertTrue(prefs.showInMenuBar)
+        XCTAssertFalse(prefs.monochromeMenuBarIcon)
         XCTAssertTrue(prefs.serveHTTPSByDefault)
         XCTAssertTrue(prefs.automaticUpdates)
         XCTAssertFalse(prefs.launchAtLogin)
@@ -31,12 +32,15 @@ final class AppPreferencesDefaultsTests: XCTestCase {
         let defaults = freshDefaults()
         let prefs = AppPreferences(defaults: defaults)
         prefs.autoStartServer = true
+        prefs.monochromeMenuBarIcon = true
         prefs.releaseChannel = .beta
         XCTAssertTrue(defaults.bool(forKey: "KTStack.autoStartServer"))
+        XCTAssertTrue(defaults.bool(forKey: "KTStack.monochromeMenuBarIcon"))
         XCTAssertEqual(defaults.string(forKey: "KTStack.releaseChannel"), "beta")
 
         let reloaded = AppPreferences(defaults: defaults)
         XCTAssertTrue(reloaded.autoStartServer)
+        XCTAssertTrue(reloaded.monochromeMenuBarIcon)
         XCTAssertEqual(reloaded.releaseChannel, .beta)
     }
 }
