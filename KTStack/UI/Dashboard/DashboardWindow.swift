@@ -49,6 +49,9 @@ struct DashboardWindow: View {
             .ignoresSafeArea(.container, edges: .top)
             .background(KTWindowChrome())
             .sheet(isPresented: $showDNSOnboarding) { HelperApprovalView(dns: dns) }
+            // Dashboard mở → poll nhanh + sample metrics; đóng → ServiceManager tự hạ cadence.
+            .onAppear { services.beginLiveUpdates() }
+            .onDisappear { services.endLiveUpdates() }
             .task {
                 // Prompt DNS setup once on first launch; without it the resolver never gets set up
                 // because nothing else surfaces the step at boot.

@@ -17,6 +17,9 @@ public final class ServiceManager: ObservableObject {
     let restart = RestartPolicy()
     var busy: Set<ServiceKind> = []
     var pollTask: Task<Void, Never>?
+    // Số view đang hiển thị trạng thái service; 0 → poll chậm và bỏ qua sampler `ps`.
+    var liveUpdateClients = 0
+    var fastPollInterval: TimeInterval = 0.9
 
     let catalog: ServiceBinaryCatalog
     let downloader: RuntimeDownloader

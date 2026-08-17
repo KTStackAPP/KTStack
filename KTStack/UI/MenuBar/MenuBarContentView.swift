@@ -43,6 +43,8 @@ struct MenuBarContentView: View {
         .padding(KDSpacing.space2)
         .frame(width: 324)
         .background(MenuBarWindowReader(dismisser: dismisser))
+        .onAppear { services.beginLiveUpdates() }
+        .onDisappear { services.endLiveUpdates() }
     }
 
     private var anyRunning: Bool {

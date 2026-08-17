@@ -1,11 +1,16 @@
 import Foundation
 
 extension ServiceManager {
+    // Poll nền khi không có UI: giữ snapshot đủ ấm cho lần mở menu, không cần realtime.
+    static let idlePollInterval: TimeInterval = 8
+
     public func startPolling(interval: TimeInterval = 0.9) {
         guard pollTask == nil else { return }
+        fastPollInterval = interval
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.refresh()
+                guard let interval = self?.currentPollInterval else { return }
                 try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
             }
         }
@@ -13,6 +18,29 @@ extension ServiceManager {
 
     public func stopPolling() {
         pollTask?.cancel(); pollTask = nil
+    }
+
+    // Views hiển thị trạng thái service gọi cặp begin/end khi xuất hiện/biến mất.
+    public func beginLiveUpdates() {
+        liveUpdateClients += 1
+        if liveUpdateClients == 1 { restartPollLoop() }
+    }
+
+    public func endLiveUpdates() {
+        liveUpdateClients = max(0, liveUpdateClients - 1)
+        if liveUpdateClients == 0 { restartPollLoop() }
+    }
+
+    var currentPollInterval: TimeInterval {
+        liveUpdateClients > 0 ? fastPollInterval : Self.idlePollInterval
+    }
+
+    // Cắt giấc sleep đang dở để cadence mới có hiệu lực ngay khi UI mở/đóng.
+    private func restartPollLoop() {
+        guard pollTask != nil else { return }
+        let interval = fastPollInterval
+        stopPolling()
+        startPolling(interval: interval)
     }
 
     func refresh() async {
@@ -26,10 +54,13 @@ extension ServiceManager {
             }
         }
 
-        let metrics = await metricsSampler.sample()
-        for index in next.indices where next[index].status == .running {
-            next[index].cpuPercent = metrics[next[index].kind]?.cpuPercent
-            next[index].memoryBytes = metrics[next[index].kind]?.memoryBytes
+        // Sampler spawn `ps` toàn hệ thống (~25ms CPU/lần); chỉ đáng khi có row hiển thị metrics.
+        if liveUpdateClients > 0 {
+            let metrics = await metricsSampler.sample()
+            for index in next.indices where next[index].status == .running {
+                next[index].cpuPercent = metrics[next[index].kind]?.cpuPercent
+                next[index].memoryBytes = metrics[next[index].kind]?.memoryBytes
+            }
         }
 
         if next != snapshots { snapshots = next }
