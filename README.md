@@ -113,6 +113,10 @@ scripts/ci-local.sh
 
 # Enforce it on commit and push
 scripts/install-git-hooks.sh
+
+# Boot a real nginx/php-fpm stack from the generated configs and assert over HTTP(S)
+# (needs the bundled binaries below; too slow for the hooks, run per session and before merges)
+scripts/integration-test.sh
 ```
 
 > Bundled binaries under `KTStack/Resources/bin/` (nginx, dnsmasq, mkcert, redis, mailpit, …) are gitignored build artifacts produced by `scripts/build-*-relocatable.sh`; they won't exist on a fresh checkout until built. See `docs/` for architecture and the signing/notarization guide.
