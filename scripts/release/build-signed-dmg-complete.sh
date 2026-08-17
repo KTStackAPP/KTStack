@@ -100,17 +100,10 @@ xcrun stapler staple "$DMG"
 echo "✅ DMG stapled"
 
 echo ""
-echo "✔️  Step 10: Verify signatures"
-echo ""
-echo "   --- App verification ---"
-codesign --verify --deep --strict --verbose=2 "$APP"
-spctl -a -vvv "$APP" | head -5
-
-echo ""
-echo "   --- DMG verification ---"
-codesign --verify --verbose=2 "$DMG"
-xcrun stapler validate "$DMG"
-spctl --assess --type open --context context:primary-signature --verbose=4 "$DMG"
+echo "✔️  Step 10: Smoke test the DMG (release gate)"
+# Verifies the artifact users download, not the build tree: strict codesign of every nested Mach-O,
+# helper identifier, Gatekeeper, bounded launch. A failure here must block the release.
+scripts/release/smoke-test-dmg.sh "$DMG"
 
 echo ""
 echo "✅ SUCCESS! Ready to release:"
@@ -119,4 +112,6 @@ echo ""
 echo "Next steps:"
 echo "  1. Upload to release server"
 echo "  2. Update appcast (if using auto-update): scripts/release/update-appcast.sh <releases-dir>"
-echo "  3. Announce release"
+echo "  3. Re-run the smoke test over the appcast (skipped above, it did not exist yet):"
+echo "     APPCAST=<releases-dir>/appcast.xml scripts/release/smoke-test-dmg.sh <releases-dir>/$DMG"
+echo "  4. Announce release"
