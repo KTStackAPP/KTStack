@@ -111,7 +111,7 @@ xcodebuild -project KTStack.xcodeproj -scheme KTStack -destination 'platform=mac
 # Or run the whole gate (lint + tests + Release build); --quick drops the build
 scripts/ci-local.sh
 
-# Enforce it on commit and push
+# Enforce the quick gate (lint + tests) on commit and push
 scripts/install-git-hooks.sh
 
 # Boot a real nginx/php-fpm stack from the generated configs and assert over HTTP(S)

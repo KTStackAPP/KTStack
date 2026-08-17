@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Local quality gate: lint + KTStackKit-Tests (+ Release build of the app in full mode).
-# Runs on the dev machine, no GitHub dependency. Wired into git hooks by scripts/install-git-hooks.sh.
+# Runs on the dev machine, no GitHub dependency. Wired into git hooks by scripts/install-git-hooks.sh;
+# both hooks run --quick, the full mode with the Release build is for manual runs and releases.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
