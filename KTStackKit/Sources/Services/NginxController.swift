@@ -57,6 +57,11 @@ public final class NginxController: @unchecked Sendable {
         agents.isLoaded(instance.label)
     }
 
+    // Hỏi thẳng launchctl: cache lạnh trả false ngay sau khi app mở dù nginx đang chạy.
+    public var isRunningNow: Bool {
+        agents.isLoadedNow(instance.label)
+    }
+
     public func test() throws {
         try runControlCommand(["-t"])
     }

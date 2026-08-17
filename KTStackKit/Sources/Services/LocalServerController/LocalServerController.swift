@@ -48,7 +48,8 @@ public final class LocalServerController: ObservableObject {
     public init(
         bundleBinDir: URL,
         paths: AppSupportPaths = AppSupportPaths(),
-        tld: String = AppPreferences.defaultTLD
+        tld: String = AppPreferences.defaultTLD,
+        adoptRunningStack: Bool = false
     ) {
         self.paths = paths
         self.tld = tld
@@ -82,7 +83,9 @@ public final class LocalServerController: ObservableObject {
         registry.assignBackendPortsIfNeeded()
         apacheInstalled = paths.apacheAvailable()
 
-        if nginx.isRunning { reattachOnLaunch() } else { recomputeStatus() }
+        // Chỉ app thật adopt stack đang chạy: instance test (registry rỗng) mà reattach sẽ bootout
+        // backend thật qua launchd. isRunningNow vì cache lạnh luôn trả false lúc init.
+        if adoptRunningStack, nginx.isRunningNow { reattachOnLaunch() } else { recomputeStatus() }
     }
 
     public func refreshStatus() {

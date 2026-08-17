@@ -97,7 +97,9 @@ struct KTStackApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor lazy var preferences = AppPreferences()
 
-    @MainActor lazy var server: LocalServerController = .init(bundleBinDir: Self.bundleBinDir, tld: preferences.tld)
+    @MainActor lazy var server: LocalServerController = .init(
+        bundleBinDir: Self.bundleBinDir, tld: preferences.tld, adoptRunningStack: true
+    )
 
     @MainActor lazy var dns = DNSAutomationService(
         bundledDnsmasq: Self.bundleBinDir.appendingPathComponent("dnsmasq"),
