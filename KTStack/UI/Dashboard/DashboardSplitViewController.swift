@@ -218,6 +218,8 @@ final class DetailContainerViewController: NSViewController {
             KTDatabaseScreen(nav: nav)
         case .dumps:
             DumpsPanelView()
+        case .doctor:
+            KTDoctorScreen(onNavigate: { nav.selection = $0 })
         }
     }
 }

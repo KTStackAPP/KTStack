@@ -131,7 +131,7 @@ public struct BinaryStager {
         return sDate > dDate
     }
 
-    static func verifySignature(at url: URL) -> Bool {
+    public static func verifySignature(at url: URL) -> Bool {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
         proc.arguments = ["--verify", "--strict", url.path]

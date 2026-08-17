@@ -40,7 +40,7 @@ public struct PortPreflight {
         if err == EACCES {
             return .blocked(
                 message: "Permission denied binding 0.0.0.0:\(port). "
-                    + "Expected the wildcard bind to succeed without root — check for a security policy change."
+                    + "Expected the wildcard bind to succeed without root, so check for a security policy change."
             )
         }
         return .blocked(message: "Could not bind 0.0.0.0:\(port): \(String(cString: strerror(err))).")

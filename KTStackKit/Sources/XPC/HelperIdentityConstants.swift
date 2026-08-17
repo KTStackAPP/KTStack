@@ -2,11 +2,15 @@ import Foundation
 import Security
 
 public enum HelperIdentity {
+    /// Version the helper reports over XPC. Single-sourced here so the app can tell a stale
+    /// registered helper from the one this build ships; bump it when the helper's behavior changes.
+    public static let bundleVersion = "0.2.0"
+
     public static let machServiceName = "com.ktstack.helper"
     public static let helperBundleID = "com.ktstack.helper"
     public static let appBundleID = "com.ktstack.app"
 
-    // SMAppService daemon plist bundled in the app; registered at launch and approved in Login Items.
+    /// SMAppService daemon plist bundled in the app; registered at launch and approved in Login Items.
     public static let daemonPlistName = "com.ktstack.helper.plist"
 
     public static var hasSigningIdentity: Bool {

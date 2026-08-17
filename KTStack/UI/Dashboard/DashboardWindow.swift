@@ -79,14 +79,14 @@ enum SidebarSection: String, CaseIterable, Identifiable {
     var items: [SidebarItem] {
         switch self {
         case .manage: [.sites, .services, .runtimes, .database]
-        case .inspect: [.logs, .mail, .dumps]
+        case .inspect: [.logs, .mail, .dumps, .doctor]
         case .app: [.settings, .about]
         }
     }
 }
 
 enum SidebarItem: String, CaseIterable, Identifiable {
-    case sites, services, runtimes, database, logs, mail, dumps, settings, about
+    case sites, services, runtimes, database, logs, mail, dumps, doctor, settings, about
 
     var id: String {
         rawValue
@@ -101,6 +101,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .logs: "Logs"
         case .mail: "Mail"
         case .dumps: "Dumps"
+        case .doctor: "Doctor"
         case .settings: "Settings"
         case .about: "About"
         }
@@ -115,6 +116,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .logs: "text.alignleft"
         case .mail: "envelope"
         case .dumps: "curlybraces"
+        case .doctor: "stethoscope"
         case .settings: "gearshape"
         case .about: "info.circle"
         }

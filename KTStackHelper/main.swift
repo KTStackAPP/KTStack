@@ -1,17 +1,15 @@
 import Foundation
 
-let helperBundleVersion = "0.2.0"
-
 final class HelperService: NSObject, HelperXPCProtocol {
     private let dns = HelperDNSManager()
     private let ca = HelperCAManager()
 
     func ping(reply: @escaping (String) -> Void) {
-        reply(helperBundleVersion)
+        reply(HelperIdentity.bundleVersion)
     }
 
     func helperVersion(reply: @escaping (String) -> Void) {
-        reply(helperBundleVersion)
+        reply(HelperIdentity.bundleVersion)
     }
 
     func enableDNS(tld: String, dnsmasqData: Data, reply: @escaping (Bool, String?) -> Void) {
