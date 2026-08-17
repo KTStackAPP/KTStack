@@ -879,4 +879,37 @@ final class ServiceManagementTests: XCTestCase {
         let server = LocalServerController(bundleBinDir: URL(fileURLWithPath: "/dev/null"), paths: p)
         try await server.reloadNginxConfig()
     }
+
+    @MainActor
+    func testPollCadenceFollowsLiveUpdateClients() throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("ktstack-sm-cadence-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let p = AppSupportPaths(root: root)
+        try p.ensureDirectoryTree()
+        let dns = DNSAutomationService(bundledDnsmasq: URL(fileURLWithPath: "/dev/null"), tld: "test")
+        let server = LocalServerController(bundleBinDir: URL(fileURLWithPath: "/dev/null"), paths: p)
+        let sut = ServiceManager(server: server, dns: dns, paths: p)
+
+        XCTAssertEqual(sut.currentPollInterval, ServiceManager.idlePollInterval,
+                       "no visible UI → idle cadence")
+
+        sut.startPolling(interval: 0.9)
+        sut.beginLiveUpdates()
+        sut.beginLiveUpdates() // dashboard + menu bar at once
+        XCTAssertEqual(sut.currentPollInterval, 0.9, "any visible client → fast cadence")
+
+        sut.endLiveUpdates()
+        XCTAssertEqual(sut.currentPollInterval, 0.9, "one client still visible → stays fast")
+
+        sut.endLiveUpdates()
+        XCTAssertEqual(sut.currentPollInterval, ServiceManager.idlePollInterval,
+                       "last client gone → back to idle cadence")
+
+        sut.endLiveUpdates() // unbalanced end must not underflow
+        sut.beginLiveUpdates()
+        XCTAssertEqual(sut.currentPollInterval, 0.9,
+                       "refcount clamps at zero so the next begin still switches to fast")
+        sut.stopPolling()
+    }
 }
