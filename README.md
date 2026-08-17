@@ -107,6 +107,12 @@ xcodebuild -project KTStack.xcodeproj -scheme KTStackKit-Tests -destination 'pla
 
 # Build a Release app
 xcodebuild -project KTStack.xcodeproj -scheme KTStack -destination 'platform=macOS' -configuration Release build
+
+# Or run the whole gate (lint + tests + Release build); --quick drops the build
+scripts/ci-local.sh
+
+# Enforce it on commit and push
+scripts/install-git-hooks.sh
 ```
 
 > Bundled binaries under `KTStack/Resources/bin/` (nginx, dnsmasq, mkcert, redis, mailpit, …) are gitignored build artifacts produced by `scripts/build-*-relocatable.sh`; they won't exist on a fresh checkout until built. See `docs/` for architecture and the signing/notarization guide.
