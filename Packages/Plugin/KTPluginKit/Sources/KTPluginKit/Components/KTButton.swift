@@ -1,20 +1,33 @@
-import KTStackKit
 import SwiftUI
 
-enum KTButtonKind {
+public enum KTButtonKind {
     case primary, secondary, danger
 }
 
-struct KTButton: View {
-    let title: String
-    var systemImage: String?
-    var kind: KTButtonKind = .secondary
-    var isLoading: Bool = false
-    let action: () -> Void
+public struct KTButton: View {
+    public let title: String
+    public var systemImage: String?
+    public var kind: KTButtonKind = .secondary
+    public var isLoading: Bool = false
+    public let action: () -> Void
 
     @State private var hovering = false
 
-    var body: some View {
+    public init(
+        title: String,
+        systemImage: String? = nil,
+        kind: KTButtonKind = .secondary,
+        isLoading: Bool = false,
+        action: @escaping () -> Void
+    ) {
+        self.title = title
+        self.systemImage = systemImage
+        self.kind = kind
+        self.isLoading = isLoading
+        self.action = action
+    }
+
+    public var body: some View {
         Button(action: { if !isLoading { action() } }) {
             HStack(spacing: 7) {
                 if isLoading {

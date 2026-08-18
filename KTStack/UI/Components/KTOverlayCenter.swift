@@ -1,3 +1,4 @@
+import KTPluginKit
 import KTStackKit
 import SwiftUI
 
@@ -50,19 +51,6 @@ final class KTOverlayCenter: ObservableObject {
             danger: danger,
             onConfirm: onConfirm
         )
-    }
-}
-
-struct KTToast: View {
-    let message: String
-
-    var body: some View {
-        HStack(spacing: 9) {
-            Image(systemName: "checkmark").font(.system(size: 13, weight: .bold)).foregroundStyle(KTColor.runDot)
-            Text(message).font(.jbMono(13.5, .medium)).foregroundStyle(.white)
-        }
-        .padding(.horizontal, 18).padding(.vertical, 11)
-        .background(Capsule().fill(KTColor.ink))
     }
 }
 

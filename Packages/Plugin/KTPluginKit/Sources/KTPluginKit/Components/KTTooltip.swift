@@ -1,4 +1,3 @@
-import KTStackKit
 import SwiftUI
 
 private struct KTTooltipPayload {
@@ -52,7 +51,7 @@ private struct KTTooltipBubble: View {
     }
 }
 
-extension View {
+public extension View {
     func ktTip(_ text: String, delay: Double = 0.35) -> some View {
         modifier(KTTooltipModifier(text: text, delay: delay))
     }

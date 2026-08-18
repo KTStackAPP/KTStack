@@ -1,4 +1,5 @@
 import AppKit
+import KTPluginKit
 import KTStackKit
 import SwiftUI
 import UniformTypeIdentifiers

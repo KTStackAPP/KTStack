@@ -1,11 +1,15 @@
-import KTStackKit
 import SwiftUI
 
-struct KTSearchField: View {
-    @Binding var text: String
-    var placeholder: String = "Search…"
+public struct KTSearchField: View {
+    @Binding public var text: String
+    public var placeholder: String = "Search…"
 
-    var body: some View {
+    public init(text: Binding<String>, placeholder: String = "Search…") {
+        self._text = text
+        self.placeholder = placeholder
+    }
+
+    public var body: some View {
         HStack(spacing: 9) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 14, weight: .medium))

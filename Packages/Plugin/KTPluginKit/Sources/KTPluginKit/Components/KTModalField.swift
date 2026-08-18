@@ -1,15 +1,21 @@
-import KTStackKit
 import SwiftUI
 
-struct KTModalField: View {
-    let placeholder: String
-    @Binding var text: String
-    var mono = false
-    var isSecure = false
+public struct KTModalField: View {
+    public let placeholder: String
+    @Binding public var text: String
+    public var mono = false
+    public var isSecure = false
 
     @FocusState private var focused: Bool
 
-    var body: some View {
+    public init(placeholder: String, text: Binding<String>, mono: Bool = false, isSecure: Bool = false) {
+        self.placeholder = placeholder
+        self._text = text
+        self.mono = mono
+        self.isSecure = isSecure
+    }
+
+    public var body: some View {
         Group {
             if isSecure {
                 SecureField(placeholder, text: $text)
@@ -36,12 +42,18 @@ struct KTModalField: View {
     }
 }
 
-struct KTModalLabeledRow<Content: View>: View {
-    let label: String
-    var labelWidth: CGFloat = 130
-    @ViewBuilder var content: () -> Content
+public struct KTModalLabeledRow<Content: View>: View {
+    public let label: String
+    public var labelWidth: CGFloat = 130
+    @ViewBuilder public var content: () -> Content
 
-    var body: some View {
+    public init(label: String, labelWidth: CGFloat = 130, @ViewBuilder content: @escaping () -> Content) {
+        self.label = label
+        self.labelWidth = labelWidth
+        self.content = content
+    }
+
+    public var body: some View {
         HStack(spacing: 14) {
             Text(label)
                 .font(.jbMono(13.5, .regular))

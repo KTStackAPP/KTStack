@@ -1,14 +1,21 @@
-import KTStackKit
 import SwiftUI
 
-struct EmptyStateView: View {
-    let symbol: String
-    let title: String
-    let message: String
-    var actionTitle: String?
-    var action: (() -> Void)?
+public struct EmptyStateView: View {
+    public let symbol: String
+    public let title: String
+    public let message: String
+    public var actionTitle: String?
+    public var action: (() -> Void)?
 
-    var body: some View {
+    public init(symbol: String, title: String, message: String, actionTitle: String? = nil, action: (() -> Void)? = nil) {
+        self.symbol = symbol
+        self.title = title
+        self.message = message
+        self.actionTitle = actionTitle
+        self.action = action
+    }
+
+    public var body: some View {
         VStack(spacing: KDSpacing.space4) {
             Image(systemName: symbol)
                 .font(.system(size: 46, weight: .regular))

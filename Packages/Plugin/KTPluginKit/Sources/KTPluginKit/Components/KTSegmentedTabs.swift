@@ -1,18 +1,28 @@
-import KTStackKit
 import SwiftUI
 
-struct KTSegmentedTabs<Value: Hashable>: View {
-    struct Item: Identifiable {
-        let value: Value
-        let label: String
-        var id: Value {
+public struct KTSegmentedTabs<Value: Hashable>: View {
+    public struct Item: Identifiable {
+        public let value: Value
+        public let label: String
+        public var id: Value {
             value
+        }
+
+        public init(value: Value, label: String) {
+            self.value = value
+            self.label = label
         }
     }
 
-    let items: [Item]
-    @Binding var selection: Value
-    var large = false
+    public let items: [Item]
+    @Binding public var selection: Value
+    public var large = false
+
+    public init(items: [Item], selection: Binding<Value>, large: Bool = false) {
+        self.items = items
+        self._selection = selection
+        self.large = large
+    }
 
     private var fontSize: CGFloat {
         large ? 14 : 13
@@ -26,7 +36,7 @@ struct KTSegmentedTabs<Value: Hashable>: View {
         large ? 18 : 13
     }
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 2) {
             ForEach(items) { item in
                 let active = item.value == selection

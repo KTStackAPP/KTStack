@@ -1,16 +1,33 @@
-import KTStackKit
 import SwiftUI
 
-struct KTModalCard<Content: View>: View {
-    let icon: String
-    let tint: KTTint
-    let title: String
-    let subtitle: String
-    var width: CGFloat = 680
-    let onClose: () -> Void
-    @ViewBuilder var content: () -> Content
+public struct KTModalCard<Content: View>: View {
+    public let icon: String
+    public let tint: KTTint
+    public let title: String
+    public let subtitle: String
+    public var width: CGFloat = 680
+    public let onClose: () -> Void
+    @ViewBuilder public var content: () -> Content
 
-    var body: some View {
+    public init(
+        icon: String,
+        tint: KTTint,
+        title: String,
+        subtitle: String,
+        width: CGFloat = 680,
+        onClose: @escaping () -> Void,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.icon = icon
+        self.tint = tint
+        self.title = title
+        self.subtitle = subtitle
+        self.width = width
+        self.onClose = onClose
+        self.content = content
+    }
+
+    public var body: some View {
         ZStack {
             KTColor.modalScrim
                 .ignoresSafeArea()

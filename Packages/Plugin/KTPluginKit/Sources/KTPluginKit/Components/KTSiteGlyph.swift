@@ -1,14 +1,17 @@
-import KTStackKit
 import SwiftUI
 
-enum KTSiteIconKind: String, CaseIterable {
+public enum KTSiteIconKind: String, CaseIterable, Sendable {
     case code, cube, db
 }
 
-struct KTSiteShape: Shape {
-    let kind: KTSiteIconKind
+public struct KTSiteShape: Shape {
+    public let kind: KTSiteIconKind
 
-    func path(in rect: CGRect) -> Path {
+    public init(kind: KTSiteIconKind) {
+        self.kind = kind
+    }
+
+    public func path(in rect: CGRect) -> Path {
         let scale = rect.width / 24
         func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
             CGPoint(x: rect.minX + x * scale, y: rect.minY + y * scale)
@@ -40,12 +43,18 @@ struct KTSiteShape: Shape {
     }
 }
 
-struct KTSiteGlyph: View {
-    let kind: KTSiteIconKind
-    var size: CGFloat = 19
-    var color: Color = .white
+public struct KTSiteGlyph: View {
+    public let kind: KTSiteIconKind
+    public var size: CGFloat = 19
+    public var color: Color = .white
 
-    var body: some View {
+    public init(kind: KTSiteIconKind, size: CGFloat = 19, color: Color = .white) {
+        self.kind = kind
+        self.size = size
+        self.color = color
+    }
+
+    public var body: some View {
         KTSiteShape(kind: kind)
             .stroke(color, style: StrokeStyle(lineWidth: size / 24 * 1.8, lineCap: .round, lineJoin: .round))
             .frame(width: size, height: size)

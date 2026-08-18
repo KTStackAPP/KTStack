@@ -1,19 +1,7 @@
-import SwiftUI
+import Foundation
 
 public enum ServiceStatus: String, CaseIterable, Sendable {
     case running, stopped, starting, stopping, warning, error, info
-
-    public var color: Color {
-        switch self {
-        case .running: .KDStatus.running
-        case .stopped: .KDStatus.stopped
-        case .starting: .KDStatus.starting
-        case .stopping: .KDStatus.starting
-        case .warning: .KDStatus.warning
-        case .error: .KDStatus.error
-        case .info: .KDStatus.info
-        }
-    }
 
     public var symbolName: String {
         switch self {

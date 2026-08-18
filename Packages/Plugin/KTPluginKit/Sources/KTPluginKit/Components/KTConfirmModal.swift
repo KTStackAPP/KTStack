@@ -1,20 +1,35 @@
-import KTStackKit
 import SwiftUI
 
-struct KTConfirmModal: View {
-    let title: String
-    let message: String
-    var okLabel: String = "Confirm"
-    var danger: Bool = true
-    let onCancel: () -> Void
-    let onConfirm: () -> Void
+public struct KTConfirmModal: View {
+    public let title: String
+    public let message: String
+    public var okLabel: String = "Confirm"
+    public var danger: Bool = true
+    public let onCancel: () -> Void
+    public let onConfirm: () -> Void
+
+    public init(
+        title: String,
+        message: String,
+        okLabel: String = "Confirm",
+        danger: Bool = true,
+        onCancel: @escaping () -> Void,
+        onConfirm: @escaping () -> Void
+    ) {
+        self.title = title
+        self.message = message
+        self.okLabel = okLabel
+        self.danger = danger
+        self.onCancel = onCancel
+        self.onConfirm = onConfirm
+    }
 
     private var tint: KTTint {
         danger ? KTTint(fg: KTColor.danger, bg: KTColor.dangerBg)
             : KTTint(fg: KTColor.online, bg: KTColor.onlineBg)
     }
 
-    var body: some View {
+    public var body: some View {
         ZStack {
             KTColor.modalScrim.ignoresSafeArea()
                 .contentShape(Rectangle())

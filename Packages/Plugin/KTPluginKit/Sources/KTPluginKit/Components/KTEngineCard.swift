@@ -1,15 +1,21 @@
-import KTStackKit
 import SwiftUI
 
-struct KTEngineCard: View {
-    let name: String
-    let tint: KTTint
-    let active: Bool
-    var action: () -> Void
+public struct KTEngineCard: View {
+    public let name: String
+    public let tint: KTTint
+    public let active: Bool
+    public var action: () -> Void
 
     @State private var hovering = false
 
-    var body: some View {
+    public init(name: String, tint: KTTint, active: Bool, action: @escaping () -> Void) {
+        self.name = name
+        self.tint = tint
+        self.active = active
+        self.action = action
+    }
+
+    public var body: some View {
         Button(action: action) {
             HStack(spacing: 9) {
                 KTIconTile(tint: tint, size: 30, radius: 8) {

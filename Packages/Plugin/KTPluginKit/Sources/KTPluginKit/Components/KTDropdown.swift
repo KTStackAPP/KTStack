@@ -1,23 +1,42 @@
-import KTStackKit
 import SwiftUI
 
-struct KTDropdownOption: Identifiable {
-    let id = UUID()
-    let label: String
-    let active: Bool
-    let action: () -> Void
+public struct KTDropdownOption: Identifiable {
+    public let id = UUID()
+    public let label: String
+    public let active: Bool
+    public let action: () -> Void
+
+    public init(label: String, active: Bool, action: @escaping () -> Void) {
+        self.label = label
+        self.active = active
+        self.action = action
+    }
 }
 
-struct KTDropdown<Label: View>: View {
-    var width: CGFloat = 170
-    var maxHeight: CGFloat?
-    var compact: Bool = false
-    let options: [KTDropdownOption]
-    @ViewBuilder var label: () -> Label
+public struct KTDropdown<Label: View>: View {
+    public var width: CGFloat = 170
+    public var maxHeight: CGFloat?
+    public var compact: Bool = false
+    public let options: [KTDropdownOption]
+    @ViewBuilder public var label: () -> Label
 
     @State private var open = false
 
-    var body: some View {
+    public init(
+        width: CGFloat = 170,
+        maxHeight: CGFloat? = nil,
+        compact: Bool = false,
+        options: [KTDropdownOption],
+        @ViewBuilder label: @escaping () -> Label
+    ) {
+        self.width = width
+        self.maxHeight = maxHeight
+        self.compact = compact
+        self.options = options
+        self.label = label
+    }
+
+    public var body: some View {
         Button { open.toggle() } label: { label() }
             .buttonStyle(.plain)
             .popover(isPresented: $open, arrowEdge: .bottom) {
@@ -73,11 +92,16 @@ private struct KTDropdownRow: View {
     }
 }
 
-struct KTDropdownChevronLabel: View {
-    let text: String
-    var mono = false
+public struct KTDropdownChevronLabel: View {
+    public let text: String
+    public var mono = false
 
-    var body: some View {
+    public init(text: String, mono: Bool = false) {
+        self.text = text
+        self.mono = mono
+    }
+
+    public var body: some View {
         HStack(spacing: 7) {
             Text(text)
                 .font(.jbMono(13, mono ? .regular : .medium))

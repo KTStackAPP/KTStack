@@ -1,10 +1,13 @@
-import KTStackKit
 import SwiftUI
 
-struct KTListContainer<Content: View>: View {
-    @ViewBuilder var content: () -> Content
+public struct KTListContainer<Content: View>: View {
+    @ViewBuilder public var content: () -> Content
 
-    var body: some View {
+    public init(@ViewBuilder content: @escaping () -> Content) {
+        self.content = content
+    }
+
+    public var body: some View {
         content()
             .background(RoundedRectangle(cornerRadius: KTRadius.card, style: .continuous).fill(.white))
             .clipShape(RoundedRectangle(cornerRadius: KTRadius.card, style: .continuous))

@@ -1,14 +1,18 @@
-import KTStackKit
 import SwiftUI
 
-struct KTToggle: View {
-    let isOn: Bool
-    let action: () -> Void
+public struct KTToggle: View {
+    public let isOn: Bool
+    public let action: () -> Void
+
+    public init(isOn: Bool, action: @escaping () -> Void) {
+        self.isOn = isOn
+        self.action = action
+    }
 
     // Knob slides between the 3pt insets on each side: width - knob - 2*inset.
     private var knobTravel: CGFloat { KTMetric.toggleWidth - KTMetric.toggleKnob - 6 }
 
-    var body: some View {
+    public var body: some View {
         Button(action: action) {
             Capsule()
                 .fill(isOn ? KTColor.accent : Color(hex: 0xE3E3E9))

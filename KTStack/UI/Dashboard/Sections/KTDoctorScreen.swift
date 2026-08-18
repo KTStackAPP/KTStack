@@ -1,4 +1,5 @@
 import AppKit
+import KTPluginKit
 import KTStackCore
 import KTStackKit
 import ServiceManagement
@@ -74,7 +75,7 @@ struct KTDoctorScreen: View {
         .padding(.bottom, 12)
     }
 
-    private func rows(_ checks: [DoctorCheck]) -> some View {
+    private func rows(_ checks: [KTStackKit.DoctorCheck]) -> some View {
         VStack(spacing: 0) {
             ForEach(Array(checks.enumerated()), id: \.element.id) { index, check in
                 row(check)
@@ -85,7 +86,7 @@ struct KTDoctorScreen: View {
         }
     }
 
-    private func row(_ check: DoctorCheck) -> some View {
+    private func row(_ check: KTStackKit.DoctorCheck) -> some View {
         HStack(alignment: .top, spacing: 12) {
             KTDot(color: Self.color(for: check.status)).padding(.top, 6)
             VStack(alignment: .leading, spacing: 4) {
@@ -125,7 +126,7 @@ struct KTDoctorScreen: View {
         overlay.toast("Doctor report copied")
     }
 
-    private func perform(_ action: DoctorRemedyAction) {
+    private func perform(_ action: KTStackKit.DoctorRemedyAction) {
         switch action {
         case .openLoginItems:
             if #available(macOS 13, *) { SMAppService.openSystemSettingsLoginItems() }
@@ -135,7 +136,7 @@ struct KTDoctorScreen: View {
         }
     }
 
-    private static func actionTitle(_ action: DoctorRemedyAction) -> String {
+    private static func actionTitle(_ action: KTStackKit.DoctorRemedyAction) -> String {
         switch action {
         case .openLoginItems: "Login Items"
         case .openServices: "Services"
@@ -153,7 +154,7 @@ struct KTDoctorScreen: View {
         return formatter
     }()
 
-    private static func color(for status: DoctorStatus) -> Color {
+    private static func color(for status: KTStackKit.DoctorStatus) -> Color {
         switch status {
         case .pass: Color.KDStatus.running
         case .warn: Color.KDStatus.warning

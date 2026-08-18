@@ -1,14 +1,16 @@
 import AppKit
 import SwiftUI
 
-struct KTWindowChrome: NSViewRepresentable {
-    func makeNSView(context _: Context) -> NSView {
+public struct KTWindowChrome: NSViewRepresentable {
+    public init() {}
+
+    public func makeNSView(context _: Context) -> NSView {
         let view = NSView()
         DispatchQueue.main.async { [weak view] in Self.configure(view?.window) }
         return view
     }
 
-    func updateNSView(_ view: NSView, context _: Context) {
+    public func updateNSView(_ view: NSView, context _: Context) {
         DispatchQueue.main.async { [weak view] in Self.configure(view?.window) }
     }
 

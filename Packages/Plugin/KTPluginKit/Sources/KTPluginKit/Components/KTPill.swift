@@ -1,10 +1,13 @@
-import KTStackKit
 import SwiftUI
 
-struct KTPill: View {
-    let text: String
+public struct KTPill: View {
+    public let text: String
 
-    var body: some View {
+    public init(text: String) {
+        self.text = text
+    }
+
+    public var body: some View {
         Text(text)
             .font(.jbMono(12.5, .regular))
             .foregroundStyle(Color(hex: 0x8E8E93))
@@ -14,12 +17,18 @@ struct KTPill: View {
     }
 }
 
-struct KTBadge: View {
-    let text: String
-    let tint: KTTint
-    var radius: CGFloat = 6
+public struct KTBadge: View {
+    public let text: String
+    public let tint: KTTint
+    public var radius: CGFloat = 6
 
-    var body: some View {
+    public init(text: String, tint: KTTint, radius: CGFloat = 6) {
+        self.text = text
+        self.tint = tint
+        self.radius = radius
+    }
+
+    public var body: some View {
         Text(text)
             .font(.jbMono(11.5, .regular))
             .lineLimit(1)

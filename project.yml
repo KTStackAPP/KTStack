@@ -12,6 +12,15 @@ packages:
   # the old share-source-by-path listing in the tool targets is gone.
   KTStackCore:
     path: Packages/Core/KTStackCore
+  # Plugin SDK: KTStackPlugin contract, capability protocols, design tokens and KT* shared
+  # components. Dynamic product embedded once by the app so feature packages (M04+) link the
+  # same copy and capability casts keep one type identity. KTStackKit must never link this.
+  KTPluginKit:
+    path: Packages/Plugin/KTPluginKit
+  # Platform service contracts plugins depend on. Near-empty on purpose: contracts grow one
+  # migration at a time (M04+), never ahead of need.
+  KTPlatformContracts:
+    path: Packages/Contracts/KTPlatformContracts
   # Sparkle auto-update framework (EdDSA-signed appcast). Private key stays offline / in CI;
   # the public key is set as SUPublicEDKey in Info.plist.
   Sparkle:
@@ -69,8 +78,9 @@ schemes:
         - KTStackKitTests
 
 targets:
-  # Shared framework: design tokens, models, services. Linked by the app and the tests;
-  # the cross-process contract itself lives one level down in the KTStackCore package.
+  # Shared framework: models, services, drivers. Linked by the app and the tests; the
+  # cross-process contract lives in KTStackCore, design tokens and shared components in
+  # KTPluginKit.
   KTStackKit:
     type: framework
     platform: macOS
@@ -78,6 +88,7 @@ targets:
       - path: KTStackKit/Sources
     dependencies:
       - package: KTStackCore
+      - package: KTPlatformContracts
       - package: mysql-nio
         product: MySQLNIO
       - package: postgres-nio
@@ -127,6 +138,8 @@ targets:
       - target: KTStackKit
         embed: true
       - package: KTStackCore
+        embed: true
+      - package: KTPluginKit
         embed: true
       - package: Sparkle
       # Build-order + copy only (no linking); lands in Contents/MacOS so Phase 4's
