@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 /// Verbose service-startup diagnostics written to logs/diagnostics.log.
 /// Routine chatter (launchctl I/O, spec dumps) is recorded only when dev mode is on; warnings and

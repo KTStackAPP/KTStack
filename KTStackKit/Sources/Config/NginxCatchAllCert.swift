@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct NginxCatchAllCert {
     private let paths: AppSupportPaths

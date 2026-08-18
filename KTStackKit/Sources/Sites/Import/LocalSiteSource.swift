@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct LocalSiteSource: ExternalSiteSource {
     public let tool = "Local"

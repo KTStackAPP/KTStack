@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 final class HelperCAManager {
     private static let systemKeychain = "/Library/Keychains/System.keychain"

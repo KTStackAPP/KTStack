@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct PharProvisioner: Sendable {
     public let url: URL

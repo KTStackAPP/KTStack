@@ -7,6 +7,11 @@ options:
   groupSortPosition: top
 
 packages:
+  # Local core package: XPC contract, DNS/TLS constants, paths and version-resolver logic shared
+  # by the app, the privileged helper and the resolver CLI. Linked as a product everywhere, so
+  # the old share-source-by-path listing in the tool targets is gone.
+  KTStackCore:
+    path: Packages/Core/KTStackCore
   # Sparkle auto-update framework (EdDSA-signed appcast). Private key stays offline / in CI;
   # the public key is set as SUPublicEDKey in Info.plist.
   Sparkle:
@@ -72,6 +77,7 @@ targets:
     sources:
       - path: KTStackKit/Sources
     dependencies:
+      - package: KTStackCore
       - package: mysql-nio
         product: MySQLNIO
       - package: postgres-nio
@@ -120,6 +126,8 @@ targets:
     dependencies:
       - target: KTStackKit
         embed: true
+      - package: KTStackCore
+        embed: true
       - package: Sparkle
       # Build-order + copy only (no linking); lands in Contents/MacOS so Phase 4's
       # SMAppService daemon plist can reference it. Empty stub for now.
@@ -148,9 +156,8 @@ targets:
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
 
   # Privileged helper (root). XPC DNS surface. SMAppService daemon layout in place; live
-  # registration gated on Developer ID signing (Phase 9). Compiles the SHARED XPC + DNS files
-  # directly (separate process from the app → no @objc-protocol clash) so identity/requirement
-  # constants are single-sourced and can't drift.
+  # registration gated on Developer ID signing (Phase 9). Links KTStackCore for the XPC contract
+  # and DNS/TLS constants so identity/requirement constants are single-sourced and can't drift.
   KTStackHelper:
     type: tool
     platform: macOS
@@ -158,10 +165,9 @@ targets:
       - path: KTStackHelper
         excludes:
           - "com.ktstack.helper.plist"   # embedded in the app bundle, not compiled into the tool
-      - path: KTStackKit/Sources/XPC/HelperXPCProtocol.swift
-      - path: KTStackKit/Sources/XPC/HelperIdentityConstants.swift
-      - path: KTStackKit/Sources/DNS/DNSConstants.swift
-      - path: KTStackKit/Sources/TLS/RootCAConstraint.swift
+    dependencies:
+      - package: KTStackCore
+        product: KTStackCoreStatic
     preBuildScripts:
       - name: Require team for Developer ID signing
         basedOnDependencyAnalysis: false
@@ -176,20 +182,16 @@ targets:
         CODE_SIGN_ENTITLEMENTS: entitlements/helper.entitlements
         ENABLE_HARDENED_RUNTIME: "YES"
 
-  # Shell-shim resolver CLI. Compiles the resolver core files from KTStackKit directly (same
-  # pattern as KTStackHelper) so the per-project version logic is single-sourced between the
-  # terminal shims and the app's php-fpm pool selection.
+  # Shell-shim resolver CLI. Links KTStackCore for the resolver core so the per-project version
+  # logic is single-sourced between the terminal shims and the app's php-fpm pool selection.
   ktstack-resolve:
     type: tool
     platform: macOS
     sources:
       - path: KTStackResolve
-      - path: KTStackKit/Sources/Process/AppSupportPaths.swift
-      - path: KTStackKit/Sources/Runtimes/VersionResolver.swift
-      - path: KTStackKit/Sources/Runtimes/RuntimeCatalog.swift
-      - path: KTStackKit/Sources/Shell/ProjectVersionResolver.swift
-      - path: KTStackKit/Sources/Shell/ShellRuntimeBinResolver.swift
-      - path: KTStackKit/Sources/Shell/SiteRuntimePins.swift
+    dependencies:
+      - package: KTStackCore
+        product: KTStackCoreStatic
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ktstack.resolve
@@ -205,6 +207,7 @@ targets:
       - path: KTStackKitTests
     dependencies:
       - target: KTStackKit
+      - package: KTStackCore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ktstack.kit.tests

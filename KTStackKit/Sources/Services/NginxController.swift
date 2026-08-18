@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 // Identity of one nginx process: the front terminator or a per-site backend.
 // Lets a single NginxController type drive both without hardcoding the front's paths.

@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct RuntimeDownloader: Sendable {
     public struct Progress: Sendable {

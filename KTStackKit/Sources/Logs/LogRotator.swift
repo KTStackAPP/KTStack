@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct LogRotator: Sendable {
     public let maxBytes: Int

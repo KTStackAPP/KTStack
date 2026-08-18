@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 struct PostgresBackupRunner {
     let catalog: ServiceBinaryCatalog

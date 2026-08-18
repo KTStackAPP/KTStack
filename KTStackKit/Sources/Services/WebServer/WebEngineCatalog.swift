@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 // On-demand download pin for the Apache per-site engine. Apache is neither a RuntimeLanguage
 // (php/node) nor a ServiceKind, so it has its own tiny catalog. The tarball is the relocatable

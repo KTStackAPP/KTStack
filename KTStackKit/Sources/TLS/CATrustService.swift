@@ -1,6 +1,7 @@
 import Combine
 import CryptoKit
 import Foundation
+import KTStackCore
 
 @MainActor
 public final class CATrustService: ObservableObject {

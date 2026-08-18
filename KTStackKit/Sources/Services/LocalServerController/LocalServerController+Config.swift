@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 extension LocalServerController {
     public func validateNginxConfig() async -> NginxValidationResult {

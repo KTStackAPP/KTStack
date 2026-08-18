@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct ServiceBinaryRelease: Sendable, Hashable, Identifiable {
     public let kind: ServiceKind

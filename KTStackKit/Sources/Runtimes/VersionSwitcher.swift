@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct VersionSwitcher: Sendable {
     private let paths: AppSupportPaths

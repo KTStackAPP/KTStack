@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 final class HelperDNSManager {
     func enableDNS(tld: String, dnsmasqData: Data) -> (Bool, String?) {

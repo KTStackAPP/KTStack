@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 /// On-demand fetch for `mongodb-database-tools`. The archive is verified by sha256 and extracted via
 /// the existing `RuntimeDownloader` pipeline, then each binary is ad-hoc-signed so it survives the

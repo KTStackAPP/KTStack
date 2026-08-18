@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 /// Từng check là hàm thuần trên `DoctorProbes`, không đụng hệ thống trực tiếp và không sửa gì.
 public enum DoctorChecks {

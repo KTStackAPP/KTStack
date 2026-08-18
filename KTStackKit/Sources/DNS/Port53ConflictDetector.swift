@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct Port53ConflictDetector {
     public struct Conflict: Equatable, Sendable {

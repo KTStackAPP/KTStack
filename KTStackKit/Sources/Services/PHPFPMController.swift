@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public final class PHPFPMController: @unchecked Sendable {
     public let poolName: String

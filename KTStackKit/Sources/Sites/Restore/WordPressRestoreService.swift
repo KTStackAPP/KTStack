@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public final class WordPressRestoreService: Sendable {
     private let paths: AppSupportPaths

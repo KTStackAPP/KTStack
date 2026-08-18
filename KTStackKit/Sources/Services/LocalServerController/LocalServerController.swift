@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import KTStackCore
 
 /// The outcome of a `validateNginxConfig()` call.
 /// - `valid`: nginx -t exited 0 — config is OK.

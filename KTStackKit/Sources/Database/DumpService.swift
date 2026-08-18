@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 /// Export/import MySQL databases via the `mysqldump`/`mysql` clients. Clients resolve from the managed
 /// engine first, then from system locations (Homebrew/PATH), so connections to external hosts work

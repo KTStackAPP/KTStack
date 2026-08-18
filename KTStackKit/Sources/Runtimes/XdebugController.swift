@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public final class XdebugController: @unchecked Sendable {
     public typealias LoadVerifier = @Sendable (String) -> (loaded: Bool, warning: String?)

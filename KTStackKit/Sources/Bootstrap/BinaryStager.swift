@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct BinaryStager {
     public enum StageError: LocalizedError {

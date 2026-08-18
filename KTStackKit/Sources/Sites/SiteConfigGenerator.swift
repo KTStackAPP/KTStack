@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct SiteConfigGenerator {
     private let paths: AppSupportPaths

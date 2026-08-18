@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public enum PHPFPMPoolWriterError: LocalizedError, Equatable {
     case invalidSendmailPath

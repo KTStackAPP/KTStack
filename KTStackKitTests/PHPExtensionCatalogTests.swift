@@ -1,3 +1,4 @@
+import KTStackCore
 import XCTest
 @testable import KTStackKit
 

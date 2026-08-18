@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct PHPExtensionInstaller: Sendable {
     public enum InstallResult: Sendable, Equatable {

@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public enum PHPModules {
     private final class Cache: @unchecked Sendable {

@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct BackupSession: Sendable {
     public let library: BackupLibrary

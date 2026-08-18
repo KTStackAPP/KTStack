@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public final class QueryHistoryStore {
     public let limit: Int

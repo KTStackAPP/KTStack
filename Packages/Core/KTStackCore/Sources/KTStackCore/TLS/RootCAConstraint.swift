@@ -1,14 +1,14 @@
 import Foundation
 import Security
 
-enum RootCAConstraintError: Error, Equatable {
+public enum RootCAConstraintError: Error, Equatable {
     case notSingleCertificate
     case unparseable
     case notSelfSigned
     case notCertificateAuthority
     case organizationMismatch
 
-    var message: String {
+    public var message: String {
         switch self {
         case .notSingleCertificate: "Expected exactly one PEM certificate."
         case .unparseable: "Certificate could not be parsed."
@@ -19,12 +19,12 @@ enum RootCAConstraintError: Error, Equatable {
     }
 }
 
-enum RootCAConstraint {
+public enum RootCAConstraint {
     // mkcert bakes this org name into every CA it generates, so this is the match value for our own
     // CA, not a placeholder. Changing it rejects the real cert.
     static let expectedOrganization = "mkcert development CA"
 
-    static func validateKTStackRootCA(pemData: Data) -> RootCAConstraintError? {
+    public static func validateKTStackRootCA(pemData: Data) -> RootCAConstraintError? {
         guard certificateBlockCount(pemData) == 1, let der = pemToDER(pemData) else {
             return .notSingleCertificate
         }
@@ -39,7 +39,7 @@ enum RootCAConstraint {
         return nil
     }
 
-    static func pemToDER(_ pem: Data) -> Data? {
+    public static func pemToDER(_ pem: Data) -> Data? {
         guard let text = String(data: pem, encoding: .utf8) else { return nil }
         var base64 = "", inside = false
         for line in text.split(separator: "\n") {

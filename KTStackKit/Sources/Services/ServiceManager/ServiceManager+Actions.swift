@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 extension ServiceManager {
     public func toggle(_ kind: ServiceKind) {

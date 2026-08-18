@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct SudoFallbackInstaller {
     public let bundledDnsmasq: URL

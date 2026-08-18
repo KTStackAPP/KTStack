@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public enum PHPExtensionLoadDirective: String, Sendable, Hashable {
     case module = "extension" // extension=<ext>.so

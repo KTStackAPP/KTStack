@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public final class MongoDBController: ManagedService, @unchecked Sendable {
     public let kind = ServiceKind.mongodb

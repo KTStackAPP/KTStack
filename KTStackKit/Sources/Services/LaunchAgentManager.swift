@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct LaunchAgentSpec: Sendable, Equatable {
     public let label: String

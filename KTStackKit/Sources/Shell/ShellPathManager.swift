@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public final class ShellPathManager: @unchecked Sendable {
     public struct Status: Sendable, Equatable {

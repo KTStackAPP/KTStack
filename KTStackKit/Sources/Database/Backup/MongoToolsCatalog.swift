@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 /// `mongodump`/`mongorestore` ship in a separate `mongodb-database-tools` package, not the bundled
 /// mongod tarball. They install on-demand into `tools/mongodb-database-tools/<version>/bin/` so the

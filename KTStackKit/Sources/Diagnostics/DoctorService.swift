@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 /// Chạy toàn bộ self-check và gom thành một report. Read-only: không start/stop/ghi gì.
 public struct DoctorService: Sendable {

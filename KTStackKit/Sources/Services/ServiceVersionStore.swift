@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct ServiceVersionStore: Sendable {
     private let paths: AppSupportPaths

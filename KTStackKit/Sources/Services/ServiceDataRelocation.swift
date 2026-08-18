@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 enum ServiceDataRelocation {
     private static let dbCacheKinds: [(kind: ServiceKind, service: String)] = [

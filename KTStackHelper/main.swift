@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 final class HelperService: NSObject, HelperXPCProtocol {
     private let dns = HelperDNSManager()

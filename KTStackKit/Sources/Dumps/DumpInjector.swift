@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public final class DumpInjector {
     private let paths: AppSupportPaths

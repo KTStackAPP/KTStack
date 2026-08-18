@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct CloudflaredRelease: Sendable {
     public let version: String

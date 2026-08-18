@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 import MySQLNIO
 import NIOCore
 import NIOPosix

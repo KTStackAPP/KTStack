@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct PHPIniStore: Sendable {
     private let paths: AppSupportPaths

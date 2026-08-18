@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public final class HelperConnection: @unchecked Sendable {
     private let lock = NSLock()

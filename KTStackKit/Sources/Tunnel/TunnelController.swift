@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public actor TunnelController {
     enum ProbeDecision: Equatable {

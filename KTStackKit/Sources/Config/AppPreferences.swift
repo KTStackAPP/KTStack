@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import KTStackCore
 
 @MainActor
 public final class AppPreferences: ObservableObject {

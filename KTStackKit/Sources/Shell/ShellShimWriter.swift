@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 struct ShellShimWriter {
     let paths: AppSupportPaths

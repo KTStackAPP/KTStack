@@ -1,5 +1,6 @@
 import Security
 import XCTest
+@testable import KTStackCore
 @testable import KTStackKit
 
 final class HelperIdentityRequirementTests: XCTestCase {

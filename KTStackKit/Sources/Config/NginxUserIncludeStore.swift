@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct NginxUserIncludeStore: Sendable {
     private let paths: AppSupportPaths

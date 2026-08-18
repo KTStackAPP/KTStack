@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import KTStackCore
 
 public struct SiteRemovalCoordinator: Sendable {
     private let deleteFolder: @Sendable (Site) async throws -> Void

@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct ComposerProvisioner: Sendable {
     public static let version = "2.10.1"

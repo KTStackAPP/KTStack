@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 func fail(_ message: String, code: Int32) -> Never {
     FileHandle.standardError.write(Data((message + "\n").utf8))

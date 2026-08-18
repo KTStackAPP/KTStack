@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 // The lifecycle surface the supervisor drives, regardless of engine. Teardown is done by the
 // supervisor via launchd label, so a controller only needs start/reload/running.
