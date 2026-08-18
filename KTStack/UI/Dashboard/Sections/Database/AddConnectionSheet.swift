@@ -1,4 +1,5 @@
 import AppKit
+import KTStackCore
 import KTStackKit
 import SwiftUI
 import UniformTypeIdentifiers
@@ -200,7 +201,7 @@ struct AddConnectionSheet: View {
     private var effectivePassword: String? {
         if !password.isEmpty { return password }
         guard let editing else { return nil }
-        return try? KeychainStore().get(account: editing.id.uuidString)
+        return try? KeychainStore(service: DatabaseKeychain.service).get(account: editing.id.uuidString)
     }
 
     private func runTest() {

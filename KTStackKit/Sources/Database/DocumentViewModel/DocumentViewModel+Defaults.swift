@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public extension DocumentViewModel {
     static let defaultDriver: DriverFactory = { profile, password in
@@ -10,6 +11,6 @@ public extension DocumentViewModel {
 
     static let defaultPassword: @Sendable (ConnectionProfile) -> String? = { profile in
         if profile.isManaged { return nil }
-        return try? KeychainStore().get(account: profile.id.uuidString)
+        return try? KeychainStore(service: DatabaseKeychain.service).get(account: profile.id.uuidString)
     }
 }

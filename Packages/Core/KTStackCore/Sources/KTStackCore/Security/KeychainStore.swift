@@ -2,6 +2,16 @@ import Foundation
 import Security
 
 public struct KeychainStore: Sendable {
+    public enum KeychainError: Error, LocalizedError {
+        case operationFailed(String)
+
+        public var errorDescription: String? {
+            switch self {
+            case let .operationFailed(detail): detail
+            }
+        }
+    }
+
     // ThisDeviceOnly and non-synchronizable keep DB passwords out of iCloud Keychain and off other
     // devices; flipping either would sync local dev credentials to the cloud.
     public static let accessibleAttr = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
@@ -10,7 +20,7 @@ public struct KeychainStore: Sendable {
 
     private let service: String
 
-    public init(service: String = "com.ktstack.db") {
+    public init(service: String) {
         self.service = service
     }
 
@@ -92,8 +102,8 @@ public struct KeychainStore: Sendable {
         }
     }
 
-    private func keychainError(_ status: OSStatus, _ action: String) -> DatabaseError {
+    private func keychainError(_ status: OSStatus, _ action: String) -> KeychainError {
         let detail = SecCopyErrorMessageString(status, nil) as String? ?? "OSStatus \(status)"
-        return .connection("Keychain \(action) failed: \(detail)")
+        return .operationFailed("Keychain \(action) failed: \(detail)")
     }
 }

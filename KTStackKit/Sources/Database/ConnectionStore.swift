@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import KTStackCore
 
 @MainActor
 public final class ConnectionStore: ObservableObject {
@@ -10,7 +11,7 @@ public final class ConnectionStore: ObservableObject {
     private let storeURL: URL
     private let keychain: KeychainStore
 
-    public init(storeURL: URL, keychain: KeychainStore = KeychainStore()) {
+    public init(storeURL: URL, keychain: KeychainStore = KeychainStore(service: DatabaseKeychain.service)) {
         self.storeURL = storeURL
         self.keychain = keychain
         load()
