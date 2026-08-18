@@ -69,8 +69,8 @@ schemes:
         - KTStackKitTests
 
 targets:
-  # Shared framework: design tokens + models + the XPC contract, linked by the app
-  # (and, from Phase 4, the privileged helper) so model types stay single-sourced.
+  # Shared framework: design tokens, models, services. Linked by the app and the tests;
+  # the cross-process contract itself lives one level down in the KTStackCore package.
   KTStackKit:
     type: framework
     platform: macOS
@@ -135,8 +135,8 @@ targets:
         link: false
         copy:
           destination: executables
-      # Tiny CLI the shell shims exec to resolve per-project runtime versions. Shares the
-      # resolver core source with KTStackKit so terminal and web pick the same PHP version.
+      # Tiny CLI the shell shims exec to resolve per-project runtime versions. Uses the same
+      # KTStackCore resolver core as the app so terminal and web pick the same PHP version.
       - target: ktstack-resolve
         link: false
         copy:
