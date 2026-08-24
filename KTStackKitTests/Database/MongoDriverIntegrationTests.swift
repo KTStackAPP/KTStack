@@ -1,3 +1,4 @@
+import KTPlatformContracts
 import KTStackCore
 import XCTest
 @testable import KTStackKit
@@ -8,8 +9,9 @@ final class MongoDriverIntegrationTests: XCTestCase {
             ProcessInfo.processInfo.environment["KTSTACK_DB_IT"] == "1",
             "Set KTSTACK_DB_IT=1 with the MongoDB engine installed + running on :27017."
         )
-        let catalog = ServiceBinaryCatalog(paths: AppSupportPaths())
-        try XCTSkipUnless(catalog.isInstalled(.mongodb), "MongoDB engine not installed.")
+        try XCTSkipUnless(
+            DatabaseToolsService(paths: AppSupportPaths()).isInstalled(.mongodb), "MongoDB engine not installed."
+        )
         return MongoDriver(profile: .managedMongo, password: nil)
     }
 

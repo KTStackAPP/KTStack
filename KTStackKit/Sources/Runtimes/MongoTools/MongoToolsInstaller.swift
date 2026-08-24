@@ -1,6 +1,18 @@
 import Foundation
 import KTStackCore
 
+public enum MongoToolsError: LocalizedError, Equatable {
+    case unavailableForArch
+    case signFailed(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .unavailableForArch: "MongoDB database tools aren't available for this CPU."
+        case let .signFailed(message): "Couldn't ad-hoc sign the MongoDB tools: \(message)"
+        }
+    }
+}
+
 /// On-demand fetch for `mongodb-database-tools`. The archive is verified by sha256 and extracted via
 /// the existing `RuntimeDownloader` pipeline, then each binary is ad-hoc-signed so it survives the
 /// hardened runtime on shipped builds (third-party prebuilt binaries arrive unsigned for our cdhash).
@@ -20,7 +32,7 @@ public struct MongoToolsInstaller: Sendable {
     @discardableResult
     public func install(onProgress: @escaping @Sendable (Progress) -> Void) async throws -> URL {
         guard let release = catalog.availableRelease, let url = release.url else {
-            throw DatabaseError.connection("MongoDB database tools aren't available for this CPU.")
+            throw MongoToolsError.unavailableForArch
         }
         let dest = catalog.pinnedVersionDir
         try paths.ensureDirectoryTree()
@@ -60,7 +72,7 @@ public struct MongoToolsInstaller: Sendable {
         proc.waitUntilExit()
         guard proc.terminationStatus == 0 else {
             let msg = String(data: err, encoding: .utf8) ?? ""
-            throw DatabaseError.connection("Couldn't ad-hoc sign \(path): \(msg)")
+            throw MongoToolsError.signFailed("\(path): \(msg)")
         }
     }
 }

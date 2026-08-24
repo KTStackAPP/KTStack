@@ -1,23 +1,20 @@
 import Foundation
+import KTPlatformContracts
 import KTStackCore
 
 struct PostgresBackupRunner {
-    let catalog: ServiceBinaryCatalog
+    let tools: any DatabaseToolsProviding
     private let versionProvider: @Sendable () -> String?
 
     init(
-        catalog: ServiceBinaryCatalog = ServiceBinaryCatalog(paths: AppSupportPaths()),
+        tools: any DatabaseToolsProviding = DatabaseToolsService(paths: AppSupportPaths()),
         activeVersion: (@Sendable () -> String?)? = nil
     ) {
-        self.catalog = catalog
+        self.tools = tools
         if let activeVersion {
             self.versionProvider = activeVersion
         } else {
-            self.versionProvider = {
-                let p = AppSupportPaths()
-                let c = ServiceBinaryCatalog(paths: p)
-                return ServiceVersionStore(paths: p, catalog: c).activeVersion(.postgres)
-            }
+            self.versionProvider = { tools.activeVersion(.postgres) }
         }
     }
 
@@ -27,14 +24,14 @@ struct PostgresBackupRunner {
         guard let version = versionProvider() else { return false }
         let fm = FileManager.default
         return Self.requiredBinaries.allSatisfy { relPath in
-            guard let url = catalog.binary(.postgres, relPath, version: version) else { return false }
+            guard let url = tools.binary(.postgres, relPath, version: version) else { return false }
             return fm.isExecutableFile(atPath: url.path)
         }
     }
 
     func binary(_ relPath: String) throws -> URL {
         guard let version = versionProvider(),
-              let url = catalog.binary(.postgres, relPath, version: version),
+              let url = tools.binary(.postgres, relPath, version: version),
               FileManager.default.isExecutableFile(atPath: url.path)
         else {
             throw DatabaseError.engineNotInstalled(kind: "PostgreSQL")

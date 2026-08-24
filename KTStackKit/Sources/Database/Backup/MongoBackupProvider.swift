@@ -1,14 +1,15 @@
 import Foundation
+import KTPlatformContracts
 import KTStackCore
 
 /// Backup/restore via `mongodump`/`mongorestore`. Per backup set the artifact is a directory of BSON
 /// files (one subdir per DB), not a single file. Passwords ride a `--config` YAML written at 0o600
 /// and `defer`-deleted; argv only carries the non-secret `--host/--port/--username/--authenticationDatabase`.
 public struct MongoBackupProvider: BackupProvider {
-    private let catalog: MongoToolsCatalog
+    private let tools: any DatabaseToolsProviding
 
-    public init(paths: AppSupportPaths = AppSupportPaths()) {
-        catalog = MongoToolsCatalog(paths: paths)
+    public init(tools: any DatabaseToolsProviding = DatabaseToolsService(paths: AppSupportPaths())) {
+        self.tools = tools
     }
 
     public var fileExtension: String {
@@ -16,7 +17,7 @@ public struct MongoBackupProvider: BackupProvider {
     }
 
     public var isAvailable: Bool {
-        catalog.isInstalled
+        tools.mongoToolsInstalled
     }
 
     public func backup(
@@ -192,7 +193,7 @@ public struct MongoBackupProvider: BackupProvider {
     }
 
     private func resolve(_ relPath: String) throws -> URL {
-        guard let url = catalog.binary(relPath) else {
+        guard let url = tools.mongoToolsBinary(relPath) else {
             throw DatabaseError.engineNotInstalled(kind: "MongoDB database tools")
         }
         return url

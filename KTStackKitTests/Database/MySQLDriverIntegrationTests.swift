@@ -1,3 +1,4 @@
+import KTPlatformContracts
 import KTStackCore
 import XCTest
 @testable import KTStackKit
@@ -12,8 +13,9 @@ final class MySQLDriverIntegrationTests: XCTestCase {
             ProcessInfo.processInfo.environment["KTSTACK_DB_IT"] == "1",
             "Set KTSTACK_DB_IT=1 with the MySQL engine installed + running on :3306."
         )
-        let catalog = ServiceBinaryCatalog(paths: AppSupportPaths())
-        try XCTSkipUnless(catalog.isInstalled(.mysql), "MySQL engine not installed.")
+        try XCTSkipUnless(
+            DatabaseToolsService(paths: AppSupportPaths()).isInstalled(.mysql), "MySQL engine not installed."
+        )
         return MySQLDriver(profile: .managedMySQL, password: nil)
     }
 

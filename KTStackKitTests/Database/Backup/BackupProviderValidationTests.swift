@@ -38,7 +38,7 @@ final class BackupProviderValidationTests: XCTestCase {
         try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tmp) }
         let service = DumpService(
-            catalog: ServiceBinaryCatalog(paths: AppSupportPaths(root: tmp)),
+            tools: FakeDatabaseTools(),
             systemToolSearchPaths: []
         )
         let provider = MySQLBackupProvider(dumpService: service)
@@ -55,7 +55,7 @@ final class BackupProviderValidationTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: stubDir) }
 
         let service = DumpService(
-            catalog: ServiceBinaryCatalog(paths: AppSupportPaths(root: tmp)),
+            tools: FakeDatabaseTools(),
             systemToolSearchPaths: [stubDir]
         )
         XCTAssertTrue(MySQLBackupProvider(dumpService: service).isAvailable)
@@ -72,7 +72,7 @@ final class BackupProviderValidationTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: stubDir) }
 
         let service = DumpService(
-            catalog: ServiceBinaryCatalog(paths: AppSupportPaths(root: tmp)),
+            tools: FakeDatabaseTools(),
             systemToolSearchPaths: [stubDir]
         )
         XCTAssertTrue(service.isEngineInstalled)
@@ -97,7 +97,7 @@ final class BackupProviderValidationTests: XCTestCase {
             .appendingPathComponent("ktstack-empty-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tmp) }
-        let runner = PostgresBackupRunner(catalog: ServiceBinaryCatalog(paths: AppSupportPaths(root: tmp)))
+        let runner = PostgresBackupRunner(tools: FakeDatabaseTools())
         XCTAssertFalse(runner.isAvailable)
     }
 

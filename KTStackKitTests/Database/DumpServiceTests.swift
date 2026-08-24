@@ -1,3 +1,4 @@
+import KTPlatformContracts
 import KTStackCore
 import XCTest
 @testable import KTStackKit
@@ -116,7 +117,7 @@ final class DumpServiceTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: tmp) }
 
         let service = DumpService(
-            catalog: ServiceBinaryCatalog(paths: AppSupportPaths(root: tmp)),
+            tools: FakeDatabaseTools(),
             systemToolSearchPaths: []
         )
         XCTAssertFalse(service.isEngineInstalled)
@@ -142,7 +143,7 @@ final class DumpServiceTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: tmp) }
 
         let service = DumpService(
-            catalog: ServiceBinaryCatalog(paths: AppSupportPaths(root: tmp)),
+            tools: FakeDatabaseTools(),
             systemToolSearchPaths: []
         )
         do {
@@ -158,10 +159,10 @@ final class DumpServiceTests: XCTestCase {
             ProcessInfo.processInfo.environment["KTSTACK_DB_IT"] == "1",
             "Set KTSTACK_DB_IT=1 with the MySQL engine installed + running on :3306."
         )
-        let catalog = ServiceBinaryCatalog(paths: AppSupportPaths())
-        try XCTSkipUnless(catalog.isInstalled(.mysql), "MySQL engine not installed.")
+        let tools = DatabaseToolsService(paths: AppSupportPaths())
+        try XCTSkipUnless(tools.isInstalled(.mysql), "MySQL engine not installed.")
 
-        let service = DumpService(catalog: catalog)
+        let service = DumpService(tools: tools)
         let driver = MySQLDriver(profile: .managedMySQL, password: nil)
         let suffix = UUID().uuidString.prefix(8)
         let source = "ktstack_dump_src_\(suffix)"

@@ -1,36 +1,35 @@
 import Foundation
+import KTPlatformContracts
 import KTStackCore
 
 public struct BackupSession: Sendable {
     public let library: BackupLibrary
     public let resolveEngineVersion: @Sendable (DatabaseKind) -> String?
+    let tools: any DatabaseToolsProviding
 
     public init(
         library: BackupLibrary = BackupLibrary(),
+        tools: any DatabaseToolsProviding = DatabaseToolsService(paths: AppSupportPaths()),
         resolveEngineVersion: @escaping @Sendable (DatabaseKind) -> String? = { _ in nil }
     ) {
         self.library = library
+        self.tools = tools
         self.resolveEngineVersion = resolveEngineVersion
     }
 
-    public static func managed(paths: AppSupportPaths = AppSupportPaths()) -> BackupSession {
-        return BackupSession(
+    public static func managed(
+        tools: any DatabaseToolsProviding = DatabaseToolsService(paths: AppSupportPaths()),
+        paths: AppSupportPaths = AppSupportPaths()
+    ) -> BackupSession {
+        BackupSession(
             library: BackupLibrary(paths: paths),
-            resolveEngineVersion: { kind in
-                let catalog = ServiceBinaryCatalog(paths: paths)
-                let store = ServiceVersionStore(paths: paths, catalog: catalog)
-                switch kind {
-                case .mysql: return store.activeVersion(.mysql)
-                case .postgres: return store.activeVersion(.postgres)
-                case .mongodb: return store.activeVersion(.mongodb)
-                case .sqlite: return nil
-                }
-            }
+            tools: tools,
+            resolveEngineVersion: { kind in kind.engine.flatMap(tools.activeVersion) }
         )
     }
 
     public func provider(for kind: DatabaseKind) -> BackupProviderResult {
-        BackupProviderFactory.make(for: kind)
+        BackupProviderFactory.make(for: kind, tools: tools)
     }
 
     public func create(
@@ -90,7 +89,7 @@ public struct BackupSession: Sendable {
     }
 
     private func providerOrThrow(_ kind: DatabaseKind) -> BackupProvider? {
-        if case let .available(provider) = BackupProviderFactory.make(for: kind) { return provider }
+        if case let .available(provider) = BackupProviderFactory.make(for: kind, tools: tools) { return provider }
         return nil
     }
 

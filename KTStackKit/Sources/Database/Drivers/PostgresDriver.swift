@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 import KTStackCore
 import Logging
 import NIOCore
@@ -16,7 +17,7 @@ public struct PostgresDriver: RelationalDriver {
 
     let profile: ConnectionProfile
     let password: String?
-    let catalog: ServiceBinaryCatalog
+    let tools: any DatabaseToolsProviding
     let dialect = SQLDialect.forKind(.postgres)
     let logger = Logger(label: "ktstack.postgres")
     let session: ConnectionSession
@@ -24,11 +25,11 @@ public struct PostgresDriver: RelationalDriver {
     public init(
         profile: ConnectionProfile,
         password: String?,
-        catalog: ServiceBinaryCatalog = ServiceBinaryCatalog(paths: AppSupportPaths())
+        tools: any DatabaseToolsProviding = DatabaseToolsService(paths: AppSupportPaths())
     ) {
         self.profile = profile
         self.password = password
-        self.catalog = catalog
+        self.tools = tools
         let capturedProfile = profile
         let capturedPassword = password
         let capturedLogger = logger
@@ -153,7 +154,7 @@ public struct PostgresDriver: RelationalDriver {
 
     func preflightManagedEngine() throws {
         guard profile.isManaged else { return }
-        guard catalog.isInstalled(.postgres) else {
+        guard tools.isInstalled(.postgres) else {
             throw DatabaseError.engineNotInstalled(kind: "PostgreSQL")
         }
     }

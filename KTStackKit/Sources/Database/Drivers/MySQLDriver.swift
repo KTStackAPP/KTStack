@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 import KTStackCore
 import MySQLNIO
 import NIOCore
@@ -10,18 +11,18 @@ public struct MySQLDriver: RelationalDriver {
 
     let profile: ConnectionProfile
     let password: String?
-    let catalog: ServiceBinaryCatalog
+    let tools: any DatabaseToolsProviding
     let dialect = SQLDialect.forKind(.mysql)
     let session: ConnectionSession
 
     public init(
         profile: ConnectionProfile,
         password: String?,
-        catalog: ServiceBinaryCatalog = ServiceBinaryCatalog(paths: AppSupportPaths())
+        tools: any DatabaseToolsProviding = DatabaseToolsService(paths: AppSupportPaths())
     ) {
         self.profile = profile
         self.password = password
-        self.catalog = catalog
+        self.tools = tools
         let capturedProfile = profile
         let capturedPassword = password
         session = ConnectionSession {
@@ -186,7 +187,7 @@ public struct MySQLDriver: RelationalDriver {
 
     func preflightManagedEngine() throws {
         guard profile.isManaged else { return }
-        guard catalog.isInstalled(.mysql) else {
+        guard tools.isInstalled(.mysql) else {
             throw DatabaseError.engineNotInstalled(kind: "MySQL")
         }
     }

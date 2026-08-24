@@ -1,3 +1,4 @@
+import KTPlatformContracts
 import KTStackCore
 import XCTest
 @testable import KTStackKit
@@ -15,7 +16,7 @@ final class ReadOnlySessionTests: XCTestCase {
             "Set KTSTACK_DB_IT=1 with the MySQL engine installed + running on :3306."
         )
         try XCTSkipUnless(
-            ServiceBinaryCatalog(paths: AppSupportPaths()).isInstalled(.mysql),
+            DatabaseToolsService(paths: AppSupportPaths()).isInstalled(.mysql),
             "MySQL engine not installed."
         )
     }

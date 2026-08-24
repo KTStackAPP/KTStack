@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 import KTStackCore
 import MongoCore
 import MongoKitten
@@ -8,16 +9,16 @@ public struct MongoDriver: DocumentDriver {
 
     let profile: ConnectionProfile
     let password: String?
-    let catalog: ServiceBinaryCatalog
+    let tools: any DatabaseToolsProviding
 
     public init(
         profile: ConnectionProfile,
         password: String?,
-        catalog: ServiceBinaryCatalog = ServiceBinaryCatalog(paths: AppSupportPaths())
+        tools: any DatabaseToolsProviding = DatabaseToolsService(paths: AppSupportPaths())
     ) {
         self.profile = profile
         self.password = password
-        self.catalog = catalog
+        self.tools = tools
     }
 
     public func ping() async throws {
@@ -106,7 +107,7 @@ public struct MongoDriver: DocumentDriver {
 
     func preflightInstalled() throws {
         guard profile.isManaged else { return }
-        guard catalog.isInstalled(.mongodb) else {
+        guard tools.isInstalled(.mongodb) else {
             throw DatabaseError.engineNotInstalled(kind: "MongoDB")
         }
     }
@@ -115,7 +116,7 @@ public struct MongoDriver: DocumentDriver {
         MongoErrorMapper.map(
             error,
             isManaged: profile.isManaged,
-            engineInstalled: catalog.isInstalled(.mongodb)
+            engineInstalled: tools.isInstalled(.mongodb)
         )
     }
 

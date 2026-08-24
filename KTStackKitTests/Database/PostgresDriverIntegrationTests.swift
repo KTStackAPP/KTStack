@@ -1,3 +1,4 @@
+import KTPlatformContracts
 import KTStackCore
 import XCTest
 @testable import KTStackKit
@@ -12,8 +13,9 @@ final class PostgresDriverIntegrationTests: XCTestCase {
             ProcessInfo.processInfo.environment["KTSTACK_DB_IT"] == "1",
             "Set KTSTACK_DB_IT=1 with PostgreSQL installed + running on :5432."
         )
-        let catalog = ServiceBinaryCatalog(paths: AppSupportPaths())
-        try XCTSkipUnless(catalog.isInstalled(.postgres), "PostgreSQL engine not installed.")
+        try XCTSkipUnless(
+            DatabaseToolsService(paths: AppSupportPaths()).isInstalled(.postgres), "PostgreSQL engine not installed."
+        )
         return PostgresDriver(profile: .managedPostgres, password: nil)
     }
 
@@ -129,8 +131,9 @@ final class PostgresDriverIntegrationTests: XCTestCase {
             ProcessInfo.processInfo.environment["KTSTACK_DB_IT"] == "1",
             "Set KTSTACK_DB_IT=1 with PostgreSQL installed + running on :5432."
         )
-        let catalog = ServiceBinaryCatalog(paths: AppSupportPaths())
-        try XCTSkipUnless(catalog.isInstalled(.postgres), "PostgreSQL engine not installed.")
+        try XCTSkipUnless(
+            DatabaseToolsService(paths: AppSupportPaths()).isInstalled(.postgres), "PostgreSQL engine not installed."
+        )
         // A read-only managed connection: `SET default_transaction_read_only = on` must make even DDL fail.
         let profile = ConnectionProfile(
             name: "ro",

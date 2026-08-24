@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 import KTStackCore
 
 /// Export/import MySQL databases via the `mysqldump`/`mysql` clients. Clients resolve from the managed
@@ -7,14 +8,14 @@ import KTStackCore
 /// UI never blocks. Security: see `DumpServiceValidation` — creds via a 0600 defaults file, identifiers
 /// allowlist-validated, user values passed after a `--` argv terminator.
 public struct DumpService: Sendable {
-    let catalog: ServiceBinaryCatalog
+    let tools: any DatabaseToolsProviding
     let systemToolSearchPaths: [URL]
 
     public init(
-        catalog: ServiceBinaryCatalog = ServiceBinaryCatalog(paths: AppSupportPaths()),
+        tools: any DatabaseToolsProviding = DatabaseToolsService(paths: AppSupportPaths()),
         systemToolSearchPaths: [URL] = DumpService.defaultSystemToolSearchPaths()
     ) {
-        self.catalog = catalog
+        self.tools = tools
         self.systemToolSearchPaths = systemToolSearchPaths
     }
 
@@ -37,7 +38,7 @@ public struct DumpService: Sendable {
     /// executable file qualifies, so a catalog path for a binary that isn't actually present is skipped.
     func clientBinary(_ relPath: String) -> URL? {
         let fm = FileManager.default
-        if let managed = catalog.binary(.mysql, relPath), fm.isExecutableFile(atPath: managed.path) {
+        if let managed = tools.binary(.mysql, relPath), fm.isExecutableFile(atPath: managed.path) {
             return managed
         }
         let tool = (relPath as NSString).lastPathComponent
