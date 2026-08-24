@@ -1,6 +1,7 @@
 import AppKit
 import KTPluginKit
 import KTStackKit
+import KTTunnelPlugin
 import SwiftUI
 
 struct KTSiteListRow: View, Equatable {

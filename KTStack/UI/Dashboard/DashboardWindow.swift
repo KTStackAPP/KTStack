@@ -1,5 +1,6 @@
 import KTPluginKit
 import KTStackKit
+import KTTunnelPlugin
 import SwiftUI
 
 struct DashboardWindow: View {

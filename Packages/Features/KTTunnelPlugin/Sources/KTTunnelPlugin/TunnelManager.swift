@@ -10,22 +10,23 @@ public final class TunnelManager: ObservableObject {
     public var ttl: TimeInterval = 30 * 60
 
     private let paths: AppSupportPaths
-    private let origin: TunnelOriginService
-    private let jobs: TunnelJobRunner
-    private let provisioner: CloudflaredBinaryProvisioner
-    private var activeSites: [UUID: Site] = [:]
+    private let origin: any TunnelOriginConfiguring
+    private let jobs: any TunnelJobManaging
+    private let binaries: any TunnelBinaryProviding
     private var controllers: [UUID: TunnelController] = [:]
     private var startTasks: [UUID: Task<Void, Never>] = [:]
     private var ttlTasks: [UUID: Task<Void, Never>] = [:]
 
-    public init(paths: AppSupportPaths = AppSupportPaths()) {
+    public init(
+        origin: any TunnelOriginConfiguring,
+        jobs: any TunnelJobManaging,
+        binaries: any TunnelBinaryProviding,
+        paths: AppSupportPaths = AppSupportPaths()
+    ) {
+        self.origin = origin
+        self.jobs = jobs
+        self.binaries = binaries
         self.paths = paths
-        provisioner = CloudflaredBinaryProvisioner(paths: paths)
-        jobs = TunnelJobRunner(paths: paths)
-        // Site lookup từ bản ghi active của manager (phase M07-1); phase 2 chuyển sang App/registry.
-        var lookup: (@MainActor (UUID) -> Site?)!
-        origin = TunnelOriginService(paths: paths, resolveSite: { lookup($0) })
-        lookup = { [weak self] in self?.activeSites[$0] }
     }
 
     public func isSharing(_ siteID: UUID) -> Bool {
@@ -36,20 +37,18 @@ public final class TunnelManager: ObservableObject {
         sessions[siteID]
     }
 
-    public func start(site: Site) {
-        guard !isSharing(site.id), startTasks[site.id] == nil else { return }
-        tearDown(site.id)
-        activeSites[site.id] = site
+    public func start(target: TunnelSiteTarget) {
+        guard !isSharing(target.id), startTasks[target.id] == nil else { return }
+        tearDown(target.id)
         let startedAt = Date()
-        sessions[site.id] = TunnelSession(
-            siteID: site.id,
-            domain: site.domain,
-            secure: site.secure,
+        sessions[target.id] = TunnelSession(
+            siteID: target.id,
+            domain: target.domain,
+            secure: target.secure,
             status: .starting,
             startedAt: startedAt,
             expiresAt: ttl > 0 ? startedAt.addingTimeInterval(ttl) : nil
         )
-        let target = TunnelSiteTarget(id: site.id, domain: site.domain, secure: site.secure)
         startTasks[target.id] = Task { [weak self] in
             await self?.runStart(target: target)
         }
@@ -61,30 +60,16 @@ public final class TunnelManager: ObservableObject {
         sessions[siteID] = nil
     }
 
-    public func reapStaleJobs() {
-        jobs.bootoutAllTunnelJobs()
-        origin.removeAllOrigins(reloadFront: true)
-    }
-
-    public func reconcile(sites: [Site]) {
-        let live = Dictionary(sites.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+    public func reconcile(targets: [TunnelSiteTarget]) {
+        let live = Dictionary(targets.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         for (siteID, session) in sessions {
-            guard let site = live[siteID],
-                  site.domain == session.domain, site.secure == session.secure
+            guard let target = live[siteID],
+                  target.domain == session.domain, target.secure == session.secure
             else {
                 stop(site: siteID)
                 continue
             }
         }
-    }
-
-    public func shutdownAll() {
-        for siteID in Set(controllers.keys).union(startTasks.keys).union(ttlTasks.keys) {
-            tearDown(siteID)
-        }
-        sessions.removeAll()
-        let provisioner = provisioner
-        Task { await provisioner.cancel() }
     }
 
     private func tearDown(_ siteID: UUID) {
@@ -96,7 +81,6 @@ public final class TunnelManager: ObservableObject {
             Task { await controller.stop() }
         }
         origin.removeOrigin(siteID: siteID)
-        activeSites[siteID] = nil
     }
 
     private func scheduleTTL(_ siteID: UUID) {
@@ -126,9 +110,9 @@ public final class TunnelManager: ObservableObject {
             if Task.isCancelled { clearStart(siteID); return }
             let originPort = try await origin.prepareOrigin(siteID: siteID)
             if Task.isCancelled { clearStart(siteID); return }
-            let binary = try await provisioner.ensureCloudflaredInstalled()
+            let binary = try await binaries.ensureCloudflaredInstalled()
             if Task.isCancelled { clearStart(siteID); return }
-            let controller = TunnelController(paths: paths, siteID: siteID)
+            let controller = TunnelController(paths: paths, jobs: jobs, siteID: siteID)
             controllers[siteID] = controller
             await controller.start(
                 binary: binary,
@@ -154,6 +138,7 @@ public final class TunnelManager: ObservableObject {
 
     private func applyPublicHost(target: TunnelSiteTarget, port: Int, publicHost: String) async {
         guard sessions[target.id]?.status.isBusy == true else { return }
+        // Prepend file feature-owned (WordPress/PHP semantics); platform chỉ nhận path để tham chiếu.
         try? TunnelHostPrepend.write(
             to: paths.tunnelHostPrependFile,
             chainingPrepend: paths.dumpsPrependFile

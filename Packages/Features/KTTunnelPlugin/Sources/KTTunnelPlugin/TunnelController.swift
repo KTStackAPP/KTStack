@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 import KTStackCore
 
 public actor TunnelController {
@@ -8,10 +9,9 @@ public actor TunnelController {
         case failed(String)
     }
 
-    private let paths: AppSupportPaths
     private let label: String
     private let logURL: URL
-    private let launch: LaunchAgentManager
+    private let jobs: any TunnelJobManaging
 
     private var monitor: Task<Void, Never>?
     private var userStopped = false
@@ -29,11 +29,10 @@ public actor TunnelController {
     // polling" rather than a failure; a real origin error surfaces a different code.
     private static let edgeErrorCodes: Set<Int> = [502, 503, 504, 521, 522, 523, 524, 530]
 
-    public init(paths: AppSupportPaths, siteID: UUID) {
-        self.paths = paths
+    public init(paths: AppSupportPaths, jobs: any TunnelJobManaging, siteID: UUID) {
+        self.jobs = jobs
         label = paths.tunnelLabel(siteID.uuidString)
         logURL = paths.tunnelLog(siteID.uuidString)
-        launch = LaunchAgentManager(paths: paths)
     }
 
     public func start(
@@ -52,16 +51,13 @@ public actor TunnelController {
         let fm = FileManager.default
         try? fm.removeItem(at: logURL)
         fm.createFile(atPath: logURL.path, contents: nil)
-        let spec = LaunchAgentSpec(
-            label: label,
-            programArguments: [binary.path] + TunnelOrigin.cloudflaredArguments(port: originPort),
-            stdoutPath: logURL.path,
-            stderrPath: logURL.path,
-            keepAliveOnCrash: false,
-            runAtLoad: true
-        )
         do {
-            try launch.bootstrap(spec)
+            try jobs.bootstrapTunnelJob(
+                label: label,
+                binary: binary,
+                arguments: TunnelOrigin.cloudflaredArguments(port: originPort),
+                logPath: logURL.path
+            )
         } catch {
             onStatus(.error(error.localizedDescription))
             return
@@ -74,7 +70,7 @@ public actor TunnelController {
         userStopped = true
         monitor?.cancel()
         monitor = nil
-        try? launch.bootout(label)
+        jobs.bootoutTunnelJob(label: label)
     }
 
     private func awaitURL(
@@ -95,13 +91,13 @@ public actor TunnelController {
                 return
             }
             poll += 1
-            if poll % 3 == 0, !launch.isLoadedNow(label) {
+            if poll % 3 == 0, !jobs.isTunnelJobLoaded(label: label) {
                 if !userStopped { onStatus(.error("cloudflared exited before publishing a URL.")) }
                 return
             }
             try? await Task.sleep(nanoseconds: 400_000_000)
         }
-        try? launch.bootout(label)
+        jobs.bootoutTunnelJob(label: label)
         if !userStopped {
             onStatus(.error(
                 connectivityDiagnosis()
@@ -124,21 +120,21 @@ public actor TunnelController {
                 if !userStopped { onStatus(.active(url)) }
                 return
             case let .failed(message):
-                try? launch.bootout(label)
+                jobs.bootoutTunnelJob(label: label)
                 if !userStopped { onStatus(.error(message)) }
                 return
             case .pending:
                 break
             }
             poll += 1
-            if poll % 5 == 0, !launch.isLoadedNow(label) {
+            if poll % 5 == 0, !jobs.isTunnelJobLoaded(label: label) {
                 if !userStopped { onStatus(.error("cloudflared exited before the tunnel became reachable.")) }
                 return
             }
             try? await Task.sleep(nanoseconds: 1_000_000_000)
         }
         if userStopped { return }
-        if launch.isLoadedNow(label) {
+        if jobs.isTunnelJobLoaded(label: label) {
             onStatus(.activeUnverified(url))
             return
         }
@@ -175,10 +171,10 @@ public actor TunnelController {
     // launchd refuses to bootstrap a label that is still loaded, so boot out the old job and wait
     // for it to actually disappear before starting a new one.
     private func ensureLabelFree() async {
-        guard launch.isLoadedNow(label) else { return }
-        try? launch.bootout(label)
+        guard jobs.isTunnelJobLoaded(label: label) else { return }
+        jobs.bootoutTunnelJob(label: label)
         for _ in 0..<15 {
-            if !launch.isLoadedNow(label) { return }
+            if !jobs.isTunnelJobLoaded(label: label) { return }
             try? await Task.sleep(nanoseconds: 200_000_000)
         }
     }

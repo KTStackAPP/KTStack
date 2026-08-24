@@ -1,13 +1,16 @@
 import KTPluginKit
-import KTStackKit
 import SwiftUI
 
-struct TunnelQRCodeButton: View {
+public struct TunnelQRCodeButton: View {
     let url: URL
 
     @State private var isPresented = false
 
-    var body: some View {
+    public init(url: URL) {
+        self.url = url
+    }
+
+    public var body: some View {
         Button { isPresented = true } label: {
             Image(systemName: "qrcode")
         }
@@ -19,12 +22,16 @@ struct TunnelQRCodeButton: View {
     }
 }
 
-struct QRCodeView: View {
+public struct QRCodeView: View {
     let url: URL
 
     private let qrSize: CGFloat = 200
 
-    var body: some View {
+    public init(url: URL) {
+        self.url = url
+    }
+
+    public var body: some View {
         let image = QRCodeGenerator.image(for: url, size: qrSize)
         let textWidth = max(240, image?.size.width ?? qrSize)
 

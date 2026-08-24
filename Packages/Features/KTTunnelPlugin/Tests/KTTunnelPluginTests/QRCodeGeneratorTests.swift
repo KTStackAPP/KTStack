@@ -1,6 +1,6 @@
 import CoreImage
 import XCTest
-@testable import KTStackKit
+@testable import KTTunnelPlugin
 
 final class QRCodeGeneratorTests: XCTestCase {
     func testImageForValidURLReturnsRequestedSizeOrLarger() throws {

@@ -1,13 +1,24 @@
 import AppKit
 import KTPluginKit
-import KTStackKit
 import SwiftUI
 
-struct KTSiteShareControls: View {
+public struct KTSiteShareControls: View {
     var shareStarting: Bool
     var shareURL: URL?
     var shareExpiresAt: Date?
     let onToggleShare: (Bool) -> Void
+
+    public init(
+        shareStarting: Bool,
+        shareURL: URL?,
+        shareExpiresAt: Date?,
+        onToggleShare: @escaping (Bool) -> Void
+    ) {
+        self.shareStarting = shareStarting
+        self.shareURL = shareURL
+        self.shareExpiresAt = shareExpiresAt
+        self.onToggleShare = onToggleShare
+    }
 
     private static let expiryFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -16,7 +27,7 @@ struct KTSiteShareControls: View {
         return formatter
     }()
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 2) {
             if shareStarting {
                 ProgressView().controlSize(.small).frame(width: 28, height: 26)

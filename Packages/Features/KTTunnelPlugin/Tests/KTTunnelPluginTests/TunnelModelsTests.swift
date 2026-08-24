@@ -1,5 +1,5 @@
 import XCTest
-@testable import KTStackKit
+@testable import KTTunnelPlugin
 
 final class TunnelModelsTests: XCTestCase {
     func testParsesURLFromCloudflaredBannerBox() {
@@ -74,6 +74,20 @@ final class TunnelModelsTests: XCTestCase {
             return
         }
         XCTAssertTrue(message.contains("redirects to local URL app.test"))
+    }
+
+    func testProbeRejectsAnyTestDomainRedirect() {
+        let decision = TunnelController.probeDecision(
+            statusCode: 302,
+            locationHost: "other.test",
+            publicHost: "demo.trycloudflare.com",
+            localDomain: "app.test"
+        )
+        guard case let .failed(message) = decision else {
+            XCTFail("Expected failed redirect decision, got \(decision)")
+            return
+        }
+        XCTAssertTrue(message.contains("other.test"))
     }
 
     func testProbeAcceptsReachablePublicResponse() {

@@ -4,7 +4,9 @@ import KTLogsPlugin
 import KTMailPlugin
 import KTPluginKit
 import KTStackCore
+import KTPlatformContracts
 import KTStackKit
+import KTTunnelPlugin
 import ServiceManagement
 import SwiftUI
 
@@ -49,7 +51,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor lazy var documentViewModel = DocumentViewModel()
 
-    @MainActor lazy var tunnels = TunnelManager()
+    @MainActor lazy var tunnelPlugin = KTTunnelPlugin(
+        origin: TunnelOriginService(
+            paths: AppSupportPaths(),
+            resolveSite: { [weak self] id in self?.server.registry.sites.first { $0.id == id } }
+        ),
+        jobs: TunnelJobRunner(paths: AppSupportPaths()),
+        binaries: CloudflaredBinaryProvisioner(paths: AppSupportPaths())
+    )
+
+    @MainActor var tunnels: TunnelManager { tunnelPlugin.manager }
 
     // 8 plugin id + settings/about (shell rows): frozen, dùng validate selection đã lưu.
     static let frozenSelectionIDs: Set<String> = [
@@ -79,7 +90,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor var plugins: [any KTStackPlugin] { pluginSections.flatMap(\.plugins) }
 
-    @MainActor lazy var pluginLifecycle = PluginLifecycleCoordinator(plugins: plugins)
+    @MainActor lazy var pluginLifecycle = PluginLifecycleCoordinator(
+        plugins: plugins,
+        standalone: [tunnelPlugin]
+    )
 
     private static func alreadyRunningInstance() -> NSRunningApplication? {
         guard let bundleID = Bundle.main.bundleIdentifier else { return nil }
@@ -113,8 +127,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refreshShellShim()
         // A crash can leave tunnel launchd jobs and tunnel vhosts behind; clear them before serving,
         // or a stale tunnel vhost fails nginx -t and takes the whole front down.
-        tunnels.reapStaleJobs()
-        server.onSitesChanged = { [tunnels] sites in tunnels.reconcile(sites: sites) }
+        tunnelPlugin.reapStaleJobs()
+        server.onSitesChanged = { [tunnelPlugin] sites in
+            tunnelPlugin.manager.reconcile(targets: sites.map {
+                TunnelSiteTarget(id: $0.id, domain: $0.domain, secure: $0.secure)
+            })
+        }
         navigation.openLogsHandler = { [weak self] in self?.logsPlugin.show(sourceID: $0) }
         applyStartupPreferences()
         pluginLifecycle.startAll()
@@ -159,12 +177,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_: Notification) {
-        // Plugins tear down their own resources first: Dumps disables auto_prepend, deletes the
-        // prepend file and stops its socket while these are still plain file ops, before platform teardown.
+        // Plugins tear down their own resources first: Dumps disables auto_prepend and stops its
+        // socket, Tunnel boots out cloudflared jobs and clears tunnel vhosts, all plain file/process
+        // ops, before platform teardown. Tunnel cleanup now lives here, not a direct call below.
         MainActor.assumeIsolated { pluginLifecycle }.shutdownAllBlocking()
 
         // Block quit until the SwiftNIO event loop is fully down: terminating with it still running
-        // crashes on exit. Tear down the DB loop first, then tunnels, then the local server.
+        // crashes on exit. Tear down the DB loop first, then the local server.
         let dbShutdown = DispatchSemaphore(value: 0)
         Task.detached {
             try? await EventLoopProvider.shared.shutdown()
@@ -173,7 +192,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         dbShutdown.wait()
 
         MainActor.assumeIsolated {
-            tunnels.shutdownAll()
             server.shutdownForQuit()
         }
     }

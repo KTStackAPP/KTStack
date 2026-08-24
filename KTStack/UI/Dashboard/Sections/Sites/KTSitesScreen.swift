@@ -1,7 +1,9 @@
 import AppKit
 import KTPluginKit
+import KTPlatformContracts
 import KTStackCore
 import KTStackKit
+import KTTunnelPlugin
 import SwiftUI
 
 struct KTSitesScreen: View {
@@ -244,7 +246,11 @@ private struct KTSitesContent: View {
     }
 
     private func toggleShare(_ site: Site, _ on: Bool) {
-        if on { tunnels.start(site: site) } else { tunnels.stop(site: site.id) }
+        if on {
+            tunnels.start(target: TunnelSiteTarget(id: site.id, domain: site.domain, secure: site.secure))
+        } else {
+            tunnels.stop(site: site.id)
+        }
     }
 
     private func confirmRemove(_ site: Site) {

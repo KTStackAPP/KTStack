@@ -2,6 +2,7 @@ import AppKit
 import KTPluginKit
 import KTStackCore
 import KTStackKit
+import KTTunnelPlugin
 import ServiceManagement
 import SwiftUI
 

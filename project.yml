@@ -33,6 +33,10 @@ packages:
   # (LogCatalog needs AppSupportPaths), never KTStackKit. See docs/architecture/dependency-rules.md.
   KTLogsPlugin:
     path: Packages/Features/KTLogsPlugin
+  # Fourth feature package (M07): Tunnel (headless, no sidebar). Deps KTStackCore +
+  # KTPlatformContracts + KTPluginKit, never KTStackKit. See docs/architecture/dependency-rules.md.
+  KTTunnelPlugin:
+    path: Packages/Features/KTTunnelPlugin
   # Sparkle auto-update framework (EdDSA-signed appcast). Private key stays offline / in CI;
   # the public key is set as SUPublicEDKey in Info.plist.
   Sparkle:
@@ -160,6 +164,7 @@ targets:
       - package: KTDumpsPlugin
       - package: KTMailPlugin
       - package: KTLogsPlugin
+      - package: KTTunnelPlugin
       - package: Sparkle
       # Build-order + copy only (no linking); lands in Contents/MacOS so Phase 4's
       # SMAppService daemon plist can reference it. Empty stub for now.
