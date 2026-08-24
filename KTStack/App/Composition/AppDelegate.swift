@@ -43,17 +43,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         paths: AppSupportPaths(), mkcertBinary: Self.bundleBinDir.appendingPathComponent("mkcert")
     )
 
-    @MainActor lazy var connectionStore = ConnectionStore(
-        storeURL: AppSupportPaths().config
-            .appendingPathComponent("database", isDirectory: true)
-            .appendingPathComponent("connections.json")
+    @MainActor lazy var databasePlugin = KTDatabasePlugin(
+        tools: DatabaseToolsService(paths: AppSupportPaths()),
+        engines: services,
+        route: { [weak self] route in self?.routeDatabase(route) }
     )
 
-    let databaseTools = DatabaseToolsService(paths: AppSupportPaths())
+    @MainActor lazy var databaseWindows = DatabaseWindows(plugin: databasePlugin)
 
-    @MainActor lazy var databaseViewModel = DatabaseViewModel(tools: databaseTools)
+    // Method chứ không tham chiếu lazy var trong route closure, tránh vòng lazy-init với databaseWindows.
+    @MainActor private func routeDatabase(_ route: DatabaseRoute) {
+        databaseWindows.handle(route)
+    }
 
-    @MainActor lazy var documentViewModel = DocumentViewModel(tools: databaseTools)
+    #if DEBUG
+        @MainActor func openSQLDrafts() { databaseWindows.handle(.sqlDrafts) }
+    #endif
 
     @MainActor lazy var tunnelPlugin = KTTunnelPlugin(
         origin: TunnelOriginService(
@@ -89,7 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             LegacySitesPlugin(nav: navigation),
             LegacyServicesPlugin(nav: navigation),
             LegacyRuntimesPlugin(nav: navigation),
-            LegacyDatabasePlugin(nav: navigation),
+            databasePlugin,
         ]),
         PluginSection(title: "Inspect", plugins: [
             logsPlugin,
@@ -191,16 +196,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Plugins tear down their own resources first: Dumps disables auto_prepend and stops its
         // socket, Tunnel boots out cloudflared jobs and clears tunnel vhosts, all plain file/process
         // ops, before platform teardown. Tunnel cleanup now lives here, not a direct call below.
+        // Database plugin hạ SwiftNIO event loop trong shutdown() (bootout xong loop mới xuống),
+        // nên quit không còn tự tear down loop ở đây.
         MainActor.assumeIsolated { pluginLifecycle }.shutdownAllBlocking()
-
-        // Block quit until the SwiftNIO event loop is fully down: terminating with it still running
-        // crashes on exit. Tear down the DB loop first, then the local server.
-        let dbShutdown = DispatchSemaphore(value: 0)
-        Task.detached {
-            try? await EventLoopProvider.shared.shutdown()
-            dbShutdown.signal()
-        }
-        dbShutdown.wait()
 
         MainActor.assumeIsolated {
             server.shutdownForQuit()

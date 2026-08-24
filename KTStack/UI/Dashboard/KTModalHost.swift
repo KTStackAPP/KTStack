@@ -33,26 +33,6 @@ struct KTWindowModals: View {
                 }
                 .transition(.opacity)
             }
-            if overlay.connectPresented {
-                KTConnectModal(
-                    onClose: { overlay.connectPresented = false },
-                    onConnected: { name in
-                        overlay.connectPresented = false
-                        overlay.toast("Connected to \(name)")
-                    }
-                )
-                .transition(.opacity)
-            }
-            if overlay.newDatabasePresented {
-                KTNewDatabaseModal(
-                    onClose: { overlay.newDatabasePresented = false },
-                    onCreated: { name in
-                        overlay.newDatabasePresented = false
-                        overlay.toast("Database “\(name)” created")
-                    }
-                )
-                .transition(.opacity)
-            }
             if let site = overlay.apiTesterSite {
                 KTAPITesterModal(site: site, onClose: { overlay.apiTesterSite = nil })
                     .id(site.id)
@@ -61,8 +41,6 @@ struct KTWindowModals: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.easeOut(duration: 0.15), value: overlay.newSitePresented)
-        .animation(.easeOut(duration: 0.15), value: overlay.connectPresented)
-        .animation(.easeOut(duration: 0.15), value: overlay.newDatabasePresented)
         .animation(.easeOut(duration: 0.15), value: overlay.apiTesterSite?.id)
     }
 }

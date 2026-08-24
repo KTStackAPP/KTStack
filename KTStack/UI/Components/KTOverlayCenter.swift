@@ -4,37 +4,17 @@ import SwiftUI
 
 @MainActor
 final class KTOverlayCenter: ObservableObject {
-    struct ConfirmRequest: Identifiable {
-        let id = UUID()
-        let title: String
-        let message: String
-        let okLabel: String
-        let danger: Bool
-        let onConfirm: () -> Void
-    }
+    let feedback = KTFeedbackCenter()
 
-    @Published var toastMessage: String?
-    @Published var confirmRequest: ConfirmRequest?
     @Published var newSitePresented = false
-    @Published var connectPresented = false
-    @Published var newDatabasePresented = false
     @Published var apiTesterSite: Site?
 
     var anyModalPresented: Bool {
-        newSitePresented || connectPresented
-            || newDatabasePresented || apiTesterSite != nil
+        newSitePresented || apiTesterSite != nil
     }
 
-    private var dismissTask: Task<Void, Never>?
-
     func toast(_ text: String) {
-        toastMessage = text
-        dismissTask?.cancel()
-        dismissTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 2_400_000_000)
-            guard !Task.isCancelled else { return }
-            self?.toastMessage = nil
-        }
+        feedback.toast(text)
     }
 
     func confirm(
@@ -44,39 +24,12 @@ final class KTOverlayCenter: ObservableObject {
         danger: Bool = true,
         onConfirm: @escaping () -> Void
     ) {
-        confirmRequest = ConfirmRequest(
-            title: title,
-            message: message,
-            okLabel: okLabel,
-            danger: danger,
-            onConfirm: onConfirm
-        )
+        feedback.confirm(title: title, message: message, okLabel: okLabel, danger: danger, onConfirm: onConfirm)
     }
 }
 
 extension View {
     func ktOverlayHost(_ center: KTOverlayCenter) -> some View {
-        overlay(alignment: .bottom) {
-            if let message = center.toastMessage {
-                KTToast(message: message)
-                    .padding(.bottom, 28)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
-        .overlay {
-            if let request = center.confirmRequest {
-                KTConfirmModal(
-                    title: request.title,
-                    message: request.message,
-                    okLabel: request.okLabel,
-                    danger: request.danger,
-                    onCancel: { center.confirmRequest = nil },
-                    onConfirm: { center.confirmRequest = nil; request.onConfirm() }
-                )
-                .transition(.opacity)
-            }
-        }
-        .animation(.spring(response: 0.32, dampingFraction: 0.78), value: center.toastMessage)
-        .animation(.easeOut(duration: 0.15), value: center.confirmRequest?.id)
+        ktFeedbackHost(center.feedback)
     }
 }

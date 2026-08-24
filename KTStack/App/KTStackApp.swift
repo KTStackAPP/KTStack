@@ -55,9 +55,17 @@ struct KTStackApp: App {
         appDelegate.plugins.compactMap { ($0 as? any SettingsProviding)?.makeSettingsPane() }
     }
 
+    private var menuBarContent: MenuBarContentView {
+        #if DEBUG
+            MenuBarContentView(plugins: appDelegate.plugins, openSQLDrafts: { appDelegate.openSQLDrafts() })
+        #else
+            MenuBarContentView(plugins: appDelegate.plugins)
+        #endif
+    }
+
     var body: some Scene {
         MenuBarExtra(isInserted: Binding(get: { showInMenuBar }, set: { _ in })) {
-            MenuBarContentView(plugins: appDelegate.plugins)
+            menuBarContent
                 .environmentObject(appDelegate.server)
                 .environmentObject(appDelegate.services)
                 .environmentObject(appDelegate.runtimes)
@@ -77,9 +85,6 @@ struct KTStackApp: App {
                 .environmentObject(appDelegate.caTrust)
                 .environmentObject(appDelegate.updater)
                 .environmentObject(appDelegate.uninstaller)
-                .environmentObject(appDelegate.connectionStore)
-                .environmentObject(appDelegate.databaseViewModel)
-                .environmentObject(appDelegate.documentViewModel)
                 .environmentObject(appDelegate.tunnels)
         }
         .defaultSize(width: Self.defaultWindowSize.width, height: Self.defaultWindowSize.height)

@@ -1,5 +1,4 @@
 import AppKit
-import KTDatabasePlugin
 import KTPluginKit
 import KTStackKit
 import KTTunnelPlugin
@@ -14,9 +13,6 @@ struct DashboardEnv {
     let caTrust: CATrustService
     let updater: UpdaterController
     let uninstaller: UninstallService
-    let connectionStore: ConnectionStore
-    let databaseViewModel: DatabaseViewModel
-    let documentViewModel: DocumentViewModel
     let tunnels: TunnelManager
     let overlay: KTOverlayCenter
 
@@ -30,9 +26,6 @@ struct DashboardEnv {
             .environmentObject(caTrust)
             .environmentObject(updater)
             .environmentObject(uninstaller)
-            .environmentObject(connectionStore)
-            .environmentObject(databaseViewModel)
-            .environmentObject(documentViewModel)
             .environmentObject(tunnels)
             .environmentObject(overlay)
     }
