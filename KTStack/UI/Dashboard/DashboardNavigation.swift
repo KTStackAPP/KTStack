@@ -11,7 +11,10 @@ final class DashboardNavigation: ObservableObject {
     }
 
     @Published var activeItem: String?
-    @Published var logTarget: String?
+
+    // AppDelegate nối vào KTLogsPlugin.show(sourceID:). Gọi trước khi đổi selection để
+    // pendingTarget đặt xong trước khi activation của tab Logs chạy.
+    var openLogsHandler: ((String?) -> Void)?
 
     init(validIDs: Set<String>) {
         let saved = UserDefaults.standard.string(forKey: Self.selectionKey)
@@ -19,7 +22,7 @@ final class DashboardNavigation: ObservableObject {
     }
 
     func openLogs(_ sourceID: String?) {
-        logTarget = sourceID
+        openLogsHandler?(sourceID)
         selection = "logs"
     }
 }

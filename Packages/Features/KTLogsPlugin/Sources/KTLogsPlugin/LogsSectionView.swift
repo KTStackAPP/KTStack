@@ -1,29 +1,15 @@
 import KTPluginKit
-import KTStackCore
-import KTStackKit
 import SwiftUI
 
 struct LogsSectionView: View {
-    @ObservedObject var nav: DashboardNavigation
-
-    @EnvironmentObject private var server: LocalServerController
-    @StateObject private var tail = LogTailController()
-    @State private var selectedID: String?
+    @ObservedObject var store: LogsStore
     @State private var pickerOpen = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private let paths = AppSupportPaths()
     private let bottomID = "logs-bottom-anchor"
 
-    private var sources: [LogSource] {
-        LogCatalog(paths: paths).sources(
-            siteDomains: server.registry.sites.map(\.domain),
-            phpVersions: server.availableVersions
-        )
-    }
-
     private var currentSourceName: String {
-        sources.first { $0.id == selectedID }?.displayName ?? "All sites"
+        store.sources.first { $0.id == store.selectedID }?.displayName ?? "All sites"
     }
 
     var body: some View {
@@ -34,21 +20,10 @@ struct LogsSectionView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(KTColor.contentBg)
         .sheet(isPresented: $pickerOpen) {
-            KTLogSourcePicker(sources: sources, selectedID: $selectedID) { pickerOpen = false }
-        }
-        .onAppear { activate() }
-        .onChange(of: selectedID) { id in
-            guard nav.activeItem == SidebarItem.logs.rawValue else { return }
-            tail.select(sources.first { $0.id == id })
-        }
-        .onChange(of: nav.activeItem) { item in
-            if item == SidebarItem.logs.rawValue { activate() } else { tail.select(nil) }
-        }
-        .onChange(of: nav.logTarget) { target in
-            guard nav.activeItem == SidebarItem.logs.rawValue, let target,
-                  sources.contains(where: { $0.id == target }) else { return }
-            selectedID = target
-            tail.select(sources.first { $0.id == target })
+            KTLogSourcePicker(
+                sources: store.sources,
+                selectedID: Binding(get: { store.selectedID }, set: { store.select($0) })
+            ) { pickerOpen = false }
         }
     }
 
@@ -57,7 +32,7 @@ struct LogsSectionView: View {
             Text("Logs").font(KTType.screenTitle).tracking(KTType.screenTitleTracking).foregroundStyle(KTColor.ink)
             Spacer()
             sourceMenu
-            Button(action: { tail.clear() }) {
+            Button(action: { store.tail.clear() }) {
                 Text("Clear").font(.jbMono(13, .medium)).foregroundStyle(KTColor.ink)
                     .padding(.horizontal, 14).padding(.vertical, 7)
                     .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.white))
@@ -70,7 +45,7 @@ struct LogsSectionView: View {
     }
 
     private var sourceMenu: some View {
-        Button { pickerOpen = true } label: {
+        Button { store.refreshSources(); pickerOpen = true } label: {
             KTDropdownChevronLabel(text: currentSourceName)
         }
         .buttonStyle(.plain)
@@ -78,9 +53,9 @@ struct LogsSectionView: View {
     }
 
     private var followToggle: some View {
-        Button(action: { tail.isLive.toggle() }) {
+        Button(action: { store.tail.isLive.toggle() }) {
             HStack(spacing: 7) {
-                if tail.isLive {
+                if store.tail.isLive {
                     Circle().fill(KTColor.runDot).frame(width: 7, height: 7)
                     Text("Following").font(.jbMono(13, .regular)).foregroundStyle(KTColor.online)
                 } else {
@@ -91,11 +66,11 @@ struct LogsSectionView: View {
             .padding(.horizontal, 14).padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(tail.isLive ? KTColor.onlineBg : Color.white)
+                    .fill(store.tail.isLive ? KTColor.onlineBg : Color.white)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .stroke(tail.isLive ? Color.clear : KTColor.btnBorder, lineWidth: 0.5)
+                    .stroke(store.tail.isLive ? Color.clear : KTColor.btnBorder, lineWidth: 0.5)
             )
             .contentShape(Rectangle())
         }
@@ -104,22 +79,22 @@ struct LogsSectionView: View {
 
     @ViewBuilder
     private var logPanel: some View {
-        if sources.isEmpty {
+        if store.sources.isEmpty {
             emptyPanel("No logs yet", "Start a service to produce logs, then pick a source to tail it here.")
-        } else if tail.lines.isEmpty {
+        } else if store.tail.lines.isEmpty {
             emptyPanel("No lines", "This log is empty or filtered out. New lines stream in live.")
         } else {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(tail.lines) { line in logRow(line) }
+                        ForEach(store.tail.lines) { line in logRow(line) }
                         Color.clear.frame(height: 1).id(bottomID)
                     }
                 }
                 .padding(14)
                 .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(KTColor.editorBg))
-                .onChange(of: tail.lines.count) { _ in
-                    guard tail.isLive else { return }
+                .onChange(of: store.tail.lines.count) { _ in
+                    guard store.tail.isLive else { return }
                     if reduceMotion { proxy.scrollTo(bottomID, anchor: .bottom) }
                     else { withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(bottomID, anchor: .bottom) } }
                 }
@@ -166,16 +141,5 @@ struct LogsSectionView: View {
             Text(message).font(.jbMono(13)).foregroundStyle(KTColor.muted).multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func activate() {
-        guard nav.activeItem == SidebarItem.logs.rawValue else { return }
-        let available = sources
-        if let target = nav.logTarget, available.contains(where: { $0.id == target }) {
-            selectedID = target
-        } else if selectedID == nil {
-            selectedID = available.first?.id
-        }
-        tail.select(available.first { $0.id == selectedID })
     }
 }

@@ -1,9 +1,9 @@
 import KTStackCore
 import XCTest
-@testable import KTStackKit
+@testable import KTLogsPlugin
 
-/// Unit tests for the Logs layer: severity parsing + ring buffer, log rotation, source catalog,
-/// and incremental tail.
+/// Feature tests for the Logs plugin: severity parsing + ring buffer, source catalog, and
+/// incremental tail. Log rotation is platform-owned and tested in KTStackKit (LogRotatorTests).
 final class LogsTests: XCTestCase {
     func testSeverityClassification() {
         XCTAssertEqual(LogLineStore.severity(of: "2026/06/11 [error] connect() failed"), .error)
@@ -26,25 +26,6 @@ final class LogsTests: XCTestCase {
         XCTAssertEqual(store.filtered("api").map(\.text), ["POST /api"])
         XCTAssertEqual(store.filtered("ERROR").map(\.text), ["error: boom"])
         XCTAssertEqual(store.filtered("").count, 3)
-    }
-
-    func testRotationShiftsFilesAndTruncatesLive() throws {
-        let dir = try tempDir(); defer { try? FileManager.default.removeItem(at: dir) }
-        let log = dir.appendingPathComponent("nginx-error.log")
-        try Data(repeating: 0x41, count: 2048).write(to: log) // 2KB
-        let rotator = LogRotator(maxBytes: 1024, keep: 2)
-        rotator.rotateIfNeeded(log)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: log.appendingPathExtension("1").path))
-        let liveSize = try (FileManager.default.attributesOfItem(atPath: log.path)[.size] as? Int) ?? -1
-        XCTAssertEqual(liveSize, 0, "live log truncated after rotation")
-    }
-
-    func testRotationSkipsUnderThreshold() throws {
-        let dir = try tempDir(); defer { try? FileManager.default.removeItem(at: dir) }
-        let log = dir.appendingPathComponent("small.log")
-        try Data(repeating: 0x41, count: 100).write(to: log)
-        LogRotator(maxBytes: 1024).rotateIfNeeded(log)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: log.appendingPathExtension("1").path))
     }
 
     func testCatalogListsCoreAndExistingSources() throws {

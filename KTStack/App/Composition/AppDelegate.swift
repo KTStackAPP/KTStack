@@ -1,5 +1,6 @@
 import AppKit
 import KTDumpsPlugin
+import KTLogsPlugin
 import KTMailPlugin
 import KTPluginKit
 import KTStackCore
@@ -59,6 +60,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor lazy var navigation = DashboardNavigation(validIDs: Self.frozenSelectionIDs)
 
+    @MainActor lazy var logsPlugin = KTLogsPlugin(context: server)
+
     @MainActor lazy var pluginSections: [PluginSection] = [
         PluginSection(title: "Manage", plugins: [
             LegacySitesPlugin(nav: navigation),
@@ -67,7 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             LegacyDatabasePlugin(nav: navigation),
         ]),
         PluginSection(title: "Inspect", plugins: [
-            LegacyLogsPlugin(nav: navigation),
+            logsPlugin,
             KTMailPlugin(mailpit: services),
             KTDumpsPlugin(php: server),
             LegacyDoctorPlugin(nav: navigation),
@@ -112,6 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // or a stale tunnel vhost fails nginx -t and takes the whole front down.
         tunnels.reapStaleJobs()
         server.onSitesChanged = { [tunnels] sites in tunnels.reconcile(sites: sites) }
+        navigation.openLogsHandler = { [weak self] in self?.logsPlugin.show(sourceID: $0) }
         applyStartupPreferences()
         pluginLifecycle.startAll()
     }

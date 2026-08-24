@@ -29,6 +29,10 @@ packages:
   # KTPluginKit only, never KTStackKit. See docs/architecture/dependency-rules.md.
   KTMailPlugin:
     path: Packages/Features/KTMailPlugin
+  # Third feature package (M06): Logs. Deps KTStackCore + KTPlatformContracts + KTPluginKit
+  # (LogCatalog needs AppSupportPaths), never KTStackKit. See docs/architecture/dependency-rules.md.
+  KTLogsPlugin:
+    path: Packages/Features/KTLogsPlugin
   # Sparkle auto-update framework (EdDSA-signed appcast). Private key stays offline / in CI;
   # the public key is set as SUPublicEDKey in Info.plist.
   Sparkle:
@@ -155,6 +159,7 @@ targets:
         embed: true
       - package: KTDumpsPlugin
       - package: KTMailPlugin
+      - package: KTLogsPlugin
       - package: Sparkle
       # Build-order + copy only (no linking); lands in Contents/MacOS so Phase 4's
       # SMAppService daemon plist can reference it. Empty stub for now.
