@@ -1,4 +1,5 @@
 import Foundation
+import KTPluginKit
 
 /// Dựng khối text dán thẳng vào GitHub issue. Chỉ lấy các trường trong allowlist dưới đây và
 /// thay mọi path dưới home bằng ~ để report không lộ tên user.

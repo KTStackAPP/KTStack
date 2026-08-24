@@ -1,8 +1,8 @@
 import Foundation
+import KTPluginKit
 
-public enum DoctorStatus: String, Sendable, Equatable, CaseIterable {
-    case pass, warn, fail
-
+// worst/severity trên DoctorStatus của KTPluginKit: cần cho tổng hợp status, KTPluginKit không mang.
+extension DoctorStatus {
     var severity: Int {
         switch self {
         case .pass: 0
@@ -13,36 +13,6 @@ public enum DoctorStatus: String, Sendable, Equatable, CaseIterable {
 
     static func worst(_ statuses: [DoctorStatus]) -> DoctorStatus {
         statuses.max { $0.severity < $1.severity } ?? .pass
-    }
-}
-
-/// Doctor chỉ đọc trạng thái; mỗi remedy trỏ về một action đã có sẵn trong app.
-public enum DoctorRemedyAction: String, Sendable, Equatable {
-    case openLoginItems, openServices, openSettings, openRuntimes
-}
-
-public struct DoctorCheck: Identifiable, Sendable, Equatable {
-    public let id: String
-    public let title: String
-    public let status: DoctorStatus
-    public let detail: String
-    public let remedy: String?
-    public let action: DoctorRemedyAction?
-
-    public init(
-        id: String,
-        title: String,
-        status: DoctorStatus,
-        detail: String,
-        remedy: String? = nil,
-        action: DoctorRemedyAction? = nil
-    ) {
-        self.id = id
-        self.title = title
-        self.status = status
-        self.detail = detail
-        self.remedy = remedy
-        self.action = action
     }
 }
 

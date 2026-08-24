@@ -37,6 +37,10 @@ packages:
   # KTPlatformContracts + KTPluginKit, never KTStackKit. See docs/architecture/dependency-rules.md.
   KTTunnelPlugin:
     path: Packages/Features/KTTunnelPlugin
+  # Fifth feature package (M08): Doctor. Owns check logic, report and screen; platform exposes
+  # probes via DoctorProbing. Deps KTStackCore + KTPlatformContracts + KTPluginKit, never KTStackKit.
+  KTDoctorPlugin:
+    path: Packages/Features/KTDoctorPlugin
   # Sparkle auto-update framework (EdDSA-signed appcast). Private key stays offline / in CI;
   # the public key is set as SUPublicEDKey in Info.plist.
   Sparkle:
@@ -165,6 +169,7 @@ targets:
       - package: KTMailPlugin
       - package: KTLogsPlugin
       - package: KTTunnelPlugin
+      - package: KTDoctorPlugin
       - package: Sparkle
       # Build-order + copy only (no linking); lands in Contents/MacOS so Phase 4's
       # SMAppService daemon plist can reference it. Empty stub for now.

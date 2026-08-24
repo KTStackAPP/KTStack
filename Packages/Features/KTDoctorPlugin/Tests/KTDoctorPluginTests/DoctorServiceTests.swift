@@ -1,35 +1,17 @@
 import KTPlatformContracts
+import KTPluginKit
 import KTStackCore
 import XCTest
-@testable import KTStackKit
+@testable import KTDoctorPlugin
 
 final class DoctorServiceTests: XCTestCase {
     private let tld = "test"
     private lazy var paths = AppSupportPaths(root: URL(fileURLWithPath: "/tmp/ktstack-doctor-tests"))
 
-    /// Máy khỏe hoàn toàn; mỗi test chỉ chỉnh đúng probe mình quan tâm.
-    private func healthyProbes() -> DoctorProbes {
-        let present = Set(
-            [paths.caRootCert.path, paths.certsDir.path]
-                + BinaryStager.binBinaries.map { paths.binary($0).path }
-                + [
-                    paths.phpFpmBinary(version: BundledPHP.defaultVersion).path,
-                    paths.phpFpmSocket(BundledPHP.defaultVersion).path,
-                ]
-        )
-        let resolverPath = DNSConstants.resolverPath(for: tld)
-        return DoctorProbes(
-            helperState: { DoctorHelperState(registration: .enabled, version: HelperIdentity.bundleVersion) },
-            fileExists: { present.contains($0.path) },
-            readFile: { $0.path == resolverPath ? DNSConstants.resolverContents : nil },
-            resolveHost: { $0 == "probe.test" ? ["127.0.0.1"] : [] },
-            isCATrusted: { _ in true },
-            portState: { _ in .free },
-            udp53Conflict: { nil },
-            verifySignature: { _ in true },
-            launchdSummary: { _ in "state = running; pid = 1; last exit code = 0" }
-        )
+    private func healthyProbes() -> FakeDoctorProbes {
+        FakeDoctorProbes.healthy(paths: paths, tld: tld)
     }
+
 
     func testHelperNotRegisteredFailsWithLoginItemsRemedy() {
         let check = DoctorChecks.helper(DoctorHelperState(registration: .notRegistered))
@@ -72,9 +54,10 @@ final class DoctorServiceTests: XCTestCase {
         )
     }
 
+
     func testDNSResolverFileMissingFails() {
         var probes = healthyProbes()
-        probes.readFile = { _ in nil }
+        probes.readFileFn = { _ in nil }
         let check = DoctorChecks.dns(tld: tld, probes: probes)
         XCTAssertEqual(check.status, .fail)
         XCTAssertEqual(check.action, .openServices)
@@ -83,13 +66,13 @@ final class DoctorServiceTests: XCTestCase {
 
     func testDNSResolverPointingElsewhereFails() {
         var probes = healthyProbes()
-        probes.readFile = { _ in "nameserver 8.8.8.8\n" }
+        probes.readFileFn = { _ in "nameserver 8.8.8.8\n" }
         XCTAssertEqual(DoctorChecks.dns(tld: tld, probes: probes).status, .fail)
     }
 
     func testDNSResolverOnAnotherPortFails() {
         var probes = healthyProbes()
-        probes.readFile = { _ in "nameserver 127.0.0.1\nport 5353\n" }
+        probes.readFileFn = { _ in "nameserver 127.0.0.1\nport 5353\n" }
         XCTAssertEqual(
             DoctorChecks.dns(tld: tld, probes: probes).status, .fail,
             "port 5353 must not satisfy the port 53 requirement"
@@ -98,7 +81,7 @@ final class DoctorServiceTests: XCTestCase {
 
     func testDNSResolverPresentButHostDoesNotResolveFails() {
         var probes = healthyProbes()
-        probes.resolveHost = { _ in [] }
+        probes.resolveHostFn = { _ in [] }
         let check = DoctorChecks.dns(tld: tld, probes: probes)
         XCTAssertEqual(check.status, .fail)
         XCTAssertTrue(check.detail.contains("resolves to nothing"))
@@ -108,9 +91,10 @@ final class DoctorServiceTests: XCTestCase {
         XCTAssertEqual(DoctorChecks.dns(tld: tld, probes: healthyProbes()).status, .pass)
     }
 
+
     func testTLSMissingCAFails() {
         var probes = healthyProbes()
-        probes.fileExists = { _ in false }
+        probes.fileExistsFn = { _ in false }
         let check = DoctorChecks.tls(tld: tld, paths: paths, probes: probes)
         XCTAssertEqual(check.status, .fail)
         XCTAssertEqual(check.action, .openSettings)
@@ -118,7 +102,7 @@ final class DoctorServiceTests: XCTestCase {
 
     func testTLSUntrustedCAFails() {
         var probes = healthyProbes()
-        probes.isCATrusted = { _ in false }
+        probes.isCATrustedFn = { _ in false }
         let check = DoctorChecks.tls(tld: tld, paths: paths, probes: probes)
         XCTAssertEqual(check.status, .fail)
         XCTAssertTrue(check.detail.contains("not trusted"))
@@ -129,7 +113,7 @@ final class DoctorServiceTests: XCTestCase {
         let paths = AppSupportPaths(root: home.appendingPathComponent("Library/Application Support/KTStack"))
         let caCert = paths.caRootCert.path
         var probes = healthyProbes()
-        probes.fileExists = { $0.path == caCert }
+        probes.fileExistsFn = { $0.path == caCert }
         let check = DoctorChecks.tls(tld: tld, paths: paths, probes: probes)
 
         XCTAssertEqual(check.status, .warn)
@@ -141,9 +125,10 @@ final class DoctorServiceTests: XCTestCase {
         XCTAssertEqual(DoctorChecks.tls(tld: tld, paths: paths, probes: healthyProbes()).status, .pass)
     }
 
+
     func testPortsHeldByForeignProcessFailsAndKeepsItsRemedy() {
         var probes = healthyProbes()
-        probes.portState = {
+        probes.portStateFn = {
             $0 == 80 ? .inUse(owner: "httpd", message: "Apache (macOS built-in) is using port 80.") : .free
         }
         let check = DoctorChecks.ports(probes: probes)
@@ -154,13 +139,13 @@ final class DoctorServiceTests: XCTestCase {
 
     func testPortsHeldByOurNginxPasses() {
         var probes = healthyProbes()
-        probes.portState = { _ in .inUse(owner: "nginx", message: "in use") }
+        probes.portStateFn = { _ in .inUse(owner: "nginx", message: "in use") }
         XCTAssertEqual(DoctorChecks.ports(probes: probes).status, .pass)
     }
 
     func testUnprobeablePortWarnsWithoutClaimingAnOwner() {
         var probes = healthyProbes()
-        probes.portState = { $0 == 443 ? .unavailable(message: "Could not create a probe socket.") : .free }
+        probes.portStateFn = { $0 == 443 ? .unavailable(message: "Could not create a probe socket.") : .free }
         let check = DoctorChecks.ports(probes: probes)
         XCTAssertEqual(check.status, .warn)
         XCTAssertTrue(check.detail.contains(":443 could not be probed"))
@@ -168,7 +153,7 @@ final class DoctorServiceTests: XCTestCase {
 
     func testForeignDNSOnPort53FailsWithItsRemedy() {
         var probes = healthyProbes()
-        probes.udp53Conflict = {
+        probes.udp53ConflictFn = {
             DoctorDNSConflict(process: "Herd", message: "Stop Herd/Valet, then enable KTStack DNS.")
         }
         let check = DoctorChecks.ports(probes: probes)
@@ -177,12 +162,13 @@ final class DoctorServiceTests: XCTestCase {
         XCTAssertEqual(check.remedy, "Stop Herd/Valet, then enable KTStack DNS.")
     }
 
+
     func testMissingRequiredBinaryFails() {
         var probes = healthyProbes()
         let nginx = paths.binary("nginx").path
-        let base = healthyProbes().fileExists
-        probes.fileExists = { $0.path != nginx && base($0) }
-        let check = DoctorChecks.binaries(paths: paths, probes: probes)
+        let base = healthyProbes().fileExistsFn
+        probes.fileExistsFn = { $0.path != nginx && base($0) }
+        let check = DoctorChecks.binaries(probes: probes)
         XCTAssertEqual(check.status, .fail)
         XCTAssertTrue(check.detail.contains("nginx"))
     }
@@ -190,71 +176,66 @@ final class DoctorServiceTests: XCTestCase {
     func testInvalidSignatureFails() {
         var probes = healthyProbes()
         let mkcert = paths.binary("mkcert").path
-        probes.verifySignature = { $0.path != mkcert }
-        let check = DoctorChecks.binaries(paths: paths, probes: probes)
+        probes.verifySignatureFn = { $0.path != mkcert }
+        let check = DoctorChecks.binaries(probes: probes)
         XCTAssertEqual(check.status, .fail)
         XCTAssertTrue(check.detail.contains("mkcert"))
     }
 
     func testBinariesCountOnlyWhatWasVerified() {
-        let check = DoctorChecks.binaries(paths: paths, probes: healthyProbes())
+        let check = DoctorChecks.binaries(probes: healthyProbes())
         XCTAssertEqual(check.status, .pass, "mailpit is optional and absent in the healthy stub")
         XCTAssertTrue(
-            check.detail.hasPrefix("\(BinaryStager.binBinaries.count + 1) staged binaries"),
+            check.detail.hasPrefix("\(FakeDoctorProbes.binBinaries.count + 1) staged binaries"),
             "3 bin binaries plus the default php-fpm; absent optional binaries are not counted"
         )
     }
 
+
     func testCrashedServiceFails() {
         var probes = healthyProbes()
-        probes.launchdSummary = {
-            $0 == ServiceKind.nginx.launchdLabel
-                ? "state = not running; last exit code = 78"
-                : "job not loaded (launchctl print rc=113)"
+        probes.launchdJobStateFn = {
+            $0 == "com.ktstack.nginx" ? DoctorLaunchdJobState(isRunning: false, lastExitCode: 78) : nil
         }
-        let check = DoctorChecks.services(paths: paths, probes: probes)
+        let check = DoctorChecks.services(probes: probes)
         XCTAssertEqual(check.status, .fail)
         XCTAssertTrue(check.detail.contains("78"))
     }
 
     func testRunningServiceWithOldExitCodePasses() {
         var probes = healthyProbes()
-        probes.launchdSummary = { _ in "state = running; pid = 42; last exit code = 78" }
+        probes.launchdJobStateFn = { _ in DoctorLaunchdJobState(isRunning: true, lastExitCode: 78) }
         XCTAssertEqual(
-            DoctorChecks.services(paths: paths, probes: probes).status, .pass,
+            DoctorChecks.services(probes: probes).status, .pass,
             "launchd keeps the previous exit code; a running job is not a failed start"
         )
     }
 
     func testCrashedPHPPoolIsSeen() {
         var probes = healthyProbes()
-        let poolLabel = DoctorChecks.phpPoolLabel(BundledPHP.defaultVersion)
-        probes.launchdSummary = {
-            $0 == poolLabel
-                ? "state = not running; last exit code = 70"
-                : "job not loaded (launchctl print rc=113)"
+        let poolLabel = probes.phpPoolLabel(FakeDoctorProbes.defaultVersion)
+        probes.launchdJobStateFn = {
+            $0 == poolLabel ? DoctorLaunchdJobState(isRunning: false, lastExitCode: 70) : nil
         }
-        let check = DoctorChecks.services(paths: paths, probes: probes)
-        XCTAssertEqual(
-            check.status, .fail,
-            "PHP-FPM runs one job per pool version, not under com.ktstack.phpFpm"
-        )
-        XCTAssertTrue(check.detail.contains("PHP-FPM \(BundledPHP.defaultVersion)"))
+        let check = DoctorChecks.services(probes: probes)
+        XCTAssertEqual(check.status, .fail, "PHP-FPM runs one job per pool version")
+        XCTAssertTrue(check.detail.contains("PHP-FPM \(FakeDoctorProbes.defaultVersion)"))
     }
 
     func testNoLoadedServicesWarns() {
         var probes = healthyProbes()
-        probes.launchdSummary = { _ in "job not loaded (launchctl print rc=113)" }
-        XCTAssertEqual(DoctorChecks.services(paths: paths, probes: probes).status, .warn)
+        probes.launchdJobStateFn = { _ in nil }
+        XCTAssertEqual(DoctorChecks.services(probes: probes).status, .warn)
     }
 
     func testLoadedServicesPass() {
-        XCTAssertEqual(DoctorChecks.services(paths: paths, probes: healthyProbes()).status, .pass)
+        XCTAssertEqual(DoctorChecks.services(probes: healthyProbes()).status, .pass)
     }
+
 
     func testMissingDefaultPHPFails() {
         var probes = healthyProbes()
-        probes.fileExists = { _ in false }
+        probes.installedPHPVersionsValue = []
         let check = DoctorChecks.php(paths: paths, probes: probes)
         XCTAssertEqual(check.status, .fail)
         XCTAssertEqual(check.action, .openRuntimes)
@@ -262,9 +243,9 @@ final class DoctorServiceTests: XCTestCase {
 
     func testRunningPoolWithoutSocketFails() {
         var probes = healthyProbes()
-        let socket = paths.phpFpmSocket(BundledPHP.defaultVersion).path
-        let base = healthyProbes().fileExists
-        probes.fileExists = { $0.path != socket && base($0) }
+        let socket = paths.phpFpmSocket(FakeDoctorProbes.defaultVersion).path
+        let base = healthyProbes().fileExistsFn
+        probes.fileExistsFn = { $0.path != socket && base($0) }
         let check = DoctorChecks.php(paths: paths, probes: probes)
         XCTAssertEqual(check.status, .fail)
         XCTAssertEqual(check.action, .openServices)
@@ -272,7 +253,7 @@ final class DoctorServiceTests: XCTestCase {
 
     func testStoppedStackDoesNotReportAMissingSocket() {
         var probes = healthyProbes()
-        probes.launchdSummary = { _ in "job not loaded (launchctl print rc=113)" }
+        probes.launchdJobStateFn = { _ in nil }
         XCTAssertEqual(
             DoctorChecks.php(paths: paths, probes: probes).status, .pass,
             "stop() deletes the socket, so an absent socket with no job loaded is not a fault"
@@ -283,22 +264,6 @@ final class DoctorServiceTests: XCTestCase {
         XCTAssertEqual(DoctorChecks.php(paths: paths, probes: healthyProbes()).status, .pass)
     }
 
-    func testLaunchdJobStateReadsUnloadedRunningAndCrashed() {
-        XCTAssertNil(LaunchdJobState(summary: "job not loaded (launchctl print rc=113)"))
-
-        let noInfo = LaunchdJobState(summary: "job loaded, no exit info reported")
-        XCTAssertEqual(noInfo?.isRunning, false)
-        XCTAssertNil(noInfo?.lastExitCode)
-        XCTAssertEqual(noInfo?.failedStart, false, "no exit code reported is not a failed start")
-
-        let crashed = LaunchdJobState(summary: "state = not running; last exit code = 2; last exit reason = signal")
-        XCTAssertEqual(crashed?.lastExitCode, 2)
-        XCTAssertEqual(crashed?.failedStart, true)
-
-        let running = LaunchdJobState(summary: "state = running; pid = 7; last exit code = 2")
-        XCTAssertEqual(running?.isRunning, true)
-        XCTAssertEqual(running?.failedStart, false)
-    }
 
     func testWorstStatusPicksTheMostSevere() {
         XCTAssertEqual(DoctorStatus.worst([]), .pass)
@@ -309,7 +274,7 @@ final class DoctorServiceTests: XCTestCase {
 
     func testRunProducesEveryCheckAndWorstStatus() async {
         var probes = healthyProbes()
-        probes.udp53Conflict = { DoctorDNSConflict(process: "Valet", message: "Stop Valet.") }
+        probes.udp53ConflictFn = { DoctorDNSConflict(process: "Valet", message: "Stop Valet.") }
         let service = DoctorService(paths: paths, tld: tld, probes: probes, now: { Date(timeIntervalSince1970: 0) })
         let report = await service.run(environment: Self.environment)
 
@@ -325,6 +290,39 @@ final class DoctorServiceTests: XCTestCase {
         XCTAssertEqual(report.status, .pass)
         XCTAssertTrue(report.failures.isEmpty)
     }
+
+
+    func testRunAppendsPluginChecksAfterCoreChecks() async {
+        let provider = FakeCheckProvider(checks: [
+            DoctorCheck(id: "plugin-a", title: "Plugin A", status: .fail, detail: "broke"),
+        ])
+        let service = DoctorService(paths: paths, tld: tld, probes: healthyProbes())
+        let report = await service.run(environment: Self.environment, providers: [provider])
+
+        XCTAssertEqual(report.checks.count, 8)
+        XCTAssertEqual(report.checks.last?.id, "plugin-a", "plugin checks append after the 7 core checks")
+        XCTAssertEqual(report.status, .fail, "a failing plugin check drives the overall status")
+    }
+
+    func testRunWithoutProvidersKeepsSevenChecks() async {
+        let service = DoctorService(paths: paths, tld: tld, probes: healthyProbes())
+        let report = await service.run(environment: Self.environment)
+        XCTAssertEqual(report.checks.count, 7)
+    }
+
+    func testPluginCheckFailureShowsInReportText() async {
+        let provider = FakeCheckProvider(checks: [
+            DoctorCheck(id: "plugin-a", title: "Plugin A", status: .fail, detail: "broke", remedy: "fix it"),
+        ])
+        let service = DoctorService(paths: paths, tld: tld, probes: healthyProbes())
+        let report = await service.run(environment: Self.environment, providers: [provider])
+        let text = DoctorReportFormatter(homePath: "/Users/tester").text(for: report)
+
+        XCTAssertTrue(text.contains("[FAIL] Plugin A"))
+        XCTAssertTrue(text.contains("Fix: fix it"))
+        XCTAssertTrue(text.contains("Overall: FAIL"))
+    }
+
 
     func testReportTextCarriesEveryCheckAndEnvironment() async {
         let service = DoctorService(paths: paths, tld: tld, probes: healthyProbes())
@@ -345,7 +343,7 @@ final class DoctorServiceTests: XCTestCase {
         let paths = AppSupportPaths(root: home.appendingPathComponent("Library/Application Support/KTStack"))
         let caCert = paths.caRootCert.path
         var probes = healthyProbes()
-        probes.fileExists = { $0.path == caCert }
+        probes.fileExistsFn = { $0.path == caCert }
         let report = await DoctorService(paths: paths, tld: tld, probes: probes).run(environment: Self.environment)
         let text = DoctorReportFormatter(homePath: home.path).text(for: report)
 
@@ -366,7 +364,7 @@ final class DoctorServiceTests: XCTestCase {
 
     func testReportTextIncludesRemedyForFailingCheck() async {
         var probes = healthyProbes()
-        probes.readFile = { _ in nil }
+        probes.readFileFn = { _ in nil }
         let service = DoctorService(paths: paths, tld: tld, probes: probes)
         let report = await service.run(environment: Self.environment)
         let text = DoctorReportFormatter(homePath: "/Users/tester").text(for: report)
@@ -379,4 +377,9 @@ final class DoctorServiceTests: XCTestCase {
     private static let environment = DoctorEnvironment(
         appVersion: "1.0", appBuild: "42", systemVersion: "14.5", architecture: "arm64", tld: "test"
     )
+}
+
+private struct FakeCheckProvider: DoctorCheckProviding {
+    let checks: [DoctorCheck]
+    func doctorChecks() async -> [DoctorCheck] { checks }
 }

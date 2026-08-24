@@ -1,18 +1,8 @@
-import AppKit
 import KTPluginKit
-import KTStackCore
-import KTStackKit
-import ServiceManagement
 import SwiftUI
 
-struct KTDoctorScreen: View {
-    var onNavigate: (SidebarItem) -> Void = { _ in }
-
-    @EnvironmentObject private var preferences: AppPreferences
-    @EnvironmentObject private var overlay: KTOverlayCenter
-
-    @State private var report: DoctorReport?
-    @State private var isRunning = false
+struct DoctorSectionView: View {
+    @ObservedObject var model: DoctorViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -23,14 +13,14 @@ struct KTDoctorScreen: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    if let report {
+                    if let report = model.report {
                         summary(report)
                         KTListContainer { rows(report.checks) }
                     } else {
                         EmptyStateView(
                             symbol: "stethoscope",
-                            title: isRunning ? "Running checks…" : "No results yet",
-                            message: isRunning
+                            title: model.isRunning ? "Running checks…" : "No results yet",
+                            message: model.isRunning
                                 ? "Probing the helper, DNS, ports and staged binaries."
                                 : "Run the checks to see what needs attention."
                         )
@@ -44,16 +34,21 @@ struct KTDoctorScreen: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(KTColor.contentBg)
-        .task { await runChecks() }
+        .task { await model.run() }
     }
 
     private var header: some View {
         HStack(spacing: 12) {
             Text("Doctor").font(KTType.screenTitle).tracking(KTType.screenTitleTracking).foregroundStyle(KTColor.ink)
             Spacer()
-            KTButton(title: "Copy report", systemImage: "doc.on.doc", kind: .secondary) { copyReport() }
-            KTButton(title: "Run checks", kind: .primary, isLoading: isRunning) {
-                Task { await runChecks() }
+            KTButton(
+                title: model.didCopy ? "Copied" : "Copy report",
+                systemImage: model.didCopy ? "checkmark" : "doc.on.doc",
+                kind: .secondary
+            ) { model.copyReport() }
+                .disabled(model.report == nil)
+            KTButton(title: "Run checks", kind: .primary, isLoading: model.isRunning) {
+                Task { await model.run() }
             }
         }
     }
@@ -75,7 +70,7 @@ struct KTDoctorScreen: View {
         .padding(.bottom, 12)
     }
 
-    private func rows(_ checks: [KTStackKit.DoctorCheck]) -> some View {
+    private func rows(_ checks: [DoctorCheck]) -> some View {
         VStack(spacing: 0) {
             ForEach(Array(checks.enumerated()), id: \.element.id) { index, check in
                 row(check)
@@ -86,7 +81,7 @@ struct KTDoctorScreen: View {
         }
     }
 
-    private func row(_ check: KTStackKit.DoctorCheck) -> some View {
+    private func row(_ check: DoctorCheck) -> some View {
         HStack(alignment: .top, spacing: 12) {
             KTDot(color: Self.color(for: check.status)).padding(.top, 6)
             VStack(alignment: .leading, spacing: 4) {
@@ -100,43 +95,14 @@ struct KTDoctorScreen: View {
             }
             Spacer(minLength: 12)
             if let action = check.action {
-                KTButton(title: Self.actionTitle(action), kind: .secondary) { perform(action) }
+                KTButton(title: Self.actionTitle(action), kind: .secondary) { model.perform(action) }
             }
         }
         .padding(.vertical, 14)
         .padding(.horizontal, 18)
     }
 
-    private func runChecks() async {
-        guard !isRunning else { return }
-        isRunning = true
-        let tld = preferences.tld
-        let result = await Task.detached(priority: .userInitiated) {
-            await DoctorService(paths: AppSupportPaths(), tld: tld).run()
-        }.value
-        report = result
-        isRunning = false
-    }
-
-    private func copyReport() {
-        guard let report else { overlay.toast("Run the checks first"); return }
-        let text = DoctorReportFormatter().text(for: report)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-        overlay.toast("Doctor report copied")
-    }
-
-    private func perform(_ action: KTStackKit.DoctorRemedyAction) {
-        switch action {
-        case .openLoginItems:
-            if #available(macOS 13, *) { SMAppService.openSystemSettingsLoginItems() }
-        case .openServices: onNavigate(.services)
-        case .openSettings: onNavigate(.settings)
-        case .openRuntimes: onNavigate(.runtimes)
-        }
-    }
-
-    private static func actionTitle(_ action: KTStackKit.DoctorRemedyAction) -> String {
+    private static func actionTitle(_ action: DoctorRemedyAction) -> String {
         switch action {
         case .openLoginItems: "Login Items"
         case .openServices: "Services"
@@ -154,7 +120,7 @@ struct KTDoctorScreen: View {
         return formatter
     }()
 
-    private static func color(for status: KTStackKit.DoctorStatus) -> Color {
+    private static func color(for status: DoctorStatus) -> Color {
         switch status {
         case .pass: Color.KDStatus.running
         case .warn: Color.KDStatus.warning

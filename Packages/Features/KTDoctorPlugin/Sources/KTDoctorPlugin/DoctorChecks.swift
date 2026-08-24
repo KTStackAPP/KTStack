@@ -1,10 +1,11 @@
 import Foundation
 import KTPlatformContracts
+import KTPluginKit
 import KTStackCore
 
-/// Từng check là hàm thuần trên `DoctorProbes`, không đụng hệ thống trực tiếp và không sửa gì.
-public enum DoctorChecks {
-    public static func helper(_ state: DoctorHelperState) -> DoctorCheck {
+/// Từng check là hàm thuần trên `any DoctorProbing`, không đụng hệ thống trực tiếp và không sửa gì.
+enum DoctorChecks {
+    static func helper(_ state: DoctorHelperState) -> DoctorCheck {
         let title = "Privileged helper"
         switch state.registration {
         case .notApplicable:
@@ -53,7 +54,7 @@ public enum DoctorChecks {
         }
     }
 
-    public static func dns(tld: String, probes: DoctorProbes) -> DoctorCheck {
+    static func dns(tld: String, probes: any DoctorProbing) -> DoctorCheck {
         let title = "DNS"
         let resolver = URL(fileURLWithPath: DNSConstants.resolverPath(for: tld))
         guard let contents = probes.readFile(resolver) else {
@@ -90,7 +91,7 @@ public enum DoctorChecks {
         )
     }
 
-    public static func tls(tld: String, paths: AppSupportPaths, probes: DoctorProbes) -> DoctorCheck {
+    static func tls(tld: String, paths: AppSupportPaths, probes: any DoctorProbing) -> DoctorCheck {
         let title = "Local TLS"
         let manageCA = "Open Settings and manage the local certificate authority under Local HTTPS certificates."
         guard probes.fileExists(paths.caRootCert) else {
@@ -123,7 +124,7 @@ public enum DoctorChecks {
         )
     }
 
-    public static func ports(probes: DoctorProbes) -> DoctorCheck {
+    static func ports(probes: any DoctorProbing) -> DoctorCheck {
         var details: [String] = []
         var statuses: [DoctorStatus] = []
         var conflicts: [String] = []
@@ -165,21 +166,11 @@ public enum DoctorChecks {
         )
     }
 
-    public static func binaries(paths: AppSupportPaths, probes: DoctorProbes) -> DoctorCheck {
-        var staged = BinaryStager.binBinaries.map {
-            StagedBinary(name: $0, url: paths.binary($0), required: true)
-        }
-        staged += BinaryStager.optionalBinaryNames.map {
-            StagedBinary(name: $0, url: paths.binary($0), required: false)
-        }
-        staged += installedPHPVersions(paths: paths, probes: probes).map {
-            StagedBinary(name: "php-fpm \($0)", url: paths.phpFpmBinary(version: $0), required: false)
-        }
-
+    static func binaries(probes: any DoctorProbing) -> DoctorCheck {
         var missing: [String] = []
         var invalid: [String] = []
         var verified = 0
-        for item in staged {
+        for item in probes.stagedBinaries {
             guard probes.fileExists(item.url) else {
                 if item.required { missing.append(item.name) }
                 continue
@@ -207,13 +198,12 @@ public enum DoctorChecks {
         )
     }
 
-    public static func services(paths: AppSupportPaths, probes: DoctorProbes) -> DoctorCheck {
+    static func services(probes: any DoctorProbing) -> DoctorCheck {
         var crashed: [String] = []
         var loaded: [String] = []
 
-        for job in launchdJobs(paths: paths, probes: probes) {
-            let summary = probes.launchdSummary(job.label)
-            guard let state = LaunchdJobState(summary: summary) else { continue }
+        for job in probes.launchdJobs {
+            guard let state = probes.launchdJobState(job.label) else { continue }
             loaded.append(job.name)
             if state.failedStart { crashed.append("\(job.name) (last exit \(state.lastExitCode ?? 0))") }
         }
@@ -240,10 +230,11 @@ public enum DoctorChecks {
         )
     }
 
-    public static func php(paths: AppSupportPaths, probes: DoctorProbes) -> DoctorCheck {
+    static func php(paths: AppSupportPaths, probes: any DoctorProbing) -> DoctorCheck {
         let title = "PHP"
-        let defaultVersion = BundledPHP.defaultVersion
-        guard probes.fileExists(paths.phpFpmBinary(version: defaultVersion)) else {
+        let defaultVersion = probes.defaultPHPVersion
+        let versions = probes.installedPHPVersions
+        guard versions.contains(defaultVersion) else {
             return DoctorCheck(
                 id: "php", title: title, status: .fail,
                 detail: "PHP \(defaultVersion) is not installed, so PHP sites cannot be served.",
@@ -253,9 +244,8 @@ public enum DoctorChecks {
         }
 
         // Socket vắng khi pool đang chạy mới là hỏng; stack dừng hẳn thì stop() đã xóa socket.
-        let versions = installedPHPVersions(paths: paths, probes: probes)
         let brokenPools = versions.filter { version in
-            LaunchdJobState(summary: probes.launchdSummary(phpPoolLabel(version))) != nil
+            probes.launchdJobState(probes.phpPoolLabel(version)) != nil
                 && !probes.fileExists(paths.phpFpmSocket(version))
         }
         if !brokenPools.isEmpty {
@@ -270,38 +260,6 @@ public enum DoctorChecks {
             id: "php", title: title, status: .pass,
             detail: "Installed: \(versions.joined(separator: ", ")). Default \(defaultVersion)."
         )
-    }
-
-    struct StagedBinary {
-        let name: String
-        let url: URL
-        let required: Bool
-    }
-
-    struct LaunchdJob {
-        let name: String
-        let label: String
-    }
-
-    /// Job launchd hỏi được với quyền user. PHP-FPM là một job cho mỗi pool version, còn dnsmasq
-    /// là daemon root ở domain `system/` nên `launchctl print` của user không thấy: check DNS và
-    /// chủ sở hữu :53 đã bao trạng thái của nó.
-    static func launchdJobs(paths: AppSupportPaths, probes: DoctorProbes) -> [LaunchdJob] {
-        var jobs = ServiceKind.allCases
-            .filter { $0 != .phpFpm && $0 != .dnsmasq }
-            .map { LaunchdJob(name: $0.displayName, label: $0.launchdLabel) }
-        jobs += installedPHPVersions(paths: paths, probes: probes).map {
-            LaunchdJob(name: "PHP-FPM \($0)", label: phpPoolLabel($0))
-        }
-        return jobs
-    }
-
-    static func phpPoolLabel(_ version: String) -> String {
-        "\(ServiceKind.phpFpm.launchdLabel).\(version)"
-    }
-
-    static func installedPHPVersions(paths: AppSupportPaths, probes: DoctorProbes) -> [String] {
-        BundledPHP.plannedVersions.filter { probes.fileExists(paths.phpFpmBinary(version: $0)) }
     }
 
     static func pointsAtLoopbackResolver(_ contents: String) -> Bool {

@@ -1,4 +1,5 @@
 import AppKit
+import KTDoctorPlugin
 import KTDumpsPlugin
 import KTLogsPlugin
 import KTMailPlugin
@@ -73,6 +74,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor lazy var logsPlugin = KTLogsPlugin(context: server)
 
+    @MainActor lazy var doctorPlugin = KTDoctorPlugin(
+        probes: DoctorProbeService(paths: AppSupportPaths()),
+        tld: { [preferences] in preferences.tld },
+        registry: { [weak self] in self?.plugins ?? [] },
+        route: { [navigation] in navigation.selection = $0.selectionID }
+    )
+
     @MainActor lazy var pluginSections: [PluginSection] = [
         PluginSection(title: "Manage", plugins: [
             LegacySitesPlugin(nav: navigation),
@@ -84,7 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             logsPlugin,
             KTMailPlugin(mailpit: services),
             KTDumpsPlugin(php: server),
-            LegacyDoctorPlugin(nav: navigation),
+            doctorPlugin,
         ]),
     ]
 
@@ -201,6 +209,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let closingWindow = note.object as? NSWindow
         DispatchQueue.main.async {
             AppActivationPolicy.restoreAccessoryIfNoWindows(excluding: closingWindow)
+        }
+    }
+}
+
+// Route enum của Doctor sang selection id sidebar; giữ id shell trong App, không đưa vào package.
+private extension DoctorRoute {
+    var selectionID: String {
+        switch self {
+        case .services: "services"
+        case .settings: "settings"
+        case .runtimes: "runtimes"
         }
     }
 }
