@@ -44,6 +44,11 @@ if [[ ! -f KTStack.xcodeproj/project.pbxproj || project.yml -nt KTStack.xcodepro
     ok "project regenerated"
 fi
 
+begin "architecture-check"
+LOG="$LOG_DIR/architecture-check.log"
+scripts/architecture-check.sh >"$LOG" 2>&1 || fail "architecture-check" "$LOG"
+ok "architecture-check"
+
 begin "lint"
 LOG="$LOG_DIR/lint.log"
 scripts/lint.sh >"$LOG" 2>&1 || fail "lint" "$LOG"

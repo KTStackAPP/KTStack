@@ -107,7 +107,11 @@ plans/
 
 plans/*
 
-docs/
+docs/*
+# Boundary rules are versioned with the code they enforce.
+!docs/architecture/
+docs/architecture/*
+!docs/architecture/dependency-rules.md
 
 .agents/
 
