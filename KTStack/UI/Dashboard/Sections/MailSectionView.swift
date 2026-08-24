@@ -14,9 +14,9 @@ struct MailSectionView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(KTColor.contentBg)
-        .onAppear { if nav.activeItem == .mail { mail.startPolling() } }
+        .onAppear { if nav.activeItem == SidebarItem.mail.rawValue { mail.startPolling() } }
         .onChange(of: nav.activeItem) { item in
-            if item == .mail { mail.startPolling() } else { mail.stopPolling() }
+            if item == SidebarItem.mail.rawValue { mail.startPolling() } else { mail.stopPolling() }
         }
     }
 

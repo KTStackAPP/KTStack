@@ -19,7 +19,9 @@ struct DashboardWindow: View {
     @EnvironmentObject private var documentViewModel: DocumentViewModel
     @EnvironmentObject private var tunnels: TunnelManager
 
-    @StateObject private var nav = DashboardNavigation()
+    @ObservedObject var nav: DashboardNavigation
+    let pluginSections: [PluginSection]
+
     @StateObject private var overlay = KTOverlayCenter()
     @State private var showDNSOnboarding = false
 
@@ -43,7 +45,7 @@ struct DashboardWindow: View {
     }
 
     var body: some View {
-        DashboardSplitRepresentable(nav: nav, env: dashboardEnv)
+        DashboardSplitRepresentable(nav: nav, env: dashboardEnv, sections: pluginSections)
             .frame(minWidth: 720, minHeight: 460)
             .environmentObject(overlay)
             .ktOverlayHost(overlay)
@@ -62,30 +64,8 @@ struct DashboardWindow: View {
     }
 }
 
-enum SidebarSection: String, CaseIterable, Identifiable {
-    case manage, inspect, app
-
-    var id: String {
-        rawValue
-    }
-
-    var title: String {
-        switch self {
-        case .manage: "Manage"
-        case .inspect: "Inspect"
-        case .app: "App"
-        }
-    }
-
-    var items: [SidebarItem] {
-        switch self {
-        case .manage: [.sites, .services, .runtimes, .database]
-        case .inspect: [.logs, .mail, .dumps, .doctor]
-        case .app: [.settings, .about]
-        }
-    }
-}
-
+// Navigation vocabulary nội bộ App: screens gọi onNavigate(.services), adapter map .rawValue → selection id.
+// Teo dần và xóa khi plugin sở hữu route enum riêng (M04+).
 enum SidebarItem: String, CaseIterable, Identifiable {
     case sites, services, runtimes, database, logs, mail, dumps, doctor, settings, about
 

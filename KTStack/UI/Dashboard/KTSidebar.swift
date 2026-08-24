@@ -3,8 +3,31 @@ import KTPluginKit
 import KTStackKit
 import SwiftUI
 
+struct SidebarRowModel: Identifiable {
+    let id: String
+    let title: String
+    let symbol: String
+
+    init(id: String, title: String, symbol: String) {
+        self.id = id
+        self.title = title
+        self.symbol = symbol
+    }
+
+    init(from item: SidebarItem) {
+        self.init(id: item.rawValue, title: item.title, symbol: item.symbol)
+    }
+}
+
+struct KTSidebarGroup: Identifiable {
+    let title: String
+    let rows: [SidebarRowModel]
+    var id: String { title }
+}
+
 struct KTSidebar: View {
-    @Binding var selection: SidebarItem
+    let sections: [KTSidebarGroup]
+    @Binding var selection: String
     let siteCount: Int
     let serverStatus: ServiceStatus
     let version: String
@@ -13,9 +36,9 @@ struct KTSidebar: View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(height: KTMetric.trafficLightInset)
             identity
-            group("MANAGE", SidebarSection.manage.items, topPadding: 0)
-            group("INSPECT", SidebarSection.inspect.items, topPadding: 18)
-            group("APP", SidebarSection.app.items, topPadding: 18)
+            ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
+                group(section, topPadding: index == 0 ? 0 : 18)
+            }
             Spacer(minLength: 12)
             KTSidebarFooterCard(status: serverStatus, version: version)
                 .padding(.bottom, 14)
@@ -46,21 +69,21 @@ struct KTSidebar: View {
         .padding(.bottom, 18)
     }
 
-    private func group(_ title: String, _ items: [SidebarItem], topPadding: CGFloat) -> some View {
+    private func group(_ section: KTSidebarGroup, topPadding: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title)
+            Text(section.title)
                 .font(KTType.sectionLabel)
                 .tracking(KTType.sectionLabelTracking)
                 .foregroundStyle(KTColor.muted)
                 .padding(.horizontal, 8)
                 .padding(.top, topPadding)
                 .padding(.bottom, 8)
-            ForEach(items) { item in
+            ForEach(section.rows) { row in
                 KTSidebarRow(
-                    item: item,
-                    isActive: selection == item,
-                    badge: item == .sites ? siteCount : nil,
-                    action: { selection = item }
+                    row: row,
+                    isActive: selection == row.id,
+                    badge: row.id == "sites" ? siteCount : nil,
+                    action: { selection = row.id }
                 )
             }
         }

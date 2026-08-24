@@ -3,7 +3,7 @@ import KTStackKit
 import SwiftUI
 
 struct KTSidebarRow: View {
-    let item: SidebarItem
+    let row: SidebarRowModel
     let isActive: Bool
     let badge: Int?
     let action: () -> Void
@@ -13,10 +13,10 @@ struct KTSidebarRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 11) {
-                Image(systemName: item.symbol)
+                Image(systemName: row.symbol)
                     .font(.system(size: 15, weight: .regular))
                     .frame(width: 18, height: 18)
-                Text(item.title)
+                Text(row.title)
                     .font(.jbMono(13.5, isActive ? .regular : .medium))
                 Spacer(minLength: 6)
                 if let badge {

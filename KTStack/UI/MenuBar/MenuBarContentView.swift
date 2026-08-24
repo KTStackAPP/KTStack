@@ -25,11 +25,17 @@ private struct MenuBarWindowReader: NSViewRepresentable {
 }
 
 struct MenuBarContentView: View {
+    var plugins: [any KTStackPlugin] = []
+
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var server: LocalServerController
     @EnvironmentObject private var services: ServiceManager
     @EnvironmentObject private var updater: UpdaterController
     @StateObject private var dismisser = MenuBarPopoverDismisser()
+
+    private var menuBarProviders: [any MenuBarProviding] {
+        plugins.compactMap { $0 as? any MenuBarProviding }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -38,6 +44,10 @@ struct MenuBarContentView: View {
             servicesSection
             Divider().padding(.vertical, KDSpacing.space1)
             MenuBarVersionSwitcher()
+            ForEach(Array(menuBarProviders.enumerated()), id: \.offset) { _, provider in
+                Divider().padding(.vertical, KDSpacing.space1)
+                provider.makeMenuBarView()
+            }
             Divider().padding(.vertical, KDSpacing.space1)
             footer
         }

@@ -47,7 +47,7 @@ struct KTDatabaseScreen: View {
             await reloadBackups()
         }
         .onChange(of: nav.activeItem) { item in
-            if item == .database { reachability.start() } else { reachability.stop() }
+            if item == SidebarItem.database.rawValue { reachability.start() } else { reachability.stop() }
         }
         .onDisappear { reachability.stop() }
     }

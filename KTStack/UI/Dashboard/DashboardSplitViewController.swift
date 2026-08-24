@@ -41,9 +41,10 @@ struct DashboardEnv {
 struct DashboardSplitRepresentable: NSViewControllerRepresentable {
     @ObservedObject var nav: DashboardNavigation
     let env: DashboardEnv
+    let sections: [PluginSection]
 
     func makeNSViewController(context _: Context) -> DashboardSplitViewController {
-        DashboardSplitViewController(nav: nav, env: env)
+        DashboardSplitViewController(nav: nav, env: env, sections: sections)
     }
 
     func updateNSViewController(_ controller: DashboardSplitViewController, context _: Context) {
@@ -53,16 +54,32 @@ struct DashboardSplitRepresentable: NSViewControllerRepresentable {
 
 private struct DashboardSidebarHost: View {
     @ObservedObject var nav: DashboardNavigation
+    let sections: [PluginSection]
     @EnvironmentObject private var server: LocalServerController
 
     var body: some View {
         KTSidebar(
+            sections: sidebarSections,
             selection: Binding(get: { nav.selection }, set: { nav.selection = $0 }),
             siteCount: server.registry.sites.count,
             serverStatus: serverStatus,
             version: versionText
         )
         .ignoresSafeArea(.container, edges: .top)
+    }
+
+    // Nhóm plugin từ registry + nhóm APP là shell rows (settings/about), không vào registry.
+    private var sidebarSections: [KTSidebarGroup] {
+        var groups = sections.map { section in
+            KTSidebarGroup(title: section.title.uppercased(), rows: section.plugins.map {
+                SidebarRowModel(id: $0.descriptor.id, title: $0.descriptor.title, symbol: $0.descriptor.systemImage)
+            })
+        }
+        groups.append(KTSidebarGroup(title: "APP", rows: [
+            SidebarRowModel(from: .settings),
+            SidebarRowModel(from: .about),
+        ]))
+        return groups
     }
 
     private var serverStatus: ServiceStatus {
@@ -80,13 +97,15 @@ private struct DashboardSidebarHost: View {
 final class DashboardSplitViewController: NSSplitViewController {
     private let nav: DashboardNavigation
     private let env: DashboardEnv
+    private let sections: [PluginSection]
     private let detailContainer: DetailContainerViewController
     private var modalHost: KTModalHostController?
 
-    init(nav: DashboardNavigation, env: DashboardEnv) {
+    init(nav: DashboardNavigation, env: DashboardEnv, sections: [PluginSection]) {
         self.nav = nav
         self.env = env
-        detailContainer = DetailContainerViewController(nav: nav, env: env)
+        self.sections = sections
+        detailContainer = DetailContainerViewController(nav: nav, env: env, plugins: sections.flatMap(\.plugins))
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -104,7 +123,7 @@ final class DashboardSplitViewController: NSSplitViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        let sidebarController = NSHostingController(rootView: env.inject(DashboardSidebarHost(nav: nav)))
+        let sidebarController = NSHostingController(rootView: env.inject(DashboardSidebarHost(nav: nav, sections: sections)))
         let sidebarItem = NSSplitViewItem(viewController: sidebarController)
         sidebarItem.canCollapse = false
         sidebarItem.minimumThickness = KTMetric.sidebarWidth
@@ -120,20 +139,22 @@ final class DashboardSplitViewController: NSSplitViewController {
         detailContainer.show(nav.selection)
     }
 
-    func show(_ item: SidebarItem) {
-        detailContainer.show(item)
+    func show(_ id: String) {
+        detailContainer.show(id)
     }
 }
 
 final class DetailContainerViewController: NSViewController {
     private let nav: DashboardNavigation
     private let env: DashboardEnv
-    private var cache: [SidebarItem: NSHostingController<AnyView>] = [:]
-    private var current: SidebarItem?
+    private let plugins: [any KTStackPlugin]
+    private var cache: [String: NSHostingController<AnyView>] = [:]
+    private var current: String?
 
-    init(nav: DashboardNavigation, env: DashboardEnv) {
+    init(nav: DashboardNavigation, env: DashboardEnv, plugins: [any KTStackPlugin]) {
         self.nav = nav
         self.env = env
+        self.plugins = plugins
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -148,11 +169,11 @@ final class DetailContainerViewController: NSViewController {
         view = container
     }
 
-    func show(_ item: SidebarItem) {
-        if current == item { return }
+    func show(_ id: String) {
+        if current == id { return }
 
-        let controller = cache[item] ?? makeController(item)
-        cache[item] = controller
+        let controller = cache[id] ?? makeController(id)
+        cache[id] = controller
 
         if let previous = current, let previousController = cache[previous] {
             view.window?.makeFirstResponder(nil)
@@ -172,14 +193,14 @@ final class DetailContainerViewController: NSViewController {
         }
 
         controller.view.isHidden = false
-        current = item
-        DispatchQueue.main.async { [nav] in nav.activeItem = item }
+        current = id
+        DispatchQueue.main.async { [nav] in nav.activeItem = id }
     }
 
-    private func makeController(_ item: SidebarItem) -> NSHostingController<AnyView> {
+    private func makeController(_ id: String) -> NSHostingController<AnyView> {
         let content = VStack(spacing: 0) {
             Color.clear.frame(height: KTMetric.trafficLightInset - 18)
-            detailView(for: item)
+            detailContent(for: id)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(KTColor.contentBg)
@@ -188,21 +209,15 @@ final class DetailContainerViewController: NSViewController {
         return NSHostingController(rootView: AnyView(env.inject(content)))
     }
 
+    private var settingsPanes: [AnyView] {
+        plugins.compactMap { ($0 as? any SettingsProviding)?.makeSettingsPane() }
+    }
+
     @ViewBuilder
-    private func detailView(for item: SidebarItem) -> some View {
-        let nav = nav
-        switch item {
-        case .sites:
-            KTSitesScreen(onOpenLogs: { nav.openLogs($0) }, onNavigate: { nav.selection = $0 })
-        case .services:
-            KTServicesScreen(onNavigate: { nav.selection = $0 }, onOpenLogs: { nav.openLogs($0) })
-        case .runtimes:
-            KTRuntimesScreen()
-        case .logs:
-            LogsSectionView(nav: nav)
-        case .mail:
-            MailSectionView(nav: nav)
-        case .settings:
+    private func detailContent(for id: String) -> some View {
+        if let plugin = plugins.first(where: { $0.descriptor.id == id }) {
+            plugin.makeContentView()
+        } else if id == SidebarItem.settings.rawValue {
             SettingsView(
                 preferences: env.preferences,
                 dns: env.dns,
@@ -210,17 +225,12 @@ final class DetailContainerViewController: NSViewController {
                 runtimes: env.runtimes,
                 caTrust: env.caTrust,
                 updater: env.updater,
-                uninstaller: env.uninstaller
+                uninstaller: env.uninstaller,
+                pluginPanes: settingsPanes
             )
             .navigationTitle("Settings")
-        case .about:
+        } else if id == SidebarItem.about.rawValue {
             AboutSettingsView().navigationTitle("About")
-        case .database:
-            KTDatabaseScreen(nav: nav)
-        case .dumps:
-            DumpsPanelView()
-        case .doctor:
-            KTDoctorScreen(onNavigate: { nav.selection = $0 })
         }
     }
 }

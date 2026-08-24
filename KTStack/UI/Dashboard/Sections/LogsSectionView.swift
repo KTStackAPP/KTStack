@@ -38,14 +38,14 @@ struct LogsSectionView: View {
         }
         .onAppear { activate() }
         .onChange(of: selectedID) { id in
-            guard nav.activeItem == .logs else { return }
+            guard nav.activeItem == SidebarItem.logs.rawValue else { return }
             tail.select(sources.first { $0.id == id })
         }
         .onChange(of: nav.activeItem) { item in
-            if item == .logs { activate() } else { tail.select(nil) }
+            if item == SidebarItem.logs.rawValue { activate() } else { tail.select(nil) }
         }
         .onChange(of: nav.logTarget) { target in
-            guard nav.activeItem == .logs, let target,
+            guard nav.activeItem == SidebarItem.logs.rawValue, let target,
                   sources.contains(where: { $0.id == target }) else { return }
             selectedID = target
             tail.select(sources.first { $0.id == target })
@@ -169,7 +169,7 @@ struct LogsSectionView: View {
     }
 
     private func activate() {
-        guard nav.activeItem == .logs else { return }
+        guard nav.activeItem == SidebarItem.logs.rawValue else { return }
         let available = sources
         if let target = nav.logTarget, available.contains(where: { $0.id == target }) {
             selectedID = target

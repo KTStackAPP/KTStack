@@ -12,6 +12,7 @@ struct SettingsView: View {
     @ObservedObject var caTrust: CATrustService
     @ObservedObject var updater: UpdaterController
     @ObservedObject var uninstaller: UninstallService
+    let pluginPanes: [AnyView]
 
     @State private var confirmUninstall = false
     @State private var selectedTLD: String
@@ -30,7 +31,8 @@ struct SettingsView: View {
         runtimes: RuntimeManager,
         caTrust: CATrustService,
         updater: UpdaterController,
-        uninstaller: UninstallService
+        uninstaller: UninstallService,
+        pluginPanes: [AnyView] = []
     ) {
         self.preferences = preferences
         self.dns = dns
@@ -39,6 +41,7 @@ struct SettingsView: View {
         self.caTrust = caTrust
         self.updater = updater
         self.uninstaller = uninstaller
+        self.pluginPanes = pluginPanes
         _selectedTLD = State(initialValue: preferences.tld)
         _tldDraft = State(initialValue: preferences.tld)
     }
@@ -54,6 +57,9 @@ struct SettingsView: View {
                     updatesGroup
                     maintenanceGroup
                     developerGroup
+                    ForEach(Array(pluginPanes.enumerated()), id: \.offset) { _, pane in
+                        pane
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, KTSpacing.screenGutter).padding(.top, 18).padding(.bottom, 24)
