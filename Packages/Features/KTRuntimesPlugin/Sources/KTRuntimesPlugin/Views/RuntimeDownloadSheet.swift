@@ -1,10 +1,9 @@
 import KTPluginKit
 import KTStackCore
-import KTStackKit
 import SwiftUI
 
 struct RuntimeDownloadSheet: View {
-    @EnvironmentObject private var runtimes: RuntimeManager
+    @ObservedObject var vm: RuntimesViewModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -36,27 +35,27 @@ struct RuntimeDownloadSheet: View {
     }
 
     private var languagesWithReleases: [RuntimeLanguage] {
-        RuntimeLanguage.allCases.filter { !runtimes.availableReleases($0).isEmpty || runtimes.downloads[$0] != nil }
+        RuntimeLanguage.allCases.filter { !vm.availableReleases($0).isEmpty || vm.state.downloads[$0] != nil }
     }
 
     private func languageGroup(_ lang: RuntimeLanguage) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(lang.displayName).font(KDFont.footnote).foregroundStyle(.secondary)
-            if let dl = runtimes.downloads[lang], dl.error == nil {
+            if let dl = vm.state.downloads[lang], dl.error == nil {
                 HStack {
                     ProgressView(value: dl.fraction).frame(maxWidth: 200)
                     Text("\(Int(dl.fraction * 100))%").font(KDFont.footnote).foregroundStyle(.tertiary)
                     Spacer()
-                    Button("Cancel") { runtimes.cancel(lang) }.buttonStyle(.link)
+                    Button("Cancel") { vm.cancel(lang) }.buttonStyle(.link)
                 }
             }
-            ForEach(runtimes.availableReleases(lang)) { release in
+            ForEach(vm.availableReleases(lang)) { release in
                 HStack {
                     Image(systemName: lang.symbolName).foregroundStyle(.secondary).frame(width: 20)
                     Text(release.version).font(KDFont.mono)
                     Spacer()
-                    Button("Install") { runtimes.install(release) }
-                        .disabled(runtimes.isDownloading(lang))
+                    Button("Install") { vm.install(release) }
+                        .disabled(vm.isDownloading(lang))
                 }
                 .padding(.vertical, 2)
             }

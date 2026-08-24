@@ -1,6 +1,5 @@
 import KTPluginKit
 import KTStackCore
-import KTStackKit
 import SwiftUI
 
 enum KTRuntimeState {
@@ -11,6 +10,7 @@ struct KTRuntimeRow: View {
     let language: RuntimeLanguage
     let version: String
     let state: KTRuntimeState
+    let isEndOfLife: Bool
     let downloadFraction: Double?
     let onSetDefault: () -> Void
     let onInstall: () -> Void
@@ -84,10 +84,6 @@ struct KTRuntimeRow: View {
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).frame(width: 28)
         }
-    }
-
-    private var isEndOfLife: Bool {
-        language == .php && BundledPHP.isEndOfLife(version)
     }
 
     private var label: String {

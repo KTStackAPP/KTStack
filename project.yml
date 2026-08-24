@@ -47,6 +47,11 @@ packages:
   # into the app executable, so the bundle stays notarize-clean.
   KTDatabasePlugin:
     path: Packages/Features/KTDatabasePlugin
+  # Seventh feature package (M10): Runtimes. Owns the Runtimes screen (PHP/Node rows, Web Server,
+  # Databases & Cache) and its sheets; platform keeps RuntimeManager, PHP config and Apache install
+  # behind contracts. Deps KTStackCore + KTPlatformContracts + KTPluginKit, never KTStackKit.
+  KTRuntimesPlugin:
+    path: Packages/Features/KTRuntimesPlugin
   # Sparkle auto-update framework (EdDSA-signed appcast). Private key stays offline / in CI;
   # the public key is set as SUPublicEDKey in Info.plist.
   Sparkle:
@@ -143,6 +148,7 @@ targets:
       - package: KTTunnelPlugin
       - package: KTDoctorPlugin
       - package: KTDatabasePlugin
+      - package: KTRuntimesPlugin
       - package: Sparkle
       # Build-order + copy only (no linking); lands in Contents/MacOS so Phase 4's
       # SMAppService daemon plist can reference it. Empty stub for now.

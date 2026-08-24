@@ -1,6 +1,5 @@
+import KTPlatformContracts
 import KTPluginKit
-import KTStackCore
-import KTStackKit
 import SwiftUI
 
 @MainActor
@@ -11,13 +10,15 @@ final class XdebugToggleModel: ObservableObject {
     @Published var error: String?
 
     let version: String
-    private let controller: XdebugController
+    let clientPort: Int
+    private let phpConfig: any PHPExtensionManaging
 
-    init(version: String, reloadPool: @escaping (String) async throws -> Void) {
+    init(version: String, phpConfig: any PHPExtensionManaging) {
         self.version = version
-        controller = XdebugController(paths: AppSupportPaths(), reloadPool: reloadPool)
-        supported = controller.isSupported(version: version)
-        enabled = controller.isEnabled(version: version)
+        self.phpConfig = phpConfig
+        clientPort = phpConfig.xdebugClientPort
+        supported = phpConfig.isXdebugSupported(phpVersion: version)
+        enabled = phpConfig.isXdebugEnabled(phpVersion: version)
     }
 
     func toggle(_ on: Bool) {
@@ -25,13 +26,9 @@ final class XdebugToggleModel: ObservableObject {
         busy = true
         error = nil
         Task {
-            do {
-                if on { try await controller.enable(version: version) }
-                else { try await controller.disable(version: version) }
-            } catch {
-                self.error = error.localizedDescription
-            }
-            enabled = controller.isEnabled(version: version)
+            do { try await phpConfig.setXdebug(on, phpVersion: version) }
+            catch { self.error = error.localizedDescription }
+            enabled = phpConfig.isXdebugEnabled(phpVersion: version)
             busy = false
         }
     }
@@ -40,8 +37,8 @@ final class XdebugToggleModel: ObservableObject {
 struct XdebugToggleView: View {
     @StateObject private var model: XdebugToggleModel
 
-    init(version: String, reloadPool: @escaping (String) async throws -> Void) {
-        _model = StateObject(wrappedValue: XdebugToggleModel(version: version, reloadPool: reloadPool))
+    init(version: String, phpConfig: any PHPExtensionManaging) {
+        _model = StateObject(wrappedValue: XdebugToggleModel(version: version, phpConfig: phpConfig))
     }
 
     var body: some View {
@@ -49,7 +46,7 @@ struct XdebugToggleView: View {
             Toggle(isOn: Binding(get: { model.enabled }, set: { model.toggle($0) })) {
                 HStack {
                     Text("Xdebug").font(KDFont.body)
-                    StatusPill(model.enabled ? .running : .stopped, text: model.enabled ? "on" : "off")
+                    KTBadge(text: model.enabled ? "on" : "off", tint: badgeTint, radius: 20)
                 }
             }
             .disabled(!model.supported || model.busy)
@@ -58,7 +55,7 @@ struct XdebugToggleView: View {
                 Text("Not available for PHP \(model.version) on this platform.")
                     .font(KDFont.footnote).foregroundStyle(.secondary)
             } else {
-                Text("Step debugger on port \(XdebugController.clientPort). Toggling restarts PHP \(model.version) — sites on this version blip briefly.")
+                Text("Step debugger on port \(model.clientPort). Toggling restarts PHP \(model.version); sites on this version blip briefly.")
                     .font(KDFont.footnote).foregroundStyle(.secondary)
             }
             if let error = model.error {
@@ -66,5 +63,11 @@ struct XdebugToggleView: View {
                     .font(KDFont.footnote).foregroundStyle(Color.KDStatus.error)
             }
         }
+    }
+
+    private var badgeTint: KTTint {
+        model.enabled
+            ? KTTint(fg: KTColor.online, bg: KTColor.onlineBg)
+            : KTTint(fg: KTColor.muted, bg: KTColor.pillBg)
     }
 }

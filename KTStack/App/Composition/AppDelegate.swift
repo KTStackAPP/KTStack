@@ -6,6 +6,7 @@ import KTLogsPlugin
 import KTMailPlugin
 import KTPlatformContracts
 import KTPluginKit
+import KTRuntimesPlugin
 import KTStackCore
 import KTStackKit
 import KTTunnelPlugin
@@ -31,6 +32,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }()
 
     @MainActor lazy var runtimes = RuntimeManager()
+
+    @MainActor lazy var runtimesPlugin = KTRuntimesPlugin(
+        runtimes: runtimes,
+        webEngine: server,
+        phpSites: server,
+        phpConfig: PHPConfigService(
+            paths: AppSupportPaths(),
+            reloadPool: { [server] in try await server.reloadPHPPool(version: $0) },
+            restartPool: { [server] in try await server.restartPHPPool(version: $0) }
+        ),
+        engines: services
+    )
 
     @MainActor lazy var updater = UpdaterController()
 
@@ -93,7 +106,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         PluginSection(title: "Manage", plugins: [
             LegacySitesPlugin(nav: navigation),
             LegacyServicesPlugin(nav: navigation),
-            LegacyRuntimesPlugin(nav: navigation),
+            runtimesPlugin,
             databasePlugin,
         ]),
         PluginSection(title: "Inspect", plugins: [

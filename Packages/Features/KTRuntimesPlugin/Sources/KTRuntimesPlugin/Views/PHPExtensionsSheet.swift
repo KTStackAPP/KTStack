@@ -1,17 +1,18 @@
+import KTPlatformContracts
 import KTPluginKit
-import KTStackKit
 import SwiftUI
 
 struct PHPExtensionsSheet: View {
     let version: String
-    @EnvironmentObject private var server: LocalServerController
+    let phpConfig: any PHPExtensionManaging & PHPIniEditing
     @StateObject private var model: PHPExtensionsModel
     @Environment(\.dismiss) private var dismiss
-    @State private var pendingUninstall: PHPExtension?
+    @State private var pendingUninstall: PHPExtensionInfo?
 
-    init(version: String) {
+    init(version: String, phpConfig: any PHPExtensionManaging & PHPIniEditing) {
         self.version = version
-        _model = StateObject(wrappedValue: PHPExtensionsModel(version: version))
+        self.phpConfig = phpConfig
+        _model = StateObject(wrappedValue: PHPExtensionsModel(version: version, phpConfig: phpConfig))
     }
 
     var body: some View {
@@ -24,7 +25,7 @@ struct PHPExtensionsSheet: View {
             .padding(KDSpacing.space3)
             Divider()
 
-            XdebugToggleView(version: version, reloadPool: reloadPool)
+            XdebugToggleView(version: version, phpConfig: phpConfig)
                 .padding(KDSpacing.space3)
             Divider()
 
@@ -32,11 +33,11 @@ struct PHPExtensionsSheet: View {
                 LazyVStack(spacing: 0) {
                     ForEach(model.rows) { row in
                         PHPExtensionRowView(
-                            ext: row.ext, status: row.status,
+                            ext: row.ext, state: row.state,
                             busy: model.busy.contains(row.ext.id),
                             progress: model.progress[row.ext.id],
                             error: model.errors[row.ext.id],
-                            onInstall: { Task { await model.install(row.ext.id, reloadPool: reloadPool) } },
+                            onInstall: { Task { await model.install(row.ext.id) } },
                             onUninstall: { pendingUninstall = row.ext }
                         )
                         Divider()
@@ -57,16 +58,12 @@ struct PHPExtensionsSheet: View {
         .alert(item: $pendingUninstall, content: uninstallAlert)
     }
 
-    private func reloadPool(_ version: String) async throws {
-        try await server.restartPHPPool(version: version)
-    }
-
-    private func uninstallAlert(_ ext: PHPExtension) -> Alert {
+    private func uninstallAlert(_ ext: PHPExtensionInfo) -> Alert {
         Alert(
             title: Text("Uninstall \(ext.displayName)?"),
             message: Text("Removing \(ext.displayName) restarts PHP \(version). Sites that use it will error until they no longer rely on it."),
             primaryButton: .destructive(Text("Uninstall")) {
-                Task { await model.uninstall(ext.id, reloadPool: reloadPool) }
+                Task { await model.uninstall(ext.id) }
             },
             secondaryButton: .cancel()
         )

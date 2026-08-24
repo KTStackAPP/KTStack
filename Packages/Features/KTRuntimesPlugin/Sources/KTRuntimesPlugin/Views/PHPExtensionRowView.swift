@@ -1,10 +1,10 @@
+import KTPlatformContracts
 import KTPluginKit
-import KTStackKit
 import SwiftUI
 
 struct PHPExtensionRowView: View {
-    let ext: PHPExtension
-    let status: PHPExtensionStatus
+    let ext: PHPExtensionInfo
+    let state: PHPExtensionState
     let busy: Bool
     let progress: Double?
     let error: String?
@@ -36,7 +36,7 @@ struct PHPExtensionRowView: View {
     }
 
     @ViewBuilder private var statusIcon: some View {
-        switch status {
+        switch state {
         case .builtIn, .installed:
             Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.KDStatus.running)
         case .installedButFailedToLoad:
@@ -49,7 +49,7 @@ struct PHPExtensionRowView: View {
     }
 
     private var typeTag: some View {
-        Text(ext.type.rawValue)
+        Text(ext.kind)
             .font(.jbMono(9, .regular))
             .padding(.horizontal, 6).padding(.vertical, 1)
             .background(Capsule().fill(Color.secondary.opacity(0.15)))
@@ -58,10 +58,10 @@ struct PHPExtensionRowView: View {
 
     @ViewBuilder private var action: some View {
         if busy {
-            Text(status == .installed || status == .installedButFailedToLoad ? "Removing…" : "Installing…")
+            Text(state == .installed || state == .installedButFailedToLoad ? "Removing…" : "Installing…")
                 .font(KDFont.footnote).foregroundStyle(.secondary)
         } else {
-            switch status {
+            switch state {
             case .builtIn:
                 Text("Built-in").font(KDFont.footnote).foregroundStyle(.tertiary)
             case .installed:

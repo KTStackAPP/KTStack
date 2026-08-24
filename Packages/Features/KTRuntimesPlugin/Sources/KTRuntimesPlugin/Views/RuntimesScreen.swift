@@ -1,12 +1,14 @@
+import KTPlatformContracts
 import KTPluginKit
 import KTStackCore
-import KTStackKit
 import SwiftUI
 
-struct KTRuntimesScreen: View {
-    @EnvironmentObject private var runtimes: RuntimeManager
-    @EnvironmentObject private var server: LocalServerController
-    @EnvironmentObject private var overlay: KTOverlayCenter
+struct RuntimesScreen: View {
+    @ObservedObject var vm: RuntimesViewModel
+    @ObservedObject var engines: EngineVersionsViewModel
+    let phpConfig: any PHPExtensionManaging & PHPIniEditing
+
+    @EnvironmentObject private var feedback: KTFeedbackCenter
 
     @State private var tab: RuntimeLanguage = .php
     @State private var showInstall = false
@@ -16,15 +18,6 @@ struct KTRuntimesScreen: View {
     private struct VersionRef: Identifiable { let version: String; var id: String {
         version
     } }
-
-    private struct Entry: Identifiable {
-        let version: String
-        let state: KTRuntimeState
-        let release: RuntimeRelease?
-        var id: String {
-            version
-        }
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -37,7 +30,7 @@ struct KTRuntimesScreen: View {
                 VStack(alignment: .leading, spacing: 22) {
                     KTListContainer { rows }
                     webServerSection
-                    KTDatabaseEnginesSection()
+                    KTDatabaseEnginesSection(engines: engines)
                 }
                 .padding(.horizontal, KTSpacing.screenGutter)
                 .padding(.top, 16)
@@ -46,9 +39,10 @@ struct KTRuntimesScreen: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(KTColor.contentBg)
-        .sheet(isPresented: $showInstall) { RuntimeDownloadSheet() }
-        .sheet(item: $editingIni) { PHPIniEditorSheet(version: $0.version) }
-        .sheet(item: $managingExt) { PHPExtensionsSheet(version: $0.version) }
+        .sheet(isPresented: $showInstall) { RuntimeDownloadSheet(vm: vm) }
+        .sheet(item: $editingIni) { PHPIniEditorSheet(version: $0.version, phpConfig: phpConfig) }
+        .sheet(item: $managingExt) { PHPExtensionsSheet(version: $0.version, phpConfig: phpConfig) }
+        .ktFeedbackHost(feedback)
     }
 
     private var header: some View {
@@ -61,20 +55,21 @@ struct KTRuntimesScreen: View {
     }
 
     private var rows: some View {
-        let items = entries(tab)
+        let items = vm.entries(tab)
         return VStack(spacing: 0) {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, entry in
                 KTRuntimeRow(
                     language: tab,
                     version: entry.version,
                     state: entry.state,
-                    downloadFraction: downloadFraction(tab, entry.version),
+                    isEndOfLife: vm.isEndOfLife(tab, entry.version),
+                    downloadFraction: vm.downloadFraction(tab, entry.version),
                     onSetDefault: {
-                        runtimes.setGlobalDefault(tab, entry.version)
-                        overlay.toast("\(tab.displayName) \(entry.version) set as default")
+                        vm.setDefault(tab, entry.version)
+                        feedback.toast("\(tab.displayName) \(entry.version) set as default")
                     },
-                    onInstall: { if let release = entry.release { runtimes.install(release) } },
-                    onCancel: { runtimes.cancel(tab) },
+                    onInstall: { if let release = entry.release { vm.install(release) } },
+                    onCancel: { vm.cancel(tab) },
                     onUninstall: { requestUninstall(tab, entry.version) },
                     onEditIni: tab == .php ? { editingIni = VersionRef(version: entry.version) } : nil,
                     onManageExtensions: tab == .php ? { managingExt = VersionRef(version: entry.version) } : nil
@@ -97,8 +92,8 @@ struct KTRuntimesScreen: View {
                     engineRow(name: "Nginx", subtitle: "Front terminator + default per-site engine", trailing: bundledBadge)
                     Rectangle().fill(KTColor.sepFaint).frame(height: 0.5).padding(.leading, 18)
                     engineRow(
-                        name: "Apache \(WebEngineCatalog.apacheVersion)",
-                        subtitle: server.apacheInstallError ?? "Per-site engine · mod_proxy_fcgi to PHP-FPM · .htaccess",
+                        name: "Apache \(vm.webEngine.apacheVersion)",
+                        subtitle: vm.webEngine.error ?? "Per-site engine · mod_proxy_fcgi to PHP-FPM · .htaccess",
                         trailing: apacheControl
                     )
                 }
@@ -108,7 +103,7 @@ struct KTRuntimesScreen: View {
 
     private func engineRow(name: String, subtitle: String, trailing: some View) -> some View {
         HStack(spacing: 14) {
-            KTIconTile(tint: KTServiceVisuals.tint(.nginx), size: 40, radius: 11) {
+            KTIconTile(tint: KTIconTint.globe, size: 40, radius: 11) {
                 Image(systemName: "server.rack").font(.system(size: 18, weight: .medium))
             }
             VStack(alignment: .leading, spacing: 2) {
@@ -122,59 +117,30 @@ struct KTRuntimesScreen: View {
     }
 
     private var bundledBadge: some View {
-        KTBadge(text: "Bundled", tint: KTServiceVisuals.tint(.nginx), radius: 8)
+        KTBadge(text: "Bundled", tint: KTIconTint.globe, radius: 8)
     }
 
     @ViewBuilder
     private var apacheControl: some View {
-        if server.apacheInstalling {
+        if vm.webEngine.installing {
             ProgressView().controlSize(.small).frame(width: 40)
-        } else if server.apacheInstalled {
-            KTBadge(text: "Installed", tint: KTServiceVisuals.tint(.nginx), radius: 8)
+        } else if vm.webEngine.installed {
+            KTBadge(text: "Installed", tint: KTIconTint.globe, radius: 8)
         } else {
-            KTButton(title: "Install", systemImage: "arrow.down.circle", kind: .primary) { server.installApache() }
+            KTButton(title: "Install", systemImage: "arrow.down.circle", kind: .primary) { vm.installApache() }
         }
-    }
-
-    private func entries(_ lang: RuntimeLanguage) -> [Entry] {
-        let installed = (runtimes.installed[lang] ?? [])
-            .sorted { $0.compare($1, options: .numeric) == .orderedDescending }
-        let def = runtimes.defaultVersion(lang)
-        var list = installed.map { Entry(version: $0, state: $0 == def ? .active : .installed, release: nil) }
-        list += runtimes.availableReleases(lang).map { Entry(version: $0.version, state: .available, release: $0) }
-        return list
-    }
-
-    private func downloadFraction(_ lang: RuntimeLanguage, _ version: String) -> Double? {
-        guard let download = runtimes.downloads[lang], download.version == version else { return nil }
-        return download.fraction
     }
 
     private func requestUninstall(_ lang: RuntimeLanguage, _ version: String) {
-        let inUse = lang == .php
-            ? server.registry.sites.filter { $0.type == .php && $0.phpVersion == version }.map(\.domain)
-            : []
-        let name = "\(lang.displayName) \(version)"
-        let message: String
-        if inUse.isEmpty {
-            message = "This deletes the downloaded runtime. You can reinstall it anytime."
-        } else {
-            let n = inUse.count
-            message = "In use by \(n) site\(n == 1 ? "" : "s"): \(inUse.joined(separator: ", "))."
-        }
-        overlay.confirm(
-            title: "Remove \(name)?",
-            message: message,
-            okLabel: inUse.isEmpty ? "Remove" : "Remove anyway",
+        let prompt = vm.uninstallPrompt(lang, version)
+        feedback.confirm(
+            title: prompt.title,
+            message: prompt.message,
+            okLabel: prompt.okLabel,
             danger: true
         ) {
-            performUninstall(lang, version)
+            vm.uninstall(lang, version)
+            feedback.toast("Removed \(lang.displayName) \(version)")
         }
-    }
-
-    private func performUninstall(_ lang: RuntimeLanguage, _ version: String) {
-        runtimes.uninstall(lang, version)
-        if lang == .php { server.reconcileAfterRuntimeChange() }
-        overlay.toast("Removed \(lang.displayName) \(version)")
     }
 }

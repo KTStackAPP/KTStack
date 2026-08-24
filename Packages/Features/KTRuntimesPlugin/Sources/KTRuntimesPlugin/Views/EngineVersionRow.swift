@@ -1,15 +1,15 @@
+import KTPlatformContracts
 import KTPluginKit
-import KTStackKit
 import SwiftUI
 
-enum KTServiceVersionState {
+enum EngineVersionState {
     case active, installed, available
 }
 
-struct KTServiceVersionRow: View {
-    let kind: ServiceKind
+struct EngineVersionRow: View {
+    let engine: ServiceEngine
     let version: String
-    let state: KTServiceVersionState
+    let state: EngineVersionState
     let isEngineRunning: Bool
     let isRunning: Bool
     let isBusy: Bool
@@ -25,8 +25,8 @@ struct KTServiceVersionRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            KTIconTile(tint: KTServiceVisuals.tint(kind), size: 44, radius: 11) {
-                Image(systemName: kind.symbolName).font(.system(size: 20, weight: .medium))
+            KTIconTile(tint: engine.tint, size: 44, radius: 11) {
+                Image(systemName: engine.symbolName).font(.system(size: 20, weight: .medium))
             }
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 9) {
@@ -93,19 +93,19 @@ struct KTServiceVersionRow: View {
     }
 
     private var setActiveHelp: String {
-        if isEngineRunning { return "Stop \(kind.displayName) before switching versions." }
+        if isEngineRunning { return "Stop \(engine.displayName) before switching versions." }
         if isSwitchOrInstallInFlight { return "An operation is in progress." }
         return ""
     }
 
     private var overflowHelp: String {
-        if isEngineRunning { return "Stop \(kind.displayName) before uninstalling." }
+        if isEngineRunning { return "Stop \(engine.displayName) before uninstalling." }
         if isSwitchOrInstallInFlight { return "An operation is in progress." }
         return ""
     }
 
     private var rowLabel: String {
-        "\(kind.displayName) \(version)"
+        "\(engine.displayName) \(version)"
     }
 
     private var badgeText: String {
@@ -126,7 +126,7 @@ struct KTServiceVersionRow: View {
 
     private var rowNote: String {
         switch state {
-        case .active: isRunning ? "Running from \(kind.rawValue)/\(version)." : "Active version. Stopped."
+        case .active: isRunning ? "Running from \(engine.rawValue)/\(version)." : "Active version. Stopped."
         case .installed: "Installed, not active."
         case .available: "Not installed. Download to use."
         }
