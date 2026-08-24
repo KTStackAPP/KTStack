@@ -1,9 +1,8 @@
 import KTPluginKit
-import KTStackKit
 import SwiftUI
 
-struct ServiceErrorBanner: View {
-    let status: ServiceStatus
+struct ServiceBannerView: View {
+    let severity: ServiceBannerSeverity
     let title: String
     let message: String
     var ctaTitle: String?
@@ -11,8 +10,8 @@ struct ServiceErrorBanner: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: KDSpacing.space2) {
-            Image(systemName: status.symbolName)
-                .foregroundStyle(status.color)
+            Image(systemName: severity.symbolName)
+                .foregroundStyle(severity.color)
                 .font(.system(size: 15, weight: .regular))
                 .padding(.top, 1)
             VStack(alignment: .leading, spacing: 2) {
@@ -29,8 +28,8 @@ struct ServiceErrorBanner: View {
         }
         .padding(KDSpacing.space2)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 8).fill(status.color.opacity(0.12)))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(status.color.opacity(0.25), lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: 8).fill(severity.color.opacity(0.12)))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(severity.color.opacity(0.25), lineWidth: 1))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title). \(message)")
     }

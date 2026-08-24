@@ -7,6 +7,7 @@ import KTMailPlugin
 import KTPlatformContracts
 import KTPluginKit
 import KTRuntimesPlugin
+import KTServicesPlugin
 import KTStackCore
 import KTStackKit
 import KTTunnelPlugin
@@ -93,6 +94,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor lazy var navigation = DashboardNavigation(validIDs: Self.frozenSelectionIDs)
 
+    @MainActor lazy var servicesPlugin = KTServicesPlugin(
+        services: services, engines: services, dns: dns, caTrust: caTrust,
+        nginxInclude: NginxIncludeService(
+            paths: AppSupportPaths(),
+            validate: { [server] in await server.validateNginxConfig() },
+            reload: { [server] in try await server.reloadNginxConfig() }
+        ),
+        route: { [navigation] route in
+            switch route {
+            case .runtimes: navigation.selection = "runtimes"
+            case .settings: navigation.selection = "settings"
+            case let .logs(sourceID): navigation.openLogs(sourceID)
+            }
+        }
+    )
+
     @MainActor lazy var logsPlugin = KTLogsPlugin(context: server)
 
     @MainActor lazy var doctorPlugin = KTDoctorPlugin(
@@ -105,7 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor lazy var pluginSections: [PluginSection] = [
         PluginSection(title: "Manage", plugins: [
             LegacySitesPlugin(nav: navigation),
-            LegacyServicesPlugin(nav: navigation),
+            servicesPlugin,
             runtimesPlugin,
             databasePlugin,
         ]),

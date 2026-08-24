@@ -1,13 +1,13 @@
+import KTPlatformContracts
 import KTPluginKit
-import KTStackKit
 import SwiftUI
 
-// Compact Services-tab row for a bundled DB/cache engine: run/stop + swap among installed versions.
-// Version download/uninstall stays on the Runtimes screen (KTDatabaseEnginesSection).
-struct KTDatabaseServiceRow: View, Equatable {
-    let snapshot: ServiceSnapshot
+// Row DB/cache engine trong tab Services: run/stop + đổi version đã cài. Download/uninstall ở Runtimes.
+struct DatabaseServiceRow: View, Equatable {
+    let state: ServiceState
     let installedVersions: [String]
     let activeVersion: String?
+    let vm: ServicesViewModel
     let onToggle: () -> Void
     let onRestart: () -> Void
     let onOpenLogs: () -> Void
@@ -16,35 +16,32 @@ struct KTDatabaseServiceRow: View, Equatable {
 
     @State private var hovering = false
 
-    // Skip re-render on cpu/mem-only changes (sampled ~0.9s) so the metric tick doesn't stutter the
-    // toggle mid-flip. Live metrics update via the isolated DBRowMetricsText subview.
-    static func == (a: KTDatabaseServiceRow, b: KTDatabaseServiceRow) -> Bool {
-        a.snapshot.kind == b.snapshot.kind
-            && a.snapshot.status == b.snapshot.status
-            && a.snapshot.detail == b.snapshot.detail
-            && a.snapshot.isInstalled == b.snapshot.isInstalled
-            && a.snapshot.isBusy == b.snapshot.isBusy
-            && a.snapshot.errorMessage == b.snapshot.errorMessage
+    static func == (a: DatabaseServiceRow, b: DatabaseServiceRow) -> Bool {
+        a.state.id == b.state.id
+            && a.state.health == b.state.health
+            && a.state.detail == b.state.detail
+            && a.state.isInstalled == b.state.isInstalled
+            && a.state.isBusy == b.state.isBusy
+            && a.state.errorMessage == b.state.errorMessage
             && a.activeVersion == b.activeVersion
             && a.installedVersions == b.installedVersions
     }
 
-    private var kind: ServiceKind { snapshot.kind }
-    private var isRunning: Bool { snapshot.status == .running }
+    private var isRunning: Bool { state.health == .running }
 
     var body: some View {
         HStack(spacing: 14) {
-            KTIconTile(tint: KTServiceVisuals.tint(kind), size: 40, radius: 11) {
-                Image(systemName: snapshot.symbolName).font(.system(size: 18, weight: .medium))
+            KTIconTile(tint: state.id.tint, size: 40, radius: 11) {
+                Image(systemName: state.symbolName).font(.system(size: 18, weight: .medium))
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(snapshot.displayName).font(KTType.rowName).foregroundStyle(KTColor.ink)
+                Text(state.displayName).font(KTType.rowName).foregroundStyle(KTColor.ink)
                 Text(secondaryText).font(KTType.sub).foregroundStyle(KTColor.muted).lineLimit(1).truncationMode(.tail)
             }
             Spacer(minLength: 8)
-            if snapshot.isInstalled {
+            if state.isInstalled {
                 versionDropdown
-                DBRowMetricsText(kind: kind)
+                ServiceMetricsText(vm: vm, id: state.id)
                 statusLabel.frame(width: 104, alignment: .leading)
                 restartButton
                 trailingControl
@@ -62,8 +59,7 @@ struct KTDatabaseServiceRow: View, Equatable {
 
     @ViewBuilder
     private var versionDropdown: some View {
-        // KTDropdown holds versions only (no divider / action items); switching is blocked while the
-        // engine runs because ServiceManager.setActiveVersion refuses a version change on a live engine.
+        // KTDropdown chỉ chứa version; đổi bị chặn khi engine đang chạy vì setActiveVersion từ chối.
         KTDropdown(
             width: 150,
             options: installedVersions.map { version in
@@ -73,14 +69,14 @@ struct KTDatabaseServiceRow: View, Equatable {
             KTDropdownChevronLabel(text: activeVersion ?? "—")
         }
         .fixedSize()
-        .disabled(isRunning || snapshot.isBusy || installedVersions.isEmpty)
-        .opacity(isRunning || snapshot.isBusy ? 0.5 : 1)
-        .help(isRunning ? "Stop \(kind.displayName) to switch version" : "")
+        .disabled(isRunning || state.isBusy || installedVersions.isEmpty)
+        .opacity(isRunning || state.isBusy ? 0.5 : 1)
+        .help(isRunning ? "Stop \(state.displayName) to switch version" : "")
     }
 
     @ViewBuilder
     private var trailingControl: some View {
-        if snapshot.isBusy {
+        if state.isBusy {
             ProgressView().controlSize(.small).frame(width: 40)
         } else {
             KTToggle(isOn: isRunning, action: onToggle)
@@ -99,7 +95,7 @@ struct KTDatabaseServiceRow: View, Equatable {
         .buttonStyle(.plain)
         .disabled(!canRestart)
         .opacity(canRestart ? 1 : 0.4)
-        .help("Restart \(snapshot.displayName)")
+        .help("Restart \(state.displayName)")
     }
 
     private var overflowMenu: some View {
@@ -114,7 +110,7 @@ struct KTDatabaseServiceRow: View, Equatable {
     }
 
     private var canRestart: Bool {
-        snapshot.isInstalled && isRunning && !snapshot.isBusy
+        state.isInstalled && isRunning && !state.isBusy
     }
 
     private var statusLabel: some View {
@@ -125,17 +121,17 @@ struct KTDatabaseServiceRow: View, Equatable {
     }
 
     private var pillText: String {
-        snapshot.status == .warning ? "Degraded" : snapshot.status.label
+        state.health == .warning ? "Degraded" : state.health.label
     }
 
     private var secondaryText: String {
-        if !snapshot.isInstalled { return "Not installed — install in Runtimes" }
-        if let error = snapshot.errorMessage { return error }
-        return KTServiceVisuals.subtitle(kind)
+        if !state.isInstalled { return "Not installed. Install in Runtimes." }
+        if let error = state.errorMessage { return error }
+        return state.id.subtitle
     }
 
     private var dotColor: Color {
-        switch snapshot.status {
+        switch state.health {
         case .running: KTColor.runDot
         case .error: KTColor.danger
         case .warning: Color(hex: 0xFF9F0A)
@@ -145,24 +141,11 @@ struct KTDatabaseServiceRow: View, Equatable {
     }
 
     private var textColor: Color {
-        switch snapshot.status {
+        switch state.health {
         case .running: KTColor.ink
         case .error: KTColor.danger
         case .warning: Color(hex: 0xFF9F0A)
         default: KTColor.stopText
-        }
-    }
-}
-
-// Observes ServiceManager on its own so the ~0.9s cpu/mem refresh re-renders just this text, not the
-// parent row (Equatable skips metric-only changes, keeping the toggle smooth).
-private struct DBRowMetricsText: View {
-    @EnvironmentObject private var services: ServiceManager
-    let kind: ServiceKind
-
-    var body: some View {
-        if let metrics = services.snapshots.first(where: { $0.kind == kind })?.metricsText {
-            Text(metrics).font(.jbMono(12)).monospacedDigit().foregroundStyle(KTColor.muted)
         }
     }
 }

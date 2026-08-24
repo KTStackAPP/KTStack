@@ -1,10 +1,11 @@
+import KTPlatformContracts
 import KTPluginKit
-import KTStackKit
 import SwiftUI
 
-struct KTServiceRow: View, Equatable {
-    let snapshot: ServiceSnapshot
+struct ServiceRow: View, Equatable {
+    let state: ServiceState
     let canToggle: Bool
+    let vm: ServicesViewModel
     let onToggle: () -> Void
     let onRestart: () -> Void
     let onOpenLogs: () -> Void
@@ -16,32 +17,31 @@ struct KTServiceRow: View, Equatable {
     @State private var hovering = false
     @State private var showResetConfirm = false
 
-    // Skip re-rendering on cpu/mem-only changes (sampled every ~0.9s): otherwise the periodic
-    // metric tick re-lays-out the row mid-toggle and the knob stutters. Live metrics still update
-    // via the isolated KTServiceMetricsText subview below.
-    static func == (a: KTServiceRow, b: KTServiceRow) -> Bool {
+    // Bỏ qua re-render khi chỉ cpu/mem đổi (~0.9s): metric tick nếu không sẽ layout lại row lúc đang
+    // toggle làm knob giật. Metrics live cập nhật qua subview ServiceMetricsText tách riêng.
+    static func == (a: ServiceRow, b: ServiceRow) -> Bool {
         a.canToggle == b.canToggle
-            && a.snapshot.kind == b.snapshot.kind
-            && a.snapshot.status == b.snapshot.status
-            && a.snapshot.detail == b.snapshot.detail
-            && a.snapshot.isInstalled == b.snapshot.isInstalled
-            && a.snapshot.isBusy == b.snapshot.isBusy
-            && a.snapshot.errorMessage == b.snapshot.errorMessage
-            && a.snapshot.installable == b.snapshot.installable
-            && a.snapshot.downloadFraction == b.snapshot.downloadFraction
+            && a.state.id == b.state.id
+            && a.state.health == b.state.health
+            && a.state.detail == b.state.detail
+            && a.state.isInstalled == b.state.isInstalled
+            && a.state.isBusy == b.state.isBusy
+            && a.state.errorMessage == b.state.errorMessage
+            && a.state.installable == b.state.installable
+            && a.state.downloadFraction == b.state.downloadFraction
     }
 
     var body: some View {
         HStack(spacing: 14) {
-            KTIconTile(tint: tint, size: 40, radius: 11) {
-                Image(systemName: snapshot.symbolName).font(.system(size: 18, weight: .medium))
+            KTIconTile(tint: state.id.tint, size: 40, radius: 11) {
+                Image(systemName: state.symbolName).font(.system(size: 18, weight: .medium))
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(snapshot.displayName).font(KTType.rowName).foregroundStyle(KTColor.ink)
+                Text(state.displayName).font(KTType.rowName).foregroundStyle(KTColor.ink)
                 Text(secondaryText).font(KTType.sub).foregroundStyle(KTColor.muted).lineLimit(1).truncationMode(.tail)
             }
             Spacer(minLength: 8)
-            KTServiceMetricsText(kind: snapshot.kind)
+            ServiceMetricsText(vm: vm, id: state.id)
             statusLabel.frame(width: 104, alignment: .leading)
             restartButton
             trailingControl
@@ -52,11 +52,11 @@ struct KTServiceRow: View, Equatable {
         .background(hovering ? KTColor.rowHover : Color.clear)
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
-        .confirmationDialog("Reset \(snapshot.displayName) data?", isPresented: $showResetConfirm) {
-            Button("Reset \(snapshot.displayName) data", role: .destructive, action: onResetData)
+        .confirmationDialog("Reset \(state.displayName) data?", isPresented: $showResetConfirm) {
+            Button("Reset \(state.displayName) data", role: .destructive, action: onResetData)
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This permanently deletes \(snapshot.displayName)'s stored data, then restarts it from an empty datastore.")
+            Text("This permanently deletes \(state.displayName)'s stored data, then restarts it from an empty datastore.")
         }
     }
 
@@ -69,20 +69,20 @@ struct KTServiceRow: View, Equatable {
 
     @ViewBuilder
     private var trailingControl: some View {
-        if let fraction = snapshot.downloadFraction {
+        if let fraction = state.downloadFraction {
             HStack(spacing: 6) {
                 ProgressView(value: fraction).frame(width: 56)
                 Button { onCancelInstall() } label: { Image(systemName: "xmark.circle").foregroundStyle(KTColor.muted) }
                     .buttonStyle(.plain)
             }
-        } else if !snapshot.isInstalled, snapshot.installable {
+        } else if !state.isInstalled, state.installable {
             KTButton(title: "Install", kind: .primary, action: onInstall)
-        } else if snapshot.isBusy {
+        } else if state.isBusy {
             ProgressView().controlSize(.small).frame(width: 40)
         } else {
-            KTToggle(isOn: snapshot.status == .running, action: onToggle)
-                .disabled(!canToggle || !snapshot.isInstalled)
-                .opacity(canToggle && snapshot.isInstalled ? 1 : 0.45)
+            KTToggle(isOn: state.health == .running, action: onToggle)
+                .disabled(!canToggle || !state.isInstalled)
+                .opacity(canToggle && state.isInstalled ? 1 : 0.45)
         }
     }
 
@@ -98,17 +98,17 @@ struct KTServiceRow: View, Equatable {
         .buttonStyle(.plain)
         .disabled(!canRestart)
         .opacity(canRestart ? 1 : 0.4)
-        .help("Restart \(snapshot.displayName)")
+        .help("Restart \(state.displayName)")
     }
 
     private var overflowMenu: some View {
         Menu {
             Button("Open Logs", systemImage: "text.alignleft", action: onOpenLogs)
-                .disabled(snapshot.kind == .dnsmasq)
-            if snapshot.kind == .nginx, let editConfig = onEditConfig {
+                .disabled(state.id == .dnsmasq)
+            if state.id == .nginx, let editConfig = onEditConfig {
                 Button("Edit nginx config…", systemImage: "doc.text", action: editConfig)
             }
-            if snapshot.kind == .mongodb, snapshot.status == .error {
+            if state.id == .mongodb, state.health == .error {
                 Divider()
                 Button("Reset Data…", systemImage: "trash", role: .destructive) { showResetConfirm = true }
             }
@@ -120,25 +120,25 @@ struct KTServiceRow: View, Equatable {
     }
 
     private var canRestart: Bool {
-        canToggle && snapshot.isInstalled && snapshot.status == .running
+        canToggle && state.isInstalled && state.health == .running
     }
 
     private var pillText: String {
-        guard snapshot.isInstalled else { return "Not installed" }
-        return snapshot.status == .warning ? "Degraded" : snapshot.status.label
+        guard state.isInstalled else { return "Not installed" }
+        return state.health == .warning ? "Degraded" : state.health.label
     }
 
     private var secondaryText: String {
-        if !snapshot.isInstalled {
-            return snapshot.installable ? "Not installed — click Install to download" : "Not available in this build yet"
+        if !state.isInstalled {
+            return state.installable ? "Not installed. Click Install to download." : "Not available in this build yet"
         }
-        if let error = snapshot.errorMessage { return error }
-        return KTServiceVisuals.subtitle(snapshot.kind)
+        if let error = state.errorMessage { return error }
+        return state.id.subtitle
     }
 
     private var dotColor: Color {
-        guard snapshot.isInstalled else { return KTColor.stopDot }
-        switch snapshot.status {
+        guard state.isInstalled else { return KTColor.stopDot }
+        switch state.health {
         case .running: return KTColor.runDot
         case .error: return KTColor.danger
         case .warning: return Color(hex: 0xFF9F0A)
@@ -148,28 +148,24 @@ struct KTServiceRow: View, Equatable {
     }
 
     private var textColor: Color {
-        guard snapshot.isInstalled else { return KTColor.stopText }
-        switch snapshot.status {
+        guard state.isInstalled else { return KTColor.stopText }
+        switch state.health {
         case .running: return KTColor.ink
         case .error: return KTColor.danger
         case .warning: return Color(hex: 0xFF9F0A)
         default: return KTColor.stopText
         }
     }
-
-    private var tint: KTTint {
-        KTServiceVisuals.tint(snapshot.kind)
-    }
 }
 
-// Observes ServiceManager on its own so the ~0.9s cpu/mem refresh re-renders just this text, not
-// the parent row (which is Equatable and skips metric-only changes — keeping toggles smooth).
-private struct KTServiceMetricsText: View {
-    @EnvironmentObject private var services: ServiceManager
-    let kind: ServiceKind
+// Quan sát vm riêng để refresh cpu/mem (~0.9s) chỉ render lại text này, không phải row cha
+// (Equatable bỏ qua thay đổi chỉ-metric nên toggle mượt).
+struct ServiceMetricsText: View {
+    @ObservedObject var vm: ServicesViewModel
+    let id: ServiceID
 
     var body: some View {
-        if let metrics = services.snapshots.first(where: { $0.kind == kind })?.metricsText {
+        if let metrics = vm.metricsText(id) {
             Text(metrics).font(.jbMono(12)).monospacedDigit().foregroundStyle(KTColor.muted)
         }
     }
