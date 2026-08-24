@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 import KTStackCore
 
 public struct CloudflaredRelease: Sendable {
@@ -17,7 +18,7 @@ public struct CloudflaredRelease: Sendable {
     }
 }
 
-public actor CloudflaredBinaryProvisioner {
+public actor CloudflaredBinaryProvisioner: TunnelBinaryProviding {
     public static let release = CloudflaredRelease(
         version: "2026.6.0",
         arm64SHA256: "c43b115549b79780221a45299610c8c8ef99aa99af0cc5aae76e6fb31809dde6",
@@ -66,6 +67,10 @@ public actor CloudflaredBinaryProvisioner {
     public func cancel() {
         inFlight?.cancel()
         inFlight = nil
+    }
+
+    public func ensureCloudflaredInstalled() async throws -> URL {
+        try await ensureInstalled { _ in }
     }
 
     private func performInstall(

@@ -1,33 +1,19 @@
 import Combine
 import Foundation
+import KTPlatformContracts
 import KTStackCore
 
 @MainActor
 public final class TunnelManager: ObservableObject {
-    private enum PreparationError: LocalizedError {
-        case originPortNotListening(Int)
-        case nginxRecoveryFailed(Int, String)
-
-        var errorDescription: String? {
-            switch self {
-            case let .originPortNotListening(port):
-                "Nginx did not start listening on tunnel origin port \(port). Restart local services and try sharing again."
-            case let .nginxRecoveryFailed(port, message):
-                "Nginx could not activate tunnel origin port \(port): \(message)"
-            }
-        }
-    }
-
     @Published public private(set) var sessions: [UUID: TunnelSession] = [:]
 
     public var ttl: TimeInterval = 30 * 60
 
     private let paths: AppSupportPaths
+    private let origin: TunnelOriginService
+    private let jobs: TunnelJobRunner
     private let provisioner: CloudflaredBinaryProvisioner
-    private let generator: SiteConfigGenerator
-    private let tunnelWriter = NginxTunnelVhostWriter()
-    private let preflight = PortPreflight()
-    private let nginx: NginxController
+    private var activeSites: [UUID: Site] = [:]
     private var controllers: [UUID: TunnelController] = [:]
     private var startTasks: [UUID: Task<Void, Never>] = [:]
     private var ttlTasks: [UUID: Task<Void, Never>] = [:]
@@ -35,8 +21,11 @@ public final class TunnelManager: ObservableObject {
     public init(paths: AppSupportPaths = AppSupportPaths()) {
         self.paths = paths
         provisioner = CloudflaredBinaryProvisioner(paths: paths)
-        generator = SiteConfigGenerator(paths: paths)
-        nginx = NginxController(paths: paths, agents: LaunchAgentManager(paths: paths))
+        jobs = TunnelJobRunner(paths: paths)
+        // Site lookup từ bản ghi active của manager (phase M07-1); phase 2 chuyển sang App/registry.
+        var lookup: (@MainActor (UUID) -> Site?)!
+        origin = TunnelOriginService(paths: paths, resolveSite: { lookup($0) })
+        lookup = { [weak self] in self?.activeSites[$0] }
     }
 
     public func isSharing(_ siteID: UUID) -> Bool {
@@ -50,6 +39,7 @@ public final class TunnelManager: ObservableObject {
     public func start(site: Site) {
         guard !isSharing(site.id), startTasks[site.id] == nil else { return }
         tearDown(site.id)
+        activeSites[site.id] = site
         let startedAt = Date()
         sessions[site.id] = TunnelSession(
             siteID: site.id,
@@ -59,11 +49,11 @@ public final class TunnelManager: ObservableObject {
             startedAt: startedAt,
             expiresAt: ttl > 0 ? startedAt.addingTimeInterval(ttl) : nil
         )
-        let siteID = site.id
-        startTasks[siteID] = Task { [weak self] in
-            await self?.runStart(site: site)
+        let target = TunnelSiteTarget(id: site.id, domain: site.domain, secure: site.secure)
+        startTasks[target.id] = Task { [weak self] in
+            await self?.runStart(target: target)
         }
-        scheduleTTL(siteID)
+        scheduleTTL(target.id)
     }
 
     public func stop(site siteID: UUID) {
@@ -72,8 +62,8 @@ public final class TunnelManager: ObservableObject {
     }
 
     public func reapStaleJobs() {
-        LaunchAgentManager(paths: paths).bootout(matchingPrefix: "com.ktstack.tunnel.")
-        removeAllTunnelVhosts()
+        jobs.bootoutAllTunnelJobs()
+        origin.removeAllOrigins(reloadFront: true)
     }
 
     public func reconcile(sites: [Site]) {
@@ -105,7 +95,8 @@ public final class TunnelManager: ObservableObject {
         if let controller = controllers.removeValue(forKey: siteID) {
             Task { await controller.stop() }
         }
-        removeTunnelVhost(siteID)
+        origin.removeOrigin(siteID: siteID)
+        activeSites[siteID] = nil
     }
 
     private func scheduleTTL(_ siteID: UUID) {
@@ -124,30 +115,28 @@ public final class TunnelManager: ObservableObject {
         updateStatus(siteID, .expired)
     }
 
-    private func runStart(site: Site) async {
-        let siteID = site.id
+    private func runStart(target: TunnelSiteTarget) async {
+        let siteID = target.id
         if Task.isCancelled { clearStart(siteID); return }
-        // Inverted check: port 80 being free means nothing is serving, so the local stack is down
-        // and a tunnel would point at a dead origin.
-        if case .available = preflight.check(port: 80) {
+        guard origin.isFrontListening else {
             finishStart(siteID, status: .error("Local server isn't running — start KTStack's services first."))
             return
         }
         do {
             if Task.isCancelled { clearStart(siteID); return }
-            let originPort = try await prepareTunnelVhost(for: site)
+            let originPort = try await origin.prepareOrigin(siteID: siteID)
             if Task.isCancelled { clearStart(siteID); return }
-            let binary = try await provisioner.ensureInstalled { _ in }
+            let binary = try await provisioner.ensureCloudflaredInstalled()
             if Task.isCancelled { clearStart(siteID); return }
             let controller = TunnelController(paths: paths, siteID: siteID)
             controllers[siteID] = controller
             await controller.start(
                 binary: binary,
                 originPort: originPort,
-                localDomain: site.domain,
+                localDomain: target.domain,
                 onURL: { [weak self] url in
                     guard let host = url.host else { return }
-                    await self?.applyPublicHost(site: site, port: originPort, publicHost: host)
+                    await self?.applyPublicHost(target: target, port: originPort, publicHost: host)
                 },
                 onStatus: { [weak self] status in
                     Task { @MainActor [weak self] in
@@ -161,6 +150,20 @@ public final class TunnelManager: ObservableObject {
         } catch {
             finishStart(siteID, status: .error(error.localizedDescription))
         }
+    }
+
+    private func applyPublicHost(target: TunnelSiteTarget, port: Int, publicHost: String) async {
+        guard sessions[target.id]?.status.isBusy == true else { return }
+        try? TunnelHostPrepend.write(
+            to: paths.tunnelHostPrependFile,
+            chainingPrepend: paths.dumpsPrependFile
+        )
+        await origin.applyPublicHost(
+            publicHost,
+            siteID: target.id,
+            port: port,
+            hostPrependFile: paths.tunnelHostPrependFile
+        )
     }
 
     private func updateStatus(_ siteID: UUID, _ status: TunnelStatus) {
@@ -177,119 +180,5 @@ public final class TunnelManager: ObservableObject {
     private func clearStart(_ siteID: UUID) {
         tearDown(siteID)
         sessions[siteID] = nil
-    }
-
-    private func prepareTunnelVhost(for site: Site) async throws -> Int {
-        let port = selectTunnelPort(site.id)
-        try writeTunnelVhost(site: site, port: port, publicHost: nil)
-        try await activateTunnelVhost(port: port)
-        return port
-    }
-
-    private func writeTunnelVhost(site: Site, port: Int, publicHost: String?) throws {
-        let socket = site.type == .php ? paths.phpFpmSocket(generator.effectivePHPVersion(site.phpVersion)) : nil
-        if publicHost != nil {
-            try? TunnelHostPrepend.write(
-                to: paths.tunnelHostPrependFile,
-                chainingPrepend: paths.dumpsPrependFile
-            )
-        }
-        let config = tunnelWriter.vhost(
-            site: site,
-            port: port,
-            phpFpmSocket: socket,
-            accessLog: paths.siteAccessLog(site.domain),
-            errorLog: paths.siteErrorLog(site.domain),
-            publicHost: publicHost,
-            supportsBodyRewrite: nginx.supportsResponseBodyRewrite(),
-            hostPrependFile: paths.tunnelHostPrependFile
-        )
-        try config.write(to: tunnelVhostURL(site.id), atomically: true, encoding: .utf8)
-    }
-
-    private func applyPublicHost(site: Site, port: Int, publicHost: String) async {
-        guard sessions[site.id]?.status.isBusy == true else { return }
-        guard FileManager.default.fileExists(atPath: tunnelVhostURL(site.id).path) else { return }
-        guard (try? writeTunnelVhost(site: site, port: port, publicHost: publicHost)) != nil else { return }
-        await reloadNginxTolerant()
-    }
-
-    private func activateTunnelVhost(port: Int) async throws {
-        if await reloadNginxTolerant(), await waitForTunnelPort(port) { return }
-        try await restartNginxForTunnelPort(port, originalError: PreparationError.originPortNotListening(port))
-    }
-
-    @discardableResult
-    private func reloadNginxTolerant() async -> Bool {
-        for attempt in 0..<3 {
-            do {
-                try nginx.reload()
-                return true
-            } catch {
-                if attempt == 2 { return false }
-                try? await Task.sleep(nanoseconds: 150_000_000)
-            }
-        }
-        return false
-    }
-
-    private func restartNginxForTunnelPort(_ port: Int, originalError: Error) async throws {
-        do {
-            try nginx.restart()
-            if await waitForTunnelPort(port) { return }
-            throw PreparationError.originPortNotListening(port)
-        } catch {
-            let message = [originalError.localizedDescription, error.localizedDescription]
-                .filter { !$0.isEmpty }
-                .joined(separator: " | ")
-            throw PreparationError.nginxRecoveryFailed(port, message)
-        }
-    }
-
-    private func waitForTunnelPort(_ port: Int) async -> Bool {
-        for _ in 0..<20 {
-            if HealthChecker.tcpConnect(host: "127.0.0.1", port: port, timeout: 0.3) { return true }
-            try? await Task.sleep(nanoseconds: 100_000_000)
-        }
-        return false
-    }
-
-    private func removeTunnelVhost(_ siteID: UUID) {
-        let url = tunnelVhostURL(siteID)
-        guard FileManager.default.fileExists(atPath: url.path) else { return }
-        try? FileManager.default.removeItem(at: url)
-        Task { await reloadNginxTolerant() }
-    }
-
-    private func tunnelVhostURL(_ siteID: UUID) -> URL {
-        paths.vhost("tunnel-\(siteID.uuidString)")
-    }
-
-    private func removeAllTunnelVhosts() {
-        guard let files = try? FileManager.default.contentsOfDirectory(
-            at: paths.sitesEnabled,
-            includingPropertiesForKeys: nil
-        ) else { return }
-        var removed = false
-        for file in files where file.lastPathComponent.hasPrefix("tunnel-") && file.pathExtension == "conf" {
-            try? FileManager.default.removeItem(at: file)
-            removed = true
-        }
-        if removed { Task { await reloadNginxTolerant() } }
-    }
-
-    // Derive a stable base port from the site UUID so a restart reuses the same port; scan forward
-    // (wrapping inside 41000-50999) to skip one already taken by another tunnel.
-    private func selectTunnelPort(_ siteID: UUID) -> Int {
-        let base = 41000 + stablePortOffset(siteID)
-        for offset in 0..<1000 {
-            let port = 41000 + ((base - 41000 + offset) % 10000)
-            if case .available = preflight.check(port: port) { return port }
-        }
-        return base
-    }
-
-    private func stablePortOffset(_ siteID: UUID) -> Int {
-        siteID.uuidString.utf8.reduce(0) { ($0 &+ Int($1)) % 10000 }
     }
 }
