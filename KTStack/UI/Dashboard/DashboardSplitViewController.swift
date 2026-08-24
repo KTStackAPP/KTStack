@@ -150,6 +150,7 @@ final class DetailContainerViewController: NSViewController {
     private let plugins: [any KTStackPlugin]
     private var cache: [String: NSHostingController<AnyView>] = [:]
     private var current: String?
+    private var isSectionVisible = false
 
     init(nav: DashboardNavigation, env: DashboardEnv, plugins: [any KTStackPlugin]) {
         self.nav = nav
@@ -171,6 +172,7 @@ final class DetailContainerViewController: NSViewController {
 
     func show(_ id: String) {
         if current == id { return }
+        let previous = current
 
         let controller = cache[id] ?? makeController(id)
         cache[id] = controller
@@ -194,7 +196,32 @@ final class DetailContainerViewController: NSViewController {
 
         controller.view.isHidden = false
         current = id
+        if isSectionVisible { notifyActivation(from: previous, to: id) }
         DispatchQueue.main.async { [nav] in nav.activeItem = id }
+    }
+
+    override func viewWillAppear() {
+        super.viewWillAppear()
+        guard !isSectionVisible else { return }
+        isSectionVisible = true
+        notifyActivation(from: nil, to: current)
+    }
+
+    override func viewDidDisappear() {
+        super.viewDidDisappear()
+        guard isSectionVisible else { return }
+        isSectionVisible = false
+        notifyActivation(from: current, to: nil)
+    }
+
+    private func notifyActivation(from oldID: String?, to newID: String?) {
+        plugin(for: oldID)?.sectionDidDeactivate()
+        plugin(for: newID)?.sectionDidActivate()
+    }
+
+    private func plugin(for id: String?) -> (any SectionActivationObserving)? {
+        guard let id else { return nil }
+        return plugins.first { $0.descriptor.id == id } as? any SectionActivationObserving
     }
 
     private func makeController(_ id: String) -> NSHostingController<AnyView> {

@@ -20,3 +20,10 @@ public protocol PluginLifecycle {
     // Chạy trong quit khi coordinator block main thread, nên KHÔNG được hop @MainActor: deadlock.
     func shutdown() async
 }
+
+// Shell keep-alive ẩn/hiện view bằng isHidden nên onAppear SwiftUI không refire; plugin cần tín
+// hiệu tab active/inactive (đổi tab, mở/đóng window) để bật/tắt polling.
+public protocol SectionActivationObserving {
+    @MainActor func sectionDidActivate()
+    @MainActor func sectionDidDeactivate()
+}
