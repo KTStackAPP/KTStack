@@ -17,5 +17,6 @@ public protocol DoctorCheckProviding {
 public protocol PluginLifecycle {
     func start() async
     // Chỉ dọn resource riêng của plugin: cancel task, stop watcher, flush state.
+    // Chạy trong quit khi coordinator block main thread, nên KHÔNG được hop @MainActor: deadlock.
     func shutdown() async
 }

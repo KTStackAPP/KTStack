@@ -1,4 +1,5 @@
 import AppKit
+import KTDumpsPlugin
 import KTPluginKit
 import KTStackCore
 import KTStackKit
@@ -69,12 +70,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         PluginSection(title: "Inspect", plugins: [
             LegacyLogsPlugin(nav: navigation),
             LegacyMailPlugin(nav: navigation),
-            LegacyDumpsPlugin(nav: navigation),
+            KTDumpsPlugin(php: server),
             LegacyDoctorPlugin(nav: navigation),
         ]),
     ]
 
     @MainActor var plugins: [any KTStackPlugin] { pluginSections.flatMap(\.plugins) }
+
+    @MainActor lazy var pluginLifecycle = PluginLifecycleCoordinator(plugins: plugins)
 
     private static func alreadyRunningInstance() -> NSRunningApplication? {
         guard let bundleID = Bundle.main.bundleIdentifier else { return nil }
@@ -111,6 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tunnels.reapStaleJobs()
         server.onSitesChanged = { [tunnels] sites in tunnels.reconcile(sites: sites) }
         applyStartupPreferences()
+        pluginLifecycle.startAll()
     }
 
     @MainActor
@@ -152,6 +156,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_: Notification) {
+        // Plugins tear down their own resources first: Dumps disables auto_prepend, deletes the
+        // prepend file and stops its socket while these are still plain file ops, before platform teardown.
+        MainActor.assumeIsolated { pluginLifecycle }.shutdownAllBlocking()
+
         // Block quit until the SwiftNIO event loop is fully down: terminating with it still running
         // crashes on exit. Tear down the DB loop first, then tunnels, then the local server.
         let dbShutdown = DispatchSemaphore(value: 0)

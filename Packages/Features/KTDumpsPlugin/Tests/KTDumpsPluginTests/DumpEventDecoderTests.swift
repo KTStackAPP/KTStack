@@ -1,15 +1,15 @@
 import XCTest
-@testable import KTStackKit
+@testable import KTDumpsPlugin
 
 final class DumpEventDecoderTests: XCTestCase {
-    private func json(_ dict: [String: Any]) -> Data {
+    private func json(_ dict: [String: Any]) throws -> Data {
         let payload: [String: Any] = [
             "timestamp": 1_700_000_000.0,
             "file": "/app/src/Controller.php",
             "line": 42,
             "value": dict,
         ]
-        return try! JSONSerialization.data(withJSONObject: payload)
+        return try JSONSerialization.data(withJSONObject: payload)
     }
 
     func testDecodesFileAndLine() throws {

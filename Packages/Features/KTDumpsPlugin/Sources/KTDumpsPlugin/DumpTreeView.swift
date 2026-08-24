@@ -1,5 +1,4 @@
 import KTPluginKit
-import KTStackKit
 import SwiftUI
 
 struct DumpTreeView: View {

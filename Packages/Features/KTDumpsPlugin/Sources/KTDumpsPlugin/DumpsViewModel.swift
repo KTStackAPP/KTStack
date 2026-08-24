@@ -1,5 +1,5 @@
 import Combine
-import KTStackKit
+import KTPlatformContracts
 import SwiftUI
 
 @MainActor
@@ -10,13 +10,16 @@ final class DumpsViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published private(set) var busy = false
 
-    private let dumpServer = DumpServer()
-    private let injector = DumpInjector()
-    private var server: LocalServerController?
+    private let php: any PHPRuntimeConfiguring
+    private let dumpServer: DumpServer
+    private let injector: DumpInjector
     private var cancellable: AnyCancellable?
     private static let eventCap = 300
 
-    init() {
+    init(php: any PHPRuntimeConfiguring, server: DumpServer, injector: DumpInjector) {
+        self.php = php
+        dumpServer = server
+        self.injector = injector
         cancellable = dumpServer.eventsPublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] event in
@@ -28,26 +31,22 @@ final class DumpsViewModel: ObservableObject {
             }
     }
 
-    func configure(server: LocalServerController) {
-        self.server = server
-    }
-
     func toggle(_ on: Bool) {
-        guard let server, !busy else { return }
+        guard !busy else { return }
         busy = true
         errorMessage = nil
         Task {
             do {
                 if on {
                     let port = try dumpServer.start()
-                    for version in server.availableVersions {
+                    for version in php.installedPHPVersions {
                         try injector.enable(version: version, port: port)
-                        try await server.reloadPHPPool(version: version)
+                        try await php.reloadPHPPool(version: version)
                     }
                 } else {
-                    for version in server.availableVersions {
+                    for version in php.installedPHPVersions {
                         try injector.disable(version: version)
-                        try await server.reloadPHPPool(version: version)
+                        try await php.reloadPHPPool(version: version)
                     }
                     dumpServer.stop()
                 }
@@ -62,21 +61,5 @@ final class DumpsViewModel: ObservableObject {
 
     func clear() {
         events = []
-    }
-
-    func shutdownForQuit() {
-        guard let server else {
-            dumpServer.stop()
-            return
-        }
-        let versions = server.availableVersions
-        Task { @MainActor in
-            for version in versions {
-                try? injector.disable(version: version)
-                try? await server.reloadPHPPool(version: version)
-            }
-            injector.cleanupPrependFile()
-            dumpServer.stop()
-        }
     }
 }

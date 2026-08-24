@@ -54,6 +54,16 @@ LOG="$LOG_DIR/lint.log"
 scripts/lint.sh >"$LOG" 2>&1 || fail "lint" "$LOG"
 ok "lint"
 
+begin "package tests"
+# Feature packages (M04+) ship tests next to the code; run each with SPM's own build dir.
+for pkg in Packages/Features/*/; do
+    [ -d "${pkg}Tests" ] || continue
+    name=$(basename "$pkg")
+    LOG="$LOG_DIR/package-$name.log"
+    swift test --package-path "$pkg" >"$LOG" 2>&1 || fail "package tests: $name" "$LOG"
+done
+ok "package tests"
+
 begin "KTStackKit-Tests"
 LOG="$LOG_DIR/tests.log"
 xcodebuild -project KTStack.xcodeproj -scheme KTStackKit-Tests -destination 'platform=macOS' \

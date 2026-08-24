@@ -1,32 +1,31 @@
 import Foundation
+import KTPlatformContracts
 import KTStackCore
 
-public final class DumpInjector {
+// Ghi prepend file trong app-support và bật/tắt auto_prepend qua platform (PHPRuntimeConfiguring).
+final class DumpInjector: Sendable {
     private let paths: AppSupportPaths
+    private let php: any PHPRuntimeConfiguring
 
-    public init(paths: AppSupportPaths = AppSupportPaths()) {
+    init(paths: AppSupportPaths = AppSupportPaths(), php: any PHPRuntimeConfiguring) {
         self.paths = paths
+        self.php = php
     }
 
-    public func enable(version: String, port: UInt16) throws {
+    func enable(version: String, port: UInt16) throws {
         try writePrependFile(port: port)
-        var ini = try PHPIniStore(paths: paths).read(version: version)
-        ini = setIniKey("auto_prepend_file", value: paths.dumpsPrependFile.path, in: ini)
-        try PHPIniStore(paths: paths).write(version: version, contents: ini)
+        try php.setAutoPrepend(file: paths.dumpsPrependFile.path, version: version)
     }
 
-    public func disable(version: String) throws {
-        var ini = try PHPIniStore(paths: paths).read(version: version)
-        ini = removeKTStackPrepend(from: ini)
-        try PHPIniStore(paths: paths).write(version: version, contents: ini)
+    func disable(version: String) throws {
+        try php.removeAutoPrepend(file: paths.dumpsPrependFile.path, version: version)
     }
 
-    public func isEnabled(version: String) -> Bool {
-        guard let ini = try? PHPIniStore(paths: paths).read(version: version) else { return false }
-        return ini.contains(paths.dumpsPrependFile.path)
+    func isEnabled(version: String) -> Bool {
+        php.isAutoPrependSet(file: paths.dumpsPrependFile.path, version: version)
     }
 
-    public func cleanupPrependFile() {
+    func cleanupPrependFile() {
         try? FileManager.default.removeItem(at: paths.dumpsPrependFile)
     }
 
@@ -39,18 +38,6 @@ public final class DumpInjector {
         )
         let php = Self.prependTemplate.replacingOccurrences(of: "KTSTACK_PORT", with: String(port))
         try php.write(to: paths.dumpsPrependFile, atomically: true, encoding: .utf8)
-    }
-
-    private func setIniKey(_ key: String, value: String, in ini: String) -> String {
-        let line = "\(key) = \(value)"
-        if ini.contains(line) { return ini }
-        return ini + "\n\(line)\n"
-    }
-
-    private func removeKTStackPrepend(from ini: String) -> String {
-        let prependPath = paths.dumpsPrependFile.path
-        let filtered = ini.components(separatedBy: "\n").filter { !$0.contains(prependPath) }
-        return filtered.joined(separator: "\n")
     }
 
     private static let prependTemplate = #"""

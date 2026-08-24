@@ -2,6 +2,7 @@ excluded:
   - Resources/bin
   - spikes
   - .build
+  - "Packages/**/.build"
   - build
   - dist
   - vendor

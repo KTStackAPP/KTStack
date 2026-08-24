@@ -1,10 +1,8 @@
 import KTPluginKit
-import KTStackKit
 import SwiftUI
 
 struct DumpsPanelView: View {
-    @EnvironmentObject private var server: LocalServerController
-    @StateObject private var model = DumpsViewModel()
+    @ObservedObject var model: DumpsViewModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let bottomID = "dumps-bottom-anchor"
@@ -22,7 +20,6 @@ struct DumpsPanelView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(KTColor.contentBg)
-        .onAppear { model.configure(server: server) }
     }
 
     private var header: some View {
