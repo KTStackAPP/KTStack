@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 import KTStackCore
 
 /// Từng check là hàm thuần trên `DoctorProbes`, không đụng hệ thống trực tiếp và không sửa gì.
@@ -315,34 +316,5 @@ public enum DoctorChecks {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         guard url.path.hasPrefix(home) else { return url.path }
         return "~" + url.path.dropFirst(home.count)
-    }
-}
-
-/// Các trường `launchctl print` mà `ServiceDiagnostics.launchdSummary` giữ lại. `nil` = job chưa nạp.
-struct LaunchdJobState {
-    let isRunning: Bool
-    let lastExitCode: Int?
-
-    init?(summary: String) {
-        guard !summary.hasPrefix("job not loaded") else { return nil }
-        var running = false
-        var exitCode: Int?
-        for raw in summary.split(separator: ";") {
-            let field = raw.trimmingCharacters(in: .whitespaces)
-            // "not running" cũng chứa "running", nên so khớp nguyên giá trị.
-            if field.hasPrefix("state =") {
-                running = field.dropFirst("state =".count).trimmingCharacters(in: .whitespaces) == "running"
-            }
-            if field.hasPrefix("last exit code =") {
-                exitCode = Int(field.dropFirst("last exit code =".count).trimmingCharacters(in: .whitespaces))
-            }
-        }
-        isRunning = running
-        lastExitCode = exitCode
-    }
-
-    /// launchd giữ mã thoát của lần chạy trước, nên job đang chạy không phải là start hỏng.
-    var failedStart: Bool {
-        !isRunning && (lastExitCode ?? 0) != 0
     }
 }

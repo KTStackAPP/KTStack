@@ -245,6 +245,7 @@ targets:
     dependencies:
       - target: KTStackKit
       - package: KTStackCore
+      - package: KTPlatformContracts
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ktstack.kit.tests
