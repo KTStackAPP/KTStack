@@ -41,35 +41,17 @@ packages:
   # probes via DoctorProbing. Deps KTStackCore + KTPlatformContracts + KTPluginKit, never KTStackKit.
   KTDoctorPlugin:
     path: Packages/Features/KTDoctorPlugin
+  # Sixth feature package (M09): Database. Owns the four pure-Swift drivers (MySQLNIO, PostgresNIO,
+  # GRDB, MongoKitten), editor, backup and NIO event loop; deps KTStackCore + KTPlatformContracts +
+  # KTPluginKit, never KTStackKit. The drivers moved here from KTStackKit and now link statically
+  # into the app executable, so the bundle stays notarize-clean.
+  KTDatabasePlugin:
+    path: Packages/Features/KTDatabasePlugin
   # Sparkle auto-update framework (EdDSA-signed appcast). Private key stays offline / in CI;
   # the public key is set as SUPublicEDKey in Info.plist.
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
     from: "2.6.0"
-  # Pure-Swift MySQL driver (NIO). No system libmysqlclient / C dylib → links statically into
-  # the framework, so the bundle stays notarize-clean. TLS rides swift-nio-ssl's vendored
-  # BoringSSL (also static), not the system OpenSSL. Pinned via `from:`; the generated
-  # Package.resolved is ephemeral like the rest of the XcodeGen-built project.
-  mysql-nio:
-    url: https://github.com/vapor/mysql-nio
-    from: "1.9.0"
-  # Pure-Swift PostgreSQL driver (NIO). Like mysql-nio it links statically (no libpq C dylib) and
-  # rides swift-nio-ssl's vendored BoringSSL for TLS, so the bundle stays notarize-clean.
-  postgres-nio:
-    url: https://github.com/vapor/postgres-nio
-    from: "1.21.0"
-  # SQLite toolkit. GRDB vendors its own SQLite (no system libsqlite3 link surprise) and exposes a
-  # synchronous DatabaseQueue we wrap behind the async RelationalDriver. Pure-Swift + C SQLite that
-  # GRDB compiles in-tree — links statically, no external dylib.
-  GRDB.swift:
-    url: https://github.com/groue/GRDB.swift
-    from: "7.0.0"
-  # Pure-Swift MongoDB driver (NIO). No libmongoc / system dylib (unlike mongo-swift-driver) → links
-  # statically into the framework, keeping the bundle notarize-clean. BSON arrives transitively and
-  # supplies the extended-JSON codec the document UI renders with.
-  MongoKitten:
-    url: https://github.com/orlandos-nl/MongoKitten
-    from: "7.0.0"
 
 settings:
   base:
@@ -109,16 +91,6 @@ targets:
     dependencies:
       - package: KTStackCore
       - package: KTPlatformContracts
-      - package: mysql-nio
-        product: MySQLNIO
-      - package: postgres-nio
-        product: PostgresNIO
-      - package: GRDB.swift
-        product: GRDB
-      - package: MongoKitten
-        product: MongoKitten
-      - package: MongoKitten
-        product: MongoCore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ktstack.kit
@@ -170,6 +142,7 @@ targets:
       - package: KTLogsPlugin
       - package: KTTunnelPlugin
       - package: KTDoctorPlugin
+      - package: KTDatabasePlugin
       - package: Sparkle
       # Build-order + copy only (no linking); lands in Contents/MacOS so Phase 4's
       # SMAppService daemon plist can reference it. Empty stub for now.

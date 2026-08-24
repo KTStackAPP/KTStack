@@ -8,6 +8,8 @@ excluded:
   - vendor
   - Pods
   - KTStack.xcodeproj
+  # Test code isn't swiftlinted (KTStackKitTests is off the lint path); moved DB tests keep that.
+  - "Packages/Features/KTDatabasePlugin/Tests"
 
 opt_in_rules:
   - commented_code

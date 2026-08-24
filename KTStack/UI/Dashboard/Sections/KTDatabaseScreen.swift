@@ -1,4 +1,5 @@
 import AppKit
+import KTDatabasePlugin
 import KTPluginKit
 import KTStackKit
 import SwiftUI
@@ -16,7 +17,7 @@ struct KTDatabaseScreen: View {
     @StateObject private var reachability = ServerReachabilityService()
     @State private var tab: Tab = .servers
     @State private var serverSearch = ""
-    @State private var session = BackupSession.managed()
+    @State private var session = BackupSession.managed(tools: DatabaseToolsService())
     @State private var backupSets: [BackupSet] = []
     @State private var reloadGeneration = 0
     @State private var showImportExport = false

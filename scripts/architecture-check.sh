@@ -66,7 +66,7 @@ done
 
 check_imports "Contracts" "Packages/Contracts" "SwiftUI|AppKit|KTStackKit|KTPluginKit"
 check_imports "Plugin"    "Packages/Plugin"    "KTStackKit|KTPlatformContracts"
-check_imports "KTStackKit" "KTStackKit/Sources" "KTPluginKit"
+check_imports "KTStackKit" "KTStackKit/Sources" "KTPluginKit|MySQLNIO|PostgresNIO|GRDB|MongoKitten|MongoCore|NIOCore|NIOPosix|NIOSSL|Logging"
 
 # Feature packages (M04+): no platform implementation, no sibling feature.
 if compgen -G "Packages/Features/*/Sources" >/dev/null 2>&1; then

@@ -1,4 +1,5 @@
 import AppKit
+import KTDatabasePlugin
 import KTStackKit
 import SwiftUI
 
@@ -7,7 +8,7 @@ final class DatabaseV2WindowController: NSObject, NSWindowDelegate {
     static let shared = DatabaseV2WindowController()
 
     private var window: NSWindow?
-    private lazy var viewModel = DatabaseV2ViewModel()
+    private lazy var viewModel = DatabaseV2ViewModel(tools: DatabaseToolsService())
 
     override private init() {
         super.init()

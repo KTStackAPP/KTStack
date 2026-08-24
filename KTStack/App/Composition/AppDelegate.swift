@@ -1,11 +1,12 @@
 import AppKit
+import KTDatabasePlugin
 import KTDoctorPlugin
 import KTDumpsPlugin
 import KTLogsPlugin
 import KTMailPlugin
+import KTPlatformContracts
 import KTPluginKit
 import KTStackCore
-import KTPlatformContracts
 import KTStackKit
 import KTTunnelPlugin
 import ServiceManagement
@@ -48,9 +49,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .appendingPathComponent("connections.json")
     )
 
-    @MainActor lazy var databaseViewModel = DatabaseViewModel()
+    let databaseTools = DatabaseToolsService(paths: AppSupportPaths())
 
-    @MainActor lazy var documentViewModel = DocumentViewModel()
+    @MainActor lazy var databaseViewModel = DatabaseViewModel(tools: databaseTools)
+
+    @MainActor lazy var documentViewModel = DocumentViewModel(tools: databaseTools)
 
     @MainActor lazy var tunnelPlugin = KTTunnelPlugin(
         origin: TunnelOriginService(

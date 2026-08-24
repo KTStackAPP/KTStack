@@ -1,4 +1,5 @@
 import AppKit
+import KTDatabasePlugin
 import KTPluginKit
 import KTStackKit
 import SwiftUI
@@ -231,9 +232,10 @@ struct KTConnectModal: View {
         let pwd = password.isEmpty ? nil : password
         testing = true; testError = nil; tested = false
         Task { @MainActor in
+            let tools = DatabaseToolsService()
             let driver: DatabaseDriver? = profile.kind == .mongodb
-                ? DocumentViewModel.defaultDriver(profile, pwd)
-                : DatabaseViewModel.defaultDriver(profile, pwd)
+                ? DocumentViewModel.defaultDriver(tools: tools)(profile, pwd)
+                : DatabaseViewModel.defaultDriver(tools: tools)(profile, pwd)
             guard let driver else { testing = false; testError = "Unsupported engine"; return }
             do {
                 try await driver.ping()

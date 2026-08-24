@@ -1,3 +1,4 @@
+import KTDatabasePlugin
 import KTPluginKit
 import KTStackKit
 import KTTunnelPlugin

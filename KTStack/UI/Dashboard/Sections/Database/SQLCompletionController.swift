@@ -1,4 +1,5 @@
 import AppKit
+import KTDatabasePlugin
 import KTStackKit
 
 final class SQLCompletionController: NSObject, NSTableViewDataSource, NSTableViewDelegate {

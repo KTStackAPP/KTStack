@@ -1,4 +1,5 @@
 import AppKit
+import KTDatabasePlugin
 import KTPluginKit
 import KTStackCore
 import KTStackKit
@@ -210,9 +211,10 @@ struct AddConnectionSheet: View {
         let pwd = effectivePassword
         test = .testing
         Task { @MainActor in
+            let tools = DatabaseToolsService()
             let driver: DatabaseDriver? = profile.kind == .mongodb
-                ? DocumentViewModel.defaultDriver(profile, pwd)
-                : DatabaseViewModel.defaultDriver(profile, pwd)
+                ? DocumentViewModel.defaultDriver(tools: tools)(profile, pwd)
+                : DatabaseViewModel.defaultDriver(tools: tools)(profile, pwd)
             guard let driver else {
                 test = .failed("Unsupported engine")
                 return

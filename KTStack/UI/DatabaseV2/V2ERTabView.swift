@@ -1,4 +1,5 @@
 import AppKit
+import KTDatabasePlugin
 import KTPluginKit
 import KTStackKit
 import SwiftUI
