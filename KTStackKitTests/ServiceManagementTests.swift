@@ -605,7 +605,7 @@ final class ServiceManagementTests: XCTestCase {
             try FileManager.default.createDirectory(at: data, withIntermediateDirectories: true)
         }
 
-        try sut.setActiveVersion(.redis, version: "7.0.0")
+        try sut.setActiveVersion(ServiceKind.redis, version: "7.0.0")
         XCTAssertEqual(sut.activeVersion(.redis), "7.0.0")
 
         try sut.uninstall(kind: .redis, version: "7.2.0")
@@ -681,7 +681,7 @@ final class ServiceManagementTests: XCTestCase {
             attributes: [.posixPermissions: 0o755]
         )
 
-        try sut.setActiveVersion(.redis, version: "7.4.2")
+        try sut.setActiveVersion(ServiceKind.redis, version: "7.4.2")
 
         XCTAssertThrowsError(try sut.uninstall(kind: .redis, version: "7.4.2")) { error in
             XCTAssertTrue(
