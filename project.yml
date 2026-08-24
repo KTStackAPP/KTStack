@@ -25,6 +25,10 @@ packages:
   # plugin SDK and contracts, never KTStackKit. See docs/architecture/dependency-rules.md.
   KTDumpsPlugin:
     path: Packages/Features/KTDumpsPlugin
+  # Second feature package (M05): Mail. Same shape as Dumps, deps KTPlatformContracts +
+  # KTPluginKit only, never KTStackKit. See docs/architecture/dependency-rules.md.
+  KTMailPlugin:
+    path: Packages/Features/KTMailPlugin
   # Sparkle auto-update framework (EdDSA-signed appcast). Private key stays offline / in CI;
   # the public key is set as SUPublicEDKey in Info.plist.
   Sparkle:
@@ -150,6 +154,7 @@ targets:
       - package: KTPlatformContracts
         embed: true
       - package: KTDumpsPlugin
+      - package: KTMailPlugin
       - package: Sparkle
       # Build-order + copy only (no linking); lands in Contents/MacOS so Phase 4's
       # SMAppService daemon plist can reference it. Empty stub for now.

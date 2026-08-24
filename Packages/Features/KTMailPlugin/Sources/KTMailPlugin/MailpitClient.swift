@@ -11,7 +11,7 @@ public struct MailpitClient: Sendable {
     private let baseURL: URL
     private let session: URLSession
 
-    public init(baseURL: URL = MailpitController.apiBaseURL) {
+    public init(baseURL: URL) {
         self.baseURL = baseURL
         let cfg = URLSessionConfiguration.ephemeral
         cfg.timeoutIntervalForRequest = 5

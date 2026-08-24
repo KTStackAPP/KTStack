@@ -1,5 +1,6 @@
 import AppKit
 import KTDumpsPlugin
+import KTMailPlugin
 import KTPluginKit
 import KTStackCore
 import KTStackKit
@@ -25,8 +26,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }()
 
     @MainActor lazy var runtimes = RuntimeManager()
-
-    @MainActor lazy var mail = MailStore()
 
     @MainActor lazy var updater = UpdaterController()
 
@@ -69,7 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ]),
         PluginSection(title: "Inspect", plugins: [
             LegacyLogsPlugin(nav: navigation),
-            LegacyMailPlugin(nav: navigation),
+            KTMailPlugin(mailpit: services),
             KTDumpsPlugin(php: server),
             LegacyDoctorPlugin(nav: navigation),
         ]),

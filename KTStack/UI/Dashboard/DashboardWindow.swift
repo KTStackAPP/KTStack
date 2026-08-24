@@ -10,7 +10,6 @@ struct DashboardWindow: View {
     @EnvironmentObject private var server: LocalServerController
     @EnvironmentObject private var services: ServiceManager
     @EnvironmentObject private var runtimes: RuntimeManager
-    @EnvironmentObject private var mail: MailStore
     @EnvironmentObject private var caTrust: CATrustService
     @EnvironmentObject private var updater: UpdaterController
     @EnvironmentObject private var uninstaller: UninstallService
@@ -32,7 +31,6 @@ struct DashboardWindow: View {
             dns: dns,
             services: services,
             runtimes: runtimes,
-            mail: mail,
             caTrust: caTrust,
             updater: updater,
             uninstaller: uninstaller,

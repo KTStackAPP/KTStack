@@ -73,7 +73,6 @@ struct KTStackApp: App {
                 .environmentObject(appDelegate.dns)
                 .environmentObject(appDelegate.services)
                 .environmentObject(appDelegate.runtimes)
-                .environmentObject(appDelegate.mail)
                 .environmentObject(appDelegate.caTrust)
                 .environmentObject(appDelegate.updater)
                 .environmentObject(appDelegate.uninstaller)

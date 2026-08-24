@@ -9,7 +9,6 @@ struct DashboardEnv {
     let dns: DNSAutomationService
     let services: ServiceManager
     let runtimes: RuntimeManager
-    let mail: MailStore
     let caTrust: CATrustService
     let updater: UpdaterController
     let uninstaller: UninstallService
@@ -26,7 +25,6 @@ struct DashboardEnv {
             .environmentObject(dns)
             .environmentObject(services)
             .environmentObject(runtimes)
-            .environmentObject(mail)
             .environmentObject(caTrust)
             .environmentObject(updater)
             .environmentObject(uninstaller)

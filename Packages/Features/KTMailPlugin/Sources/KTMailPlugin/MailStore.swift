@@ -14,7 +14,7 @@ public final class MailStore: ObservableObject {
     private var pollTask: Task<Void, Never>?
     private var detailTask: Task<Void, Never>?
 
-    public init(client: MailpitClient = MailpitClient()) {
+    public init(client: MailpitClient) {
         self.client = client
     }
 

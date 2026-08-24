@@ -1,11 +1,10 @@
 import KTPluginKit
-import KTStackKit
 import SwiftUI
 
 struct MailSectionView: View {
-    @ObservedObject var nav: DashboardNavigation
-    @EnvironmentObject private var mail: MailStore
-    @EnvironmentObject private var services: ServiceManager
+    @ObservedObject var mail: MailStore
+    let apiBaseURL: URL
+    let startMailpit: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -14,16 +13,12 @@ struct MailSectionView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(KTColor.contentBg)
-        .onAppear { if nav.activeItem == SidebarItem.mail.rawValue { mail.startPolling() } }
-        .onChange(of: nav.activeItem) { item in
-            if item == SidebarItem.mail.rawValue { mail.startPolling() } else { mail.stopPolling() }
-        }
     }
 
     private var header: some View {
         HStack(spacing: 12) {
             Text("Mail").font(KTType.screenTitle).tracking(KTType.screenTitleTracking).foregroundStyle(KTColor.ink)
-            Text("Mailpit · :8025")
+            Text("Mailpit · :\(apiBaseURL.port ?? 8025)")
                 .font(.jbMono(12.5, .regular)).foregroundStyle(Color(hex: 0x8E8E93))
                 .padding(.horizontal, 10).padding(.vertical, 3)
                 .background(Capsule().fill(KTColor.pillBg))
@@ -102,7 +97,7 @@ struct MailSectionView: View {
             title: "Mailpit is off",
             message: "Start Mailpit to catch outgoing mail from your sites and read it here.",
             actionTitle: "Start Mailpit"
-        ) { services.toggle(.mailpit) }
+        ) { startMailpit() }
     }
 }
 
