@@ -31,7 +31,7 @@ struct DocumentSectionContent: View {
                 title: "MongoDB isn’t installed",
                 message: "Install the managed MongoDB engine, then reconnect.",
                 actionTitle: "Install MongoDB…",
-                action: { services.install(.mongodb) }
+                action: { services.install(ServiceKind.mongodb) }
             )
         case .engineNotRunning:
             EmptyStateView(
@@ -39,7 +39,7 @@ struct DocumentSectionContent: View {
                 title: "MongoDB isn’t running",
                 message: "Start the MongoDB engine, then reconnect.",
                 actionTitle: "Start MongoDB",
-                action: { services.toggle(.mongodb) }
+                action: { services.toggle(ServiceKind.mongodb) }
             )
         default:
             EmptyStateView(

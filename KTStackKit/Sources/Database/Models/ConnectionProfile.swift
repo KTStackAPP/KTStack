@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 
 public enum TLSMode: String, Codable, Sendable, CaseIterable {
     case disable
@@ -16,6 +17,15 @@ public enum DatabaseKind: String, Codable, Sendable, CaseIterable {
     case postgres
     case sqlite
     case mongodb
+
+    public var engine: DatabaseEngine? {
+        switch self {
+        case .mysql: .mysql
+        case .postgres: .postgres
+        case .mongodb: .mongodb
+        case .sqlite: nil
+        }
+    }
 }
 
 public struct ConnectionProfile: Codable, Sendable, Identifiable, Equatable {
