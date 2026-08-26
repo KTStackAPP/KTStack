@@ -1,3 +1,4 @@
+import KTPlatformContracts
 import KTStackCore
 import XCTest
 @testable import KTStackKit
@@ -72,6 +73,57 @@ final class AppSupportPathsAndPoolTests: XCTestCase {
                 )
             }
         }
+    }
+
+    func testDefaultPoolConfigMatchesLegacyProcessManagerBlock() throws {
+        let conf = try PHPFPMPoolWriter().poolConfig(paths: paths, poolName: "8.4", user: "tester")
+        let expected = """
+        pm = dynamic
+        pm.max_children = 5
+        pm.start_servers = 2
+        pm.min_spare_servers = 1
+        pm.max_spare_servers = 3
+        pm.max_requests = 500
+        """
+        XCTAssertTrue(conf.contains(expected))
+        XCTAssertFalse(conf.contains("pm.process_idle_timeout"))
+        XCTAssertFalse(conf.contains("request_terminate_timeout"))
+    }
+
+    func testStaticPoolConfigOmitsSpareAndStartServers() throws {
+        var settings = PHPPoolSettings.default
+        settings.processManager = .static
+        settings.maxChildren = 8
+        let conf = try PHPFPMPoolWriter().poolConfig(
+            paths: paths, poolName: "8.4", user: "tester", settings: settings
+        )
+        XCTAssertTrue(conf.contains("pm = static"))
+        XCTAssertTrue(conf.contains("pm.max_children = 8"))
+        XCTAssertTrue(conf.contains("pm.max_requests = 500"))
+        XCTAssertFalse(conf.contains("pm.start_servers"))
+        XCTAssertFalse(conf.contains("pm.min_spare_servers"))
+        XCTAssertFalse(conf.contains("pm.process_idle_timeout"))
+    }
+
+    func testOndemandPoolConfigEmitsIdleTimeout() throws {
+        var settings = PHPPoolSettings.default
+        settings.processManager = .ondemand
+        settings.processIdleTimeout = 30
+        let conf = try PHPFPMPoolWriter().poolConfig(
+            paths: paths, poolName: "8.4", user: "tester", settings: settings
+        )
+        XCTAssertTrue(conf.contains("pm = ondemand"))
+        XCTAssertTrue(conf.contains("pm.process_idle_timeout = 30s"))
+        XCTAssertFalse(conf.contains("pm.start_servers"))
+    }
+
+    func testRequestTerminateTimeoutEmittedOnlyWhenPositive() throws {
+        var settings = PHPPoolSettings.default
+        settings.requestTerminateTimeout = 60
+        let conf = try PHPFPMPoolWriter().poolConfig(
+            paths: paths, poolName: "8.4", user: "tester", settings: settings
+        )
+        XCTAssertTrue(conf.contains("request_terminate_timeout = 60s"))
     }
 
     func testPortPreflightConflictMessageNamesApache() {

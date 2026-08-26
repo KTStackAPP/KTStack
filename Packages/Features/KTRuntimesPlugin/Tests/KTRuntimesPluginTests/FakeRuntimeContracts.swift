@@ -148,7 +148,7 @@ final class FakeEngines: ServiceEngineVersionManaging {
 }
 
 @MainActor
-final class FakePHPConfig: PHPExtensionManaging, PHPIniEditing {
+final class FakePHPConfig: PHPExtensionManaging, PHPIniEditing, PHPPoolEditing {
     var entries: [PHPExtensionEntry] = []
     var installOutcome = PHPExtensionInstallOutcome(loaded: true, warning: nil)
     var installError: Error?
@@ -214,5 +214,23 @@ final class FakePHPConfig: PHPExtensionManaging, PHPIniEditing {
     func saveIni(phpVersion: String, contents: String) async throws {
         if let saveError { throw saveError }
         savedIni.append((phpVersion, contents))
+    }
+
+    var storedPool = PHPPoolSettings.default
+    var savePoolError: Error?
+    private(set) var savedPool: [(String, PHPPoolSettings)] = []
+
+    var defaultPoolSettings: PHPPoolSettings {
+        .default
+    }
+
+    func poolSettings(phpVersion _: String) throws -> PHPPoolSettings {
+        storedPool
+    }
+
+    func savePoolSettings(phpVersion: String, _ settings: PHPPoolSettings) async throws {
+        if let savePoolError { throw savePoolError }
+        savedPool.append((phpVersion, settings))
+        storedPool = settings
     }
 }

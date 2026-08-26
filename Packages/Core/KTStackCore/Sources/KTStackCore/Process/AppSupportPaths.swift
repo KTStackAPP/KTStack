@@ -363,6 +363,10 @@ public struct AppSupportPaths: Sendable {
         phpIniDir(version: version).appendingPathComponent("php.ini")
     }
 
+    public func phpPoolSettings(version: String) -> URL {
+        phpIniDir(version: version).appendingPathComponent("pool.json")
+    }
+
     private func dir(_ name: String) -> URL {
         root.appendingPathComponent(name, isDirectory: true)
     }

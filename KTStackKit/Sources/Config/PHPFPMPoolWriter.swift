@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 import KTStackCore
 
 public enum PHPFPMPoolWriterError: LocalizedError, Equatable {
@@ -18,7 +19,8 @@ public struct PHPFPMPoolWriter {
     public func poolConfig(
         paths: AppSupportPaths,
         poolName: String,
-        user: String = NSUserName()
+        user: String = NSUserName(),
+        settings: PHPPoolSettings = .default
     ) throws -> String {
         let socket = paths.phpFpmSocket(poolName).path
         let log = paths.phpFpmLog(poolName).path
@@ -45,12 +47,7 @@ public struct PHPFPMPoolWriter {
         listen.owner = \(user)
         listen.mode = 0660
 
-        pm = dynamic
-        pm.max_children = 5
-        pm.start_servers = 2
-        pm.min_spare_servers = 1
-        pm.max_spare_servers = 3
-        pm.max_requests = 500
+        \(Self.processManagerLines(settings))
 
         catch_workers_output = yes
         php_admin_flag[log_errors] = on
@@ -68,10 +65,32 @@ public struct PHPFPMPoolWriter {
 
     @discardableResult
     public func write(paths: AppSupportPaths, poolName: String) throws -> URL {
+        let settings = (try? PHPPoolSettingsStore(paths: paths).load(version: poolName)) ?? .default
         let url = paths.phpFpmPool(poolName)
-        try poolConfig(paths: paths, poolName: poolName)
+        try poolConfig(paths: paths, poolName: poolName, settings: settings)
             .write(to: url, atomically: true, encoding: .utf8)
         return url
+    }
+
+    // Khối pm.* theo process manager; request_terminate_timeout chỉ khi > 0.
+    // Default (.default) render y hệt output cũ để pool conf mặc định không đổi.
+    static func processManagerLines(_ s: PHPPoolSettings) -> String {
+        var lines = ["pm = \(s.processManager.rawValue)", "pm.max_children = \(s.maxChildren)"]
+        switch s.processManager {
+        case .dynamic:
+            lines.append("pm.start_servers = \(s.startServers)")
+            lines.append("pm.min_spare_servers = \(s.minSpareServers)")
+            lines.append("pm.max_spare_servers = \(s.maxSpareServers)")
+        case .ondemand:
+            lines.append("pm.process_idle_timeout = \(s.processIdleTimeout)s")
+        case .static:
+            break
+        }
+        lines.append("pm.max_requests = \(s.maxRequests)")
+        if s.requestTerminateTimeout > 0 {
+            lines.append("request_terminate_timeout = \(s.requestTerminateTimeout)s")
+        }
+        return lines.joined(separator: "\n")
     }
 
     private func shellEscaped(_ value: String) throws -> String {
