@@ -11,8 +11,7 @@ public struct DatabaseProvisioner: Sendable {
         }
     }
 
-    private let host: String
-    private let port: Int
+    private let client: MySQLAdminClient
     private let ensureEngine: @Sendable () async throws -> Void
 
     public init(
@@ -20,30 +19,23 @@ public struct DatabaseProvisioner: Sendable {
         port: Int = 3306,
         ensureEngine: @escaping @Sendable () async throws -> Void
     ) {
-        self.host = host
-        self.port = port
+        client = MySQLAdminClient(host: host, port: port)
         self.ensureEngine = ensureEngine
     }
 
     public func exists(_ name: String) async throws -> Bool {
-        try DumpService.validateIdentifier(name, label: "database")
         try await ensureEngine()
-        let result = try await MySQLProbe.run(sql: "SHOW DATABASES", host: host, port: port)
-        return result.rows.contains { $0.first.flatMap { $0 } == name }
+        return try await client.databaseExists(name)
     }
 
     public func createDatabase(_ name: String) async throws {
-        try DumpService.validateIdentifier(name, label: "database")
         try await ensureEngine()
-        if try await exists(name) { throw ProvisionError.alreadyExists(name) }
-        let quoted = try SQLDialect.forKind(.mysql).quoteIdent(name)
-        _ = try await MySQLProbe.run(sql: "CREATE DATABASE \(quoted)", host: host, port: port)
+        if try await client.databaseExists(name) { throw ProvisionError.alreadyExists(name) }
+        try await client.createDatabase(name)
     }
 
     public func dropDatabase(_ name: String) async throws {
-        try DumpService.validateIdentifier(name, label: "database")
         try await ensureEngine()
-        let quoted = try SQLDialect.forKind(.mysql).quoteIdent(name)
-        _ = try await MySQLProbe.run(sql: "DROP DATABASE IF EXISTS \(quoted)", host: host, port: port)
+        try await client.dropDatabase(name)
     }
 }

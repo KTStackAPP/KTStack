@@ -1,10 +1,13 @@
 import AppKit
+import KTDatabasePlugin
+import KTDoctorPlugin
 import KTDumpsPlugin
 import KTLogsPlugin
 import KTMailPlugin
-import KTPluginKit
-import KTStackCore
 import KTPlatformContracts
+import KTPluginKit
+import KTRuntimesPlugin
+import KTStackCore
 import KTStackKit
 import KTTunnelPlugin
 import ServiceManagement
@@ -30,6 +33,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor lazy var runtimes = RuntimeManager()
 
+    @MainActor lazy var runtimesPlugin = KTRuntimesPlugin(
+        runtimes: runtimes,
+        webEngine: server,
+        phpSites: server,
+        phpConfig: PHPConfigService(
+            paths: AppSupportPaths(),
+            reloadPool: { [server] in try await server.reloadPHPPool(version: $0) },
+            restartPool: { [server] in try await server.restartPHPPool(version: $0) }
+        ),
+        engines: services
+    )
+
     @MainActor lazy var updater = UpdaterController()
 
     @MainActor lazy var uninstaller = UninstallService(
@@ -41,15 +56,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         paths: AppSupportPaths(), mkcertBinary: Self.bundleBinDir.appendingPathComponent("mkcert")
     )
 
-    @MainActor lazy var connectionStore = ConnectionStore(
-        storeURL: AppSupportPaths().config
-            .appendingPathComponent("database", isDirectory: true)
-            .appendingPathComponent("connections.json")
+    @MainActor lazy var databasePlugin = KTDatabasePlugin(
+        tools: DatabaseToolsService(paths: AppSupportPaths()),
+        engines: services,
+        route: { [weak self] route in self?.routeDatabase(route) }
     )
 
-    @MainActor lazy var databaseViewModel = DatabaseViewModel()
+    @MainActor lazy var databaseWindows = DatabaseWindows(plugin: databasePlugin)
 
-    @MainActor lazy var documentViewModel = DocumentViewModel()
+    // Method chứ không tham chiếu lazy var trong route closure, tránh vòng lazy-init với databaseWindows.
+    @MainActor private func routeDatabase(_ route: DatabaseRoute) {
+        databaseWindows.handle(route)
+    }
+
+    #if DEBUG
+        @MainActor func openSQLDrafts() { databaseWindows.handle(.sqlDrafts) }
+    #endif
 
     @MainActor lazy var tunnelPlugin = KTTunnelPlugin(
         origin: TunnelOriginService(
@@ -73,18 +95,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor lazy var logsPlugin = KTLogsPlugin(context: server)
 
+    @MainActor lazy var doctorPlugin = KTDoctorPlugin(
+        probes: DoctorProbeService(paths: AppSupportPaths()),
+        tld: { [preferences] in preferences.tld },
+        registry: { [weak self] in self?.plugins ?? [] },
+        route: { [navigation] in navigation.selection = $0.selectionID }
+    )
+
     @MainActor lazy var pluginSections: [PluginSection] = [
         PluginSection(title: "Manage", plugins: [
             LegacySitesPlugin(nav: navigation),
             LegacyServicesPlugin(nav: navigation),
-            LegacyRuntimesPlugin(nav: navigation),
-            LegacyDatabasePlugin(nav: navigation),
+            runtimesPlugin,
+            databasePlugin,
         ]),
         PluginSection(title: "Inspect", plugins: [
             logsPlugin,
             KTMailPlugin(mailpit: services),
             KTDumpsPlugin(php: server),
-            LegacyDoctorPlugin(nav: navigation),
+            doctorPlugin,
         ]),
     ]
 
@@ -180,16 +209,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Plugins tear down their own resources first: Dumps disables auto_prepend and stops its
         // socket, Tunnel boots out cloudflared jobs and clears tunnel vhosts, all plain file/process
         // ops, before platform teardown. Tunnel cleanup now lives here, not a direct call below.
+        // Database plugin hạ SwiftNIO event loop trong shutdown() (bootout xong loop mới xuống),
+        // nên quit không còn tự tear down loop ở đây.
         MainActor.assumeIsolated { pluginLifecycle }.shutdownAllBlocking()
-
-        // Block quit until the SwiftNIO event loop is fully down: terminating with it still running
-        // crashes on exit. Tear down the DB loop first, then the local server.
-        let dbShutdown = DispatchSemaphore(value: 0)
-        Task.detached {
-            try? await EventLoopProvider.shared.shutdown()
-            dbShutdown.signal()
-        }
-        dbShutdown.wait()
 
         MainActor.assumeIsolated {
             server.shutdownForQuit()
@@ -201,6 +223,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let closingWindow = note.object as? NSWindow
         DispatchQueue.main.async {
             AppActivationPolicy.restoreAccessoryIfNoWindows(excluding: closingWindow)
+        }
+    }
+}
+
+// Route enum của Doctor sang selection id sidebar; giữ id shell trong App, không đưa vào package.
+private extension DoctorRoute {
+    var selectionID: String {
+        switch self {
+        case .services: "services"
+        case .settings: "settings"
+        case .runtimes: "runtimes"
         }
     }
 }

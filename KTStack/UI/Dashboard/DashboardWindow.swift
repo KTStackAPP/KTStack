@@ -14,9 +14,6 @@ struct DashboardWindow: View {
     @EnvironmentObject private var caTrust: CATrustService
     @EnvironmentObject private var updater: UpdaterController
     @EnvironmentObject private var uninstaller: UninstallService
-    @EnvironmentObject private var connectionStore: ConnectionStore
-    @EnvironmentObject private var databaseViewModel: DatabaseViewModel
-    @EnvironmentObject private var documentViewModel: DocumentViewModel
     @EnvironmentObject private var tunnels: TunnelManager
 
     @ObservedObject var nav: DashboardNavigation
@@ -35,9 +32,6 @@ struct DashboardWindow: View {
             caTrust: caTrust,
             updater: updater,
             uninstaller: uninstaller,
-            connectionStore: connectionStore,
-            databaseViewModel: databaseViewModel,
-            documentViewModel: documentViewModel,
             tunnels: tunnels,
             overlay: overlay
         )

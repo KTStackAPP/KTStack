@@ -3,7 +3,7 @@ import KTStackCore
 
 public final class WordPressRestoreService: Sendable {
     private let paths: AppSupportPaths
-    private let dumpService: DumpService
+    private let client = MySQLAdminClient()
     private let provisioner: DatabaseProvisioner
     private let staging: RestoreStagingArea
     private let applyServerConfig: @Sendable () async throws -> Void
@@ -12,14 +12,12 @@ public final class WordPressRestoreService: Sendable {
 
     public init(
         paths: AppSupportPaths,
-        dumpService: DumpService = DumpService(),
         ensureEngine: @escaping @Sendable () async throws -> Void,
         applyServerConfig: @escaping @Sendable () async throws -> Void,
         enableHTTPS: @escaping @Sendable () async throws -> Void,
         finalizeSite: @escaping @Sendable (String) async -> Void
     ) {
         self.paths = paths
-        self.dumpService = dumpService
         provisioner = DatabaseProvisioner(ensureEngine: ensureEngine)
         staging = RestoreStagingArea(paths: paths)
         self.applyServerConfig = applyServerConfig
@@ -84,12 +82,7 @@ public final class WordPressRestoreService: Sendable {
 
             try Task.checkCancellation()
             emit(RestoreEvent(phase: .importingDatabase, message: "Importing database…"))
-            try await dumpService.importDump(
-                profile: .managedMySQL,
-                password: nil,
-                database: database,
-                from: payload.sqlDump
-            )
+            try await client.importDump(database: database, from: payload.sqlDump)
 
             if request.repairEncoding {
                 try Task.checkCancellation()

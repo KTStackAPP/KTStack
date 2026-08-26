@@ -26,6 +26,9 @@ private struct MenuBarWindowReader: NSViewRepresentable {
 
 struct MenuBarContentView: View {
     var plugins: [any KTStackPlugin] = []
+    #if DEBUG
+        var openSQLDrafts: () -> Void = {}
+    #endif
 
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var server: LocalServerController
@@ -148,7 +151,7 @@ struct MenuBarContentView: View {
             settingsFooterItem
             #if DEBUG
                 footerButton("SQL Editor Drafts", systemImage: "paintbrush.pointed", shortcut: "") {
-                    SQLEditorDraftsWindowController.shared.present()
+                    openSQLDrafts()
                     dismisser.dismiss()
                 }
             #endif

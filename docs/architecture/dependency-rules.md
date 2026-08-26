@@ -50,5 +50,8 @@ Import layer (`^import` lines in `Sources/`):
 - `Packages/Core/**`: only Foundation and Security.
 - `Packages/Contracts/**`: no SwiftUI, AppKit, KTStackKit, KTPluginKit.
 - `Packages/Plugin/**`: no KTStackKit, KTPlatformContracts.
-- `KTStackKit/Sources/**`: no KTPluginKit.
+- `KTStackKit/Sources/**`: no KTPluginKit, and no NIO/database driver module
+  (`MySQLNIO`, `PostgresNIO`, `GRDB`, `MongoKitten`, `MongoCore`, `NIOCore`,
+  `NIOPosix`, `NIOSSL`, `Logging`). The drivers live in `KTDatabasePlugin` (M09)
+  and link statically into the app, so the platform framework stays driver-free.
 - `Packages/Features/**` (M04+): no KTStackKit, no sibling feature package.

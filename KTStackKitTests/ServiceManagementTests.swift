@@ -558,30 +558,6 @@ final class ServiceManagementTests: XCTestCase {
         XCTAssertFalse(redis.isInstalled, "active version nil → isInstalled must be false")
     }
 
-    func testBackupSessionManagedUsesActiveVersionNotMaxInstalled() throws {
-        let root = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("kd-bkpver-\(UUID().uuidString)", isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: root) }
-        let p = AppSupportPaths(root: root)
-
-        let bin1710 = p.runtimeBin("postgres", "17.10")
-        try FileManager.default.createDirectory(at: bin1710, withIntermediateDirectories: true)
-        FileManager.default.createFile(
-            atPath: bin1710.appendingPathComponent("postgres").path,
-            contents: Data(),
-            attributes: [.posixPermissions: 0o755]
-        )
-
-        let cat = ServiceBinaryCatalog(paths: p)
-        var store = ServiceVersionStore(paths: p, catalog: cat)
-        store.setActiveVersion(.postgres, "17.10")
-
-        let session = BackupSession.managed(paths: p)
-        XCTAssertEqual(session.resolveEngineVersion(.postgres), "17.10",
-                       "managed session must resolve active version, not max-installed")
-        XCTAssertNil(session.resolveEngineVersion(.sqlite))
-    }
-
     func testRepointedVersionPreservesActiveWhenStillInstalled() {
         XCTAssertNil(
             ServiceManager.repointedVersion(remaining: ["7.0.0", "7.4.2"], currentActive: "7.0.0"),
@@ -629,7 +605,7 @@ final class ServiceManagementTests: XCTestCase {
             try FileManager.default.createDirectory(at: data, withIntermediateDirectories: true)
         }
 
-        try sut.setActiveVersion(.redis, version: "7.0.0")
+        try sut.setActiveVersion(ServiceKind.redis, version: "7.0.0")
         XCTAssertEqual(sut.activeVersion(.redis), "7.0.0")
 
         try sut.uninstall(kind: .redis, version: "7.2.0")
@@ -705,7 +681,7 @@ final class ServiceManagementTests: XCTestCase {
             attributes: [.posixPermissions: 0o755]
         )
 
-        try sut.setActiveVersion(.redis, version: "7.4.2")
+        try sut.setActiveVersion(ServiceKind.redis, version: "7.4.2")
 
         XCTAssertThrowsError(try sut.uninstall(kind: .redis, version: "7.4.2")) { error in
             XCTAssertTrue(
