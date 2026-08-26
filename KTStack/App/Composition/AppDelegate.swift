@@ -150,6 +150,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         standalone: [tunnelPlugin]
     )
 
+    @MainActor lazy var platformLifecycle = PlatformLifecycle(server: server)
+
     private static func alreadyRunningInstance() -> NSRunningApplication? {
         guard let bundleID = Bundle.main.bundleIdentifier else { return nil }
         let current = NSRunningApplication.current
@@ -232,16 +234,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_: Notification) {
-        // Plugins tear down their own resources first: Dumps disables auto_prepend and stops its
-        // socket, Tunnel boots out cloudflared jobs and clears tunnel vhosts, all plain file/process
-        // ops, before platform teardown. Tunnel cleanup now lives here, not a direct call below.
-        // Database plugin hạ SwiftNIO event loop trong shutdown() (bootout xong loop mới xuống),
-        // nên quit không còn tự tear down loop ở đây.
+        // Plugin dọn resource của mình trước, platform teardown sau (chi tiết ở CLAUDE.md ## Invariants).
         MainActor.assumeIsolated { pluginLifecycle }.shutdownAllBlocking()
-
-        MainActor.assumeIsolated {
-            server.shutdownForQuit()
-        }
+        MainActor.assumeIsolated { platformLifecycle }.shutdownBlocking()
     }
 
     @objc
