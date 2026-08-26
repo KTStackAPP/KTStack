@@ -43,7 +43,10 @@ esac
 # NOTE: `mbregex` is a SEPARATE static-php-cli extension from `mbstring` (it links oniguruma) and
 # provides the multibyte-regex functions — mb_split / mb_ereg* — that Laravel's Str helper calls.
 # Without it mbstring loads but mb_split is undefined (fatal). Keep it alongside mbstring.
-EXTENSIONS="${EXTENSIONS:-bcmath,bz2,calendar,curl,dom,event,exif,ffi,fileinfo,filter,ftp,gd,gettext,gmp,iconv,igbinary,intl,ldap,mbstring,mbregex,memcached,mysqli,opcache,openssl,pcntl,pdo,pdo_mysql,pdo_pgsql,pdo_sqlite,pgsql,phar,posix,protobuf,readline,redis,session,shmop,snmp,soap,sockets,sodium,sqlite3,ssh2,sysvmsg,sysvsem,sysvshm,tidy,tokenizer,xhprof,xlswriter,xml,xmlwriter,xsl,zip,zlib,zstd}"
+# XML cluster: dom/xml/xsl/simplexml/xmlreader/xmlwriter are each separate spc extensions over libxml2.
+# phpunit requires ext-xmlwriter; composer refuses to install it otherwise. Ship the full set so
+# test tooling and Laravel/WP XML parsing work without a missing-extension abort.
+EXTENSIONS="${EXTENSIONS:-bcmath,bz2,calendar,curl,dom,event,exif,ffi,fileinfo,filter,ftp,gd,gettext,gmp,iconv,igbinary,intl,ldap,mbstring,mbregex,memcached,mysqli,opcache,openssl,pcntl,pdo,pdo_mysql,pdo_pgsql,pdo_sqlite,pgsql,phar,posix,protobuf,readline,redis,session,shmop,simplexml,snmp,soap,sockets,sodium,sqlite3,ssh2,sysvmsg,sysvsem,sysvshm,tidy,tokenizer,xhprof,xlswriter,xml,xmlreader,xmlwriter,xsl,zip,zlib,zstd}"
 
 # libxml2 2.15 renamed the XPath stack API (valuePush/valuePop → xmlXPathValuePush/Pop), which
 # PHP <= 8.4's ext/dom still references, so linking against spc's default (latest) libxml2 fails with
