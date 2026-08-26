@@ -43,7 +43,17 @@ esac
 # NOTE: `mbregex` is a SEPARATE static-php-cli extension from `mbstring` (it links oniguruma) and
 # provides the multibyte-regex functions — mb_split / mb_ereg* — that Laravel's Str helper calls.
 # Without it mbstring loads but mb_split is undefined (fatal). Keep it alongside mbstring.
-EXTENSIONS="${EXTENSIONS:-bcmath,bz2,calendar,curl,dom,event,exif,fileinfo,filter,gd,gmp,igbinary,intl,ldap,mbstring,mbregex,memcached,mysqli,opcache,openssl,pcntl,pdo,pdo_mysql,pdo_pgsql,pdo_sqlite,pgsql,phar,protobuf,readline,redis,session,snmp,soap,sockets,sqlite3,ssh2,sysvmsg,sysvshm,tokenizer,xhprof,xlswriter,xml,xmlwriter,xsl,zip,zlib,zstd}"
+# XML cluster: dom/xml/xsl/simplexml/xmlreader/xmlwriter are each separate spc extensions over libxml2.
+# phpunit requires ext-xmlwriter; composer refuses to install it otherwise. Ship the full set so
+# test tooling and Laravel/WP XML parsing work without a missing-extension abort.
+EXTENSIONS="${EXTENSIONS:-bcmath,bz2,calendar,curl,dom,event,exif,ffi,fileinfo,filter,ftp,gd,gettext,gmp,iconv,igbinary,intl,ldap,mbstring,mbregex,memcached,mysqli,opcache,openssl,pcntl,pdo,pdo_mysql,pdo_pgsql,pdo_sqlite,pgsql,phar,posix,protobuf,readline,redis,session,shmop,simplexml,snmp,soap,sockets,sodium,sqlite3,ssh2,sysvmsg,sysvsem,sysvshm,tidy,tokenizer,xhprof,xlswriter,xml,xmlreader,xmlwriter,xsl,zip,zlib,zstd}"
+
+# libxml2 2.15 renamed the XPath stack API (valuePush/valuePop → xmlXPathValuePush/Pop), which
+# PHP <= 8.4's ext/dom still references, so linking against spc's default (latest) libxml2 fails with
+# "Undefined symbols: _valuePop/_valuePush". Pin the last 2.13 release, which keeps the old names.
+# Override LIBXML2_URL for a PHP version whose ext/dom has moved to the new API (e.g. 8.5+).
+LIBXML2_URL="${LIBXML2_URL:-https://download.gnome.org/sources/libxml2/2.13/libxml2-2.13.8.tar.xz}"
+LIBXML2_PIN=(--custom-url "libxml2:$LIBXML2_URL")
 
 # Optional install/uninstall extensions, built as relocatable shared objects (.so) OVER the same
 # static base — they are NOT compiled into php; the version identity is unchanged. One artifact per
@@ -72,11 +82,18 @@ if [[ ! -x "$SPC" ]]; then
 fi
 "$SPC" --version
 
-echo "=== doctor (auto-fix build prerequisites) ==="
-"$SPC" doctor --auto-fix
+# spc doctor hard-fails when an x86 Homebrew sits at /usr/local on Apple Silicon (its M1 check reads
+# that as "wrong prefix"), even though the arm64 build works. Allow skipping it on such machines;
+# prerequisites are already satisfied there.
+if [[ "${SKIP_SPC_DOCTOR:-0}" == "1" ]]; then
+    echo "=== doctor skipped (SKIP_SPC_DOCTOR=1) ==="
+else
+    echo "=== doctor (auto-fix build prerequisites) ==="
+    "$SPC" doctor --auto-fix
+fi
 
 echo "=== download PHP ${PHP_VER} source + extension deps ==="
-"$SPC" download --with-php="$PHP_VER" --for-extensions="$EXTENSIONS" --prefer-pre-built
+"$SPC" download --with-php="$PHP_VER" --for-extensions="$EXTENSIONS" --prefer-pre-built "${LIBXML2_PIN[@]}"
 
 echo "=== build (cli + fpm), static ==="
 "$SPC" build "$EXTENSIONS" --build-cli --build-fpm
@@ -149,7 +166,7 @@ if [[ -n "$SHARED_EXTENSIONS" ]]; then
     }
 
     echo "=== download shared-ext deps ==="
-    "$SPC" download --with-php="$PHP_VER" --for-extensions="$SHARED_EXTENSIONS" --prefer-pre-built
+    "$SPC" download --with-php="$PHP_VER" --for-extensions="$SHARED_EXTENSIONS" --prefer-pre-built "${LIBXML2_PIN[@]}"
 
     # Fast path: one combined build pays the base recompile ONCE, then adds each ext via phpize in
     # seconds. spc aborts the whole batch at the first ext that fails to build, so any ext after the
