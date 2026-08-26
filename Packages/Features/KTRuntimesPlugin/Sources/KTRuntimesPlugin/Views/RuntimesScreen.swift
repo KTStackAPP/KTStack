@@ -6,7 +6,7 @@ import SwiftUI
 struct RuntimesScreen: View {
     @ObservedObject var vm: RuntimesViewModel
     @ObservedObject var engines: EngineVersionsViewModel
-    let phpConfig: any PHPExtensionManaging & PHPIniEditing
+    let phpConfig: any PHPExtensionManaging & PHPIniEditing & PHPPoolEditing
 
     @EnvironmentObject var feedback: KTFeedbackCenter
 
@@ -14,6 +14,7 @@ struct RuntimesScreen: View {
     @State var filter = ""
     @State var expandedVersion: String?
     @State private var editingIni: VersionRef?
+    @State private var editingPool: VersionRef?
     @State private var managingExt: VersionRef?
 
     private struct VersionRef: Identifiable { let version: String; var id: String {
@@ -38,6 +39,7 @@ struct RuntimesScreen: View {
         .background(KTColor.contentBg)
         .onChange(of: category) { _ in filter = ""; expandedVersion = nil }
         .sheet(item: $editingIni) { PHPIniEditorSheet(version: $0.version, phpConfig: phpConfig) }
+        .sheet(item: $editingPool) { PHPPoolEditorSheet(version: $0.version, phpConfig: phpConfig) }
         .sheet(item: $managingExt) { PHPExtensionsSheet(version: $0.version, phpConfig: phpConfig) }
         .ktFeedbackHost(feedback)
     }
@@ -75,6 +77,10 @@ struct RuntimesScreen: View {
 
     func editIni(_ version: String) {
         editingIni = VersionRef(version: version)
+    }
+
+    func editPool(_ version: String) {
+        editingPool = VersionRef(version: version)
     }
 
     func manageExtensions(_ version: String) {

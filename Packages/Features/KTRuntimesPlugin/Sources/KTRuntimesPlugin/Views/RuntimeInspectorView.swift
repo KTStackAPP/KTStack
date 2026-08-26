@@ -5,8 +5,9 @@ import SwiftUI
 
 struct RuntimeInspectorView: View {
     @StateObject private var model: RuntimeInspectorModel
-    let phpConfig: any PHPExtensionManaging & PHPIniEditing
+    let phpConfig: any PHPExtensionManaging & PHPIniEditing & PHPPoolEditing
     let onEditIni: () -> Void
+    let onEditPool: () -> Void
     let onManageExtensions: () -> Void
     let onUninstall: () -> Void
 
@@ -14,8 +15,9 @@ struct RuntimeInspectorView: View {
         version: String,
         language: RuntimeLanguage,
         sites: [String],
-        phpConfig: any PHPExtensionManaging & PHPIniEditing,
+        phpConfig: any PHPExtensionManaging & PHPIniEditing & PHPPoolEditing,
         onEditIni: @escaping () -> Void,
+        onEditPool: @escaping () -> Void,
         onManageExtensions: @escaping () -> Void,
         onUninstall: @escaping () -> Void
     ) {
@@ -24,6 +26,7 @@ struct RuntimeInspectorView: View {
         ))
         self.phpConfig = phpConfig
         self.onEditIni = onEditIni
+        self.onEditPool = onEditPool
         self.onManageExtensions = onManageExtensions
         self.onUninstall = onUninstall
     }
@@ -57,6 +60,7 @@ struct RuntimeInspectorView: View {
         VStack(alignment: .leading, spacing: 12) {
             columnTitle("Configuration")
             configRow(label: "php.ini", detail: nil, actionTitle: "Edit…", action: onEditIni)
+            configRow(label: "PHP-FPM pool", detail: model.poolSummary, actionTitle: "Edit…", action: onEditPool)
             configRow(label: "Extensions", detail: extensionDetail, actionTitle: "Manage…", action: onManageExtensions)
             XdebugToggleView(version: model.version, phpConfig: phpConfig)
         }

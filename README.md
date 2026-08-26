@@ -56,7 +56,7 @@ The features other tools **lock behind a paid plan or a separate app** (the data
 ## Features
 
 - **Automatic `.test` domains** with trusted local HTTPS (per-site certificates from a local CA)
-- **Nginx + PHP-FPM** with per-site PHP version isolation
+- **Nginx + PHP-FPM** with per-site PHP version isolation; per-version editable `php.ini`, extensions, Xdebug and FPM pool tuning
 - **PHP 7.4 → 8.5** (seven versions, EOL versions clearly flagged) and **Node.js 20/22/24/26**, self-contained, no Homebrew required
 - **Proxy sites**: point a `.test` domain at any local port, LAN host or remote HTTPS origin
 - **Databases**: MySQL, PostgreSQL, Redis, MongoDB

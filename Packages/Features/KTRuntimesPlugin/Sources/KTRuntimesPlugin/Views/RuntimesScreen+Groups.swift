@@ -68,6 +68,7 @@ extension RuntimesScreen {
                 sites: vm.sites(for: entry.version),
                 phpConfig: phpConfig,
                 onEditIni: { editIni(entry.version) },
+                onEditPool: { editPool(entry.version) },
                 onManageExtensions: { manageExtensions(entry.version) },
                 onUninstall: { requestUninstall(lang, entry.version) }
             )
