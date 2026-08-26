@@ -12,11 +12,14 @@ public enum LegacyKDWarmMigration {
     private static let currentKeychainService = "com.ktstack.db"
     private static let legacyLaunchPrefix = "com.kdwarm."
     private static let legacyHelperPlist = "com.kdwarm.helper.plist"
+    private static let removedAPITesterPrefix = "com.ktstack.apiTester.variables."
 
     public static func runIfNeeded(
         paths: AppSupportPaths = AppSupportPaths(),
         defaults: UserDefaults = .standard
     ) {
+        purgeRemovedFeatureDefaults(from: defaults)
+
         guard !defaults.bool(forKey: didMigrateKey) else { return }
 
         let fileManager = FileManager.default
@@ -63,6 +66,13 @@ public enum LegacyKDWarmMigration {
         ) else { return }
         for url in entries where url.lastPathComponent.hasPrefix(legacyLaunchPrefix) {
             try? fileManager.removeItem(at: url)
+        }
+    }
+
+    // Dọn biến API Tester, feature đã bỏ. Chạy mỗi launch, idempotent.
+    static func purgeRemovedFeatureDefaults(from defaults: UserDefaults) {
+        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(removedAPITesterPrefix) {
+            defaults.removeObject(forKey: key)
         }
     }
 

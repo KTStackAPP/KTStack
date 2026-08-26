@@ -13,7 +13,6 @@ final class KTSitesPluginTests: XCTestCase {
             provisioning: FakeSiteProvisioning(),
             restore: FakeWordPressRestoring(),
             ide: FakeSiteIDEConfiguring(),
-            routes: FakeAPIRouteIntrospecting(),
             dns: FakeDNSResolving(state: DNSResolverState(status: .enabled, isBusy: false, lastError: nil, usesHelper: false, helperNeedsApproval: false)),
             runtimes: FakeRuntimeManaging(state: RuntimeState()),
             sharing: FakeSiteSharing(),

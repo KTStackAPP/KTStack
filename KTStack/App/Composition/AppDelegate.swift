@@ -90,7 +90,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         provisioning: siteProvisioning,
         restore: siteProvisioning,
         ide: siteProvisioning,
-        routes: RouteIntrospectionService(paths: AppSupportPaths()),
         dns: dns,
         runtimes: runtimes,
         sharing: tunnelPlugin.manager,

@@ -8,7 +8,6 @@ struct SitesScreen: View {
     let provisioning: any SiteProvisioning
     let restore: any WordPressRestoring
     let ide: any SiteIDEConfiguring
-    let routes: any APIRouteIntrospecting
     let modals: KTModalPresenter
     let sitesRoot: URL
     let httpsByDefault: Bool
@@ -170,12 +169,6 @@ struct SitesScreen: View {
                     onClose: modals.dismiss
                 )
             }
-        }
-    }
-
-    func openAPITester(_ site: SiteSummary) {
-        modals.present(id: "sites.api-tester") {
-            APITesterModal(site: site, routes: routes, onClose: modals.dismiss)
         }
     }
 

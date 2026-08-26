@@ -19,7 +19,6 @@ struct SiteGridCard: View {
     let onSetEngine: (SiteServerEngine) -> Void
     let onInstallApache: () -> Void
     let onOpenLogs: () -> Void
-    let onOpenAPITester: () -> Void
     let onToggleShare: (Bool) -> Void
     let onRemove: () -> Void
     var onConfigureVSCode: () -> Void = {}
@@ -86,7 +85,6 @@ struct SiteGridCard: View {
                     site: site,
                     canOpen: canOpen,
                     onOpenLogs: onOpenLogs,
-                    onOpenAPITester: onOpenAPITester,
                     onRemove: onRemove,
                     onConfigureVSCode: onConfigureVSCode,
                     onRestore: onRestore
