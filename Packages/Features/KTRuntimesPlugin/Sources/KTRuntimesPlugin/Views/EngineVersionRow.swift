@@ -51,6 +51,7 @@ struct EngineVersionRow: View {
                 ProgressView(value: fraction).frame(width: 80)
                 Button { onCancel() } label: {
                     Image(systemName: "xmark.circle").foregroundStyle(KTColor.muted)
+                        .frame(width: 28, height: 28).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }

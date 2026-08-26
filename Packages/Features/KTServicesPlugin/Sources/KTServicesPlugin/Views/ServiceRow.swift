@@ -72,8 +72,11 @@ struct ServiceRow: View, Equatable {
         if let fraction = state.downloadFraction {
             HStack(spacing: 6) {
                 ProgressView(value: fraction).frame(width: 56)
-                Button { onCancelInstall() } label: { Image(systemName: "xmark.circle").foregroundStyle(KTColor.muted) }
-                    .buttonStyle(.plain)
+                Button { onCancelInstall() } label: {
+                    Image(systemName: "xmark.circle").foregroundStyle(KTColor.muted)
+                        .frame(width: 28, height: 28).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
         } else if !state.isInstalled, state.installable {
             KTButton(title: "Install", kind: .primary, action: onInstall)
