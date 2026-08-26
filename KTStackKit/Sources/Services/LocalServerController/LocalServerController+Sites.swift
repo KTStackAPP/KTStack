@@ -1,8 +1,8 @@
 import Foundation
 import KTStackCore
 
-extension LocalServerController {
-    public func setSiteSecure(_ site: Site, _ secure: Bool) {
+public extension LocalServerController {
+    func setSiteSecure(_ site: Site, _ secure: Bool) {
         guard !isBusy else { return }
         guard secure else { registry.setSecure(site, false); return }
 
@@ -23,15 +23,39 @@ extension LocalServerController {
         }
     }
 
-    public func setNodePort(_ site: Site, _ port: Int?) {
+    /// Migrate mọi site sang TLD mới: rewrite domain rồi re-mint cert cho site secure (best-effort,
+    /// site nào mint hỏng sẽ về HTTP tới khi bật lại HTTPS). Gọi trước khi relaunch; vhost + tunnel
+    /// được reconcile lại lúc start ở tiến trình mới.
+    func migrateSitesToTLD(from old: String, to new: String) async {
+        let migrated = registry.migrateTLD(from: old, to: new)
+        guard !migrated.isEmpty else { return }
+        let provisioner = httpsProvisioner
+        let secure = migrated.filter(\.secure)
+        let keep = Set(registry.sites.map(\.domain))
+        let minter = certMinter
+        await Task.detached(priority: .userInitiated) {
+            // mkcert mỗi site độc lập nên re-mint song song để không cộng dồn delay lúc relaunch.
+            await withTaskGroup(of: Void.self) { group in
+                for site in secure {
+                    group.addTask {
+                        do { try provisioner.enableHTTPS(for: site, overridingTLD: new) }
+                        catch { NSLog("KTStack: TLD migrate cert re-mint failed for \(site.domain): \(error.localizedDescription)") }
+                    }
+                }
+            }
+            minter.pruneOrphans(keeping: keep)
+        }.value
+    }
+
+    func setNodePort(_ site: Site, _ port: Int?) {
         registry.setNodePort(site, port)
     }
 
-    // Switch a site's engine with a zero-downtime handoff: bring the requested engine up on a
-    // fresh backendPort, repoint the front to it, then reap the old backend. No Web Server restart.
-    // Falls back to a plain persist when nothing is running (the next start applies it) or when the
-    // request resolves to the engine already in use (apache requested but not installed → nginx).
-    public func setSiteEngine(_ site: Site, _ engine: WebServerEngine) {
+    /// Switch a site's engine with a zero-downtime handoff: bring the requested engine up on a
+    /// fresh backendPort, repoint the front to it, then reap the old backend. No Web Server restart.
+    /// Falls back to a plain persist when nothing is running (the next start applies it) or when the
+    /// request resolves to the engine already in use (apache requested but not installed → nginx).
+    func setSiteEngine(_ site: Site, _ engine: WebServerEngine) {
         guard site.type == .php else { return }
         let resolved = WebServerBackendFactory.effectiveEngine(engine, paths: paths)
         guard isRunning, !isBusy, let oldPort = site.backendPort, resolved != site.serverEngine else {
@@ -59,8 +83,8 @@ extension LocalServerController {
                 // Write the new backend conf + front vhost (now pointing at newPort) to disk, but do
                 // not reload the front yet: the old backend on oldPort keeps serving until step 3.
                 _ = try generator.generate(sites: sites, port: port)
-                try await backends.startOne(site: newSite)   // new engine listening on newPort
-                try nginx.reload()                           // front now routes the site to newPort
+                try await backends.startOne(site: newSite) // new engine listening on newPort
+                try nginx.reload() // front now routes the site to newPort
                 // Let the front's pre-reload workers drain before reaping the old backend; they
                 // still route to oldPort until they exit, so an immediate reap 502s those requests.
                 try? await Task.sleep(nanoseconds: 1_500_000_000)
@@ -76,8 +100,8 @@ extension LocalServerController {
         }
     }
 
-    // Download the on-demand Apache engine; on success any apache-set site switches to it.
-    public func installApache() {
+    /// Download the on-demand Apache engine; on success any apache-set site switches to it.
+    func installApache() {
         guard !apacheInstalling, !apacheInstalled else { return }
         apacheInstalling = true; apacheInstallError = nil
         let paths = paths
@@ -100,22 +124,22 @@ extension LocalServerController {
         }
     }
 
-    public func probeNode(_ site: Site) async -> NodeSiteController.State {
+    func probeNode(_ site: Site) async -> NodeSiteController.State {
         await nodeSites.probe(site)
     }
 
-    func onRegistryChanged() {
+    internal func onRegistryChanged() {
         onSitesChanged?(registry.sites)
         guard isRunning || phpRunning else { refreshWatches(); return }
         guard !isBusy else { pendingReconcile = true; return }
         reconcile()
     }
 
-    public func reconcileAfterRuntimeChange() {
+    func reconcileAfterRuntimeChange() {
         onRegistryChanged()
     }
 
-    func reconcile() {
+    internal func reconcile() {
         isBusy = true
         let sites = registry.sites
         let port = httpPort
@@ -129,17 +153,17 @@ extension LocalServerController {
         }
     }
 
-    func handleFolderChange(_ folder: URL) {
+    internal func handleFolderChange(_ folder: URL) {
         for site in registry.sites where site.path == folder.path {
             registry.reinspect(site)
         }
     }
 
-    func refreshWatches() {
+    internal func refreshWatches() {
         watcher.watch(registry.sites.map { URL(fileURLWithPath: $0.path) })
     }
 
-    func ensureSeed() {
+    internal func ensureSeed() {
         guard !didSeed, registry.sites.isEmpty else { didSeed = true; return }
         didSeed = true
         let demo = AppSupportPaths.defaultSitesRoot.appendingPathComponent("demo", isDirectory: true)
@@ -147,7 +171,7 @@ extension LocalServerController {
         try? registry.add(folder: demo)
     }
 
-    nonisolated static func provisionSampleSite(at docroot: URL, domain: String) throws {
+    internal nonisolated static func provisionSampleSite(at docroot: URL, domain: String) throws {
         let fm = FileManager.default
         try fm.createDirectory(at: docroot, withIntermediateDirectories: true)
         let index = docroot.appendingPathComponent("index.php")
