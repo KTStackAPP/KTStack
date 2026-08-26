@@ -1,3 +1,4 @@
+import KTStackCore
 import XCTest
 @testable import KTStackKit
 
@@ -59,9 +60,9 @@ final class SiteInspectorTests: XCTestCase {
         XCTAssertEqual(inspector.inspect(folder: folder).type, .node)
     }
 
-    func testSlugSanitizesHostnameLabel() {
-        XCTAssertEqual(SiteInspector.slug("My Cool App!"), "my-cool-app")
-        XCTAssertEqual(SiteInspector.slug("  __  "), "site")
+    func testDefaultDomainUsesSanitizedHostnameLabel() {
+        XCTAssertEqual(DomainSlug.make("My Cool App!"), "my-cool-app")
+        XCTAssertEqual(DomainSlug.make("  __  "), "site")
     }
 }
 

@@ -1,6 +1,5 @@
 import KTPluginKit
 import KTStackKit
-import KTTunnelPlugin
 import SwiftUI
 
 struct DashboardWindow: View {
@@ -14,12 +13,11 @@ struct DashboardWindow: View {
     @EnvironmentObject private var caTrust: CATrustService
     @EnvironmentObject private var updater: UpdaterController
     @EnvironmentObject private var uninstaller: UninstallService
-    @EnvironmentObject private var tunnels: TunnelManager
+    @EnvironmentObject private var modals: KTModalPresenter
 
     @ObservedObject var nav: DashboardNavigation
     let pluginSections: [PluginSection]
 
-    @StateObject private var overlay = KTOverlayCenter()
     @State private var showDNSOnboarding = false
 
     private var dashboardEnv: DashboardEnv {
@@ -32,16 +30,13 @@ struct DashboardWindow: View {
             caTrust: caTrust,
             updater: updater,
             uninstaller: uninstaller,
-            tunnels: tunnels,
-            overlay: overlay
+            modals: modals
         )
     }
 
     var body: some View {
         DashboardSplitRepresentable(nav: nav, env: dashboardEnv, sections: pluginSections)
             .frame(minWidth: 720, minHeight: 460)
-            .environmentObject(overlay)
-            .ktOverlayHost(overlay)
             .ignoresSafeArea(.container, edges: .top)
             .background(KTWindowChrome())
             .sheet(isPresented: $showDNSOnboarding) { HelperApprovalView(dns: dns) }
@@ -54,45 +49,5 @@ struct DashboardWindow: View {
                 if !preferences.hasSeenDNSSetup, dns.status == .disabled { showDNSOnboarding = true }
                 preferences.hasSeenDNSSetup = true
             }
-    }
-}
-
-// Navigation vocabulary nội bộ App: screens gọi onNavigate(.services), adapter map .rawValue → selection id.
-// Teo dần và xóa khi plugin sở hữu route enum riêng (M04+).
-enum SidebarItem: String, CaseIterable, Identifiable {
-    case sites, services, runtimes, database, logs, mail, dumps, doctor, settings, about
-
-    var id: String {
-        rawValue
-    }
-
-    var title: String {
-        switch self {
-        case .sites: "Sites"
-        case .services: "Services"
-        case .runtimes: "Runtimes"
-        case .database: "Database"
-        case .logs: "Logs"
-        case .mail: "Mail"
-        case .dumps: "Dumps"
-        case .doctor: "Doctor"
-        case .settings: "Settings"
-        case .about: "About"
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .sites: "globe"
-        case .services: "server.rack"
-        case .runtimes: "cube"
-        case .database: "cylinder.split.1x2"
-        case .logs: "text.alignleft"
-        case .mail: "envelope"
-        case .dumps: "curlybraces"
-        case .doctor: "stethoscope"
-        case .settings: "gearshape"
-        case .about: "info.circle"
-        }
     }
 }

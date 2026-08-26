@@ -1,7 +1,6 @@
 import AppKit
 import KTPluginKit
 import KTStackKit
-import KTTunnelPlugin
 import SwiftUI
 
 struct DashboardEnv {
@@ -13,8 +12,7 @@ struct DashboardEnv {
     let caTrust: CATrustService
     let updater: UpdaterController
     let uninstaller: UninstallService
-    let tunnels: TunnelManager
-    let overlay: KTOverlayCenter
+    let modals: KTModalPresenter
 
     func inject(_ view: some View) -> some View {
         view
@@ -26,8 +24,7 @@ struct DashboardEnv {
             .environmentObject(caTrust)
             .environmentObject(updater)
             .environmentObject(uninstaller)
-            .environmentObject(tunnels)
-            .environmentObject(overlay)
+            .environmentObject(modals)
     }
 }
 
@@ -69,8 +66,8 @@ private struct DashboardSidebarHost: View {
             })
         }
         groups.append(KTSidebarGroup(title: "APP", rows: [
-            SidebarRowModel(from: .settings),
-            SidebarRowModel(from: .about),
+            SidebarRowModel(id: "settings", title: "Settings", symbol: "gearshape"),
+            SidebarRowModel(id: "about", title: "About", symbol: "info.circle"),
         ]))
         return groups
     }
@@ -110,7 +107,7 @@ final class DashboardSplitViewController: NSSplitViewController {
     override func viewDidAppear() {
         super.viewDidAppear()
         guard modalHost == nil, let window = view.window else { return }
-        modalHost = KTModalHostController(parent: window, env: env)
+        modalHost = KTModalHostController(parent: window, modals: env.modals)
     }
 
     override func viewDidLoad() {
@@ -237,7 +234,7 @@ final class DetailContainerViewController: NSViewController {
     private func detailContent(for id: String) -> some View {
         if let plugin = plugins.first(where: { $0.descriptor.id == id }) {
             plugin.makeContentView()
-        } else if id == SidebarItem.settings.rawValue {
+        } else if id == "settings" {
             SettingsView(
                 preferences: env.preferences,
                 dns: env.dns,
@@ -249,7 +246,7 @@ final class DetailContainerViewController: NSViewController {
                 pluginPanes: settingsPanes
             )
             .navigationTitle("Settings")
-        } else if id == SidebarItem.about.rawValue {
+        } else if id == "about" {
             AboutSettingsView().navigationTitle("About")
         }
     }

@@ -58,6 +58,12 @@ packages:
   # KTPlatformContracts + KTPluginKit, never KTStackKit.
   KTServicesPlugin:
     path: Packages/Features/KTServicesPlugin
+  # Ninth feature package (M12): Sites. Owns the Sites screen (list/grid, New Site, Import, Restore
+  # backup, API Tester, share) and its ViewModels; platform keeps provisioning, restore, IDE config,
+  # route introspection behind contracts. Deps KTStackCore + KTPlatformContracts + KTPluginKit, never
+  # KTStackKit.
+  KTSitesPlugin:
+    path: Packages/Features/KTSitesPlugin
   # Sparkle auto-update framework (EdDSA-signed appcast). Private key stays offline / in CI;
   # the public key is set as SUPublicEDKey in Info.plist.
   Sparkle:
@@ -156,6 +162,7 @@ targets:
       - package: KTDatabasePlugin
       - package: KTRuntimesPlugin
       - package: KTServicesPlugin
+      - package: KTSitesPlugin
       - package: Sparkle
       # Build-order + copy only (no linking); lands in Contents/MacOS so Phase 4's
       # SMAppService daemon plist can reference it. Empty stub for now.

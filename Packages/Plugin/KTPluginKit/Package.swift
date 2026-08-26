@@ -17,6 +17,10 @@ let package = Package(
         .target(
             name: "KTPluginKit",
             dependencies: [.product(name: "KTStackCore", package: "KTStackCore")]
+        ),
+        .testTarget(
+            name: "KTPluginKitTests",
+            dependencies: ["KTPluginKit"]
         )
     ]
 )
