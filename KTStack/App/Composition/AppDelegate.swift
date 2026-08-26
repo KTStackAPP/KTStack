@@ -152,6 +152,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor lazy var platformLifecycle = PlatformLifecycle(server: server)
 
+    @MainActor lazy var dashboardEnv = DashboardEnv(
+        preferences: preferences,
+        server: server,
+        dns: dns,
+        services: services,
+        runtimes: runtimes,
+        caTrust: caTrust,
+        updater: updater,
+        uninstaller: uninstaller,
+        modals: modals
+    )
+
     private static func alreadyRunningInstance() -> NSRunningApplication? {
         guard let bundleID = Bundle.main.bundleIdentifier else { return nil }
         let current = NSRunningApplication.current

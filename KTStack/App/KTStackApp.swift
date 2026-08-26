@@ -75,16 +75,11 @@ struct KTStackApp: App {
         .menuBarExtraStyle(.window)
 
         Window("KTStack Dashboard", id: DashboardWindow.windowID) {
-            DashboardWindow(nav: appDelegate.navigation, pluginSections: appDelegate.pluginSections)
-                .environmentObject(appDelegate.preferences)
-                .environmentObject(appDelegate.server)
-                .environmentObject(appDelegate.dns)
-                .environmentObject(appDelegate.services)
-                .environmentObject(appDelegate.runtimes)
-                .environmentObject(appDelegate.caTrust)
-                .environmentObject(appDelegate.updater)
-                .environmentObject(appDelegate.uninstaller)
-                .environmentObject(appDelegate.modals)
+            DashboardWindow(
+                nav: appDelegate.navigation,
+                env: appDelegate.dashboardEnv,
+                pluginSections: appDelegate.pluginSections
+            )
         }
         .defaultSize(width: Self.defaultWindowSize.width, height: Self.defaultWindowSize.height)
         .windowResizability(.contentMinSize)
