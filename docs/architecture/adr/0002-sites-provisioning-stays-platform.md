@@ -6,14 +6,14 @@ Status: Accepted (2026-08-26)
 
 M12 moved the Sites feature into `KTSitesPlugin`. The design ownership manifest
 (section 5) listed the whole Sites subsystem as plugin-owned. In practice the
-install, import, restore, and route-discovery orchestration cannot cross the
-plugin boundary: it needs types a plugin must never see.
+install, import, and restore orchestration cannot cross the plugin boundary: it
+needs types a plugin must never see.
 
 ## Decision
 
-`Install`, `Import`, `Restore`, `APITester`, `SiteInspector`, and `SiteScanner`
-stay in `KTStackKit/Sources/Sites`, behind the `SiteProvisioning`,
-`WordPressRestoring`, `SiteIDEConfiguring`, and `APIRouteIntrospecting` contracts.
+`Install`, `Import`, `Restore`, `SiteInspector`, and `SiteScanner` stay in
+`KTStackKit/Sources/Sites`, behind the `SiteProvisioning`, `WordPressRestoring`,
+and `SiteIDEConfiguring` contracts.
 `SiteProvisioningService` builds `MySQLController`, `SiteHTTPSProvisioner`, and the
 installers itself, so `KTSitesPlugin` never constructs a platform provisioning
 type or touches `AppSupportPaths`.
