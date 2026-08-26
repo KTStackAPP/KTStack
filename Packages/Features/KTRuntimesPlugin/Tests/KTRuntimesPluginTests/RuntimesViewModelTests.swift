@@ -21,15 +21,35 @@ final class RuntimesViewModelTests: XCTestCase {
         )
     }
 
-    func testEntriesSortDescendingWithDefaultActive() {
+    func testInstalledEntriesPinDefaultThenNumericDescending() {
         let runtimes = FakeRuntimeManaging(state: RuntimeState(
             installed: [.php: ["8.1", "8.3", "8.2"]],
             defaults: [.php: "8.2"]
         ))
         let vm = makeVM(runtimes: runtimes)
-        let entries = vm.entries(.php)
-        XCTAssertEqual(entries.map(\.version), ["8.3", "8.2", "8.1"])
-        XCTAssertEqual(entries.first { $0.state == .active }?.version, "8.2")
+        let entries = vm.installedEntries(.php)
+        XCTAssertEqual(entries.map(\.version), ["8.2", "8.3", "8.1"])
+        XCTAssertEqual(entries.first?.state, .active)
+    }
+
+    func testEntriesConcatInstalledThenAvailable() {
+        let runtimes = FakeRuntimeManaging(state: RuntimeState(
+            installed: [.php: ["8.1", "8.3"]],
+            defaults: [.php: "8.1"]
+        ))
+        runtimes.releases = [release(.php, "7.4")]
+        let vm = makeVM(runtimes: runtimes)
+        XCTAssertEqual(vm.entries(.php).map(\.version), ["8.1", "8.3", "7.4"])
+    }
+
+    func testRailSummary() {
+        let runtimes = FakeRuntimeManaging(state: RuntimeState(
+            installed: [.php: ["8.3", "8.2"]],
+            defaults: [.php: "8.2"]
+        ))
+        let vm = makeVM(runtimes: runtimes)
+        XCTAssertEqual(vm.railSummary(.php), "2 installed · 8.2 default")
+        XCTAssertEqual(vm.railSummary(.node), "Not installed")
     }
 
     func testEntriesAppendAvailableReleases() {
@@ -39,6 +59,31 @@ final class RuntimesViewModelTests: XCTestCase {
         let entries = vm.entries(.php)
         XCTAssertEqual(entries.map(\.version), ["8.3", "7.4"])
         XCTAssertEqual(entries.last?.state, .available)
+    }
+
+    func testMetaLinePHP() {
+        let runtimes = FakeRuntimeManaging(state: RuntimeState(
+            installed: [.php: ["8.3", "8.2", "7.4"]],
+            defaults: [.php: "8.3"]
+        ), eol: ["7.4"])
+        let sites = FakePHPSites()
+        sites.sitesByVersion = ["8.3": ["a.test", "b.test"], "8.2": ["c.test"]]
+        let vm = makeVM(runtimes: runtimes, sites: sites)
+        let byVersion = Dictionary(uniqueKeysWithValues: vm.installedEntries(.php).map { ($0.version, $0) })
+        XCTAssertEqual(vm.metaLine(.php, byVersion["8.3"]!), "Default for new sites and terminals · 2 sites")
+        XCTAssertEqual(vm.metaLine(.php, byVersion["8.2"]!), "1 site")
+        XCTAssertEqual(vm.metaLine(.php, byVersion["7.4"]!), "Not used by any site · no security updates")
+    }
+
+    func testMetaLineNode() {
+        let runtimes = FakeRuntimeManaging(state: RuntimeState(
+            installed: [.node: ["24", "22"]],
+            defaults: [.node: "24"]
+        ))
+        let vm = makeVM(runtimes: runtimes)
+        let byVersion = Dictionary(uniqueKeysWithValues: vm.installedEntries(.node).map { ($0.version, $0) })
+        XCTAssertEqual(vm.metaLine(.node, byVersion["24"]!), "Default for terminals · sites run their own server")
+        XCTAssertEqual(vm.metaLine(.node, byVersion["22"]!), "Installed")
     }
 
     func testDownloadFractionMatchesVersionOnly() {
@@ -119,7 +164,9 @@ final class RuntimesViewModelTests: XCTestCase {
         let runtimes = FakeRuntimeManaging()
         let vm = makeVM(runtimes: runtimes)
         runtimes.emit(RuntimeState(installed: [.php: ["8.4"]]))
-        for _ in 0 ..< 50 where vm.entries(.php).isEmpty { await Task.yield() }
+        for _ in 0..<50 where vm.entries(.php).isEmpty {
+            await Task.yield()
+        }
         XCTAssertEqual(vm.entries(.php).map(\.version), ["8.4"])
     }
 }

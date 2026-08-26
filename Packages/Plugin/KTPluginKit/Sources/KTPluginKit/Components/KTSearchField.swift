@@ -5,7 +5,7 @@ public struct KTSearchField: View {
     public var placeholder: String = "Search…"
 
     public init(text: Binding<String>, placeholder: String = "Search…") {
-        self._text = text
+        _text = text
         self.placeholder = placeholder
     }
 

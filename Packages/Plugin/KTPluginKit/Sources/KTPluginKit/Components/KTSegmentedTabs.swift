@@ -20,7 +20,7 @@ public struct KTSegmentedTabs<Value: Hashable>: View {
 
     public init(items: [Item], selection: Binding<Value>, large: Bool = false) {
         self.items = items
-        self._selection = selection
+        _selection = selection
         self.large = large
     }
 

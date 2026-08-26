@@ -16,6 +16,7 @@ public enum KTColor {
     public static let accent = Color(hex: 0x2F6BFF)
     public static let accentTop = Color(hex: 0x4385FF)
     public static let accentSoft = Color(hex: 0x2F6BFF, opacity: 0.10)
+    public static let accentBand = Color(hex: 0x2F6BFF, opacity: 0.06)
     public static let accentGradient = LinearGradient(
         colors: [Color(hex: 0x4385FF), Color(hex: 0x2F6BFF)],
         startPoint: .top, endPoint: .bottom

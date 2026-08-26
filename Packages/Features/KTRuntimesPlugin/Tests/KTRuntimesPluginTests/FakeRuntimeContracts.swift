@@ -34,11 +34,25 @@ final class FakeRuntimeManaging: RuntimeManaging {
         releases.filter { $0.language == lang }
     }
 
-    func install(_ release: RuntimeRelease) { installCalls.append(release) }
-    func cancel(_ lang: RuntimeLanguage) { cancelCalls.append(lang) }
-    func setGlobalDefault(_ lang: RuntimeLanguage, _ version: String) { setDefaultCalls.append((lang, version)) }
-    func uninstall(_ lang: RuntimeLanguage, _ version: String) { uninstallCalls.append((lang, version)) }
-    nonisolated func isEndOfLife(_ lang: RuntimeLanguage, _ version: String) -> Bool { eol.contains(version) }
+    func install(_ release: RuntimeRelease) {
+        installCalls.append(release)
+    }
+
+    func cancel(_ lang: RuntimeLanguage) {
+        cancelCalls.append(lang)
+    }
+
+    func setGlobalDefault(_ lang: RuntimeLanguage, _ version: String) {
+        setDefaultCalls.append((lang, version))
+    }
+
+    func uninstall(_ lang: RuntimeLanguage, _ version: String) {
+        uninstallCalls.append((lang, version))
+    }
+
+    nonisolated func isEndOfLife(_: RuntimeLanguage, _ version: String) -> Bool {
+        eol.contains(version)
+    }
 }
 
 @MainActor
@@ -63,7 +77,9 @@ final class FakeWebEngine: WebEngineProvisioning {
         continuation?.yield(next)
     }
 
-    func installApache() { installApacheCalls += 1 }
+    func installApache() {
+        installApacheCalls += 1
+    }
 }
 
 @MainActor
@@ -71,8 +87,13 @@ final class FakePHPSites: PHPSiteRuntimeProviding {
     var sitesByVersion: [String: [String]] = [:]
     private(set) var reconcileCalls = 0
 
-    func sitesUsingPHP(version: String) -> [String] { sitesByVersion[version] ?? [] }
-    func reconcileAfterRuntimeChange() { reconcileCalls += 1 }
+    func sitesUsingPHP(version: String) -> [String] {
+        sitesByVersion[version] ?? []
+    }
+
+    func reconcileAfterRuntimeChange() {
+        reconcileCalls += 1
+    }
 }
 
 @MainActor
@@ -87,7 +108,9 @@ final class FakeEngines: ServiceEngineVersionManaging {
     var uninstallError: Error?
     private var continuation: AsyncStream<[ServiceEngineSnapshot]>.Continuation?
 
-    init(snapshots: [ServiceEngineSnapshot] = []) { engineSnapshots = snapshots }
+    init(snapshots: [ServiceEngineSnapshot] = []) {
+        engineSnapshots = snapshots
+    }
 
     func engineSnapshotStream() -> AsyncStream<[ServiceEngineSnapshot]> {
         AsyncStream { continuation in
@@ -101,8 +124,14 @@ final class FakeEngines: ServiceEngineVersionManaging {
         continuation?.yield(next)
     }
 
-    func install(_ release: ServiceEngineRelease) { installCalls.append(release) }
-    func cancelInstall(_ release: ServiceEngineRelease) { cancelCalls.append(release) }
+    func install(_ release: ServiceEngineRelease) {
+        installCalls.append(release)
+    }
+
+    func cancelInstall(_ release: ServiceEngineRelease) {
+        cancelCalls.append(release)
+    }
+
     func setActiveVersion(_ engine: ServiceEngine, version: String) throws {
         setActiveCalls.append((engine, version))
         if let setActiveError { throw setActiveError }
@@ -113,7 +142,9 @@ final class FakeEngines: ServiceEngineVersionManaging {
         if let uninstallError { throw uninstallError }
     }
 
-    func toggle(_ engine: ServiceEngine) { toggleCalls.append(engine) }
+    func toggle(_ engine: ServiceEngine) {
+        toggleCalls.append(engine)
+    }
 }
 
 @MainActor
@@ -135,7 +166,9 @@ final class FakePHPConfig: PHPExtensionManaging, PHPIniEditing {
     var saveError: Error?
     private(set) var savedIni: [(String, String)] = []
 
-    func extensions(phpVersion _: String) async -> [PHPExtensionEntry] { entries }
+    func extensions(phpVersion _: String) async -> [PHPExtensionEntry] {
+        entries
+    }
 
     func installExtension(
         _ id: String,
@@ -153,16 +186,31 @@ final class FakePHPConfig: PHPExtensionManaging, PHPIniEditing {
         if let uninstallError { throw uninstallError }
     }
 
-    var xdebugClientPort: Int { clientPort }
-    func isXdebugSupported(phpVersion: String) -> Bool { supported[phpVersion] ?? true }
-    func isXdebugEnabled(phpVersion: String) -> Bool { enabledFlags[phpVersion] ?? false }
+    var xdebugClientPort: Int {
+        clientPort
+    }
+
+    func isXdebugSupported(phpVersion: String) -> Bool {
+        supported[phpVersion] ?? true
+    }
+
+    func isXdebugEnabled(phpVersion: String) -> Bool {
+        enabledFlags[phpVersion] ?? false
+    }
+
     func setXdebug(_ enabled: Bool, phpVersion: String) async throws {
         setXdebugCalls.append((enabled, phpVersion))
         enabledFlags[phpVersion] = enabled
     }
 
-    var defaultTemplate: String { template }
-    func readIni(phpVersion _: String) throws -> String { iniText }
+    var defaultTemplate: String {
+        template
+    }
+
+    func readIni(phpVersion _: String) throws -> String {
+        iniText
+    }
+
     func saveIni(phpVersion: String, contents: String) async throws {
         if let saveError { throw saveError }
         savedIni.append((phpVersion, contents))

@@ -1,7 +1,7 @@
 import SwiftUI
 
-// Modal generic cho child window shell: plugin present nội dung đầy đủ (kể cả chrome riêng), shell
-// chỉ render content() không biết type. present cùng id thay modal cũ, không stack.
+/// Modal generic cho child window shell: plugin present nội dung đầy đủ (kể cả chrome riêng), shell
+/// chỉ render content() không biết type. present cùng id thay modal cũ, không stack.
 @MainActor
 public final class KTModalPresenter: ObservableObject {
     public struct Modal: Identifiable {

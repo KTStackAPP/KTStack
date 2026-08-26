@@ -9,17 +9,15 @@ enum EngineVersionState {
 struct EngineVersionRow: View {
     let engine: ServiceEngine
     let version: String
-    let state: EngineVersionState
-    let isEngineRunning: Bool
+    let isActive: Bool
     let isRunning: Bool
     let isBusy: Bool
-    let downloadFraction: Double?
-    let isSwitchOrInstallInFlight: Bool
+    let meta: String
+    let blockReason: String?
+    let isExpanded: Bool
     let onSetActive: () -> Void
     let onToggleRunning: () -> Void
-    let onInstall: () -> Void
-    let onCancel: () -> Void
-    let onUninstall: () -> Void
+    let onToggleInspector: () -> Void
 
     @State private var hovering = false
 
@@ -29,107 +27,84 @@ struct EngineVersionRow: View {
                 Image(systemName: engine.symbolName).font(.system(size: 20, weight: .medium))
             }
             VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 9) {
-                    Text(rowLabel).font(KTType.cardName).foregroundStyle(KTColor.ink)
-                    KTBadge(text: badgeText, tint: badgeTint, radius: 20)
+                HStack(spacing: 8) {
+                    Text("\(engine.displayName) \(version)").font(.jbMono(14, .semibold)).foregroundStyle(KTColor.ink)
+                    if isActive {
+                        KTBadge(text: "Active", tint: KTTint(fg: .white, bg: KTColor.accent), radius: 20)
+                        if isRunning {
+                            KTBadge(text: "Running", tint: KTTint(fg: KTColor.online, bg: KTColor.onlineBg), radius: 20)
+                        }
+                    }
                 }
-                Text(rowNote).font(KTType.sub).foregroundStyle(KTColor.muted)
+                Text(meta).font(KTType.sub).foregroundStyle(KTColor.ink3)
             }
             Spacer(minLength: 8)
             trailing
         }
-        .padding(.vertical, 16)
+        .padding(.vertical, 12)
         .padding(.horizontal, 18)
-        .background(hovering ? KTColor.rowHover : Color.clear)
+        .frame(minHeight: 56)
+        .background(background)
+        .overlay(alignment: .leading) {
+            if isActive { Rectangle().fill(KTColor.accent).frame(width: 3) }
+        }
         .onHover { hovering = $0 }
     }
 
     @ViewBuilder
-    private var trailing: some View {
-        if let fraction = downloadFraction {
-            HStack(spacing: 8) {
-                ProgressView(value: fraction).frame(width: 80)
-                Button { onCancel() } label: {
-                    Image(systemName: "xmark.circle").foregroundStyle(KTColor.muted)
-                        .frame(width: 28, height: 28).contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
+    private var background: some View {
+        if isActive {
+            KTColor.accentBand
+        } else if hovering {
+            KTColor.rowHover
         } else {
-            switch state {
-            case .active:
-                if isBusy {
-                    ProgressView().controlSize(.small).frame(width: 40)
-                } else {
-                    HStack(spacing: 12) {
-                        Text(isRunning ? "Running" : "Stopped")
-                            .font(.jbMono(13, .regular))
-                            .foregroundStyle(isRunning ? KTColor.online : KTColor.muted)
-                        KTToggle(isOn: isRunning, action: onToggleRunning)
-                    }
-                }
-            case .installed:
-                KTButton(title: "Set Active", kind: .secondary, action: onSetActive)
-                    .disabled(isEngineRunning || isSwitchOrInstallInFlight)
-                    .help(setActiveHelp)
-                overflowMenu
-            case .available:
-                KTButton(title: "Install", kind: .primary, action: onInstall)
-                    .disabled(isSwitchOrInstallInFlight)
-            }
+            Color.clear
         }
     }
 
     @ViewBuilder
-    private var overflowMenu: some View {
-        Menu {
-            Button("Uninstall…", systemImage: "trash", role: .destructive, action: onUninstall)
-        } label: {
-            Image(systemName: "ellipsis").font(.system(size: 15, weight: .regular))
-                .foregroundStyle(KTColor.muted).frame(width: 28, height: 30).contentShape(Rectangle())
-        }
-        .menuStyle(.borderlessButton).menuIndicator(.hidden).frame(width: 28)
-        .disabled(isEngineRunning || isSwitchOrInstallInFlight)
-        .help(overflowHelp)
-    }
-
-    private var setActiveHelp: String {
-        if isEngineRunning { return "Stop \(engine.displayName) before switching versions." }
-        if isSwitchOrInstallInFlight { return "An operation is in progress." }
-        return ""
-    }
-
-    private var overflowHelp: String {
-        if isEngineRunning { return "Stop \(engine.displayName) before uninstalling." }
-        if isSwitchOrInstallInFlight { return "An operation is in progress." }
-        return ""
-    }
-
-    private var rowLabel: String {
-        "\(engine.displayName) \(version)"
-    }
-
-    private var badgeText: String {
-        switch state {
-        case .active: "Active"
-        case .installed: "Installed"
-        case .available: "Available"
+    private var trailing: some View {
+        HStack(spacing: 10) {
+            if isActive {
+                if isBusy { ProgressView().controlSize(.small) }
+                KTToggle(isOn: isRunning) { if !isBusy { onToggleRunning() } }
+                    .opacity(isBusy ? 0.5 : 1)
+                    .allowsHitTesting(!isBusy)
+            } else {
+                KTButton(title: "Set active", kind: .link, action: onSetActive)
+                    .disabled(blockReason != nil)
+                    .opacity(blockReason != nil ? 0.4 : 1)
+                    .help(blockReason ?? "")
+            }
+            gearButton
         }
     }
 
-    private var badgeTint: KTTint {
-        switch state {
-        case .active: KTTint(fg: KTColor.online, bg: KTColor.onlineBg)
-        case .installed: KTTint(fg: KTColor.ink3, bg: KTColor.pillBg)
-        case .available: KTTint(fg: KTColor.accent, bg: Color(hex: 0xEAF1FF))
+    private var gearButton: some View {
+        Button(action: onToggleInspector) {
+            Image(systemName: "gearshape").font(.system(size: 15, weight: .regular))
+                .foregroundStyle(isExpanded ? KTColor.accent : KTColor.muted)
+                .frame(width: 28, height: 30).contentShape(Rectangle())
         }
-    }
-
-    private var rowNote: String {
-        switch state {
-        case .active: isRunning ? "Running from \(engine.rawValue)/\(version)." : "Active version. Stopped."
-        case .installed: "Installed, not active."
-        case .available: "Not installed. Download to use."
-        }
+        .buttonStyle(.plain)
+        .help("Configure \(engine.displayName) \(version)")
     }
 }
+
+#if DEBUG
+    #Preview {
+        VStack(spacing: 0) {
+            EngineVersionRow(
+                engine: .mysql, version: "8.4", isActive: true, isRunning: true, isBusy: false,
+                meta: "Running · data stored per version", blockReason: nil, isExpanded: false,
+                onSetActive: {}, onToggleRunning: {}, onToggleInspector: {}
+            )
+            EngineVersionRow(
+                engine: .mysql, version: "8.0", isActive: false, isRunning: false, isBusy: false,
+                meta: "Stop MySQL 8.4 to switch", blockReason: "Stop MySQL 8.4 to switch", isExpanded: false,
+                onSetActive: {}, onToggleRunning: {}, onToggleInspector: {}
+            )
+        }
+        .frame(width: 640)
+    }
+#endif

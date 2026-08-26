@@ -1,11 +1,11 @@
 import Foundation
 
-// Trùng tên với type trong KTStackKit là chủ đích: plugin không bao giờ import Kit.
+/// Trùng tên với type trong KTStackKit là chủ đích: plugin không bao giờ import Kit.
 public enum DoctorStatus: String, Sendable, Equatable, CaseIterable {
     case pass, warn, fail
 }
 
-// Mỗi remedy trỏ về một action đã có sẵn trong app.
+/// Mỗi remedy trỏ về một action đã có sẵn trong app.
 public enum DoctorRemedyAction: String, Sendable, Equatable {
     case openLoginItems, openServices, openSettings, openRuntimes
 }

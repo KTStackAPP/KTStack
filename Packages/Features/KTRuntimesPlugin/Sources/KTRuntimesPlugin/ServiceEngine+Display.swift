@@ -1,7 +1,7 @@
 import KTPlatformContracts
 import KTPluginKit
 
-// Display plugin-local cho 4 engine. rawValue trùng thư mục runtime nên rowNote path giữ nguyên.
+/// Display plugin-local cho 4 engine. rawValue trùng thư mục runtime nên rowNote path giữ nguyên.
 extension ServiceEngine {
     var displayName: String {
         switch self {

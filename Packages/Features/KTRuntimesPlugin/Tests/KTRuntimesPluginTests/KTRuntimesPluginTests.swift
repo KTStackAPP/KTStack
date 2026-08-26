@@ -42,7 +42,9 @@ final class KTRuntimesPluginTests: XCTestCase {
         config.enabledFlags = ["8.3": false]
         let model = XdebugToggleModel(version: "8.3", phpConfig: config)
         model.toggle(true)
-        for _ in 0 ..< 50 where model.busy { await Task.yield() }
+        for _ in 0..<50 where model.busy {
+            await Task.yield()
+        }
         XCTAssertEqual(config.setXdebugCalls.first?.0, true)
         XCTAssertTrue(model.enabled)
     }

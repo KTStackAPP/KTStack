@@ -8,10 +8,11 @@ struct RuntimesScreen: View {
     @ObservedObject var engines: EngineVersionsViewModel
     let phpConfig: any PHPExtensionManaging & PHPIniEditing
 
-    @EnvironmentObject private var feedback: KTFeedbackCenter
+    @EnvironmentObject var feedback: KTFeedbackCenter
 
-    @State private var tab: RuntimeLanguage = .php
-    @State private var showInstall = false
+    @State private var category: RuntimesCategory = .php
+    @State var filter = ""
+    @State var expandedVersion: String?
     @State private var editingIni: VersionRef?
     @State private var managingExt: VersionRef?
 
@@ -20,17 +21,33 @@ struct RuntimesScreen: View {
     } }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header.padding(.horizontal, KTSpacing.screenGutter).padding(.top, 18)
-            Text("Install and switch language versions per site.")
-                .font(.jbMono(13.5)).foregroundStyle(Color(hex: 0x8E8E93))
-                .padding(.horizontal, KTSpacing.screenGutter).padding(.top, 6)
+        GeometryReader { geo in
+            let compact = geo.size.width > 0 && (geo.size.width - 180) < 700
+            HStack(spacing: 0) {
+                KTCategoryRail(sections: railSections, selection: $category, compact: compact)
+                    .frame(width: compact ? 44 : 180)
+                    .frame(maxHeight: .infinity)
+                    .background(KTColor.sidebarBackground)
+                    .overlay(alignment: .trailing) {
+                        Rectangle().fill(KTColor.sep).frame(width: 0.5)
+                    }
+                pane
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(KTColor.contentBg)
+        .onChange(of: category) { _ in filter = ""; expandedVersion = nil }
+        .sheet(item: $editingIni) { PHPIniEditorSheet(version: $0.version, phpConfig: phpConfig) }
+        .sheet(item: $managingExt) { PHPExtensionsSheet(version: $0.version, phpConfig: phpConfig) }
+        .ktFeedbackHost(feedback)
+    }
 
+    private var pane: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            paneHeader
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    KTListContainer { rows }
-                    webServerSection
-                    KTDatabaseEnginesSection(engines: engines)
+                    categoryPane(category)
                 }
                 .padding(.horizontal, KTSpacing.screenGutter)
                 .padding(.top, 16)
@@ -38,100 +55,37 @@ struct RuntimesScreen: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(KTColor.contentBg)
-        .sheet(isPresented: $showInstall) { RuntimeDownloadSheet(vm: vm) }
-        .sheet(item: $editingIni) { PHPIniEditorSheet(version: $0.version, phpConfig: phpConfig) }
-        .sheet(item: $managingExt) { PHPExtensionsSheet(version: $0.version, phpConfig: phpConfig) }
-        .ktFeedbackHost(feedback)
     }
 
-    private var header: some View {
-        HStack(spacing: 14) {
-            Text("Runtimes").font(KTType.screenTitle).tracking(KTType.screenTitleTracking).foregroundStyle(KTColor.ink)
-            KTSegmentedTabs(items: [.init(value: .php, label: "PHP"), .init(value: .node, label: "Node")], selection: $tab)
-            Spacer()
-            KTButton(title: "Install Version…", systemImage: "arrow.down.circle", kind: .secondary) { showInstall = true }
-        }
-    }
-
-    private var rows: some View {
-        let items = vm.entries(tab)
-        return VStack(spacing: 0) {
-            ForEach(Array(items.enumerated()), id: \.element.id) { index, entry in
-                KTRuntimeRow(
-                    language: tab,
-                    version: entry.version,
-                    state: entry.state,
-                    isEndOfLife: vm.isEndOfLife(tab, entry.version),
-                    downloadFraction: vm.downloadFraction(tab, entry.version),
-                    onSetDefault: {
-                        vm.setDefault(tab, entry.version)
-                        feedback.toast("\(tab.displayName) \(entry.version) set as default")
-                    },
-                    onInstall: { if let release = entry.release { vm.install(release) } },
-                    onCancel: { vm.cancel(tab) },
-                    onUninstall: { requestUninstall(tab, entry.version) },
-                    onEditIni: tab == .php ? { editingIni = VersionRef(version: entry.version) } : nil,
-                    onManageExtensions: tab == .php ? { managingExt = VersionRef(version: entry.version) } : nil
-                )
-                if index < items.count - 1 {
-                    Rectangle().fill(KTColor.sepFaint).frame(height: 0.5).padding(.leading, 18)
-                }
-            }
-        }
-    }
-
-    // Per-site web engine. Nginx is the bundled front + default backend; Apache is on-demand.
-    private var webServerSection: some View {
+    private var paneHeader: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("WEB SERVER")
-                .font(KTType.sectionLabel).tracking(KTType.sectionLabelTracking).foregroundStyle(KTColor.faint)
-                .padding(.leading, 4)
-            KTListContainer {
-                VStack(spacing: 0) {
-                    engineRow(name: "Nginx", subtitle: "Front terminator + default per-site engine", trailing: bundledBadge)
-                    Rectangle().fill(KTColor.sepFaint).frame(height: 0.5).padding(.leading, 18)
-                    engineRow(
-                        name: "Apache \(vm.webEngine.apacheVersion)",
-                        subtitle: vm.webEngine.error ?? "Per-site engine · mod_proxy_fcgi to PHP-FPM · .htaccess",
-                        trailing: apacheControl
-                    )
-                }
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(category.title)
+                    .font(KTType.screenTitle).tracking(KTType.screenTitleTracking).foregroundStyle(KTColor.ink)
+                Text(category.description)
+                    .font(KTType.sub).foregroundStyle(KTColor.muted)
+                Spacer(minLength: 8)
             }
+            KTSearchField(text: $filter, placeholder: "Filter versions…")
         }
+        .padding(.horizontal, KTSpacing.screenGutter)
+        .padding(.top, 18)
+        .padding(.bottom, 4)
     }
 
-    private func engineRow(name: String, subtitle: String, trailing: some View) -> some View {
-        HStack(spacing: 14) {
-            KTIconTile(tint: KTIconTint.globe, size: 40, radius: 11) {
-                Image(systemName: "server.rack").font(.system(size: 18, weight: .medium))
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(name).font(KTType.rowName).foregroundStyle(KTColor.ink)
-                Text(subtitle).font(KTType.sub).foregroundStyle(KTColor.muted).lineLimit(1).truncationMode(.tail)
-            }
-            Spacer(minLength: 8)
-            trailing
-        }
-        .padding(.vertical, 15).padding(.horizontal, 18)
+    func editIni(_ version: String) {
+        editingIni = VersionRef(version: version)
     }
 
-    private var bundledBadge: some View {
-        KTBadge(text: "Bundled", tint: KTIconTint.globe, radius: 8)
+    func manageExtensions(_ version: String) {
+        managingExt = VersionRef(version: version)
     }
 
-    @ViewBuilder
-    private var apacheControl: some View {
-        if vm.webEngine.installing {
-            ProgressView().controlSize(.small).frame(width: 40)
-        } else if vm.webEngine.installed {
-            KTBadge(text: "Installed", tint: KTIconTint.globe, radius: 8)
-        } else {
-            KTButton(title: "Install", systemImage: "arrow.down.circle", kind: .primary) { vm.installApache() }
-        }
+    func toggleInspector(_ version: String) {
+        expandedVersion = expandedVersion == version ? nil : version
     }
 
-    private func requestUninstall(_ lang: RuntimeLanguage, _ version: String) {
+    func requestUninstall(_ lang: RuntimeLanguage, _ version: String) {
         let prompt = vm.uninstallPrompt(lang, version)
         feedback.confirm(
             title: prompt.title,
@@ -140,6 +94,7 @@ struct RuntimesScreen: View {
             danger: true
         ) {
             vm.uninstall(lang, version)
+            expandedVersion = nil
             feedback.toast("Removed \(lang.displayName) \(version)")
         }
     }
