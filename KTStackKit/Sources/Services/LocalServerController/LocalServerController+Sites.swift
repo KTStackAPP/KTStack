@@ -51,6 +51,34 @@ public extension LocalServerController {
         registry.setNodePort(site, port)
     }
 
+    // Alias vào server_name (reconcile) + SAN cert. Secure: re-mint với alias mới, chỉ persist khi
+    // mint xong (fail-closed, cert cũ + config cũ giữ nếu mint hỏng). Mẫu setSiteSecure.
+    func setSiteAliases(_ site: Site, _ aliases: [String]) throws {
+        try registry.validateAliases(aliases, for: site)
+        guard site.secure else {
+            try registry.setAliases(site, aliases) // → onRegistryChanged → reconcile server_name
+            return
+        }
+        guard !isBusy else { throw SiteRegistry.RegistryError.serverBusy }
+        isBusy = true; lastError = nil
+        let normalized = aliases.map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+        var updated = site; updated.aliases = normalized
+        let provisioner = httpsProvisioner
+        Task.detached(priority: .userInitiated) {
+            var failure: String?
+            do {
+                try provisioner.enableHTTPS(for: updated) // re-mint cert, alias thành SAN
+            } catch {
+                failure = error.localizedDescription
+            }
+            await MainActor.run {
+                self.isBusy = false
+                if let failure { self.lastError = failure }
+                else { try? self.registry.setAliases(site, aliases) } // → reconcile: server_name + cert mới
+            }
+        }
+    }
+
     /// Switch a site's engine with a zero-downtime handoff: bring the requested engine up on a
     /// fresh backendPort, repoint the front to it, then reap the old backend. No Web Server restart.
     /// Falls back to a plain persist when nothing is running (the next start applies it) or when the

@@ -14,8 +14,8 @@ final class SiteHTTPSProvisionerTests: XCTestCase {
             installCA: {
                 calls.append("install")
             },
-            mintLeaf: { domain, tld in
-                calls.append("mint:\(domain):\(tld)")
+            mintLeaf: { domain, aliases, tld in
+                calls.append("mint:\(domain):\(aliases.joined(separator: ",")):\(tld)")
             }
         )
 
@@ -25,10 +25,11 @@ final class SiteHTTPSProvisionerTests: XCTestCase {
             docroot: "/tmp/app/public",
             domain: "app.test",
             phpVersion: "8.4",
-            type: .php
+            type: .php,
+            aliases: ["www.app.test", "api.app.test"]
         ))
 
-        XCTAssertEqual(calls, ["trust", "install", "mint:app.test:test"])
+        XCTAssertEqual(calls, ["trust", "install", "mint:app.test:www.app.test,api.app.test:test"])
     }
 
     func testEnableHTTPSSkipsCAInstallWhenAlreadyTrusted() throws {
@@ -43,8 +44,8 @@ final class SiteHTTPSProvisionerTests: XCTestCase {
             installCA: {
                 calls.append("install")
             },
-            mintLeaf: { domain, tld in
-                calls.append("mint:\(domain):\(tld)")
+            mintLeaf: { domain, aliases, tld in
+                calls.append("mint:\(domain):\(aliases.joined(separator: ",")):\(tld)")
             }
         )
 
@@ -57,6 +58,6 @@ final class SiteHTTPSProvisionerTests: XCTestCase {
             type: .php
         ))
 
-        XCTAssertEqual(calls, ["trust", "mint:blog.test:test"])
+        XCTAssertEqual(calls, ["trust", "mint:blog.test::test"])
     }
 }

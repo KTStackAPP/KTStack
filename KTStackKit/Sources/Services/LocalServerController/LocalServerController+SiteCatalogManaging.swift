@@ -18,7 +18,10 @@ extension SiteSummary {
             nodeCommand: site.nodeCommand,
             engine: SiteServerEngine(rawValue: site.serverEngine.rawValue) ?? .nginx,
             backendPort: site.backendPort,
-            proxyTarget: site.proxyTarget
+            proxyTarget: site.proxyTarget,
+            aliases: site.aliases,
+            envVars: site.envVars,
+            frontDirectives: site.frontDirectives
         )
     }
 }
@@ -72,5 +75,25 @@ extension LocalServerController: SiteCatalogManaging {
         }
         try registry.validateProxyTarget(parsed, for: site)
         registry.setProxyTarget(site, parsed)
+    }
+
+    public func setAliases(_ id: UUID, _ aliases: [String]) throws {
+        guard let site = registry.sites.first(where: { $0.id == id }) else { return }
+        try setSiteAliases(site, aliases)
+    }
+
+    public func validateAliases(_ aliases: [String], for id: UUID) throws {
+        guard let site = registry.sites.first(where: { $0.id == id }) else { return }
+        try registry.validateAliases(aliases, for: site)
+    }
+
+    public func setEnvVars(_ id: UUID, _ env: [String: String]) throws {
+        guard let site = registry.sites.first(where: { $0.id == id }) else { return }
+        try registry.setEnvVars(site, env)
+    }
+
+    public func saveFrontDirectives(_ id: UUID, _ text: String) async throws {
+        guard let site = registry.sites.first(where: { $0.id == id }) else { return }
+        try await saveFrontDirectives(site, text)
     }
 }

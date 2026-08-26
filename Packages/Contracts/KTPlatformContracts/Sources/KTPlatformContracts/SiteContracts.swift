@@ -10,7 +10,7 @@ public enum SiteServerEngine: String, Sendable, CaseIterable {
     case nginx, apache
 }
 
-// Projection của Site theo capability Sites: 14 field UI đọc. Không phải snapshot chung (Tunnel dùng
+// Projection của Site theo capability Sites: 17 field UI đọc. Không phải snapshot chung (Tunnel dùng
 // TunnelSiteTarget, Logs dùng siteDomains).
 public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
     public let id: UUID
@@ -27,6 +27,9 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
     public let engine: SiteServerEngine
     public let backendPort: Int?
     public let proxyTarget: String?
+    public let aliases: [String]
+    public let envVars: [String: String]
+    public let frontDirectives: String?
 
     public init(
         id: UUID,
@@ -42,7 +45,10 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
         nodeCommand: String?,
         engine: SiteServerEngine,
         backendPort: Int?,
-        proxyTarget: String? = nil
+        proxyTarget: String? = nil,
+        aliases: [String] = [],
+        envVars: [String: String] = [:],
+        frontDirectives: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -58,6 +64,9 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
         self.engine = engine
         self.backendPort = backendPort
         self.proxyTarget = proxyTarget
+        self.aliases = aliases
+        self.envVars = envVars
+        self.frontDirectives = frontDirectives
     }
 }
 
@@ -81,6 +90,11 @@ public protocol SiteCatalogManaging: AnyObject {
     @MainActor func setNodePort(_ id: UUID, _ port: Int?)
     @MainActor func setEngine(_ id: UUID, _ engine: SiteServerEngine)
     @MainActor func setProxyTarget(_ id: UUID, _ target: String) throws
+    @MainActor func setAliases(_ id: UUID, _ aliases: [String]) throws
+    @MainActor func validateAliases(_ aliases: [String], for id: UUID) throws
+    @MainActor func setEnvVars(_ id: UUID, _ env: [String: String]) throws
+    // Fail-closed: nginx -t trước khi persist; tái dùng NginxIncludeSaveError.
+    @MainActor func saveFrontDirectives(_ id: UUID, _ text: String) async throws
 }
 
 public struct SiteServerState: Sendable, Equatable {

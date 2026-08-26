@@ -325,11 +325,34 @@ final class MkcertAndCertMinterTests: XCTestCase {
         XCTAssertEqual(args, ["-cert-file", "/c/cert.pem", "-key-file", "/c/key.pem", "app.test"])
     }
 
+    func testMintArgsAppendsAliasesAsSANs() {
+        let args = MkcertRunner.mintArgs(
+            domain: "app.test",
+            aliases: ["www.app.test", "api.app.test"],
+            certFile: URL(fileURLWithPath: "/c/cert.pem"),
+            keyFile: URL(fileURLWithPath: "/c/key.pem")
+        )
+        XCTAssertEqual(
+            args,
+            ["-cert-file", "/c/cert.pem", "-key-file", "/c/key.pem", "app.test", "www.app.test", "api.app.test"]
+        )
+    }
+
     func testMintRejectsNonTestDomain() {
         let p = AppSupportPaths(root: URL(fileURLWithPath: "/tmp/kd-x"))
         let minter = CertMinter(paths: p, runner: MkcertRunner(mkcert: p.mkcertBinary, caroot: p.caDir))
         XCTAssertThrowsError(try minter.mint(name: "evil", domain: "evil.com")) { error in
             XCTAssertTrue("\(error)".contains("evil.com"))
+        }
+    }
+
+    func testMintRejectsNonTestAlias() {
+        let p = AppSupportPaths(root: URL(fileURLWithPath: "/tmp/kd-x"))
+        let minter = CertMinter(paths: p, runner: MkcertRunner(mkcert: p.mkcertBinary, caroot: p.caDir))
+        XCTAssertThrowsError(
+            try minter.mint(name: "app", domain: "app.test", aliases: ["www.evil.com"])
+        ) { error in
+            XCTAssertTrue("\(error)".contains("www.evil.com"))
         }
     }
 

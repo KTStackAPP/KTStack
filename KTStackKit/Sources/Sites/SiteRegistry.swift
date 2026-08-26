@@ -64,6 +64,10 @@ public final class SiteRegistry: ObservableObject {
         case unsafeDeletePath(String)
         case noFreeBackendPort
         case proxyTargetLoopsToSite(String)
+        case aliasTaken(String, by: String)
+        case aliasEqualsDomain(String)
+        case invalidEnv(String)
+        case serverBusy
 
         public var errorDescription: String? {
             switch self {
@@ -74,6 +78,10 @@ public final class SiteRegistry: ObservableObject {
             case let .unsafeDeletePath(p): "Refusing to delete unsafe site folder “\(p)”."
             case .noFreeBackendPort: "No free loopback port in 4000-4999 for a site backend."
             case let .proxyTargetLoopsToSite(d): "The target cannot point back at this site (\(d))."
+            case let .aliasTaken(a, owner): "“\(a)” is already used by “\(owner)”."
+            case let .aliasEqualsDomain(a): "“\(a)” is already the site's main domain."
+            case let .invalidEnv(k): "“\(k)” is not a valid environment variable."
+            case .serverBusy: "The server is busy, try again in a moment."
             }
         }
     }
@@ -210,11 +218,22 @@ public final class SiteRegistry: ObservableObject {
     @discardableResult
     public func migrateTLD(from old: String, to new: String) -> [Site] {
         let suffix = ".\(old)"
+        func rewrite(_ host: String) -> String {
+            host.hasSuffix(suffix) ? "\(host.dropLast(suffix.count)).\(new)" : host
+        }
         var migrated: [Site] = []
-        for idx in sites.indices where sites[idx].domain.hasSuffix(suffix) {
-            let label = String(sites[idx].domain.dropLast(suffix.count))
-            sites[idx].domain = "\(label).\(new)"
-            migrated.append(sites[idx])
+        for idx in sites.indices {
+            var changed = false
+            if sites[idx].domain.hasSuffix(suffix) {
+                sites[idx].domain = rewrite(sites[idx].domain)
+                changed = true
+            }
+            let newAliases = sites[idx].aliases.map(rewrite)
+            if newAliases != sites[idx].aliases {
+                sites[idx].aliases = newAliases
+                changed = true
+            }
+            if changed { migrated.append(sites[idx]) }
         }
         if !migrated.isEmpty { persist() }
         return migrated
@@ -272,8 +291,53 @@ public final class SiteRegistry: ObservableObject {
         guard domain.hasSuffix(".\(tld)"), domain.count > tld.count + 1 else {
             throw RegistryError.wrongTLD(domain, expected: tld)
         }
-        if sites.contains(where: { $0.domain == domain && $0.id != id }) {
+        if sites.contains(where: { ($0.domain == domain || $0.aliases.contains(domain)) && $0.id != id }) {
             throw RegistryError.domainTaken(domain)
+        }
+    }
+
+    private func normalizeAlias(_ alias: String) -> String {
+        alias.trimmingCharacters(in: .whitespaces).lowercased()
+    }
+
+    // Validate danh sách alias user nhập; plugin gọi để báo inline, registry gọi khi ghi.
+    public func validateAliases(_ aliases: [String], for site: Site) throws {
+        var seen = Set<String>()
+        for raw in aliases {
+            let alias = normalizeAlias(raw)
+            guard NginxConfigWriter.isValidDomain(alias) else { throw RegistryError.invalidDomain(alias) }
+            guard alias.hasSuffix(".\(tld)"), alias.count > tld.count + 1 else {
+                throw RegistryError.wrongTLD(alias, expected: tld)
+            }
+            guard alias != site.domain else { throw RegistryError.aliasEqualsDomain(alias) }
+            guard seen.insert(alias).inserted else { throw RegistryError.aliasTaken(alias, by: site.domain) }
+            if let owner = sites.first(where: {
+                $0.id != site.id && ($0.domain == alias || $0.aliases.contains(alias))
+            }) {
+                throw RegistryError.aliasTaken(alias, by: owner.domain)
+            }
+        }
+    }
+
+    public func setAliases(_ site: Site, _ aliases: [String]) throws {
+        try validateAliases(aliases, for: site)
+        let normalized = aliases.map(normalizeAlias)
+        update(site.id) { $0.aliases = normalized }
+    }
+
+    public func setEnvVars(_ site: Site, _ env: [String: String]) throws {
+        if let err = SiteEnvVars.validate(env) { throw RegistryError.invalidEnv(Self.envErrorKey(err)) }
+        update(site.id) { $0.envVars = env }
+    }
+
+    // Không validate ở đây: nginx -t chạy ở controller trước khi persist (fail-closed).
+    public func setFrontDirectives(_ site: Site, _ text: String?) {
+        update(site.id) { $0.frontDirectives = text }
+    }
+
+    private static func envErrorKey(_ error: SiteEnvVarError) -> String {
+        switch error {
+        case let .invalidKey(k), let .reservedKey(k), let .invalidValue(k): k
         }
     }
 
@@ -291,12 +355,17 @@ public final class SiteRegistry: ObservableObject {
         }
     }
 
+    // domain hoặc alias của bất kỳ site nào đang chiếm tên này.
+    private func isDomainInUse(_ candidate: String) -> Bool {
+        sites.contains { $0.domain == candidate || $0.aliases.contains(candidate) }
+    }
+
     private func uniqueDomain(_ base: String) -> String {
-        guard sites.contains(where: { $0.domain == base }) else { return base }
+        guard isDomainInUse(base) else { return base }
         // base = "<label>.test" → insert "-N" before the TLD.
         let label = base.replacingOccurrences(of: ".\(tld)", with: "")
         var n = 2
-        while sites.contains(where: { $0.domain == "\(label)-\(n).\(tld)" }) {
+        while isDomainInUse("\(label)-\(n).\(tld)") {
             n += 1
         }
         return "\(label)-\(n).\(tld)"
