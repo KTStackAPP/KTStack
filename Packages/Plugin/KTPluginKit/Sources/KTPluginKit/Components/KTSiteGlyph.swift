@@ -1,7 +1,7 @@
 import SwiftUI
 
 public enum KTSiteIconKind: String, CaseIterable, Sendable {
-    case code, cube, db
+    case code, cube, db, proxy
 }
 
 public struct KTSiteShape: Shape {
@@ -38,6 +38,11 @@ public struct KTSiteShape: Shape {
             path.move(to: p(20, 5)); path.addLine(to: p(20, 17))
             path.move(to: p(4, 11)); path.addQuadCurve(to: p(20, 11), control: p(12, 14))
             path.move(to: p(4, 17)); path.addQuadCurve(to: p(20, 17), control: p(12, 20))
+        case .proxy:
+            path.move(to: p(4, 9)); path.addLine(to: p(20, 9))
+            path.move(to: p(16, 6)); path.addLine(to: p(20, 9)); path.addLine(to: p(16, 12))
+            path.move(to: p(20, 15)); path.addLine(to: p(4, 15))
+            path.move(to: p(8, 12)); path.addLine(to: p(4, 15)); path.addLine(to: p(8, 18))
         }
         return path
     }

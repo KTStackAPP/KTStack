@@ -86,9 +86,9 @@ final class SiteConfigGeneratorTests: XCTestCase {
 
         var node = site("node.test", type: .node)
         node.nodePort = 3001
-        XCTAssertEqual(gen.frontVhostText(for: node), writer.vhostNodeProxy(
+        XCTAssertEqual(gen.frontVhostText(for: node), writer.vhostProxy(
             domain: "node.test",
-            nodePort: 3001,
+            upstream: .loopback(port: 3001),
             accessLog: paths.siteAccessLog("node.test"),
             errorLog: paths.siteErrorLog("node.test")
         ))

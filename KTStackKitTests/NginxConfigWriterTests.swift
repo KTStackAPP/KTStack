@@ -53,21 +53,31 @@ final class NginxConfigWriterTests: XCTestCase {
     }
 
     func testNodeProxyVhostProxiesToLoopbackPort() {
-        let vhost = writer.vhostNodeProxy(domain: "app.test", nodePort: 3001)
+        let vhost = writer.vhostProxy(domain: "app.test", upstream: .loopback(port: 3001))
         XCTAssertTrue(vhost.contains("listen 0.0.0.0:80;"))
         XCTAssertTrue(vhost.contains("server_name app.test;"))
         XCTAssertTrue(vhost.contains("proxy_pass http://127.0.0.1:3001;"))
         XCTAssertTrue(vhost.contains("proxy_http_version 1.1;"))
         XCTAssertTrue(vhost.contains("proxy_set_header Upgrade $http_upgrade;"))
         XCTAssertTrue(vhost.contains("proxy_set_header Connection \"upgrade\";"))
+        XCTAssertTrue(vhost.contains("proxy_set_header Host $host;"))
         XCTAssertFalse(vhost.contains("try_files"))
         XCTAssertFalse(vhost.contains("fastcgi_pass"))
     }
 
     func testNodeProxyVhostHonoursCustomPort() {
-        let vhost = writer.vhostNodeProxy(domain: "app.test", nodePort: 3500, port: 8080)
+        let vhost = writer.vhostProxy(domain: "app.test", upstream: .loopback(port: 3500), port: 8080)
         XCTAssertTrue(vhost.contains("listen 0.0.0.0:8080;"))
         XCTAssertTrue(vhost.contains("proxy_pass http://127.0.0.1:3500;"))
+    }
+
+    func testHttpsUpstreamSendsSNIAndUpstreamHost() {
+        let upstream = ProxyTarget(scheme: .https, host: "api.example.com", port: 443)
+        let vhost = writer.vhostProxy(domain: "app.test", upstream: upstream)
+        XCTAssertTrue(vhost.contains("proxy_pass https://api.example.com:443;"))
+        XCTAssertTrue(vhost.contains("proxy_ssl_server_name on;"))
+        XCTAssertTrue(vhost.contains("proxy_set_header Host api.example.com;"))
+        XCTAssertFalse(vhost.contains("proxy_set_header Host $host;"))
     }
 
     func testDomainAndPathValidationRejectInjection() {

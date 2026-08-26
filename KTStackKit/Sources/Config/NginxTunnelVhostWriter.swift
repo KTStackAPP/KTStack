@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct NginxTunnelVhostWriter {
     public static let listenAddress = "127.0.0.1"
@@ -15,6 +16,22 @@ public struct NginxTunnelVhostWriter {
         supportsBodyRewrite: Bool = false,
         hostPrependFile: URL? = nil
     ) -> String {
+        // Proxy/Node site: route thẳng tới upstream, không phục vụ static.
+        let upstream: ProxyTarget? = switch site.type {
+        case .proxy: site.proxyUpstream
+        case .node: site.nodePort.map(ProxyTarget.loopback)
+        default: nil
+        }
+        if let upstream {
+            return """
+            server {
+                listen \(Self.listenAddress):\(port);
+                server_name _;\(NginxConfigWriter.logDirectives(access: accessLog, error: errorLog))
+
+            \(NginxConfigWriter.proxyRouting(upstream: upstream))
+            }
+            """
+        }
         let root = URL(fileURLWithPath: site.docroot)
         let prepend = publicHost == nil ? nil : hostPrependFile
         let routing = phpFpmSocket.map { phpRouting(socket: $0, localHost: site.domain, publicHost: publicHost, prependFile: prepend) } ?? staticRouting()

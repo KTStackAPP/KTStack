@@ -7,6 +7,7 @@ enum SiteVisuals {
         case .php: .code
         case .node: .cube
         case .staticSite: .db
+        case .proxy: .proxy
         }
     }
 
@@ -15,6 +16,7 @@ enum SiteVisuals {
         case .php: KTIconTint.code
         case .node: KTIconTint.cube
         case .staticSite: KTIconTint.db
+        case .proxy: KTIconTint.cube
         }
     }
 
@@ -31,6 +33,7 @@ enum SiteVisuals {
         case .php: "PHP"
         case .staticSite: "Static"
         case .node: "Node"
+        case .proxy: "Proxy"
         }
     }
 
@@ -39,6 +42,7 @@ enum SiteVisuals {
         case .php: "chevron.left.forwardslash.chevron.right"
         case .staticSite: "doc.richtext"
         case .node: "shippingbox"
+        case .proxy: "arrow.left.arrow.right"
         }
     }
 }

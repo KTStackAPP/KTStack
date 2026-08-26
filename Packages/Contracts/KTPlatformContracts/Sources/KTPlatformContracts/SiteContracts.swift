@@ -2,7 +2,7 @@ import Foundation
 
 // rawValue frozen == SiteType.rawValue (platform map theo raw value, test enforce).
 public enum SiteKind: String, Sendable, CaseIterable {
-    case php, staticSite, node
+    case php, staticSite, node, proxy
 }
 
 // rawValue frozen == WebServerEngine.rawValue.

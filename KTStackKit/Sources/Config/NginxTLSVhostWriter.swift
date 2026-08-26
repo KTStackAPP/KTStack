@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct NginxTLSVhostWriter {
     public static let listenAddress = NginxConfigWriter.listenAddress
@@ -7,29 +8,38 @@ public struct NginxTLSVhostWriter {
 
     public func secureVhost(
         domain: String,
-        root: URL,
+        root: URL?,
         certFile: URL,
         keyFile: URL,
         phpFpmSocket: URL?,
-        nodeProxyPort: Int? = nil,
+        proxyUpstream: ProxyTarget? = nil,
         accessLog: URL? = nil,
         errorLog: URL? = nil
     ) -> String {
-        let routing: String = if let nodeProxyPort {
-            NginxConfigWriter.proxyRouting(nodePort: nodeProxyPort)
+        let routing: String = if let proxyUpstream {
+            NginxConfigWriter.proxyRouting(upstream: proxyUpstream)
         } else if let phpFpmSocket {
             phpRouting(socket: phpFpmSocket)
         } else {
             staticRouting()
         }
-        let index = phpFpmSocket == nil ? "index.html index.htm" : "index.php index.html"
+        // Proxy site không có thư mục: bỏ root/index; giữ nguyên output khi có root.
+        let rootLines: String
+        if let root {
+            let index = phpFpmSocket == nil ? "index.html index.htm" : "index.php index.html"
+            rootLines = """
+                root \(NginxConfigWriter.q(root.path));
+                index \(index);
+            """
+        } else {
+            rootLines = ""
+        }
         return """
         server {
             listen \(Self.listenAddress):443 ssl;
             http2 on;
             server_name \(domain);
-            root \(NginxConfigWriter.q(root.path));
-            index \(index);\(NginxConfigWriter.logDirectives(access: accessLog, error: errorLog))
+        \(rootLines)\(NginxConfigWriter.logDirectives(access: accessLog, error: errorLog))
 
             ssl_certificate \(NginxConfigWriter.q(certFile.path));
             ssl_certificate_key \(NginxConfigWriter.q(keyFile.path));

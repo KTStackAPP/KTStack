@@ -71,7 +71,7 @@ struct SiteActionsMenu: View {
     private var runtimeLabel: String {
         switch site.kind {
         case .php: "PHP \(site.phpVersion)"
-        case .node, .staticSite: SiteVisuals.label(for: site.kind)
+        case .node, .staticSite, .proxy: SiteVisuals.label(for: site.kind)
         }
     }
 

@@ -28,22 +28,27 @@ public struct SiteConfigGenerator {
             )
         }
 
-        let nodeProxyPort = site.type == .node ? site.nodePort : nil
+        let upstream: ProxyTarget? = switch site.type {
+        case .proxy: site.proxyUpstream
+        case .node: site.nodePort.map(ProxyTarget.loopback)
+        default: nil
+        }
+        let root: URL? = site.hasFolder ? URL(fileURLWithPath: site.docroot) : nil
         if secure {
             return tls.redirectVhost(domain: site.domain) + "\n\n"
                 + tls.secureVhost(
                     domain: site.domain,
-                    root: URL(fileURLWithPath: site.docroot),
+                    root: root,
                     certFile: paths.siteCert(site.domain),
                     keyFile: paths.siteKey(site.domain),
                     phpFpmSocket: nil,
-                    nodeProxyPort: nodeProxyPort,
+                    proxyUpstream: upstream,
                     accessLog: access,
                     errorLog: error
                 )
         }
-        if let nodeProxyPort {
-            return writer.vhostNodeProxy(domain: site.domain, nodePort: nodeProxyPort, accessLog: access, errorLog: error)
+        if let upstream {
+            return writer.vhostProxy(domain: site.domain, upstream: upstream, accessLog: access, errorLog: error)
         }
         return writer.vhostStatic(domain: site.domain, root: URL(fileURLWithPath: site.docroot), accessLog: access, errorLog: error)
     }
@@ -97,6 +102,7 @@ public struct SiteConfigGenerator {
         // so it is neither desired nor written until it has one (backfilled at controller init).
         for site in sites where NginxConfigWriter.isValidDomain(site.domain) {
             if site.type == .php, site.backendPort == nil { continue }
+            if site.type == .proxy, site.proxyUpstream == nil { continue }
             desiredVhosts.insert(paths.vhost(site.domain).lastPathComponent)
             if site.type == .php {
                 desiredBackends.insert(paths.siteBackendConf(site.id.uuidString).lastPathComponent)
@@ -105,13 +111,17 @@ public struct SiteConfigGenerator {
 
         for site in sites {
             guard NginxConfigWriter.isValidDomain(site.domain),
-                  NginxConfigWriter.isSafePath(site.docroot)
+                  !site.hasFolder || NginxConfigWriter.isSafePath(site.docroot)
             else {
                 NSLog("KTStack: skipping site with invalid domain/path: \(site.domain)")
                 continue
             }
             if site.type == .php, site.backendPort == nil {
                 NSLog("KTStack: PHP site \(site.domain) has no backendPort; not served this pass")
+                continue
+            }
+            if site.type == .proxy, site.proxyUpstream == nil {
+                NSLog("KTStack: proxy site \(site.domain) has no valid target; not served this pass")
                 continue
             }
             changed = try writeIfChanged(frontVhostText(for: site), to: paths.vhost(site.domain)) || changed

@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public enum ServiceStatus: String, CaseIterable, Sendable {
     case running, stopped, starting, stopping, warning, error, info
@@ -32,12 +33,14 @@ public enum SiteType: String, Codable, CaseIterable, Sendable {
     case php
     case staticSite
     case node
+    case proxy
 
     public var label: String {
         switch self {
         case .php: "PHP"
         case .staticSite: "Static"
         case .node: "Node"
+        case .proxy: "Proxy"
         }
     }
 
@@ -46,6 +49,7 @@ public enum SiteType: String, Codable, CaseIterable, Sendable {
         case .php: "chevron.left.forwardslash.chevron.right"
         case .staticSite: "doc.richtext"
         case .node: "shippingbox"
+        case .proxy: "arrow.left.arrow.right"
         }
     }
 }
@@ -67,6 +71,8 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
     // Loopback port the front terminator routes this site's PHP backend to. Only PHP sites
     // have one; static/node are served by the front directly. Assigned by SiteRegistry.
     public var backendPort: Int?
+    // Upstream URL for a proxy site (e.g. "http://127.0.0.1:8000"); nil for every other type.
+    public var proxyTarget: String?
 
     public init(
         id: UUID = UUID(),
@@ -82,7 +88,8 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         nodeCommand: String? = nil,
         nodeEnabled: Bool = false,
         serverEngine: WebServerEngine = .nginx,
-        backendPort: Int? = nil
+        backendPort: Int? = nil,
+        proxyTarget: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -98,11 +105,12 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         self.nodeEnabled = nodeEnabled
         self.serverEngine = serverEngine
         self.backendPort = backendPort
+        self.proxyTarget = proxyTarget
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, name, path, docroot, domain, phpVersion, type, databaseName, secure
-        case nodePort, nodeCommand, nodeEnabled, serverEngine, backendPort
+        case nodePort, nodeCommand, nodeEnabled, serverEngine, backendPort, proxyTarget
     }
 
     public init(from decoder: Decoder) throws {
@@ -123,6 +131,18 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         serverEngine = try c.decodeIfPresent(WebServerEngine.self, forKey: .serverEngine) ?? .nginx
         // nil for old installs; SiteRegistry backfills a port for PHP sites before the front renders.
         backendPort = try c.decodeIfPresent(Int.self, forKey: .backendPort)
+        proxyTarget = try c.decodeIfPresent(String.self, forKey: .proxyTarget)
+    }
+
+    // Có thư mục trên đĩa; proxy site không có nên mọi thao tác folder phải gate cái này.
+    public var hasFolder: Bool { !path.isEmpty }
+
+    // Parse target đã lưu; chỉ hợp lệ khi là proxy site.
+    public var proxyUpstream: ProxyTarget? {
+        guard type == .proxy, let proxyTarget,
+              case let .success(target) = ProxyTarget.parse(proxyTarget)
+        else { return nil }
+        return target
     }
 
     public static let sample: [Site] = []

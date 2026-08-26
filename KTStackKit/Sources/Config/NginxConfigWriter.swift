@@ -147,9 +147,9 @@ public struct NginxConfigWriter {
         """
     }
 
-    public func vhostNodeProxy(
+    public func vhostProxy(
         domain: String,
-        nodePort: Int,
+        upstream: ProxyTarget,
         port: Int = 80,
         accessLog: URL? = nil,
         errorLog: URL? = nil
@@ -159,19 +159,28 @@ public struct NginxConfigWriter {
             listen \(Self.listenAddress):\(port);
             server_name \(domain);\(Self.logDirectives(access: accessLog, error: errorLog))
 
-        \(Self.proxyRouting(nodePort: nodePort))
+        \(Self.proxyRouting(upstream: upstream))
         }
         """
     }
 
-    public static func proxyRouting(nodePort: Int) -> String {
-        """
+    public static func proxyRouting(upstream: ProxyTarget) -> String {
+        // https upstream: gửi SNI + Host = upstream host; http: giữ Host $host cho app dev đọc domain .test.
+        let hostLines: String = if upstream.scheme == .https {
+            """
+                    proxy_ssl_server_name on;
+                    proxy_set_header Host \(upstream.host);
+            """
+        } else {
+            "        proxy_set_header Host $host;"
+        }
+        return """
             location / {
-                proxy_pass http://127.0.0.1:\(nodePort);
+                proxy_pass \(upstream.upstreamURLString);
                 proxy_http_version 1.1;
                 proxy_set_header Upgrade $http_upgrade;
                 proxy_set_header Connection "upgrade";
-                proxy_set_header Host $host;
+        \(hostLines)
                 proxy_set_header X-Real-IP $remote_addr;
                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                 proxy_set_header X-Forwarded-Proto $scheme;
@@ -192,8 +201,7 @@ public struct NginxConfigWriter {
     }
 
     public static func isValidDomain(_ domain: String) -> Bool {
-        let label = "[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?"
-        return domain.range(of: "^\(label)(\\.\(label))+$", options: .regularExpression) != nil
+        HostSyntax.isValidDomain(domain)
     }
 
     public static func isSafePath(_ path: String) -> Bool {

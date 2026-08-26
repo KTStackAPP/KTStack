@@ -78,6 +78,38 @@ final class NginxTunnelVhostWriterTests: XCTestCase {
         XCTAssertFalse(v.contains("$http_host"))
     }
 
+    func testTunnelNodeVhostProxiesToLoopbackPort() {
+        let site = Site(
+            name: "App",
+            path: "/site",
+            docroot: "/site",
+            domain: "app.test",
+            phpVersion: "8.4",
+            type: .node,
+            nodePort: 3001
+        )
+        let v = writer.vhost(site: site, port: 45140, phpFpmSocket: nil)
+        XCTAssertTrue(v.contains("proxy_pass http://127.0.0.1:3001;"))
+        XCTAssertFalse(v.contains("try_files"))
+        XCTAssertFalse(v.contains("root "))
+    }
+
+    func testTunnelProxyVhostRoutesToUpstream() {
+        let site = Site(
+            name: "Api",
+            path: "",
+            docroot: "",
+            domain: "api.test",
+            phpVersion: "8.4",
+            type: .proxy,
+            proxyTarget: "https://api.example.com"
+        )
+        let v = writer.vhost(site: site, port: 45141, phpFpmSocket: nil)
+        XCTAssertTrue(v.contains("proxy_pass https://api.example.com:443;"))
+        XCTAssertTrue(v.contains("proxy_ssl_server_name on;"))
+        XCTAssertFalse(v.contains("root "))
+    }
+
     func testTunnelStaticVhostUsesLoopbackPortWithoutFastCGI() {
         let site = Site(
             name: "Static",
