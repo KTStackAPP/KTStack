@@ -8,10 +8,10 @@ let package = Package(
         // Dynamic for type identity: the app embeds it once and every feature
         // package (M04+) links the same copy, so capability casts and token
         // types stay one type across modules (same layout as KTStackCore).
-        .library(name: "KTPluginKit", type: .dynamic, targets: ["KTPluginKit"])
+        .library(name: "KTPluginKit", type: .dynamic, targets: ["KTPluginKit"]),
     ],
     dependencies: [
-        .package(path: "../../Core/KTStackCore")
+        .package(path: "../../Core/KTStackCore"),
     ],
     targets: [
         .target(
@@ -21,6 +21,6 @@ let package = Package(
         .testTarget(
             name: "KTPluginKitTests",
             dependencies: ["KTPluginKit"]
-        )
+        ),
     ]
 )

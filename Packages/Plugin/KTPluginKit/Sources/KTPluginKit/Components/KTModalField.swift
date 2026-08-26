@@ -10,7 +10,7 @@ public struct KTModalField: View {
 
     public init(placeholder: String, text: Binding<String>, mono: Bool = false, isSecure: Bool = false) {
         self.placeholder = placeholder
-        self._text = text
+        _text = text
         self.mono = mono
         self.isSecure = isSecure
     }

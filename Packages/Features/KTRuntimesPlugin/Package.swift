@@ -7,12 +7,12 @@ let package = Package(
     products: [
         // Automatic: only the app links it. Shares no type with a sibling module beyond the
         // dynamic deps below, so it needs no dynamic product of its own.
-        .library(name: "KTRuntimesPlugin", targets: ["KTRuntimesPlugin"])
+        .library(name: "KTRuntimesPlugin", targets: ["KTRuntimesPlugin"]),
     ],
     dependencies: [
         .package(path: "../../Core/KTStackCore"),
         .package(path: "../../Contracts/KTPlatformContracts"),
-        .package(path: "../../Plugin/KTPluginKit")
+        .package(path: "../../Plugin/KTPluginKit"),
     ],
     targets: [
         .target(
@@ -20,12 +20,12 @@ let package = Package(
             dependencies: [
                 .product(name: "KTStackCore", package: "KTStackCore"),
                 .product(name: "KTPlatformContracts", package: "KTPlatformContracts"),
-                .product(name: "KTPluginKit", package: "KTPluginKit")
+                .product(name: "KTPluginKit", package: "KTPluginKit"),
             ]
         ),
         .testTarget(
             name: "KTRuntimesPluginTests",
             dependencies: ["KTRuntimesPlugin"]
-        )
+        ),
     ]
 )

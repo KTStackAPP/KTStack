@@ -42,27 +42,31 @@ struct XdebugToggleView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: KDSpacing.space1) {
-            Toggle(isOn: Binding(get: { model.enabled }, set: { model.toggle($0) })) {
-                HStack {
-                    Text("Xdebug").font(KDFont.body)
-                    KTBadge(text: model.enabled ? "on" : "off", tint: badgeTint, radius: 20)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text("Xdebug").font(KTType.body).foregroundStyle(KTColor.ink)
+                KTBadge(text: model.enabled ? "on" : "off", tint: badgeTint, radius: 20)
+                Spacer(minLength: 8)
+                if model.busy {
+                    ProgressView().controlSize(.small)
+                } else {
+                    KTToggle(isOn: model.enabled) { model.toggle(!model.enabled) }
+                        .opacity(model.supported ? 1 : 0.4)
+                        .allowsHitTesting(model.supported)
                 }
             }
-            .disabled(!model.supported || model.busy)
-
-            if !model.supported {
-                Text("Not available for PHP \(model.version) on this platform.")
-                    .font(KDFont.footnote).foregroundStyle(.secondary)
-            } else {
-                Text("Step debugger on port \(model.clientPort). Toggling restarts PHP \(model.version); sites on this version blip briefly.")
-                    .font(KDFont.footnote).foregroundStyle(.secondary)
-            }
+            Text(helpText).font(KTType.caption).foregroundStyle(KTColor.muted)
             if let error = model.error {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
-                    .font(KDFont.footnote).foregroundStyle(Color.KDStatus.error)
+                    .font(KTType.caption).foregroundStyle(KTColor.danger)
             }
         }
+    }
+
+    private var helpText: String {
+        model.supported
+            ? "Step debugger on port \(model.clientPort). Toggling restarts PHP \(model.version); sites on this version blip briefly."
+            : "Not available for PHP \(model.version) on this platform."
     }
 
     private var badgeTint: KTTint {

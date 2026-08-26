@@ -9,8 +9,10 @@ public struct KTToggle: View {
         self.action = action
     }
 
-    // Knob slides between the 3pt insets on each side: width - knob - 2*inset.
-    private var knobTravel: CGFloat { KTMetric.toggleWidth - KTMetric.toggleKnob - 6 }
+    /// Knob slides between the 3pt insets on each side: width - knob - 2*inset.
+    private var knobTravel: CGFloat {
+        KTMetric.toggleWidth - KTMetric.toggleKnob - 6
+    }
 
     public var body: some View {
         Button(action: action) {

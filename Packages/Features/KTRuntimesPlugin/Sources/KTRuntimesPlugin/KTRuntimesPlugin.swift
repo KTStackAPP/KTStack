@@ -2,8 +2,8 @@ import KTPlatformContracts
 import KTPluginKit
 import SwiftUI
 
-// Sidebar plugin sở hữu màn Runtimes. Stream subscribe lazy khi VM khởi tạo (makeContentView đầu
-// tiên); không lifecycle/activation, không resource cần dọn lúc quit.
+/// Sidebar plugin sở hữu màn Runtimes. Stream subscribe lazy khi VM khởi tạo (makeContentView đầu
+/// tiên); không lifecycle/activation, không resource cần dọn lúc quit.
 public final class KTRuntimesPlugin: KTStackPlugin {
     public let descriptor = PluginDescriptor(id: "runtimes", title: "Runtimes", systemImage: "cube")
 
@@ -33,7 +33,8 @@ public final class KTRuntimesPlugin: KTStackPlugin {
         self.engines = engines
     }
 
-    @MainActor public func makeContentView() -> AnyView {
+    @MainActor
+    public func makeContentView() -> AnyView {
         AnyView(
             RuntimesScreen(vm: runtimesVM, engines: enginesVM, phpConfig: phpConfig)
                 .environmentObject(feedback)

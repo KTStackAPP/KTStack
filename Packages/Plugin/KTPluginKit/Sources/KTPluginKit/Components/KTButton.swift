@@ -1,7 +1,7 @@
 import SwiftUI
 
 public enum KTButtonKind {
-    case primary, secondary, danger
+    case primary, secondary, danger, link
 }
 
 public struct KTButton: View {
@@ -40,11 +40,11 @@ public struct KTButton: View {
                     Image(systemName: systemImage)
                         .font(.system(size: 12.5, weight: .regular))
                 }
-                Text(title).font(.jbMono(12.5, weight))
+                Text(title).font(.jbMono(12.5, weight)).underline(hovering && kind == .link)
             }
             .foregroundStyle(foreground)
-            .padding(.vertical, kind == .primary ? 8 : 7)
-            .padding(.horizontal, 13)
+            .padding(.vertical, kind == .link ? 2 : (kind == .primary ? 8 : 7))
+            .padding(.horizontal, kind == .link ? 2 : 13)
             .background(background)
             .overlay(border)
             .clipShape(RoundedRectangle(cornerRadius: KTRadius.button, style: .continuous))
@@ -56,7 +56,7 @@ public struct KTButton: View {
     }
 
     private var weight: Font.Weight {
-        kind == .secondary ? .medium : .regular
+        kind == .secondary || kind == .link ? .medium : .regular
     }
 
     private var foreground: Color {
@@ -64,6 +64,7 @@ public struct KTButton: View {
         case .primary: .white
         case .secondary: KTColor.ink
         case .danger: KTColor.danger
+        case .link: KTColor.accent
         }
     }
 
@@ -72,12 +73,13 @@ public struct KTButton: View {
         case .primary: KTColor.accentGradient
         case .secondary: hovering ? KTColor.btnHover : Color.white
         case .danger: hovering ? KTColor.dangerBg : Color.white
+        case .link: Color.clear
         }
     }
 
     @ViewBuilder private var border: some View {
         switch kind {
-        case .primary: EmptyView()
+        case .primary, .link: EmptyView()
         case .secondary:
             RoundedRectangle(cornerRadius: KTRadius.button, style: .continuous)
                 .strokeBorder(KTColor.btnBorder, lineWidth: 0.5)
