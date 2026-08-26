@@ -112,6 +112,8 @@ docs/*
 !docs/architecture/
 docs/architecture/*
 !docs/architecture/dependency-rules.md
+!docs/architecture/adr/
+!docs/architecture/adr/*.md
 
 .agents/
 
