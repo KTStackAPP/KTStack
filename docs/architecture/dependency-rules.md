@@ -1,5 +1,8 @@
 # Package dependency rules
 
+Decision history is in [adr/](adr/); this file is the boundary detail behind
+[ADR 0001](adr/0001-plugin-architecture-v1.md).
+
 Frozen boundary from the Plugin Architecture design (section 4). Tiers may depend
 only downward. The SPM manifests are the primary fence; a forbidden dependency
 fails to compile. `scripts/architecture-check.sh` is the backstop and runs first
