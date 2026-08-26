@@ -16,7 +16,9 @@ public struct NginxBackend: WebServerBackend {
             secure: context.secure,
             pid: context.pidFile,
             accessLog: context.accessLog,
-            errorLog: context.errorLog
+            errorLog: context.errorLog,
+            aliases: context.aliases,
+            env: context.env
         )
     }
 }

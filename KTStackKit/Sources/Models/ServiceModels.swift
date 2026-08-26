@@ -73,6 +73,12 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
     public var backendPort: Int?
     // Upstream URL for a proxy site (e.g. "http://127.0.0.1:8000"); nil for every other type.
     public var proxyTarget: String?
+    // Extra .tld domains served alongside `domain`; they join server_name and the cert SANs.
+    public var aliases: [String]
+    // Per-site env vars for the PHP backend (fastcgi_param/SetEnv) and Node start (export).
+    public var envVars: [String: String]
+    // Verbatim nginx directives spliced into this site's front server block; scope in the name so a backend variant can follow.
+    public var frontDirectives: String?
 
     public init(
         id: UUID = UUID(),
@@ -89,7 +95,10 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         nodeEnabled: Bool = false,
         serverEngine: WebServerEngine = .nginx,
         backendPort: Int? = nil,
-        proxyTarget: String? = nil
+        proxyTarget: String? = nil,
+        aliases: [String] = [],
+        envVars: [String: String] = [:],
+        frontDirectives: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -106,11 +115,15 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         self.serverEngine = serverEngine
         self.backendPort = backendPort
         self.proxyTarget = proxyTarget
+        self.aliases = aliases
+        self.envVars = envVars
+        self.frontDirectives = frontDirectives
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, name, path, docroot, domain, phpVersion, type, databaseName, secure
         case nodePort, nodeCommand, nodeEnabled, serverEngine, backendPort, proxyTarget
+        case aliases, envVars, frontDirectives
     }
 
     public init(from decoder: Decoder) throws {
@@ -132,10 +145,21 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         // nil for old installs; SiteRegistry backfills a port for PHP sites before the front renders.
         backendPort = try c.decodeIfPresent(Int.self, forKey: .backendPort)
         proxyTarget = try c.decodeIfPresent(String.self, forKey: .proxyTarget)
+        aliases = try c.decodeIfPresent([String].self, forKey: .aliases) ?? []
+        envVars = try c.decodeIfPresent([String: String].self, forKey: .envVars) ?? [:]
+        frontDirectives = try c.decodeIfPresent(String.self, forKey: .frontDirectives)
     }
 
     // Có thư mục trên đĩa; proxy site không có nên mọi thao tác folder phải gate cái này.
     public var hasFolder: Bool { !path.isEmpty }
+
+    // domain chính + alias, dùng cho server_name và cert SAN.
+    public var serverNames: [String] { [domain] + aliases }
+
+    // Có directives không rỗng sau trim; generator chỉ ghi file + include khi true.
+    public var hasFrontDirectives: Bool {
+        (frontDirectives?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)
+    }
 
     // Parse target đã lưu; chỉ hợp lệ khi là proxy site.
     public var proxyUpstream: ProxyTarget? {

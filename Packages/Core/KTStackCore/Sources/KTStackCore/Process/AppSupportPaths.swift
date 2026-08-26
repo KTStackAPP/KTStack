@@ -49,6 +49,15 @@ public struct AppSupportPaths: Sendable {
         backendsConfigDir.appendingPathComponent("\(id).conf")
     }
 
+    // Verbatim front directives per site, keyed by id; included only when the file exists.
+    public var siteDirectivesDir: URL {
+        nginxConfigDir.appendingPathComponent("site-directives", isDirectory: true)
+    }
+
+    public func siteDirectivesConf(_ id: String) -> URL {
+        siteDirectivesDir.appendingPathComponent("\(id).conf")
+    }
+
     // Engine-keyed so a zero-downtime engine swap can run the old and new backend at once without
     // sharing a pid file: the departing process must not delete the incoming process's pid on exit.
     public func siteBackendPid(_ id: String, engine: String) -> URL {
@@ -125,6 +134,7 @@ public struct AppSupportPaths: Sendable {
             nginxConfigDir,
             sitesEnabled,
             backendsConfigDir,
+            siteDirectivesDir,
             phpFpmConfigDir,
             phpConfigDir,
             sitesConfigDir,

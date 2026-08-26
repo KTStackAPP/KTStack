@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 // Standalone nginx config for one PHP site's loopback backend. The front terminates TLS and
 // proxies here over plain HTTP, so SERVER_PORT/SERVER_ADDR/HTTPS are pinned from the
@@ -16,11 +17,16 @@ public struct NginxBackendConfigWriter: Sendable {
         secure: Bool,
         pid: URL,
         accessLog: URL,
-        errorLog: URL
+        errorLog: URL,
+        aliases: [String] = [],
+        env: [String: String] = [:]
     ) -> String {
         let q = NginxConfigWriter.q
         let serverPort = secure ? 443 : 80
         let httpsParam = secure ? "\n            fastcgi_param HTTPS            on;" : ""
+        let envParams = SiteEnvVars.sorted(env)
+            .map { "\n            fastcgi_param \($0.key) \(q($0.value));" }
+            .joined()
         return """
         worker_processes 1;
         pid \(q(pid.path));
@@ -40,7 +46,7 @@ public struct NginxBackendConfigWriter: Sendable {
 
             server {
                 listen 127.0.0.1:\(backendPort);
-                server_name \(domain);
+                server_name \(NginxConfigWriter.serverName(domain, aliases));
                 absolute_redirect off;
                 root \(q(root.path));
                 index index.php index.html;
@@ -67,7 +73,7 @@ public struct NginxBackendConfigWriter: Sendable {
                     fastcgi_param REMOTE_PORT      $remote_port;
                     fastcgi_param SERVER_ADDR      127.0.0.1;
                     fastcgi_param SERVER_PORT      \(serverPort);
-                    fastcgi_param SERVER_NAME      $server_name;
+                    fastcgi_param SERVER_NAME      $server_name;\(envParams)
                 }
 
                 location ~ /\\.(?!well-known).* {

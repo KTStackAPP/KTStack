@@ -46,6 +46,48 @@ final class NginxTLSVhostWriterTests: XCTestCase {
         XCTAssertTrue(r.contains("listen 0.0.0.0:80;"))
         XCTAssertTrue(r.contains("return 301 https://$host$request_uri;"))
     }
+
+    func testSecureVhostAndRedirectCarryAliases() {
+        let v = tls.secureVhost(
+            domain: "app.test",
+            root: URL(fileURLWithPath: "/site"),
+            certFile: cert,
+            keyFile: key,
+            phpFpmSocket: nil,
+            aliases: ["www.app.test"]
+        )
+        XCTAssertTrue(v.contains("server_name app.test www.app.test;"))
+        let r = tls.redirectVhost(domain: "app.test", aliases: ["www.app.test"])
+        XCTAssertTrue(r.contains("server_name app.test www.app.test;"))
+    }
+
+    func testSecureVhostIncludeBeforeLocation() {
+        let inc = URL(fileURLWithPath: "/cfg/site-directives/x.conf")
+        let v = tls.secureVhost(
+            domain: "app.test",
+            root: URL(fileURLWithPath: "/site"),
+            certFile: cert,
+            keyFile: key,
+            phpFpmSocket: nil,
+            directivesInclude: inc
+        )
+        guard let idxInclude = v.range(of: "include \"\(inc.path)\";")?.lowerBound,
+              let idxLocation = v.range(of: "location / {")?.lowerBound
+        else { return XCTFail("missing include or location") }
+        XCTAssertLessThan(idxInclude, idxLocation)
+    }
+
+    func testSecureVhostEmptyAliasIncludeMatchesBase() {
+        let base = tls.secureVhost(
+            domain: "app.test", root: URL(fileURLWithPath: "/site"),
+            certFile: cert, keyFile: key, phpFpmSocket: nil
+        )
+        let same = tls.secureVhost(
+            domain: "app.test", root: URL(fileURLWithPath: "/site"),
+            certFile: cert, keyFile: key, phpFpmSocket: nil, aliases: [], directivesInclude: nil
+        )
+        XCTAssertEqual(base, same)
+    }
 }
 
 final class NginxTunnelVhostWriterTests: XCTestCase {
@@ -76,6 +118,25 @@ final class NginxTunnelVhostWriterTests: XCTestCase {
         XCTAssertTrue(v.contains("fastcgi_param HTTP_X_FORWARDED_PROTO   https;"))
         XCTAssertTrue(v.contains("fastcgi_param HTTPS                    on;"))
         XCTAssertFalse(v.contains("$http_host"))
+    }
+
+    func testTunnelPHPVhostRendersEnvVars() {
+        let site = Site(
+            name: "App",
+            path: "/site",
+            docroot: "/site/public",
+            domain: "app.test",
+            phpVersion: "8.4",
+            type: .php,
+            secure: true,
+            envVars: ["APP_DEBUG": "1"]
+        )
+        let v = writer.vhost(
+            site: site,
+            port: 45150,
+            phpFpmSocket: URL(fileURLWithPath: "/run/php-fpm-8.4.sock")
+        )
+        XCTAssertTrue(v.contains("fastcgi_param APP_DEBUG \"1\";"))
     }
 
     func testTunnelNodeVhostProxiesToLoopbackPort() {

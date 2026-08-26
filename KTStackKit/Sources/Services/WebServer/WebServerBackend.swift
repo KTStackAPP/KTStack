@@ -19,6 +19,8 @@ public struct BackendRenderContext: Sendable {
     public let pidFile: URL
     public let accessLog: URL
     public let errorLog: URL
+    public let aliases: [String]
+    public let env: [String: String]
 
     public init(
         domain: String,
@@ -28,7 +30,9 @@ public struct BackendRenderContext: Sendable {
         secure: Bool,
         pidFile: URL,
         accessLog: URL,
-        errorLog: URL
+        errorLog: URL,
+        aliases: [String] = [],
+        env: [String: String] = [:]
     ) {
         self.domain = domain
         self.root = root
@@ -38,6 +42,8 @@ public struct BackendRenderContext: Sendable {
         self.pidFile = pidFile
         self.accessLog = accessLog
         self.errorLog = errorLog
+        self.aliases = aliases
+        self.env = env
     }
 }
 

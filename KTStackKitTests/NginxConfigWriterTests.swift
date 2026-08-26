@@ -80,6 +80,49 @@ final class NginxConfigWriterTests: XCTestCase {
         XCTAssertFalse(vhost.contains("proxy_set_header Host $host;"))
     }
 
+    func testStaticVhostServerNameCarriesAliases() {
+        let vhost = writer.vhostStatic(
+            domain: "a.test",
+            root: URL(fileURLWithPath: "/tmp/site"),
+            aliases: ["b.test", "c.test"]
+        )
+        XCTAssertTrue(vhost.contains("server_name a.test b.test c.test;"))
+    }
+
+    func testProxyVhostServerNameCarriesAliases() {
+        let vhost = writer.vhostProxy(
+            domain: "app.test",
+            upstream: .loopback(port: 3001),
+            aliases: ["www.app.test"]
+        )
+        XCTAssertTrue(vhost.contains("server_name app.test www.app.test;"))
+    }
+
+    func testDirectivesIncludeAppearsBeforeLocation() {
+        let inc = paths.siteDirectivesConf("11111111-1111-1111-1111-111111111111")
+        let vhost = writer.vhostStatic(
+            domain: "a.test",
+            root: URL(fileURLWithPath: "/tmp/site"),
+            directivesInclude: inc
+        )
+        guard let idxInclude = vhost.range(of: "include \"\(inc.path)\";")?.lowerBound,
+              let idxLocation = vhost.range(of: "location / {")?.lowerBound
+        else { return XCTFail("missing include or location") }
+        XCTAssertLessThan(idxInclude, idxLocation, "include must precede location /")
+    }
+
+    func testEmptyAliasAndIncludeMatchBaseOutput() {
+        let root = URL(fileURLWithPath: "/tmp/site")
+        XCTAssertEqual(
+            writer.vhostStatic(domain: "a.test", root: root, aliases: [], directivesInclude: nil),
+            writer.vhostStatic(domain: "a.test", root: root)
+        )
+        XCTAssertEqual(
+            writer.vhostProxy(domain: "app.test", upstream: .loopback(port: 3001), aliases: [], directivesInclude: nil),
+            writer.vhostProxy(domain: "app.test", upstream: .loopback(port: 3001))
+        )
+    }
+
     func testDomainAndPathValidationRejectInjection() {
         XCTAssertTrue(NginxConfigWriter.isValidDomain("demo.test"))
         XCTAssertFalse(NginxConfigWriter.isValidDomain("demo.test;\n} server {"))

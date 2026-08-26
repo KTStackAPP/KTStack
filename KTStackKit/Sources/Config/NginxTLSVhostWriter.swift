@@ -13,6 +13,8 @@ public struct NginxTLSVhostWriter {
         keyFile: URL,
         phpFpmSocket: URL?,
         proxyUpstream: ProxyTarget? = nil,
+        aliases: [String] = [],
+        directivesInclude: URL? = nil,
         accessLog: URL? = nil,
         errorLog: URL? = nil
     ) -> String {
@@ -38,24 +40,24 @@ public struct NginxTLSVhostWriter {
         server {
             listen \(Self.listenAddress):443 ssl;
             http2 on;
-            server_name \(domain);
+            server_name \(NginxConfigWriter.serverName(domain, aliases));
         \(rootLines)\(NginxConfigWriter.logDirectives(access: accessLog, error: errorLog))
 
             ssl_certificate \(NginxConfigWriter.q(certFile.path));
             ssl_certificate_key \(NginxConfigWriter.q(keyFile.path));
             ssl_protocols TLSv1.2 TLSv1.3;
-            ssl_prefer_server_ciphers off;
+            ssl_prefer_server_ciphers off;\(NginxConfigWriter.includeDirective(directivesInclude))
 
         \(routing)
         }
         """
     }
 
-    public func redirectVhost(domain: String) -> String {
+    public func redirectVhost(domain: String, aliases: [String] = []) -> String {
         """
         server {
             listen \(Self.listenAddress):80;
-            server_name \(domain);
+            server_name \(NginxConfigWriter.serverName(domain, aliases));
             return 301 https://$host$request_uri;
         }
         """

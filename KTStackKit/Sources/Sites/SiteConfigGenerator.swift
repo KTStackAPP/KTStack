@@ -17,6 +17,7 @@ public struct SiteConfigGenerator {
         let secure = site.secure && certPresent(for: site)
         let access = paths.siteAccessLog(site.domain)
         let error = paths.siteErrorLog(site.domain)
+        let directivesInclude: URL? = site.hasFrontDirectives ? paths.siteDirectivesConf(site.id.uuidString) : nil
 
         if site.type == .php {
             return frontProxy.vhost(
@@ -24,7 +25,9 @@ public struct SiteConfigGenerator {
                 backendPort: site.backendPort ?? 0,
                 secure: secure,
                 certFile: secure ? paths.siteCert(site.domain) : nil,
-                keyFile: secure ? paths.siteKey(site.domain) : nil
+                keyFile: secure ? paths.siteKey(site.domain) : nil,
+                aliases: site.aliases,
+                directivesInclude: directivesInclude
             )
         }
 
@@ -35,7 +38,7 @@ public struct SiteConfigGenerator {
         }
         let root: URL? = site.hasFolder ? URL(fileURLWithPath: site.docroot) : nil
         if secure {
-            return tls.redirectVhost(domain: site.domain) + "\n\n"
+            return tls.redirectVhost(domain: site.domain, aliases: site.aliases) + "\n\n"
                 + tls.secureVhost(
                     domain: site.domain,
                     root: root,
@@ -43,14 +46,35 @@ public struct SiteConfigGenerator {
                     keyFile: paths.siteKey(site.domain),
                     phpFpmSocket: nil,
                     proxyUpstream: upstream,
+                    aliases: site.aliases,
+                    directivesInclude: directivesInclude,
                     accessLog: access,
                     errorLog: error
                 )
         }
         if let upstream {
-            return writer.vhostProxy(domain: site.domain, upstream: upstream, accessLog: access, errorLog: error)
+            return writer.vhostProxy(
+                domain: site.domain,
+                upstream: upstream,
+                aliases: site.aliases,
+                directivesInclude: directivesInclude,
+                accessLog: access,
+                errorLog: error
+            )
         }
-        return writer.vhostStatic(domain: site.domain, root: URL(fileURLWithPath: site.docroot), accessLog: access, errorLog: error)
+        return writer.vhostStatic(
+            domain: site.domain,
+            root: URL(fileURLWithPath: site.docroot),
+            aliases: site.aliases,
+            directivesInclude: directivesInclude,
+            accessLog: access,
+            errorLog: error
+        )
+    }
+
+    // Nội dung file directives của site: trim + newline cuối; dùng cho candidate render (phase 2).
+    public func directivesText(for site: Site) -> String {
+        (site.frontDirectives ?? "").trimmingCharacters(in: .whitespacesAndNewlines) + "\n"
     }
 
     // Standalone backend config for a PHP site, rendered by the site's effective engine
@@ -66,7 +90,9 @@ public struct SiteConfigGenerator {
             secure: site.secure && certPresent(for: site),
             pidFile: paths.siteBackendPid(site.id.uuidString, engine: engine.rawValue),
             accessLog: paths.siteAccessLog(site.domain),
-            errorLog: paths.siteErrorLog(site.domain)
+            errorLog: paths.siteErrorLog(site.domain),
+            aliases: site.aliases,
+            env: site.envVars
         )
         return backend.backendConfig(context: context)
     }
@@ -98,6 +124,7 @@ public struct SiteConfigGenerator {
         // unsafe path must keep its prior config, not be swept as an orphan.
         var desiredVhosts = Set<String>()
         var desiredBackends = Set<String>()
+        var desiredDirectives = Set<String>()
         // A PHP site with no backendPort would proxy_pass to port 0 and break the whole front,
         // so it is neither desired nor written until it has one (backfilled at controller init).
         for site in sites where NginxConfigWriter.isValidDomain(site.domain) {
@@ -106,6 +133,9 @@ public struct SiteConfigGenerator {
             desiredVhosts.insert(paths.vhost(site.domain).lastPathComponent)
             if site.type == .php {
                 desiredBackends.insert(paths.siteBackendConf(site.id.uuidString).lastPathComponent)
+            }
+            if site.hasFrontDirectives {
+                desiredDirectives.insert(paths.siteDirectivesConf(site.id.uuidString).lastPathComponent)
             }
         }
 
@@ -124,6 +154,10 @@ public struct SiteConfigGenerator {
                 NSLog("KTStack: proxy site \(site.domain) has no valid target; not served this pass")
                 continue
             }
+            // Directives file phải tồn tại trước khi vhost include nó, không thì nginx -t fail.
+            if site.hasFrontDirectives {
+                changed = try writeIfChanged(directivesText(for: site), to: paths.siteDirectivesConf(site.id.uuidString)) || changed
+            }
             changed = try writeIfChanged(frontVhostText(for: site), to: paths.vhost(site.domain)) || changed
 
             if site.type == .php, let backendPort = site.backendPort {
@@ -136,6 +170,7 @@ public struct SiteConfigGenerator {
 
         changed = removeOrphanVhosts(keeping: desiredVhosts) || changed
         changed = removeOrphanBackends(keeping: desiredBackends) || changed
+        changed = removeOrphanDirectives(keeping: desiredDirectives) || changed
         return changed
     }
 
@@ -186,6 +221,20 @@ public struct SiteConfigGenerator {
         let fm = FileManager.default
         guard let files = try? fm.contentsOfDirectory(
             at: paths.backendsConfigDir,
+            includingPropertiesForKeys: nil
+        ) else { return false }
+        var removed = false
+        for file in files where file.pathExtension == "conf" && !desired.contains(file.lastPathComponent) {
+            try? fm.removeItem(at: file)
+            removed = true
+        }
+        return removed
+    }
+
+    private func removeOrphanDirectives(keeping desired: Set<String>) -> Bool {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(
+            at: paths.siteDirectivesDir,
             includingPropertiesForKeys: nil
         ) else { return false }
         var removed = false
