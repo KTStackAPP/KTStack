@@ -63,6 +63,7 @@ public final class SiteRegistry: ObservableObject {
         case notADirectory(String)
         case unsafeDeletePath(String)
         case noFreeBackendPort
+        case proxyTargetLoopsToSite(String)
 
         public var errorDescription: String? {
             switch self {
@@ -72,6 +73,7 @@ public final class SiteRegistry: ObservableObject {
             case let .notADirectory(p): "“\(p)” is not a folder."
             case let .unsafeDeletePath(p): "Refusing to delete unsafe site folder “\(p)”."
             case .noFreeBackendPort: "No free loopback port in 4000-4999 for a site backend."
+            case let .proxyTargetLoopsToSite(d): "The target cannot point back at this site (\(d))."
             }
         }
     }
@@ -108,6 +110,35 @@ public final class SiteRegistry: ObservableObject {
         sites.append(site)
         persist()
         return site
+    }
+
+    // Proxy site không có thư mục: path/docroot rỗng, không cấp nodePort/backendPort.
+    @discardableResult
+    public func addProxy(name: String, domain: String, target: ProxyTarget) throws -> Site {
+        try validateDomain(domain)
+        let site = Site(
+            name: name,
+            path: "",
+            docroot: "",
+            domain: domain,
+            phpVersion: BundledPHP.defaultVersion,
+            type: .proxy,
+            proxyTarget: target.upstreamURLString
+        )
+        sites.append(site)
+        persist()
+        return site
+    }
+
+    public func setProxyTarget(_ site: Site, _ target: ProxyTarget) {
+        update(site.id) { $0.proxyTarget = target.upstreamURLString }
+    }
+
+    // Chặn upstream trỏ về chính domain của site (vòng lặp qua front nginx).
+    public func validateProxyTarget(_ target: ProxyTarget, for site: Site?) throws {
+        if let site, target.host == site.domain {
+            throw RegistryError.proxyTargetLoopsToSite(site.domain)
+        }
     }
 
     public func nextFreeNodePort() -> Int {

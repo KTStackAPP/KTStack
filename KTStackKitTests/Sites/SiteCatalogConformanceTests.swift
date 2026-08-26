@@ -28,13 +28,14 @@ final class SiteCatalogConformanceTests: XCTestCase {
         XCTAssertEqual(SiteServerEngine.allCases.map(\.rawValue), WebServerEngine.allCases.map(\.rawValue))
     }
 
-    func testSiteSummaryMapsAllThirteenFields() {
+    func testSiteSummaryMapsAllFourteenFields() {
         let id = UUID()
         let site = Site(
             id: id, name: "Shop", path: "/tmp/shop", docroot: "/tmp/shop/public",
             domain: "shop.test", phpVersion: "8.3", type: .php, databaseName: "shop_db",
             secure: true, nodePort: 3001, nodeCommand: "npm run dev",
-            nodeEnabled: true, serverEngine: .apache, backendPort: 4001
+            nodeEnabled: true, serverEngine: .apache, backendPort: 4001,
+            proxyTarget: "http://127.0.0.1:8000"
         )
         let s = SiteSummary(site)
         XCTAssertEqual(s.id, id)
@@ -50,6 +51,7 @@ final class SiteCatalogConformanceTests: XCTestCase {
         XCTAssertEqual(s.nodeCommand, "npm run dev")
         XCTAssertEqual(s.engine, .apache)
         XCTAssertEqual(s.backendPort, 4001)
+        XCTAssertEqual(s.proxyTarget, "http://127.0.0.1:8000")
     }
 
     func testCatalogReflectsRegistryAndTLD() throws {

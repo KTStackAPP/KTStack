@@ -176,10 +176,29 @@ public final class SiteProvisioningService: SiteProvisioning, WordPressRestoring
     }
 
     @MainActor
+    public func addProxySite(name: String, domain: String, target: String,
+                             enableHTTPS: Bool) async throws -> SiteSummary {
+        let upstream: ProxyTarget
+        switch ProxyTarget.parse(target) {
+        case let .success(value): upstream = value
+        case let .failure(error): throw error
+        }
+        let site = try registry.addProxy(name: name, domain: domain, target: upstream)
+        // Fail-closed: HTTPS lỗi thì site vẫn tồn tại ở HTTP (giống import, không rollback record).
+        if enableHTTPS {
+            try await enableHTTPSForSite(site)
+            registry.setSecure(site, true)
+        }
+        return SiteSummary(registry.sites.first(where: { $0.id == site.id }) ?? site)
+    }
+
+    @MainActor
     public func remove(_ id: UUID, deleteFolder: Bool, dropDatabase: Bool) async throws {
         guard let site = registry.sites.first(where: { $0.id == id }) else { return }
         let registry = registry
         let dropDB = self.dropDatabase
+        // Proxy site không có thư mục: không bao giờ đụng filesystem khi remove.
+        let deleteFolder = deleteFolder && site.hasFolder
         let coordinator = SiteRemovalCoordinator(
             deleteFolder: { site in
                 guard deleteFolder else { return }

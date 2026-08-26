@@ -35,7 +35,7 @@ public final class LocalServerController: ObservableObject {
     nonisolated let nginx: NginxController
     nonisolated let backends: SiteBackendSupervisor
     nonisolated let pools: PHPFPMPoolManager
-    nonisolated let nodeSites: NodeSiteController
+    nonisolated let upstreamProbe: UpstreamProbe
     nonisolated let generator: SiteConfigGenerator
     nonisolated let stager: BinaryStager
     nonisolated let preflight = PortPreflight()
@@ -63,7 +63,7 @@ public final class LocalServerController: ObservableObject {
         nginx = NginxController(paths: paths, agents: agents)
         backends = SiteBackendSupervisor(paths: paths, agents: agents)
         pools = PHPFPMPoolManager(paths: paths, agents: agents)
-        nodeSites = NodeSiteController()
+        upstreamProbe = UpstreamProbe()
         generator = SiteConfigGenerator(paths: paths)
         stager = BinaryStager(bundleBinDir: bundleBinDir, paths: paths)
         mkcert = MkcertRunner(mkcert: paths.mkcertBinary, caroot: paths.caDir)

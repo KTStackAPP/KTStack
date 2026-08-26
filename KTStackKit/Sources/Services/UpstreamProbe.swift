@@ -1,6 +1,7 @@
 import Foundation
 
-public struct NodeSiteController: Sendable {
+// TCP-probe upstream của Node/Proxy site; KTStack không quản lý tiến trình, chỉ hỏi cổng.
+public struct UpstreamProbe: Sendable {
     public enum State: String, Equatable, Sendable {
         case running, stopped
     }
@@ -9,13 +10,12 @@ public struct NodeSiteController: Sendable {
 
     public init() {}
 
-    public func probe(_ site: Site) async -> State {
-        guard let port = site.nodePort else { return .stopped }
-        return await health.check(.tcp(port: port)) == .running ? .running : .stopped
+    public func probe(host: String, port: Int) async -> State {
+        await health.check(.tcpHost(host: host, port: port)) == .running ? .running : .stopped
     }
 }
 
-public extension NodeSiteController.State {
+public extension UpstreamProbe.State {
     var badgeLabel: String {
         switch self {
         case .running: "Running"

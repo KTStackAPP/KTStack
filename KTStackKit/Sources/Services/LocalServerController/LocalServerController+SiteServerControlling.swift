@@ -16,7 +16,7 @@ extension LocalServerController: SiteServerControlling {
         snapshotStream { self.serverState }
     }
 
-    public func probeNode(port: Int) async -> Bool {
-        await HealthChecker().check(.tcp(port: port)) == .running
+    public func probeUpstream(host: String, port: Int) async -> Bool {
+        await HealthChecker().check(.tcpHost(host: host, port: port)) == .running
     }
 }

@@ -17,7 +17,8 @@ extension SiteSummary {
             nodePort: site.nodePort,
             nodeCommand: site.nodeCommand,
             engine: SiteServerEngine(rawValue: site.serverEngine.rawValue) ?? .nginx,
-            backendPort: site.backendPort
+            backendPort: site.backendPort,
+            proxyTarget: site.proxyTarget
         )
     }
 }
@@ -60,5 +61,16 @@ extension LocalServerController: SiteCatalogManaging {
     public func setEngine(_ id: UUID, _ engine: SiteServerEngine) {
         guard let site = registry.sites.first(where: { $0.id == id }) else { return }
         setSiteEngine(site, WebServerEngine(rawValue: engine.rawValue) ?? .nginx)
+    }
+
+    public func setProxyTarget(_ id: UUID, _ target: String) throws {
+        guard let site = registry.sites.first(where: { $0.id == id }) else { return }
+        let parsed: ProxyTarget
+        switch ProxyTarget.parse(target) {
+        case let .success(value): parsed = value
+        case let .failure(error): throw error
+        }
+        try registry.validateProxyTarget(parsed, for: site)
+        registry.setProxyTarget(site, parsed)
     }
 }

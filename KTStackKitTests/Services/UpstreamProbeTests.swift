@@ -2,47 +2,35 @@ import Darwin
 import XCTest
 @testable import KTStackKit
 
-final class NodeSiteControllerSpecTests: XCTestCase {
-    private let controller = NodeSiteController()
-
-    private func site(port: Int?) -> Site {
-        Site(
-            name: "app",
-            path: "/Users/me/Sites/app",
-            docroot: "/Users/me/Sites/app",
-            domain: "app.test",
-            phpVersion: "8.4",
-            type: .node,
-            nodePort: port,
-            nodeCommand: nil,
-            nodeEnabled: false
-        )
-    }
-
-    func testProbeStoppedWhenNoPort() async {
-        let state = await controller.probe(site(port: nil))
-        XCTAssertEqual(state, .stopped)
-    }
+final class UpstreamProbeTests: XCTestCase {
+    private let probe = UpstreamProbe()
 
     func testProbeStoppedWhenNothingListens() async {
-        let state = await controller.probe(site(port: 59_999))
+        let state = await probe.probe(host: "127.0.0.1", port: 59_999)
         XCTAssertEqual(state, .stopped)
     }
 
     func testProbeRunningWhenListenerAnswers() async throws {
         let (fd, port) = try Self.openListener()
         defer { close(fd) }
-        let state = await controller.probe(site(port: port))
+        let state = await probe.probe(host: "127.0.0.1", port: port)
+        XCTAssertEqual(state, .running)
+    }
+
+    func testProbeResolvesLocalhostHostname() async throws {
+        let (fd, port) = try Self.openListener()
+        defer { close(fd) }
+        let state = await probe.probe(host: "localhost", port: port)
         XCTAssertEqual(state, .running)
     }
 
     func testBadgeAndServiceStatusMapping() {
-        XCTAssertEqual(NodeSiteController.State.running.badgeLabel, "Running")
-        XCTAssertEqual(NodeSiteController.State.stopped.badgeLabel, "Stopped")
-        XCTAssertTrue(NodeSiteController.State.running.isHealthy)
-        XCTAssertFalse(NodeSiteController.State.stopped.isHealthy)
-        XCTAssertEqual(NodeSiteController.State.running.serviceStatus, .running)
-        XCTAssertEqual(NodeSiteController.State.stopped.serviceStatus, .stopped)
+        XCTAssertEqual(UpstreamProbe.State.running.badgeLabel, "Running")
+        XCTAssertEqual(UpstreamProbe.State.stopped.badgeLabel, "Stopped")
+        XCTAssertTrue(UpstreamProbe.State.running.isHealthy)
+        XCTAssertFalse(UpstreamProbe.State.stopped.isHealthy)
+        XCTAssertEqual(UpstreamProbe.State.running.serviceStatus, .running)
+        XCTAssertEqual(UpstreamProbe.State.stopped.serviceStatus, .stopped)
     }
 
     private static func openListener() throws -> (Int32, Int) {
@@ -72,6 +60,6 @@ final class NodeSiteControllerSpecTests: XCTestCase {
     }
 
     private static func error(_ message: String) -> NSError {
-        NSError(domain: "NodeSiteControllerSpecTests", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
+        NSError(domain: "UpstreamProbeTests", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
     }
 }

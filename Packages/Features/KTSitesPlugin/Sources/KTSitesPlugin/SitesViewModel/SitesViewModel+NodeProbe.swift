@@ -23,7 +23,7 @@ extension SitesViewModel {
         let results = await withTaskGroup(of: (UUID, Bool).self) { group in
             for site in targets {
                 group.addTask { [serverControl] in
-                    (site.id, await serverControl.probeNode(port: site.nodePort!))
+                    (site.id, await serverControl.probeUpstream(host: "127.0.0.1", port: site.nodePort!))
                 }
             }
             var collected: [UUID: Bool] = [:]

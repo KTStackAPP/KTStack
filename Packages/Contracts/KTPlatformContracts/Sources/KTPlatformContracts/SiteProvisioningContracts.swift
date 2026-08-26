@@ -121,6 +121,8 @@ public protocol SiteProvisioning: AnyObject {
     @MainActor func importFolder(_ folder: URL, domain: String, phpVersion: String,
                                  createDatabase: Bool, enableHTTPS: Bool) async throws -> SiteSummary
     @MainActor func registerFolder(_ folder: URL, phpVersion: String) throws -> SiteSummary
+    @MainActor func addProxySite(name: String, domain: String, target: String,
+                                 enableHTTPS: Bool) async throws -> SiteSummary
     @MainActor func remove(_ id: UUID, deleteFolder: Bool, dropDatabase: Bool) async throws
     nonisolated func scan(root: URL, tld: String, existingPaths: [String]) -> [ScannedFolder]
     nonisolated func inspect(folder: URL, tld: String) -> FolderInspection

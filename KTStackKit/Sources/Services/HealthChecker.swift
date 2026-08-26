@@ -3,6 +3,8 @@ import Foundation
 public enum HealthProbe: Sendable {
     case tcp(port: Int)
 
+    case tcpHost(host: String, port: Int)
+
     case unixSocket(URL)
 
     case http(URL)
@@ -14,29 +16,39 @@ public struct HealthChecker: Sendable {
     public func check(_ probe: HealthProbe, timeout: TimeInterval = 0.8) async -> ServiceStatus {
         switch probe {
         case let .tcp(port): Self.tcpConnect(host: "127.0.0.1", port: port, timeout: timeout) ? .running : .stopped
+        case let .tcpHost(host, port): Self.tcpConnect(host: host, port: port, timeout: timeout) ? .running : .stopped
         case let .unixSocket(url): Self.unixConnect(path: url.path) ? .running : .stopped
         case let .http(url): await Self.httpReachable(url, timeout: timeout) ? .running : .stopped
         }
     }
 
+    // getaddrinfo lo cả IPv4 literal, localhost và hostname; blocking nên chỉ gọi trong probe task.
     static func tcpConnect(host: String, port: Int, timeout: TimeInterval) -> Bool {
-        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        var hints = addrinfo()
+        hints.ai_family = AF_UNSPEC
+        hints.ai_socktype = SOCK_STREAM
+        var res: UnsafeMutablePointer<addrinfo>?
+        guard getaddrinfo(host, String(port), &hints, &res) == 0 else { return false }
+        defer { freeaddrinfo(res) }
+
+        // localhost resolve cả ::1 và 127.0.0.1: thử lần lượt tới khi một địa chỉ nối được.
+        var candidate = res
+        while let info = candidate {
+            if connectOne(info.pointee, timeout: timeout) { return true }
+            candidate = info.pointee.ai_next
+        }
+        return false
+    }
+
+    private static func connectOne(_ info: addrinfo, timeout: TimeInterval) -> Bool {
+        let fd = socket(info.ai_family, info.ai_socktype, info.ai_protocol)
         guard fd >= 0 else { return false }
         defer { close(fd) }
 
         let flags = fcntl(fd, F_GETFL, 0)
         _ = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
 
-        var addr = sockaddr_in()
-        addr.sin_family = sa_family_t(AF_INET)
-        addr.sin_port = in_port_t(UInt16(port)).bigEndian
-        inet_pton(AF_INET, host, &addr.sin_addr)
-
-        let rc = withUnsafePointer(to: &addr) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                connect(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
-            }
-        }
+        let rc = connect(fd, info.ai_addr, info.ai_addrlen)
         if rc == 0 { return true }
         if errno != EINPROGRESS { return false }
 

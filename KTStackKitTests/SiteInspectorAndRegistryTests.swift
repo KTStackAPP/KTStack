@@ -287,6 +287,37 @@ final class SiteRegistryTests: XCTestCase {
         XCTAssertTrue(migrated.isEmpty)
         XCTAssertEqual(reg.sites.first?.domain, "shop.test")
     }
+
+    func testAddProxyPersistsFolderlessSiteAndReloads() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        let target = ProxyTarget.loopback(port: 8000)
+        let site = try reg.addProxy(name: "api", domain: "api.test", target: target)
+        XCTAssertEqual(site.type, .proxy)
+        XCTAssertTrue(site.path.isEmpty)
+        XCTAssertFalse(site.hasFolder)
+        XCTAssertEqual(site.proxyTarget, "http://127.0.0.1:8000")
+        XCTAssertNil(site.backendPort)
+
+        let reloaded = SiteRegistry(storeURL: dir.appendingPathComponent("sites.json"))
+        XCTAssertEqual(reloaded.sites.first?.type, .proxy)
+        XCTAssertEqual(reloaded.sites.first?.proxyTarget, "http://127.0.0.1:8000")
+    }
+
+    func testAddProxyRejectsDuplicateDomain() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        _ = try reg.add(folder: phpFolder(in: dir, named: "app"))
+        XCTAssertThrowsError(try reg.addProxy(name: "app", domain: "app.test", target: .loopback(port: 8000)))
+    }
+
+    func testValidateProxyTargetRejectsSelfLoop() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        let site = try reg.addProxy(name: "api", domain: "api.test", target: .loopback(port: 8000))
+        guard case let .success(loop) = ProxyTarget.parse("http://api.test") else {
+            return XCTFail("expected parse")
+        }
+        XCTAssertThrowsError(try reg.validateProxyTarget(loop, for: site))
+        XCTAssertNoThrow(try reg.validateProxyTarget(.loopback(port: 9000), for: site))
+    }
 }
 
 final class SiteRemovalCoordinatorTests: XCTestCase {

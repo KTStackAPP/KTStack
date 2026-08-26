@@ -10,7 +10,7 @@ public enum SiteServerEngine: String, Sendable, CaseIterable {
     case nginx, apache
 }
 
-// Projection của Site theo capability Sites: 13 field UI đọc. Không phải snapshot chung (Tunnel dùng
+// Projection của Site theo capability Sites: 14 field UI đọc. Không phải snapshot chung (Tunnel dùng
 // TunnelSiteTarget, Logs dùng siteDomains).
 public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
     public let id: UUID
@@ -26,6 +26,7 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
     public let nodeCommand: String?
     public let engine: SiteServerEngine
     public let backendPort: Int?
+    public let proxyTarget: String?
 
     public init(
         id: UUID,
@@ -40,7 +41,8 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
         nodePort: Int?,
         nodeCommand: String?,
         engine: SiteServerEngine,
-        backendPort: Int?
+        backendPort: Int?,
+        proxyTarget: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -55,6 +57,7 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
         self.nodeCommand = nodeCommand
         self.engine = engine
         self.backendPort = backendPort
+        self.proxyTarget = proxyTarget
     }
 }
 
@@ -77,6 +80,7 @@ public protocol SiteCatalogManaging: AnyObject {
     @MainActor func setSecure(_ id: UUID, _ secure: Bool)
     @MainActor func setNodePort(_ id: UUID, _ port: Int?)
     @MainActor func setEngine(_ id: UUID, _ engine: SiteServerEngine)
+    @MainActor func setProxyTarget(_ id: UUID, _ target: String) throws
 }
 
 public struct SiteServerState: Sendable, Equatable {
@@ -97,5 +101,5 @@ public protocol SiteServerControlling: AnyObject {
     @MainActor var serverState: SiteServerState { get }
     @MainActor func serverStates() -> AsyncStream<SiteServerState>
     @MainActor func toggle()
-    func probeNode(port: Int) async -> Bool
+    func probeUpstream(host: String, port: Int) async -> Bool
 }

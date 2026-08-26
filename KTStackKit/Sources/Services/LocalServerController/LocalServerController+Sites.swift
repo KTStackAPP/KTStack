@@ -124,8 +124,14 @@ public extension LocalServerController {
         }
     }
 
-    func probeNode(_ site: Site) async -> NodeSiteController.State {
-        await nodeSites.probe(site)
+    func probeUpstream(_ site: Site) async -> UpstreamProbe.State {
+        let target: (host: String, port: Int)? = switch site.type {
+        case .proxy: site.proxyUpstream.map { ($0.host, $0.port) }
+        case .node: site.nodePort.map { ("127.0.0.1", $0) }
+        default: nil
+        }
+        guard let target else { return .stopped }
+        return await upstreamProbe.probe(host: target.host, port: target.port)
     }
 
     internal func onRegistryChanged() {

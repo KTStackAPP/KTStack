@@ -33,6 +33,8 @@ final class FakeSiteCatalog: SiteCatalogManaging {
     private(set) var setSecureCalls: [(UUID, Bool)] = []
     private(set) var setNodePortCalls: [(UUID, Int?)] = []
     private(set) var setEngineCalls: [(UUID, SiteServerEngine)] = []
+    private(set) var setProxyTargetCalls: [(UUID, String)] = []
+    var setProxyTargetShouldThrow: Error?
     private var continuation: AsyncStream<SiteCatalogState>.Continuation?
 
     nonisolated init(catalog: SiteCatalogState) {
@@ -62,6 +64,10 @@ final class FakeSiteCatalog: SiteCatalogManaging {
     func setSecure(_ id: UUID, _ secure: Bool) { setSecureCalls.append((id, secure)) }
     func setNodePort(_ id: UUID, _ port: Int?) { setNodePortCalls.append((id, port)) }
     func setEngine(_ id: UUID, _ engine: SiteServerEngine) { setEngineCalls.append((id, engine)) }
+    func setProxyTarget(_ id: UUID, _ target: String) throws {
+        if let setProxyTargetShouldThrow { throw setProxyTargetShouldThrow }
+        setProxyTargetCalls.append((id, target))
+    }
 }
 
 @MainActor
@@ -69,7 +75,7 @@ final class FakeSiteServerControl: SiteServerControlling {
     var serverState: SiteServerState
     var nodeProbeResult = true
     private(set) var toggleCalls = 0
-    private(set) var probeNodeCalls: [Int] = []
+    private(set) var probeUpstreamCalls: [(host: String, port: Int)] = []
     private var continuation: AsyncStream<SiteServerState>.Continuation?
 
     nonisolated init(state: SiteServerState) {
@@ -90,9 +96,9 @@ final class FakeSiteServerControl: SiteServerControlling {
 
     func toggle() { toggleCalls += 1 }
 
-    nonisolated func probeNode(port: Int) async -> Bool {
+    nonisolated func probeUpstream(host: String, port: Int) async -> Bool {
         await MainActor.run {
-            self.probeNodeCalls.append(port)
+            self.probeUpstreamCalls.append((host, port))
             return self.nodeProbeResult
         }
     }
@@ -224,8 +230,11 @@ final class FakeSiteProvisioning: SiteProvisioning, @unchecked Sendable {
     var installResult: Result<SiteSummary, Error>?
     var importResult: Result<SiteSummary, Error>?
     var registerResult: Result<SiteSummary, Error>?
+    var addProxyResult: Result<SiteSummary, Error>?
     var removeError: Error?
     var scanResult: [ScannedFolder] = []
+    struct AddProxyCall { let name: String; let domain: String; let target: String; let https: Bool }
+    private(set) var addProxyCalls: [AddProxyCall] = []
     var inspectResult = FolderInspection(docroot: URL(fileURLWithPath: "/tmp"), defaultDomain: "tmp.test", kind: .php)
     private(set) var removeCalls: [(UUID, Bool, Bool)] = []
     private(set) var installEvents: [InstallEvent] = []
@@ -245,6 +254,14 @@ final class FakeSiteProvisioning: SiteProvisioning, @unchecked Sendable {
     func registerFolder(_ folder: URL, phpVersion _: String) throws -> SiteSummary {
         guard let registerResult else { return makeSite(name: folder.lastPathComponent) }
         return try registerResult.get()
+    }
+
+    func addProxySite(name: String, domain: String, target: String, enableHTTPS: Bool) async throws -> SiteSummary {
+        addProxyCalls.append(AddProxyCall(name: name, domain: domain, target: target, https: enableHTTPS))
+        guard let addProxyResult else {
+            return makeSite(name: name, domain: domain, kind: .proxy)
+        }
+        return try addProxyResult.get()
     }
 
     func remove(_ id: UUID, deleteFolder: Bool, dropDatabase: Bool) async throws {

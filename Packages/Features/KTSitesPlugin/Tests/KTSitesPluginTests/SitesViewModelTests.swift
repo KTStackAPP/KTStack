@@ -146,7 +146,8 @@ final class SitesViewModelTests: XCTestCase {
         try? await Task.sleep(nanoseconds: 100_000_000)
         vm.stopNodeProbing()
 
-        XCTAssertEqual(serverFake.probeNodeCalls, [3000])
+        XCTAssertEqual(serverFake.probeUpstreamCalls.map(\.port), [3000])
+        XCTAssertEqual(serverFake.probeUpstreamCalls.map(\.host), ["127.0.0.1"])
     }
 
     func testNodeProbePrunesSiteThatLosesPort() async {
