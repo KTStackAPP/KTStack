@@ -108,7 +108,7 @@ public struct RuntimeCatalog: Sendable {
 
     static let phpRuntimeVersions = ["7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"]
 
-    static let nodeRuntimeVersions = ["24.18.0", "22.22.3"]
+    static let nodeRuntimeVersions = ["26.7.0", "24.19.0", "22.23.2", "20.20.2"]
 
     static let releaseBaseURL =
         URL(string: "https://github.com/KTStackAPP/KTStack/releases/download/binaries-v1")!
@@ -167,13 +167,21 @@ public struct RuntimeCatalog: Sendable {
     ]
 
     static let nodeArtifactChecksums: [String: (arm64: String, x86_64: String)] = [
-        "24.18.0": (
-            "e1a97e14c99c803e96c7339403282ea05a499c32f8d83defe9ef5ec66f979ed1",
-            "dfd0dbd3e721503434df7b7205e719f61b3a3a31b2bcf9729b8b91fea240f080"
+        "26.7.0": (
+            "7ee659a7768e641bbfd5360940660b8e8fd0052f77488f365562bac522fc15d4",
+            "f279d1ed28ce57f7788bf23435d2ad7fdd7438904ad5c4d8a1081a7cde3d4b96"
         ),
-        "22.22.3": (
-            "0da7ff74ef8611328c8212f17943368713a2ad953fb7d89a8c8a0eae87c23207",
-            "45830ba752fa0d892c6dcd640946669801293cac820a33591ded40ac075198ec"
+        "24.19.0": (
+            "8294b7aa9b03997481c06babf1e8b270c859358f27da57a11509afe537ac381d",
+            "d1b5e999db158c62fe8f7267a4476b035d8bd93b1a605bac24a3f0dd166e3316"
+        ),
+        "22.23.2": (
+            "61130f394c1630d211dd50aecc4353d379480f36d3ac913cd85dbba1aed585c6",
+            "58e99022c2ff89395576cc7fd4d98cea24bb68081475d5f88b801ee8729fb026"
+        ),
+        "20.20.2": (
+            "466e05f3477c20dfb723054dfebffe55bc74660ee77f612166fca121dacb65b6",
+            "8be6f5e4bb128c82774f8a0b8d7a1cc1365a7977d9657cece0ca647b3fe04e61"
         ),
     ]
 }

@@ -3,7 +3,7 @@ set -uo pipefail
 cd "$(dirname "$0")/../.."
 ROOT="$PWD"
 
-DEFAULT_VERSIONS=(7.4 8.0 8.1 8.2 8.3 8.4)
+DEFAULT_VERSIONS=(7.4 8.0 8.1 8.2 8.3 8.4 8.5)
 if [[ $# -gt 0 ]]; then VERSIONS=("$@"); else VERSIONS=("${DEFAULT_VERSIONS[@]}"); fi
 
 ARCH="${ARCH:-$(uname -m)}"

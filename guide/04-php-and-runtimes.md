@@ -4,7 +4,7 @@ This page covers installing PHP versions, switching between them per site, confi
 
 ## What you can do
 
-- Install multiple PHP versions (7.4 through 8.4) and keep them all at once.
+- Install multiple PHP versions (7.4 through 8.5) and keep them all at once.
 - Set a default PHP version that new sites use.
 - Change which PHP version a site uses at any time.
 - Edit the `php.ini` config file for each version separately.
@@ -26,7 +26,7 @@ You'll see two tabs at the top: **PHP** and **Node.js**. Each shows installed ve
 PHP versions are not included in KTStack. You download them on demand — each takes about 400 MB when extracted.
 
 1. Click the **Install Version…** button at the top of the Runtimes section.
-2. A sheet appears showing all available PHP versions (7.4, 8.0, 8.1, 8.2, 8.3, 8.4).
+2. A sheet appears showing all available PHP versions (7.4, 8.0, 8.1, 8.2, 8.3, 8.4, 8.5).
 3. Click the **Install** button next to the version you want.
 4. KTStack downloads and extracts it. A progress bar shows the download status. The installation takes a minute or two.
 5. Once complete, the version appears in the installed list with an **Installed** badge.
@@ -165,7 +165,7 @@ Node.js versions work the same way as PHP versions. You can install multiple Nod
    - **Uninstall** to remove it.
    - Switch a site to a different Node version in the site's settings (same as PHP).
 
-KTStack ships with Node 22.22.3 available by default. If you need a different version, let us know, and we'll add it to the catalog.
+The Node catalog offers four lines at their latest patch: 26 (Current), 24 (LTS), 22 (LTS), and 20. If you need a different version, let us know, and we'll add it to the catalog.
 
 ## Tips and notes
 

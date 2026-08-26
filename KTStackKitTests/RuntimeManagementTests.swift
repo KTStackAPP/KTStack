@@ -45,8 +45,8 @@ final class RuntimeManagementTests: XCTestCase {
         let root = try tempDir()
         defer { try? FileManager.default.removeItem(at: root) }
         let paths = AppSupportPaths(root: root)
-        // Install Node 22.22.3 (the manifest version) by creating its marker binary.
-        let nodeBin = paths.runtimeBin("node", "22.22.3")
+        // Install Node 22.23.2 (a manifest version) by creating its marker binary.
+        let nodeBin = paths.runtimeBin("node", "22.23.2")
         try FileManager.default.createDirectory(at: nodeBin, withIntermediateDirectories: true)
         FileManager.default.createFile(
             atPath: nodeBin.appendingPathComponent("node").path,
@@ -55,12 +55,27 @@ final class RuntimeManagementTests: XCTestCase {
         )
 
         let catalog = RuntimeCatalog(paths: paths)
-        XCTAssertEqual(catalog.installedVersions(.node), ["22.22.3"])
-        XCTAssertTrue(catalog.isInstalled(.node, "22.22.3"))
+        XCTAssertEqual(catalog.installedVersions(.node), ["22.23.2"])
+        XCTAssertTrue(catalog.isInstalled(.node, "22.23.2"))
         // The installed version is filtered out of the available list.
-        XCTAssertFalse(catalog.availableReleases(.node).contains { $0.version == "22.22.3" })
+        XCTAssertFalse(catalog.availableReleases(.node).contains { $0.version == "22.23.2" })
         // PHP still available (not installed).
         XCTAssertTrue(catalog.availableReleases(.php).contains { $0.version == "8.4" })
+    }
+
+    func testPlannedVersionsMatchCatalogPHPVersions() {
+        let manifestPHP = RuntimeCatalog.manifest.filter { $0.language == .php }.map(\.version)
+        XCTAssertEqual(BundledPHP.plannedVersions, manifestPHP)
+        XCTAssertTrue(BundledPHP.plannedVersions.contains("8.5"))
+    }
+
+    func testNodeManifestHasBothArchChecksums() {
+        let node = RuntimeCatalog.manifest.filter { $0.language == .node }
+        XCTAssertEqual(node.count, 4)
+        for r in node {
+            XCTAssertTrue(ChecksumVerifier.isResolved(r.sha256ByArch["arm64"]), "\(r.id) missing arm64 sha")
+            XCTAssertTrue(ChecksumVerifier.isResolved(r.sha256ByArch["x86_64"]), "\(r.id) missing x86_64 sha")
+        }
     }
 
     func testManifestEntriesAreWellFormed() {

@@ -32,6 +32,13 @@ final class DoctorProbeServiceTests: XCTestCase {
         XCTAssertEqual(service.defaultPHPVersion, BundledPHP.defaultVersion)
     }
 
+    func testInstalledPHP85IsProbedAndGetsAPoolJob() throws {
+        try installPHP("8.5")
+        let service = DoctorProbeService(paths: paths)
+        XCTAssertEqual(service.installedPHPVersions, ["8.5"])
+        XCTAssertTrue(service.launchdJobs.map(\.label).contains(service.phpPoolLabel("8.5")))
+    }
+
     func testStagedBinariesListRequiredOptionalThenInstalledPHP() throws {
         try installPHP("8.4")
         let service = DoctorProbeService(paths: paths)
