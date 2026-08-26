@@ -10,7 +10,7 @@ public final class KTRuntimesPlugin: KTStackPlugin {
     private let runtimes: any RuntimeManaging
     private let webEngine: any WebEngineProvisioning
     private let phpSites: any PHPSiteRuntimeProviding
-    private let phpConfig: any PHPExtensionManaging & PHPIniEditing
+    private let phpConfig: any PHPExtensionManaging & PHPIniEditing & PHPPoolEditing
     private let engines: any ServiceEngineVersionManaging
 
     @MainActor private lazy var runtimesVM = RuntimesViewModel(
@@ -23,7 +23,7 @@ public final class KTRuntimesPlugin: KTStackPlugin {
         runtimes: any RuntimeManaging,
         webEngine: any WebEngineProvisioning,
         phpSites: any PHPSiteRuntimeProviding,
-        phpConfig: any PHPExtensionManaging & PHPIniEditing,
+        phpConfig: any PHPExtensionManaging & PHPIniEditing & PHPPoolEditing,
         engines: any ServiceEngineVersionManaging
     ) {
         self.runtimes = runtimes

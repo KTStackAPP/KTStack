@@ -5,19 +5,26 @@ import KTStackCore
 // Gom orchestration PHP config đang nằm trong view/model App: install extension → restart pool →
 // invalidate; save ini → validate → write(.bak) → reload → rollback khi fail. Plugin chỉ giữ UI state.
 // Fail-closed extension invariant vẫn ở PHPExtensionInstaller; service không viết directive.
-public struct PHPConfigService: PHPExtensionManaging, PHPIniEditing, Sendable {
+public struct PHPConfigService: PHPExtensionManaging, PHPIniEditing, PHPPoolEditing, Sendable {
     private let paths: AppSupportPaths
     private let reloadPool: @Sendable (String) async throws -> Void
     private let restartPool: @Sendable (String) async throws -> Void
+    private let checkPool: @Sendable (String) async -> PHPFPMConfigCheck.Result
 
     public init(
         paths: AppSupportPaths,
         reloadPool: @escaping @Sendable (String) async throws -> Void,
-        restartPool: @escaping @Sendable (String) async throws -> Void
+        restartPool: @escaping @Sendable (String) async throws -> Void,
+        checkPool: (@Sendable (String) async -> PHPFPMConfigCheck.Result)? = nil
     ) {
         self.paths = paths
         self.reloadPool = reloadPool
         self.restartPool = restartPool
+        self.checkPool = checkPool ?? { version in
+            await Task.detached(priority: .userInitiated) {
+                PHPFPMConfigCheck(paths: paths).run(version: version)
+            }.value
+        }
     }
 
     public func extensions(phpVersion: String) async -> [PHPExtensionEntry] {
@@ -110,6 +117,38 @@ public struct PHPConfigService: PHPExtensionManaging, PHPIniEditing, Sendable {
             _ = try? store.restoreBackup(version: version)
             try? await reloadPool(version)
             throw PHPIniSaveError.reloadFailedReverted(error.localizedDescription)
+        }
+    }
+
+    public var defaultPoolSettings: PHPPoolSettings { .default }
+
+    public func poolSettings(phpVersion: String) throws -> PHPPoolSettings {
+        try PHPPoolSettingsStore(paths: paths).load(version: phpVersion)
+    }
+
+    // Fail-closed: validate → ghi(.bak) + render → php-fpm -t → restart → rollback nếu bất kỳ bước hỏng.
+    public func savePoolSettings(phpVersion: String, _ settings: PHPPoolSettings) async throws {
+        if let problem = settings.validate() { throw PHPPoolSaveError.invalid(problem) }
+        let store = PHPPoolSettingsStore(paths: paths)
+        let writer = PHPFPMPoolWriter()
+        let previous = try store.load(version: phpVersion)
+
+        try store.write(version: phpVersion, settings: settings)
+        try writer.write(paths: paths, poolName: phpVersion)
+
+        if case let .invalid(err) = await checkPool(phpVersion) {
+            try? store.write(version: phpVersion, settings: previous)
+            try? writer.write(paths: paths, poolName: phpVersion)
+            throw PHPPoolSaveError.rejected(err)
+        }
+
+        do {
+            try await restartPool(phpVersion)
+        } catch {
+            try? store.write(version: phpVersion, settings: previous)
+            try? writer.write(paths: paths, poolName: phpVersion)
+            try? await restartPool(phpVersion)
+            throw PHPPoolSaveError.restartFailedReverted(error.localizedDescription)
         }
     }
 
