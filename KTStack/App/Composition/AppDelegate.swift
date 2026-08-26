@@ -7,6 +7,8 @@ import KTMailPlugin
 import KTPlatformContracts
 import KTPluginKit
 import KTRuntimesPlugin
+import KTServicesPlugin
+import KTSitesPlugin
 import KTStackCore
 import KTStackKit
 import KTTunnelPlugin
@@ -82,7 +84,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         binaries: CloudflaredBinaryProvisioner(paths: AppSupportPaths())
     )
 
-    @MainActor var tunnels: TunnelManager { tunnelPlugin.manager }
+    @MainActor lazy var modals = KTModalPresenter()
+
+    @MainActor lazy var siteProvisioning = SiteProvisioningService(paths: AppSupportPaths(), server: server)
+
+    @MainActor lazy var sitesPlugin = KTSitesPlugin(
+        catalog: server,
+        server: server,
+        webEngine: server,
+        provisioning: siteProvisioning,
+        restore: siteProvisioning,
+        ide: siteProvisioning,
+        routes: RouteIntrospectionService(paths: AppSupportPaths()),
+        dns: dns,
+        runtimes: runtimes,
+        sharing: tunnelPlugin.manager,
+        modals: modals,
+        sitesRoot: { [preferences] in preferences.sitesRootURL },
+        httpsByDefault: { [preferences] in preferences.serveHTTPSByDefault },
+        route: { [navigation] in
+            if case let .logs(sourceID) = $0 { navigation.openLogs(sourceID) }
+        }
+    )
 
     // 8 plugin id + settings/about (shell rows): frozen, dùng validate selection đã lưu.
     static let frozenSelectionIDs: Set<String> = [
@@ -92,6 +115,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ]
 
     @MainActor lazy var navigation = DashboardNavigation(validIDs: Self.frozenSelectionIDs)
+
+    @MainActor lazy var servicesPlugin = KTServicesPlugin(
+        services: services, engines: services, dns: dns, caTrust: caTrust,
+        nginxInclude: NginxIncludeService(
+            paths: AppSupportPaths(),
+            validate: { [server] in await server.validateNginxConfig() },
+            reload: { [server] in try await server.reloadNginxConfig() }
+        ),
+        route: { [navigation] route in
+            switch route {
+            case .runtimes: navigation.selection = "runtimes"
+            case .settings: navigation.selection = "settings"
+            case let .logs(sourceID): navigation.openLogs(sourceID)
+            }
+        }
+    )
 
     @MainActor lazy var logsPlugin = KTLogsPlugin(context: server)
 
@@ -104,8 +143,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor lazy var pluginSections: [PluginSection] = [
         PluginSection(title: "Manage", plugins: [
-            LegacySitesPlugin(nav: navigation),
-            LegacyServicesPlugin(nav: navigation),
+            sitesPlugin,
+            servicesPlugin,
             runtimesPlugin,
             databasePlugin,
         ]),

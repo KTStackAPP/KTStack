@@ -126,6 +126,11 @@ public struct SiteHTTPSProvisioner: Sendable {
     }
 
     public func enableHTTPS(for site: Site) throws {
+        try enableHTTPS(for: site, overridingTLD: tld)
+    }
+
+    /// Re-mint cho TLD mới lúc migrate: provisioner giữ tld cũ nên phải truyền tld tường minh.
+    public func enableHTTPS(for site: Site, overridingTLD tld: String) throws {
         if !trustQuery(caCert) {
             try installCA()
         }

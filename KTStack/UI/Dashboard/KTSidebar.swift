@@ -13,10 +13,6 @@ struct SidebarRowModel: Identifiable {
         self.title = title
         self.symbol = symbol
     }
-
-    init(from item: SidebarItem) {
-        self.init(id: item.rawValue, title: item.title, symbol: item.symbol)
-    }
 }
 
 struct KTSidebarGroup: Identifiable {

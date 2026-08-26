@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 
 public struct EmptySiteInstaller: SiteInstaller {
     public init() {}

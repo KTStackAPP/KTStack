@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 
 public struct RouteIntrospector: Sendable {
     public struct IntrospectionError: LocalizedError {

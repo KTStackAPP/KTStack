@@ -112,25 +112,25 @@ public final class SiteRegistry: ObservableObject {
 
     public func nextFreeNodePort() -> Int {
         let used = Set(sites.compactMap(\.nodePort))
-        let reserved: Set<Int> = [3306, 5432, 6379, 8025, 27017]
-        for port in 3000 ... 3999 where !used.contains(port) && !reserved.contains(port) {
+        let reserved: Set = [3306, 5432, 6379, 8025, 27017]
+        for port in 3000...3999 where !used.contains(port) && !reserved.contains(port) {
             return port
         }
         return 3000
     }
 
-    // Backend range 4000-4999 is disjoint from Node (3000-3999) and the reserved DB ports.
-    // Probes the OS so a port a non-KTStack process already holds is skipped, not handed out.
+    /// Backend range 4000-4999 is disjoint from Node (3000-3999) and the reserved DB ports.
+    /// Probes the OS so a port a non-KTStack process already holds is skipped, not handed out.
     public func nextFreeBackendPort() throws -> Int {
         let used = Set(sites.compactMap(\.backendPort))
-        for port in 4000 ... 4999 where !used.contains(port) {
+        for port in 4000...4999 where !used.contains(port) {
             if case .available = preflight.check(port: port) { return port }
         }
         throw RegistryError.noFreeBackendPort
     }
 
-    // Old installs decode with backendPort == nil; assign one to every PHP site lacking it
-    // before the front renders, else the front would proxy_pass to an empty port.
+    /// Old installs decode with backendPort == nil; assign one to every PHP site lacking it
+    /// before the front renders, else the front would proxy_pass to an empty port.
     @discardableResult
     public func assignBackendPortsIfNeeded() -> Bool {
         var changed = false
@@ -174,6 +174,21 @@ public final class SiteRegistry: ObservableObject {
         update(site.id) { $0.domain = domain }
     }
 
+    /// Đổi TLD toàn cục: rewrite suffix mọi domain .old→.new. Không qua validateDomain (registry.tld
+    /// vẫn là old tới lúc relaunch); label vốn đã unique nên swap suffix không tạo trùng.
+    @discardableResult
+    public func migrateTLD(from old: String, to new: String) -> [Site] {
+        let suffix = ".\(old)"
+        var migrated: [Site] = []
+        for idx in sites.indices where sites[idx].domain.hasSuffix(suffix) {
+            let label = String(sites[idx].domain.dropLast(suffix.count))
+            sites[idx].domain = "\(label).\(new)"
+            migrated.append(sites[idx])
+        }
+        if !migrated.isEmpty { persist() }
+        return migrated
+    }
+
     public func setPHPVersion(_ site: Site, to version: String) {
         guard knownPHPVersions().contains(version) else { return }
         update(site.id) { $0.phpVersion = version }
@@ -209,8 +224,8 @@ public final class SiteRegistry: ObservableObject {
         update(site.id) { $0.serverEngine = engine }
     }
 
-    // Atomic engine+port change for a zero-downtime swap: the new engine gets a fresh backendPort
-    // so it can come up alongside the old one. One update so a decode never sees engine≠port.
+    /// Atomic engine+port change for a zero-downtime swap: the new engine gets a fresh backendPort
+    /// so it can come up alongside the old one. One update so a decode never sees engine≠port.
     public func setEngineAndPort(_ id: UUID, engine: WebServerEngine, port: Int) {
         update(id) { $0.serverEngine = engine; $0.backendPort = port }
     }

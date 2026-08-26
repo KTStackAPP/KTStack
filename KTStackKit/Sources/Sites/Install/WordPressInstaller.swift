@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 
 public struct WordPressInstaller: SiteInstaller {
     private let php: URL

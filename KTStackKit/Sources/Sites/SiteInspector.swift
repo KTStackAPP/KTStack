@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct SiteInspector {
     public struct Result: Equatable, Sendable {
@@ -14,7 +15,7 @@ public struct SiteInspector {
     public func inspect(folder: URL, tld: String = "test", fileManager: FileManager = .default) -> Result {
         let docroot = resolveDocroot(folder: folder, fileManager: fileManager)
         let type = classify(folder: folder, docroot: docroot, fileManager: fileManager)
-        let domain = "\(Self.slug(folder.lastPathComponent)).\(tld)"
+        let domain = "\(DomainSlug.make(folder.lastPathComponent)).\(tld)"
         return Result(docroot: docroot, defaultDomain: domain, type: type)
     }
 
@@ -45,35 +46,10 @@ public struct SiteInspector {
         return .staticSite
     }
 
-    public func suggestedNodeCommand(at folder: URL) -> String? {
-        let packageJSON = folder.appendingPathComponent("package.json")
-        guard let data = try? Data(contentsOf: packageJSON),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let scripts = root["scripts"] as? [String: Any] else { return nil }
-        if scripts["dev"] != nil { return "npm run dev" }
-        if scripts["start"] != nil { return "npm start" }
-        return nil
-    }
-
     private func containsPHPFile(in dir: URL, fileManager: FileManager) -> Bool {
         guard let entries = try? fileManager.contentsOfDirectory(
             at: dir, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
         ) else { return false }
         return entries.contains { $0.pathExtension.lowercased() == "php" }
-    }
-
-    public static func slug(_ raw: String) -> String {
-        let lowered = raw.lowercased()
-        var out = ""
-        var lastHyphen = false
-        for ch in lowered {
-            if ch.isLetter || ch.isNumber {
-                out.append(ch); lastHyphen = false
-            } else if !lastHyphen {
-                out.append("-"); lastHyphen = true
-            }
-        }
-        let trimmed = out.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
-        return trimmed.isEmpty ? "site" : trimmed
     }
 }

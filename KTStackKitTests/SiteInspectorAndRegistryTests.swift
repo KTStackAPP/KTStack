@@ -1,3 +1,4 @@
+import KTStackCore
 import XCTest
 @testable import KTStackKit
 
@@ -59,9 +60,9 @@ final class SiteInspectorTests: XCTestCase {
         XCTAssertEqual(inspector.inspect(folder: folder).type, .node)
     }
 
-    func testSlugSanitizesHostnameLabel() {
-        XCTAssertEqual(SiteInspector.slug("My Cool App!"), "my-cool-app")
-        XCTAssertEqual(SiteInspector.slug("  __  "), "site")
+    func testDefaultDomainUsesSanitizedHostnameLabel() {
+        XCTAssertEqual(DomainSlug.make("My Cool App!"), "my-cool-app")
+        XCTAssertEqual(DomainSlug.make("  __  "), "site")
     }
 }
 
@@ -264,6 +265,27 @@ final class SiteRegistryTests: XCTestCase {
         reg.setPHPVersion(reg.sites[0], to: "8.1")
         XCTAssertEqual(reg.sites[0].domain, "custom.test")
         XCTAssertEqual(reg.sites[0].phpVersion, "8.1")
+    }
+
+    func testMigrateTLDRewritesEverySiteDomainAndPersists() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        _ = try reg.add(folder: phpFolder(in: dir, named: "shop"))
+        _ = try reg.add(folder: phpFolder(in: dir.appendingPathComponent("b", isDirectory: true), named: "blog"))
+
+        let migrated = reg.migrateTLD(from: "test", to: "dev")
+        XCTAssertEqual(Set(migrated.map(\.domain)), ["shop.dev", "blog.dev"])
+        XCTAssertEqual(Set(reg.sites.map(\.domain)), ["shop.dev", "blog.dev"])
+
+        let reloaded = SiteRegistry(storeURL: dir.appendingPathComponent("sites.json"))
+        XCTAssertEqual(Set(reloaded.sites.map(\.domain)), ["shop.dev", "blog.dev"])
+    }
+
+    func testMigrateTLDLeavesMismatchedSuffixUntouched() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        _ = try reg.add(folder: phpFolder(in: dir, named: "shop"))
+        let migrated = reg.migrateTLD(from: "other", to: "dev")
+        XCTAssertTrue(migrated.isEmpty)
+        XCTAssertEqual(reg.sites.first?.domain, "shop.test")
     }
 }
 

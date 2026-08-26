@@ -2,7 +2,6 @@ import AppKit
 import KTPluginKit
 import KTStackCore
 import KTStackKit
-import KTTunnelPlugin
 import ServiceManagement
 import SwiftUI
 
@@ -85,7 +84,7 @@ struct KTStackApp: App {
                 .environmentObject(appDelegate.caTrust)
                 .environmentObject(appDelegate.updater)
                 .environmentObject(appDelegate.uninstaller)
-                .environmentObject(appDelegate.tunnels)
+                .environmentObject(appDelegate.modals)
         }
         .defaultSize(width: Self.defaultWindowSize.width, height: Self.defaultWindowSize.height)
         .windowResizability(.contentMinSize)

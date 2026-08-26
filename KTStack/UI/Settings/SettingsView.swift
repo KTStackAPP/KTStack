@@ -67,6 +67,7 @@ struct SettingsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(KTColor.contentBg)
+        .overlay { if awaitingRelaunch { relaunchOverlay } }
         .sheet(isPresented: $showTLS) { sheetWrapper("HTTPS Certificates", { showTLS = false }) { TLSSettingsView(caTrust: caTrust) } }
         .sheet(isPresented: $showShell) { sheetWrapper("Shell Integration", { showShell = false }) { ShellIntegrationSheetBody() } }
         .confirmationDialog("Change the dev TLD to .\(pendingTLD ?? "")?", isPresented: $confirmTLDChange) {
@@ -110,7 +111,7 @@ struct SettingsView: View {
             KTSettingsRow(title: "Default PHP version", subtitle: "Applied to newly created sites.") {
                 defaultPHPMenu
             }
-            KTSettingsRow(title: "Local TLD", subtitle: tldError ?? "Domain suffix for resolved sites. Press return to apply.") {
+            KTSettingsRow(title: "Local TLD", subtitle: localTLDSubtitle) {
                 localTLDField
             }
             KTSettingsRow(title: "Serve over HTTPS", subtitle: "Issue trusted local certificates per site.", showDivider: false) {
@@ -134,6 +135,28 @@ struct SettingsView: View {
         }
         .fixedSize()
         .disabled(installed.isEmpty)
+    }
+
+    private var localTLDSubtitle: String {
+        if awaitingRelaunch { return "Migrating sites to the new TLD and relaunching…" }
+        return tldError ?? "Domain suffix for resolved sites. Press return to apply."
+    }
+
+    private var relaunchOverlay: some View {
+        ZStack {
+            KTColor.contentBg.opacity(0.72).ignoresSafeArea()
+            VStack(spacing: 14) {
+                ProgressView().controlSize(.large)
+                Text("Migrating sites to .\(pendingTLD ?? preferences.tld)")
+                    .font(.jbMono(13, .medium)).foregroundStyle(KTColor.ink)
+                Text("KTStack will relaunch when it's done.")
+                    .font(.jbMono(11, .regular)).foregroundStyle(KTColor.ink2)
+            }
+            .padding(.horizontal, 28).padding(.vertical, 24)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(KTColor.fieldBg))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(KTColor.fieldBorder, lineWidth: 0.5))
+        }
+        .transition(.opacity)
     }
 
     private var localTLDField: some View {
@@ -271,7 +294,7 @@ struct SettingsView: View {
         guard count > 0 else { return base }
         let names = affectedSites.prefix(5).map(\.domain).joined(separator: ", ")
         let more = count > 5 ? " (+\(count - 5) more)" : ""
-        return base + "\n\n\(count) existing site\(count == 1 ? "" : "s") keep their .\(preferences.tld) domain and will stop resolving until re-edited: \(names)\(more)."
+        return base + "\n\n\(count) existing site\(count == 1 ? "" : "s") will move to the new TLD and keep serving: \(names)\(more)."
     }
 
     private func chooseSitesRoot() {
@@ -289,13 +312,18 @@ struct SettingsView: View {
     private func applyTLDChange() {
         guard let target = pendingTLD else { selectedTLD = preferences.tld; return }
         tldError = nil
+        awaitingRelaunch = true // overlay ngay từ đầu, phủ cả bước DNS + migrate
+        let old = preferences.tld
         dns.changeTLD(to: target) { result in
             switch result {
             case .success:
                 _ = preferences.setTLD(target)
-                awaitingRelaunch = true
-                relaunchApp()
+                Task {
+                    await server.migrateSitesToTLD(from: old, to: target)
+                    relaunchApp()
+                }
             case let .failure(error):
+                awaitingRelaunch = false
                 tldError = error.localizedDescription
                 selectedTLD = preferences.tld
             }

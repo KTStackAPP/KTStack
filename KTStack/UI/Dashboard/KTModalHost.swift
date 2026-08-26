@@ -1,47 +1,21 @@
 import AppKit
 import Combine
 import KTPluginKit
-import KTStackKit
 import SwiftUI
 
 struct KTWindowModals: View {
-    @EnvironmentObject private var server: LocalServerController
-    @EnvironmentObject private var preferences: AppPreferences
-    @EnvironmentObject private var runtimes: RuntimeManager
-    @EnvironmentObject private var overlay: KTOverlayCenter
+    @EnvironmentObject private var modals: KTModalPresenter
 
     var body: some View {
         ZStack {
-            if overlay.newSitePresented {
-                KTModalCard(
-                    icon: "plus.app",
-                    tint: KTIconTint.cube,
-                    title: "New Site",
-                    subtitle: "Create a new site or import an existing folder",
-                    width: 680,
-                    onClose: { overlay.newSitePresented = false }
-                ) {
-                    KTNewSiteForm(
-                        registry: server.registry,
-                        availableVersions: server.availableVersions,
-                        sitesRoot: preferences.sitesRootURL,
-                        tld: server.registry.tld,
-                        defaultPHPVersion: runtimes.defaultVersion(.php) ?? BundledPHP.defaultVersion,
-                        defaultHTTPS: preferences.serveHTTPSByDefault,
-                        onClose: { overlay.newSitePresented = false }
-                    )
-                }
-                .transition(.opacity)
-            }
-            if let site = overlay.apiTesterSite {
-                KTAPITesterModal(site: site, onClose: { overlay.apiTesterSite = nil })
-                    .id(site.id)
+            if let modal = modals.modal {
+                modal.content()
+                    .id(modal.id)
                     .transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .animation(.easeOut(duration: 0.15), value: overlay.newSitePresented)
-        .animation(.easeOut(duration: 0.15), value: overlay.apiTesterSite?.id)
+        .animation(.easeOut(duration: 0.15), value: modals.modal?.id)
     }
 }
 
@@ -57,14 +31,14 @@ final class KTKeyableModalWindow: NSWindow {
 
 @MainActor
 final class KTModalHostController {
-    private let overlay: KTOverlayCenter
+    private let modals: KTModalPresenter
     private weak var parentWindow: NSWindow?
     private let window: KTKeyableModalWindow
     private var cancellables: Set<AnyCancellable> = []
     private var isShown = false
 
-    init(parent: NSWindow, env: DashboardEnv) {
-        overlay = env.overlay
+    init(parent: NSWindow, modals: KTModalPresenter) {
+        self.modals = modals
         parentWindow = parent
 
         window = KTKeyableModalWindow(
@@ -76,14 +50,14 @@ final class KTModalHostController {
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = false
-        window.contentView = NSHostingView(rootView: AnyView(env.inject(KTWindowModals())))
+        window.contentView = NSHostingView(rootView: AnyView(KTWindowModals().environmentObject(modals)))
 
         observe()
         syncPresentation()
     }
 
     private func observe() {
-        overlay.objectWillChange
+        modals.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] in self?.syncPresentation() }
             .store(in: &cancellables)
@@ -98,7 +72,7 @@ final class KTModalHostController {
     }
 
     private func syncPresentation() {
-        overlay.anyModalPresented ? show() : hide()
+        modals.modal != nil ? show() : hide()
     }
 
     private func syncFrame() {
@@ -119,7 +93,7 @@ final class KTModalHostController {
         guard isShown else { return }
         isShown = false
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
-            guard let self, !self.isShown, !self.overlay.anyModalPresented else { return }
+            guard let self, !self.isShown, self.modals.modal == nil else { return }
             parentWindow?.removeChildWindow(window)
             window.orderOut(nil)
             parentWindow?.makeKeyAndOrderFront(nil)
