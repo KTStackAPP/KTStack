@@ -1,9 +1,12 @@
 import Foundation
+import KTStackCore
 
 public enum BundledPHP {
     public static let defaultVersion = "8.4"
 
-    public static let plannedVersions = ["7.4", "8.0", "8.1", "8.2", "8.3", "8.4"]
+    // Bám theo manifest để thêm bản PHP mới chỉ cần sửa RuntimeCatalog
+    public static let plannedVersions: [String] =
+        RuntimeCatalog.manifest.filter { $0.language == .php }.map(\.version)
 
     public static let endOfLifeVersions: Set<String> = ["7.4", "8.0", "8.1"]
 

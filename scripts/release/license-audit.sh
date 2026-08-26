@@ -10,7 +10,7 @@ OUT="${1:-$ROOT/NOTICES.txt}"
 # component | license (SPDX-ish) | upstream source
 COMPONENTS=(
   "nginx|BSD-2-Clause|https://nginx.org/en/download.html"
-  "PHP (7.4/8.0/8.1/8.2/8.3/8.4, php/php-fpm — shivammathur/php bottle, relocated)|PHP-3.01|https://www.php.net/downloads"
+  "PHP (7.4/8.0/8.1/8.2/8.3/8.4/8.5, php/php-fpm - shivammathur/php bottle, relocated)|PHP-3.01|https://www.php.net/downloads"
   "dnsmasq|GPL-2.0-or-later|https://thekelleys.org.uk/dnsmasq/"
   "mkcert|BSD-3-Clause|https://github.com/FiloSottile/mkcert"
   "Mailpit|MIT|https://github.com/axllent/mailpit"

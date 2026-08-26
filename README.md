@@ -44,7 +44,7 @@ The features other tools **lock behind a paid plan or a separate app** (the data
 | Native UI | ✅ menu-bar | ✅ | ❌ CLI only |
 | No Docker / no Homebrew needed | ✅ | ✅ | ❌ (Homebrew) |
 | Trusted local HTTPS | ✅ | ✅ | extra setup |
-| Multiple PHP versions | ✅ 7.4 → 8.4 | ✅ | ✅ |
+| Multiple PHP versions | ✅ 7.4 → 8.5 | ✅ | ✅ |
 | Database engines (MySQL/PG/Redis/Mongo) | ✅ **built in** | Pro | ❌ |
 | **Database editor** (browse/edit/SQL/ER) | ✅ **built in** | ❌ (use TablePlus) | ❌ |
 | Mail testing (Mailpit) | ✅ | Pro | ❌ |
@@ -57,7 +57,7 @@ The features other tools **lock behind a paid plan or a separate app** (the data
 
 - **Automatic `.test` domains** with trusted local HTTPS (per-site certificates from a local CA)
 - **Nginx + PHP-FPM** with per-site PHP version isolation
-- **PHP 7.4 → 8.4** (six versions, EOL versions clearly flagged) and **Node.js**, self-contained, no Homebrew required
+- **PHP 7.4 → 8.5** (seven versions, EOL versions clearly flagged) and **Node.js 20/22/24/26**, self-contained, no Homebrew required
 - **Proxy sites**: point a `.test` domain at any local port, LAN host or remote HTTPS origin
 - **Databases**: MySQL, PostgreSQL, Redis, MongoDB
 - **Built-in database editor**: browse & edit rows, run SQL, structure/DDL, foreign-key navigation, and an interactive ER diagram, for MySQL, PostgreSQL and SQLite
