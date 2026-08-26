@@ -10,6 +10,8 @@ public struct KTPill: View {
     public var body: some View {
         Text(text)
             .font(.jbMono(12.5, .regular))
+            .lineLimit(1)
+            .truncationMode(.tail)
             .foregroundStyle(Color(hex: 0x8E8E93))
             .padding(.vertical, 3)
             .padding(.horizontal, 10)
