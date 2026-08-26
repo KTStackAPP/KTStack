@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 
 public struct PostmanCollectionDiscovery: Sendable {
     static let maxBytes = 16_000_000

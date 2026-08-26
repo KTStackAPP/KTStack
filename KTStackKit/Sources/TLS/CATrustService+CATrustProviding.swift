@@ -1,5 +1,6 @@
 import Foundation
 import KTPlatformContracts
+import KTStackCore
 
 extension CATrustService: CATrustProviding {
     public var caTrustState: CATrustState {

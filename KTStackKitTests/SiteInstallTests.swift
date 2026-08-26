@@ -1,4 +1,5 @@
 import KTStackCore
+import KTPlatformContracts
 import XCTest
 @testable import KTStackKit
 

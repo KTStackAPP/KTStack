@@ -30,7 +30,7 @@ public struct LocalSiteSource: ExternalSiteSource {
         guard let dict = value as? [String: Any],
               let path = dict["path"] as? String, !path.isEmpty else { return nil }
         let name = (dict["name"] as? String) ?? URL(fileURLWithPath: path).lastPathComponent
-        let domain = (dict["domain"] as? String) ?? "\(SiteInspector.slug(name)).local"
+        let domain = (dict["domain"] as? String) ?? "\(DomainSlug.make(name)).local"
         let php = phpVersion(from: dict)
         return DiscoveredSite(
             tool: tool,

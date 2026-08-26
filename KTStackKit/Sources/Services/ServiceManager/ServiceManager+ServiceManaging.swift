@@ -1,5 +1,6 @@
 import Foundation
 import KTPlatformContracts
+import KTStackCore
 
 extension ServiceManager: ServiceManaging {
     public var serviceStates: [ServiceState] {

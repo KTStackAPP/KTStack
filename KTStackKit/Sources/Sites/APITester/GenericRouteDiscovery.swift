@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 
 public struct GenericRouteDiscovery: Sendable {
     public init() {}

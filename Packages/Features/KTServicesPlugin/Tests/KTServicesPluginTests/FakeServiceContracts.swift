@@ -126,9 +126,11 @@ final class FakeDNSResolver: DNSResolverManaging {
         continuation?.yield(next)
     }
 
+    private(set) var disableCalls = 0
     func enable() { enableCalls += 1 }
     func reset() { resetCalls += 1 }
     func refresh() { refreshCalls += 1 }
+    func disable() { disableCalls += 1 }
 }
 
 @MainActor

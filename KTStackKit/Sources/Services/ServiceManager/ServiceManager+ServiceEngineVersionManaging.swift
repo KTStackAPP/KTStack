@@ -1,5 +1,6 @@
 import Foundation
 import KTPlatformContracts
+import KTStackCore
 
 extension ServiceManager: ServiceEngineVersionManaging {
     public var engineSnapshots: [ServiceEngineSnapshot] {

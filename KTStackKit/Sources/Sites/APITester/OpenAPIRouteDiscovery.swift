@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 
 public struct OpenAPIRouteDiscovery: Sendable {
     public init() {}

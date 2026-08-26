@@ -30,6 +30,7 @@ public protocol DNSResolverManaging: AnyObject {
     @MainActor var dnsState: DNSResolverState { get }
     @MainActor func dnsStates() -> AsyncStream<DNSResolverState>
     @MainActor func enable()
+    @MainActor func disable()
     @MainActor func reset()
     @MainActor func refresh()
 }

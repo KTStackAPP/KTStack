@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 
 public struct WordPressBackupInspector: Sendable {
     public init() {}

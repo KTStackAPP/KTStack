@@ -13,9 +13,7 @@ public struct APIRouteRuleField: Sendable, Hashable, Codable {
 }
 
 public struct APIRoute: Sendable, Identifiable, Hashable, Codable {
-    public var id: String {
-        method + " " + uri
-    }
+    public var id: String { method + " " + uri }
 
     public let method: String
     public let uri: String
@@ -66,4 +64,8 @@ public struct RouteIntrospectionOutcome: Sendable {
         self.metadataOnly = metadataOnly
         self.warning = warning
     }
+}
+
+public protocol APIRouteIntrospecting: Sendable {
+    func introspectRoutes(siteFolder: URL, phpVersion: String) async throws -> RouteIntrospectionOutcome
 }

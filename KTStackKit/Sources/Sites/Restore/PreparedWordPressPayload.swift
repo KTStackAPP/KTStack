@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 
 public struct PreparedWordPressPayload: Sendable, Equatable {
     public let stagingRoot: URL

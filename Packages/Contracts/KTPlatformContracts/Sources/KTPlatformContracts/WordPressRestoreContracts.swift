@@ -1,5 +1,24 @@
 import Foundation
 
+public enum WordPressBackupKind: String, Sendable, Equatable, CaseIterable {
+    case duplicatorZip
+    case aioWpress
+
+    public var label: String {
+        switch self {
+        case .duplicatorZip: "Duplicator"
+        case .aioWpress: "All-in-One WP Migration"
+        }
+    }
+
+    public var fileExtension: String {
+        switch self {
+        case .duplicatorZip: "zip"
+        case .aioWpress: "wpress"
+        }
+    }
+}
+
 public enum RestorePhase: String, Sendable, Equatable {
     case detecting
     case extracting
@@ -71,4 +90,10 @@ public enum RestoreServiceError: LocalizedError, Equatable {
             "Could not determine the backup's original site address for search-replace."
         }
     }
+}
+
+public protocol WordPressRestoring: AnyObject {
+    nonisolated func inspectBackup(_ file: URL) throws -> WordPressBackupKind
+    @MainActor func restore(_ request: RestoreRequest, into siteID: UUID,
+                            emit: @escaping @Sendable (RestoreEvent) -> Void) async throws -> RestoreOutcome
 }

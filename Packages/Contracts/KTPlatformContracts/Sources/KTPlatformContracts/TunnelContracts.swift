@@ -39,3 +39,26 @@ public protocol TunnelJobManaging: Sendable {
 public protocol TunnelBinaryProviding: Sendable {
     func ensureCloudflaredInstalled() async throws -> URL
 }
+
+// Trạng thái share 1 site cho row UI Sites; map từ TunnelStatus/TunnelSession.
+public struct SiteShareState: Sendable, Equatable {
+    public var starting: Bool
+    public var publicURL: URL?
+    public var expiresAt: Date?
+    public var error: String?
+
+    public init(starting: Bool, publicURL: URL?, expiresAt: Date?, error: String?) {
+        self.starting = starting
+        self.publicURL = publicURL
+        self.expiresAt = expiresAt
+        self.error = error
+    }
+}
+
+// Sites plugin drive share qua contract; TunnelManager (KTTunnelPlugin) conform, App nối dây.
+public protocol SiteSharing: AnyObject {
+    @MainActor var shareStates: [UUID: SiteShareState] { get }
+    @MainActor func shareStateStream() -> AsyncStream<[UUID: SiteShareState]>
+    @MainActor func startShare(_ target: TunnelSiteTarget)
+    @MainActor func stopShare(siteID: UUID)
+}

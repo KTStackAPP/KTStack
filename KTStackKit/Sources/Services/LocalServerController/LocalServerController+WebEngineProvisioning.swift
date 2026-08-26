@@ -1,5 +1,6 @@
 import Foundation
 import KTPlatformContracts
+import KTStackCore
 
 extension LocalServerController: WebEngineProvisioning {
     public var webEngineState: WebEngineState {

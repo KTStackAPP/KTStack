@@ -1,5 +1,6 @@
 import Foundation
 import KTPlatformContracts
+import KTStackCore
 
 extension DNSAutomationService: DNSResolverManaging {
     public var dnsState: DNSResolverState {

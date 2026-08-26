@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct ValetSiteSource: ExternalSiteSource {
     public let tool = "Valet"
@@ -27,7 +28,7 @@ public struct ValetSiteSource: ExternalSiteSource {
         var seen = Set<String>()
 
         func append(name: String, path: URL) {
-            let domain = "\(SiteInspector.slug(name)).\(tld)"
+            let domain = "\(DomainSlug.make(name)).\(tld)"
             let site = DiscoveredSite(
                 tool: tool,
                 name: name,

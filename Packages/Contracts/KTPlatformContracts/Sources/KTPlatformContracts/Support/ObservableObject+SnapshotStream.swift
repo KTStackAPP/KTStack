@@ -5,10 +5,11 @@ import Foundation
 // objectWillChange. KHÔNG dùng `objectWillChange.values` (Combine AsyncPublisher assert-crash khi
 // publisher gửi nhiều value trước khi async consumer kịp pull, ví dụ progress download bắn dồn).
 // Thay bằng `sink` đồng bộ đẩy tick vào AsyncStream (bufferingNewest coalesce), consumer chạy @MainActor
-// resume SAU mutation nên make() đọc giá trị mới; bỏ trùng bằng Equatable. Mẫu cho M11.
+// resume SAU mutation nên make() đọc giá trị mới; bỏ trùng bằng Equatable. Ở Contracts (Core cấm Combine),
+// cả KTStackKit lẫn feature package đều import được.
 extension ObservableObject where ObjectWillChangePublisher == ObservableObjectPublisher {
     @MainActor
-    func snapshotStream<S: Equatable & Sendable>(_ make: @escaping @MainActor () -> S) -> AsyncStream<S> {
+    public func snapshotStream<S: Equatable & Sendable>(_ make: @escaping @MainActor () -> S) -> AsyncStream<S> {
         AsyncStream { continuation in
             let (ticks, tickContinuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
             let cancellable = objectWillChange.sink { _ in tickContinuation.yield(()) }

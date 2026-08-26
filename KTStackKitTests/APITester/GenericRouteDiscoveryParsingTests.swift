@@ -1,4 +1,5 @@
 import XCTest
+import KTPlatformContracts
 @testable import KTStackKit
 
 final class GenericRouteDiscoveryParsingTests: XCTestCase {
