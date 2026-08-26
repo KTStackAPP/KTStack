@@ -6,7 +6,6 @@ struct SiteActionsMenu: View {
     let site: SiteSummary
     let canOpen: Bool
     let onOpenLogs: () -> Void
-    let onOpenAPITester: () -> Void
     let onRemove: () -> Void
     var onConfigureVSCode: () -> Void = {}
     var onRestore: () -> Void = {}
@@ -34,7 +33,6 @@ struct SiteActionsMenu: View {
                     row("Open Terminal Here", "terminal", "⌥⌘T") { SiteActions.openTerminal(site) }
                     sectionLabel("Develop")
                     row("Logs", "text.alignleft", "⌘L", action: onOpenLogs)
-                    row("API Tester", "network", "", action: onOpenAPITester)
                     if site.kind == .php {
                         row("Configure VS Code Debug", "curlybraces", "", action: onConfigureVSCode)
                         row("Restore from Backup…", "arrow.uturn.backward.circle", "", action: onRestore)

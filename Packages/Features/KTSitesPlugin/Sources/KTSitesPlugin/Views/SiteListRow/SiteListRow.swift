@@ -19,7 +19,6 @@ struct SiteListRow: View, Equatable {
     let onEditDomain: (String) throws -> Void
     let onSetNodePort: (Int?) throws -> Void
     let onOpenLogs: () -> Void
-    let onOpenAPITester: () -> Void
     let onToggleShare: (Bool) -> Void
     let onRemove: () -> Void
     var onConfigureVSCode: () -> Void = {}
@@ -50,7 +49,6 @@ struct SiteListRow: View, Equatable {
         onEditDomain: @escaping (String) throws -> Void,
         onSetNodePort: @escaping (Int?) throws -> Void,
         onOpenLogs: @escaping () -> Void,
-        onOpenAPITester: @escaping () -> Void,
         onToggleShare: @escaping (Bool) -> Void,
         onRemove: @escaping () -> Void,
         onConfigureVSCode: @escaping () -> Void = {},
@@ -73,7 +71,6 @@ struct SiteListRow: View, Equatable {
         self.onEditDomain = onEditDomain
         self.onSetNodePort = onSetNodePort
         self.onOpenLogs = onOpenLogs
-        self.onOpenAPITester = onOpenAPITester
         self.onToggleShare = onToggleShare
         self.onRemove = onRemove
         self.onConfigureVSCode = onConfigureVSCode
@@ -169,7 +166,6 @@ struct SiteListRow: View, Equatable {
                 site: site,
                 canOpen: canOpen,
                 onOpenLogs: onOpenLogs,
-                onOpenAPITester: onOpenAPITester,
                 onRemove: onRemove,
                 onConfigureVSCode: onConfigureVSCode,
                 onRestore: onRestore

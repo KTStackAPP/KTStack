@@ -50,6 +50,19 @@ final class LegacyKDWarmMigrationTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: keptPlist.path))
     }
 
+    func testPurgeRemovesAPITesterDefaultsOnly() throws {
+        let suite = "com.ktstack.test.mig.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(Data("x".utf8), forKey: "com.ktstack.apiTester.variables.app.test")
+        defaults.set("keep", forKey: "KTStack.releaseChannel")
+
+        LegacyKDWarmMigration.purgeRemovedFeatureDefaults(from: defaults)
+
+        XCTAssertNil(defaults.object(forKey: "com.ktstack.apiTester.variables.app.test"))
+        XCTAssertEqual(defaults.string(forKey: "KTStack.releaseChannel"), "keep")
+    }
+
     func testKeychainServiceMigrationRoundTrips() throws {
         let oldService = "com.ktstack.test.legacy.\(UUID().uuidString)"
         let newService = "com.ktstack.test.new.\(UUID().uuidString)"

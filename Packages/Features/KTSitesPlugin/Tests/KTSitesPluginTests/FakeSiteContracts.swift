@@ -282,13 +282,3 @@ final class FakeSiteIDEConfiguring: SiteIDEConfiguring, @unchecked Sendable {
         return try result.get()
     }
 }
-
-final class FakeAPIRouteIntrospecting: APIRouteIntrospecting, @unchecked Sendable {
-    var result: Result<RouteIntrospectionOutcome, Error> = .success(RouteIntrospectionOutcome(routes: [], metadataOnly: false, warning: nil))
-    private(set) var calls: [(URL, String)] = []
-
-    func introspectRoutes(siteFolder: URL, phpVersion: String) async throws -> RouteIntrospectionOutcome {
-        calls.append((siteFolder, phpVersion))
-        return try result.get()
-    }
-}

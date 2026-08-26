@@ -12,7 +12,6 @@ public final class KTSitesPlugin: KTStackPlugin, SectionActivationObserving {
     private let provisioning: any SiteProvisioning
     private let restore: any WordPressRestoring
     private let ide: any SiteIDEConfiguring
-    private let routes: any APIRouteIntrospecting
     private let dns: any DNSResolverManaging
     private let runtimes: any RuntimeManaging
     private let sharing: any SiteSharing
@@ -41,7 +40,6 @@ public final class KTSitesPlugin: KTStackPlugin, SectionActivationObserving {
         provisioning: any SiteProvisioning,
         restore: any WordPressRestoring,
         ide: any SiteIDEConfiguring,
-        routes: any APIRouteIntrospecting,
         dns: any DNSResolverManaging,
         runtimes: any RuntimeManaging,
         sharing: any SiteSharing,
@@ -56,7 +54,6 @@ public final class KTSitesPlugin: KTStackPlugin, SectionActivationObserving {
         self.provisioning = provisioning
         self.restore = restore
         self.ide = ide
-        self.routes = routes
         self.dns = dns
         self.runtimes = runtimes
         self.sharing = sharing
@@ -74,7 +71,6 @@ public final class KTSitesPlugin: KTStackPlugin, SectionActivationObserving {
                 provisioning: provisioning,
                 restore: restore,
                 ide: ide,
-                routes: routes,
                 modals: modals,
                 sitesRoot: sitesRoot(),
                 httpsByDefault: httpsByDefault()
