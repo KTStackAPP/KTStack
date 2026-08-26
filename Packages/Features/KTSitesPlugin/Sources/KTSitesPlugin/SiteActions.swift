@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KTPlatformContracts
+import KTStackCore
 
 enum SiteActions {
     static func revealInFinder(_ site: SiteSummary) {
@@ -25,10 +26,23 @@ enum SiteActions {
         NSWorkspace.shared.open(url)
     }
 
+    // Single-quote escape cho shell: đóng quote, chèn '\'' rồi mở lại (giống quotedDir).
+    private static func shellQuoted(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    static func exportLine(port: Int, env: [String: String]) -> String {
+        var line = "export PORT=\(port)"
+        for (key, value) in SiteEnvVars.sorted(env) {
+            line += " \(key)=\(shellQuoted(value))"
+        }
+        return line
+    }
+
     static func startNodeInTerminal(_ site: SiteSummary) {
         guard let port = site.nodePort else { return }
-        let quotedDir = "'" + site.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
-        let base = "cd \(quotedDir) && export PORT=\(port)"
+        let quotedDir = shellQuoted(site.path)
+        let base = "cd \(quotedDir) && \(exportLine(port: port, env: site.envVars))"
         let shell: String
         if let command = resolvedStartCommand(site) {
             shell = base + " && " + command

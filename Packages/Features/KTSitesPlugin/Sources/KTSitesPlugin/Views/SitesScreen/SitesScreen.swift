@@ -18,6 +18,7 @@ struct SitesScreen: View {
     @State var gridView = false
     @State var showScan = false
     @State var restoreSite: SiteSummary?
+    @State var settingsSite: SiteSummary?
     @State var removingSiteID: UUID?
     @State var actionError: String?
 
@@ -74,6 +75,9 @@ struct SitesScreen: View {
         }
         .sheet(item: $restoreSite) {
             RestoreBackupSheet(site: $0, restoring: restore, availableVersions: vm.server.phpVersions, isEndOfLife: vm.isEndOfLife)
+        }
+        .sheet(item: $settingsSite) {
+            SiteSettingsSheet(site: $0, vm: vm)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             vm.refreshDNS()

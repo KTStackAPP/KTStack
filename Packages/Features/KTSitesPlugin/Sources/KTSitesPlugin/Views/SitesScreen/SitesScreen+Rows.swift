@@ -28,6 +28,7 @@ extension SitesScreen {
                     onRemove: { confirmRemove(site) },
                     onConfigureVSCode: { configureVSCode(site) },
                     onRestore: { restoreSite = site },
+                    onSettings: { settingsSite = site },
                     onError: { actionError = $0 }
                 )
                 .equatable()
@@ -61,7 +62,8 @@ extension SitesScreen {
                     onToggleShare: { toggleShare(site, $0) },
                     onRemove: { confirmRemove(site) },
                     onConfigureVSCode: { configureVSCode(site) },
-                    onRestore: { restoreSite = site }
+                    onRestore: { restoreSite = site },
+                    onSettings: { settingsSite = site }
                 )
             }
         }

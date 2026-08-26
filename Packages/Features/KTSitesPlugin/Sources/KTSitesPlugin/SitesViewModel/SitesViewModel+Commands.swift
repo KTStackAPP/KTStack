@@ -38,6 +38,22 @@ extension SitesViewModel {
         try catalog.setProxyTarget(id, raw)
     }
 
+    func setAliases(_ id: UUID, _ aliases: [String]) throws {
+        try catalog.setAliases(id, aliases)
+    }
+
+    func validateAliases(_ aliases: [String], for id: UUID) throws {
+        try catalog.validateAliases(aliases, for: id)
+    }
+
+    func setEnvVars(_ id: UUID, _ env: [String: String]) throws {
+        try catalog.setEnvVars(id, env)
+    }
+
+    func saveFrontDirectives(_ id: UUID, _ text: String) async throws {
+        try await catalog.saveFrontDirectives(id, text)
+    }
+
     func installApache() {
         webEngineManager.installApache()
     }
