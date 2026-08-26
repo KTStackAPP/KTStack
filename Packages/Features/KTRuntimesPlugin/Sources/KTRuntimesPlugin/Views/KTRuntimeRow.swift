@@ -50,8 +50,11 @@ struct KTRuntimeRow: View {
         if let fraction = downloadFraction {
             HStack(spacing: 8) {
                 ProgressView(value: fraction).frame(width: 80)
-                Button { onCancel() } label: { Image(systemName: "xmark.circle").foregroundStyle(KTColor.muted) }
-                    .buttonStyle(.plain)
+                Button { onCancel() } label: {
+                    Image(systemName: "xmark.circle").foregroundStyle(KTColor.muted)
+                        .frame(width: 28, height: 28).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
         } else {
             switch state {

@@ -52,6 +52,12 @@ packages:
   # behind contracts. Deps KTStackCore + KTPlatformContracts + KTPluginKit, never KTStackKit.
   KTRuntimesPlugin:
     path: Packages/Features/KTRuntimesPlugin
+  # Eighth feature package (M11): Services. Owns the Services screen (8 service rows, DB/cache version
+  # dropdowns, DNS/CA banners, nginx include editor) and its ViewModel; platform keeps ServiceManager,
+  # supervision, DNSAutomationService, CATrustService behind contracts. Deps KTStackCore +
+  # KTPlatformContracts + KTPluginKit, never KTStackKit.
+  KTServicesPlugin:
+    path: Packages/Features/KTServicesPlugin
   # Sparkle auto-update framework (EdDSA-signed appcast). Private key stays offline / in CI;
   # the public key is set as SUPublicEDKey in Info.plist.
   Sparkle:
@@ -149,6 +155,7 @@ targets:
       - package: KTDoctorPlugin
       - package: KTDatabasePlugin
       - package: KTRuntimesPlugin
+      - package: KTServicesPlugin
       - package: Sparkle
       # Build-order + copy only (no linking); lands in Contents/MacOS so Phase 4's
       # SMAppService daemon plist can reference it. Empty stub for now.

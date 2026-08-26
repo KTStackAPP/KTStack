@@ -1,10 +1,10 @@
+import KTPlatformContracts
 import KTPluginKit
-import KTStackKit
-import SwiftUI
 
-enum KTServiceVisuals {
-    static func tint(_ kind: ServiceKind) -> KTTint {
-        switch kind {
+// tint + subtitle là chuyện UI (plugin-local); displayName/symbolName do platform điền qua ServiceState.
+extension ServiceID {
+    var tint: KTTint {
+        switch self {
         case .nginx, .dnsmasq: KTIconTint.globe
         case .phpFpm: KTIconTint.code
         case .mysql, .postgres, .mongodb: KTIconTint.db
@@ -13,8 +13,8 @@ enum KTServiceVisuals {
         }
     }
 
-    static func subtitle(_ kind: ServiceKind) -> String {
-        switch kind {
+    var subtitle: String {
+        switch self {
         case .nginx: "Reverse proxy · ports 80, 443"
         case .phpFpm: "FastCGI pools · managed with web server"
         case .dnsmasq: "*.test resolver · port 53 · privileged helper"
