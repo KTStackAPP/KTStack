@@ -66,11 +66,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor lazy var databaseWindows = DatabaseWindows(plugin: databasePlugin)
 
-    // Method chứ không tham chiếu lazy var trong route closure, tránh vòng lazy-init với databaseWindows.
-    @MainActor private func routeDatabase(_ route: DatabaseRoute) {
-        databaseWindows.handle(route)
-    }
-
     #if DEBUG
         @MainActor func openSQLDrafts() { databaseWindows.handle(.sqlDrafts) }
     #endif
@@ -102,9 +97,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         modals: modals,
         sitesRoot: { [preferences] in preferences.sitesRootURL },
         httpsByDefault: { [preferences] in preferences.serveHTTPSByDefault },
-        route: { [navigation] in
-            if case let .logs(sourceID) = $0 { navigation.openLogs(sourceID) }
-        }
+        route: { [weak self] in self?.routeSites($0) }
     )
 
     // 8 plugin id + settings/about (shell rows): frozen, dùng validate selection đã lưu.
@@ -123,13 +116,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             validate: { [server] in await server.validateNginxConfig() },
             reload: { [server] in try await server.reloadNginxConfig() }
         ),
-        route: { [navigation] route in
-            switch route {
-            case .runtimes: navigation.selection = "runtimes"
-            case .settings: navigation.selection = "settings"
-            case let .logs(sourceID): navigation.openLogs(sourceID)
-            }
-        }
+        route: { [weak self] in self?.routeServices($0) }
     )
 
     @MainActor lazy var logsPlugin = KTLogsPlugin(context: server)
@@ -138,7 +125,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         probes: DoctorProbeService(paths: AppSupportPaths()),
         tld: { [preferences] in preferences.tld },
         registry: { [weak self] in self?.plugins ?? [] },
-        route: { [navigation] in navigation.selection = $0.selectionID }
+        route: { [weak self] in self?.routeDoctor($0) }
     )
 
     @MainActor lazy var pluginSections: [PluginSection] = [
@@ -161,6 +148,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor lazy var pluginLifecycle = PluginLifecycleCoordinator(
         plugins: plugins,
         standalone: [tunnelPlugin]
+    )
+
+    @MainActor lazy var platformLifecycle = PlatformLifecycle(server: server)
+
+    @MainActor lazy var dashboardEnv = DashboardEnv(
+        preferences: preferences,
+        server: server,
+        dns: dns,
+        services: services,
+        runtimes: runtimes,
+        caTrust: caTrust,
+        updater: updater,
+        uninstaller: uninstaller,
+        modals: modals
     )
 
     private static func alreadyRunningInstance() -> NSRunningApplication? {
@@ -245,16 +246,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_: Notification) {
-        // Plugins tear down their own resources first: Dumps disables auto_prepend and stops its
-        // socket, Tunnel boots out cloudflared jobs and clears tunnel vhosts, all plain file/process
-        // ops, before platform teardown. Tunnel cleanup now lives here, not a direct call below.
-        // Database plugin hạ SwiftNIO event loop trong shutdown() (bootout xong loop mới xuống),
-        // nên quit không còn tự tear down loop ở đây.
+        // Plugin dọn resource của mình trước, platform teardown sau (chi tiết ở CLAUDE.md ## Invariants).
         MainActor.assumeIsolated { pluginLifecycle }.shutdownAllBlocking()
-
-        MainActor.assumeIsolated {
-            server.shutdownForQuit()
-        }
+        MainActor.assumeIsolated { platformLifecycle }.shutdownBlocking()
     }
 
     @objc
@@ -262,17 +256,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let closingWindow = note.object as? NSWindow
         DispatchQueue.main.async {
             AppActivationPolicy.restoreAccessoryIfNoWindows(excluding: closingWindow)
-        }
-    }
-}
-
-// Route enum của Doctor sang selection id sidebar; giữ id shell trong App, không đưa vào package.
-private extension DoctorRoute {
-    var selectionID: String {
-        switch self {
-        case .services: "services"
-        case .settings: "settings"
-        case .runtimes: "runtimes"
         }
     }
 }
