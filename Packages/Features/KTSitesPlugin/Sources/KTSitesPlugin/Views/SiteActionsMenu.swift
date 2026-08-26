@@ -29,8 +29,10 @@ struct SiteActionsMenu: View {
                 VStack(alignment: .leading, spacing: 1) {
                     sectionLabel("Open")
                     row("Open in Browser", "safari", "⌘O", enabled: canOpen) { SiteActions.openInBrowser(site) }
-                    row("Reveal in Finder", "folder", "⇧⌘R") { SiteActions.revealInFinder(site) }
-                    row("Open Terminal Here", "terminal", "⌥⌘T") { SiteActions.openTerminal(site) }
+                    if !site.path.isEmpty {
+                        row("Reveal in Finder", "folder", "⇧⌘R") { SiteActions.revealInFinder(site) }
+                        row("Open Terminal Here", "terminal", "⌥⌘T") { SiteActions.openTerminal(site) }
+                    }
                     sectionLabel("Develop")
                     row("Logs", "text.alignleft", "⌘L", action: onOpenLogs)
                     if site.kind == .php {

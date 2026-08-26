@@ -1,5 +1,6 @@
 import KTPlatformContracts
 import KTPluginKit
+import KTStackCore
 import SwiftUI
 
 struct SiteGridCard: View {
@@ -24,6 +25,12 @@ struct SiteGridCard: View {
     var onConfigureVSCode: () -> Void = {}
     var onRestore: () -> Void = {}
 
+    private var proxyDisplay: String? {
+        guard let raw = site.proxyTarget else { return nil }
+        if case let .success(target) = ProxyTarget.parse(raw) { return target.displayString }
+        return raw
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
@@ -41,6 +48,9 @@ struct SiteGridCard: View {
             Text(site.name).font(KTType.cardName).foregroundStyle(KTColor.ink).lineLimit(1)
                 .padding(.top, 13)
             Text(site.domain).font(KTType.sub).foregroundStyle(KTColor.muted).lineLimit(1)
+            if site.kind == .proxy, let target = proxyDisplay {
+                Text("→ \(target)").font(.jbMono(12)).foregroundStyle(KTColor.faint).lineLimit(1)
+            }
 
             HStack(spacing: 7) {
                 KTStatusLabel(running: canOpen)

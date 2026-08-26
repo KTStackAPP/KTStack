@@ -103,6 +103,46 @@ final class NewSiteModel: ObservableObject {
         return newTask
     }
 
+    @discardableResult
+    func addProxy(
+        name: String,
+        domain: String,
+        target: String,
+        enableHTTPS: Bool,
+        openOnFinish: Bool = true
+    ) -> Task<Void, Never> {
+        guard !installing else { return Task {} }
+        do {
+            try catalog.validateDomain(domain, excluding: nil)
+        } catch {
+            self.error = error.localizedDescription
+            return Task {}
+        }
+        installing = true
+        error = nil
+        events = []
+
+        let newTask = Task {
+            do {
+                let site = try await provisioning.addProxySite(
+                    name: name, domain: domain, target: target, enableHTTPS: enableHTTPS
+                )
+                finished = true
+                if openOnFinish {
+                    let scheme = enableHTTPS ? "https" : "http"
+                    if let url = URL(string: "\(scheme)://\(site.domain)/") { open(url) }
+                }
+            } catch is CancellationError {
+                error = "Cancelled."
+            } catch {
+                self.error = error.localizedDescription
+            }
+            installing = false
+        }
+        task = newTask
+        return newTask
+    }
+
     func cancel() {
         task?.cancel()
     }

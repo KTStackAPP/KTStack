@@ -4,7 +4,7 @@ import KTPluginKit
 import KTStackCore
 import SwiftUI
 
-enum NewSiteMode: Hashable { case create, importFolder }
+enum NewSiteMode: Hashable { case create, importFolder, proxy }
 
 struct NewSiteForm: View {
     @ObservedObject var model: NewSiteModel
@@ -26,6 +26,7 @@ struct NewSiteForm: View {
     @State var createDatabase = false
     @State var importFolder: URL?
     @State var importName = ""
+    @State var proxyTarget = ""
 
     init(
         model: NewSiteModel,
@@ -95,6 +96,7 @@ struct NewSiteForm: View {
             KTSegmentedTabs(items: [
                 KTSegmentedTabs.Item(value: .create, label: "Create New"),
                 KTSegmentedTabs.Item(value: .importFolder, label: "Import Folder"),
+                KTSegmentedTabs.Item(value: .proxy, label: "Proxy"),
             ], selection: $mode, large: true)
             Spacer()
         }
@@ -117,12 +119,41 @@ struct NewSiteForm: View {
                 provisioning: provisioning,
                 tld: tld
             )
+        case .proxy:
+            proxyForm
         }
     }
 
     @ViewBuilder
     var footer: some View {
-        if mode == .importFolder { importFooter } else { createFooter }
+        switch mode {
+        case .importFolder: importFooter
+        case .proxy: proxyFooter
+        case .create: createFooter
+        }
+    }
+
+    var proxyTargetError: String? {
+        let trimmed = proxyTarget.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if case let .failure(error) = ProxyTarget.parse(trimmed) { return error.localizedDescription }
+        return nil
+    }
+
+    var proxyValid: Bool {
+        guard !slug.isEmpty else { return false }
+        if case .success = ProxyTarget.parse(proxyTarget.trimmingCharacters(in: .whitespacesAndNewlines)) { return true }
+        return false
+    }
+
+    func addProxy() {
+        model.addProxy(
+            name: slug,
+            domain: domain,
+            target: proxyTarget.trimmingCharacters(in: .whitespacesAndNewlines),
+            enableHTTPS: serveHTTPS,
+            openOnFinish: true
+        )
     }
 
     func create() {

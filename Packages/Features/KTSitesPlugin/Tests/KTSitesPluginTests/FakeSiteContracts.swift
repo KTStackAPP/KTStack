@@ -16,12 +16,13 @@ func makeSite(
     nodePort: Int? = nil,
     nodeCommand: String? = nil,
     engine: SiteServerEngine = .nginx,
-    backendPort: Int? = 9001
+    backendPort: Int? = 9001,
+    proxyTarget: String? = nil
 ) -> SiteSummary {
     SiteSummary(
         id: id, name: name, path: path, docroot: docroot, domain: domain, phpVersion: phpVersion,
         kind: kind, databaseName: databaseName, secure: secure, nodePort: nodePort,
-        nodeCommand: nodeCommand, engine: engine, backendPort: backendPort
+        nodeCommand: nodeCommand, engine: engine, backendPort: backendPort, proxyTarget: proxyTarget
     )
 }
 

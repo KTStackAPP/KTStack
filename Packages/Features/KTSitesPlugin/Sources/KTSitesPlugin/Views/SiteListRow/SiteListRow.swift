@@ -1,12 +1,13 @@
 import KTPlatformContracts
 import KTPluginKit
+import KTStackCore
 import SwiftUI
 
 struct SiteListRow: View, Equatable {
     let site: SiteSummary
     let availableVersions: [String]
     let canOpen: Bool
-    let nodeRunning: Bool
+    let upstreamRunning: Bool
     let share: SiteShareState?
     let framework: PHPFramework
     let apacheInstalled: Bool
@@ -18,6 +19,7 @@ struct SiteListRow: View, Equatable {
     let onInstallApache: () -> Void
     let onEditDomain: (String) throws -> Void
     let onSetNodePort: (Int?) throws -> Void
+    let onSetProxyTarget: (String) throws -> Void
     let onOpenLogs: () -> Void
     let onToggleShare: (Bool) -> Void
     let onRemove: () -> Void
@@ -31,12 +33,13 @@ struct SiteListRow: View, Equatable {
     @State var domainError = false
     @State var hovering = false
     @State var nodePortDraft: String
+    @State var proxyTargetDraft: String
 
     init(
         site: SiteSummary,
         availableVersions: [String],
         canOpen: Bool,
-        nodeRunning: Bool,
+        upstreamRunning: Bool,
         share: SiteShareState?,
         framework: PHPFramework,
         apacheInstalled: Bool,
@@ -48,6 +51,7 @@ struct SiteListRow: View, Equatable {
         onInstallApache: @escaping () -> Void,
         onEditDomain: @escaping (String) throws -> Void,
         onSetNodePort: @escaping (Int?) throws -> Void,
+        onSetProxyTarget: @escaping (String) throws -> Void = { _ in },
         onOpenLogs: @escaping () -> Void,
         onToggleShare: @escaping (Bool) -> Void,
         onRemove: @escaping () -> Void,
@@ -58,7 +62,7 @@ struct SiteListRow: View, Equatable {
         self.site = site
         self.availableVersions = availableVersions
         self.canOpen = canOpen
-        self.nodeRunning = nodeRunning
+        self.upstreamRunning = upstreamRunning
         self.share = share
         self.framework = framework
         self.apacheInstalled = apacheInstalled
@@ -70,6 +74,7 @@ struct SiteListRow: View, Equatable {
         self.onInstallApache = onInstallApache
         self.onEditDomain = onEditDomain
         self.onSetNodePort = onSetNodePort
+        self.onSetProxyTarget = onSetProxyTarget
         self.onOpenLogs = onOpenLogs
         self.onToggleShare = onToggleShare
         self.onRemove = onRemove
@@ -78,13 +83,14 @@ struct SiteListRow: View, Equatable {
         self.onError = onError
         _domainDraft = State(initialValue: site.domain)
         _nodePortDraft = State(initialValue: site.nodePort.map(String.init) ?? "")
+        _proxyTargetDraft = State(initialValue: SiteListRow.proxyDisplay(site))
     }
 
     static func == (a: SiteListRow, b: SiteListRow) -> Bool {
         a.site == b.site
             && a.availableVersions == b.availableVersions
             && a.canOpen == b.canOpen
-            && a.nodeRunning == b.nodeRunning
+            && a.upstreamRunning == b.upstreamRunning
             && a.share == b.share
             && a.framework == b.framework
             && a.apacheInstalled == b.apacheInstalled
@@ -98,6 +104,13 @@ struct SiteListRow: View, Equatable {
             .onHover { hovering = $0 }
             .onChange(of: site.domain) { new in domainDraft = new; domainError = false }
             .onChange(of: site.nodePort) { new in nodePortDraft = new.map(String.init) ?? "" }
+            .onChange(of: site.proxyTarget) { _ in proxyTargetDraft = SiteListRow.proxyDisplay(site) }
+    }
+
+    static func proxyDisplay(_ site: SiteSummary) -> String {
+        guard let raw = site.proxyTarget else { return "" }
+        if case let .success(target) = ProxyTarget.parse(raw) { return target.displayString }
+        return raw
     }
 
     private var mainRow: some View {
@@ -137,12 +150,19 @@ struct SiteListRow: View, Equatable {
                     KTBadge(text: SiteVisuals.label(for: site.kind), tint: SiteVisuals.tint(for: site.kind), radius: 8)
                     nodeRoute
                 }
+            } else if site.kind == .proxy {
+                HStack(spacing: 8) {
+                    KTBadge(text: SiteVisuals.label(for: site.kind), tint: SiteVisuals.tint(for: site.kind), radius: 8)
+                    proxyRoute
+                }
             } else {
                 KTBadge(text: SiteVisuals.label(for: site.kind), tint: SiteVisuals.tint(for: site.kind), radius: 8)
             }
 
             if site.kind == .node {
                 nodeStatusControl
+            } else if site.kind == .proxy {
+                proxyStatusControl
             } else {
                 KTStatusLabel(running: canOpen).frame(width: 78, alignment: .leading)
             }
@@ -176,7 +196,10 @@ struct SiteListRow: View, Equatable {
     }
 
     private var openEnabled: Bool {
-        site.kind == .node ? (canOpen && nodeRunning) : canOpen
+        switch site.kind {
+        case .node, .proxy: canOpen && upstreamRunning
+        default: canOpen
+        }
     }
 
     private func commitDomain() {

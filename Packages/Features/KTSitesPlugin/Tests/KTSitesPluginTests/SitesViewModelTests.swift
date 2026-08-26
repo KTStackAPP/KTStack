@@ -132,25 +132,25 @@ final class SitesViewModelTests: XCTestCase {
         }
     }
 
-    func testNodeProbingOnlyPollsNodeSitesWithPort() async {
+    func testUpstreamProbingPollsNodeAndProxySites() async {
         let nodeSite = makeSite(name: "node", domain: "node.test", kind: .node, nodePort: 3000)
         let phpSite = makeSite(name: "php", domain: "php.test", kind: .php)
         let nodeWithoutPort = makeSite(name: "bare", domain: "bare.test", kind: .node, nodePort: nil)
+        let proxyHTTP = makeSite(name: "api", domain: "api.test", kind: .proxy, proxyTarget: "http://192.168.1.20:3000")
+        let proxyHTTPS = makeSite(name: "up", domain: "up.test", kind: .proxy, proxyTarget: "https://api.example.com")
         let server = FakeSiteServerControl(state: SiteServerState(isRunning: true, isBusy: false, lastError: nil, phpVersions: ["8.4"]))
         server.nodeProbeResult = true
-        let h = makeVM(sites: [nodeSite, phpSite, nodeWithoutPort], serverControl: server)
+        let h = makeVM(sites: [nodeSite, phpSite, nodeWithoutPort, proxyHTTP, proxyHTTPS], serverControl: server)
         let vm = h.vm
         let serverFake = h.server
 
-        vm.startNodeProbing()
-        try? await Task.sleep(nanoseconds: 100_000_000)
-        vm.stopNodeProbing()
+        await vm.refreshUpstreamRunning()
 
-        XCTAssertEqual(serverFake.probeUpstreamCalls.map(\.port), [3000])
-        XCTAssertEqual(serverFake.probeUpstreamCalls.map(\.host), ["127.0.0.1"])
+        let probed = Set(serverFake.probeUpstreamCalls.map { "\($0.host):\($0.port)" })
+        XCTAssertEqual(probed, ["127.0.0.1:3000", "192.168.1.20:3000", "api.example.com:443"])
     }
 
-    func testNodeProbePrunesSiteThatLosesPort() async {
+    func testUpstreamProbePrunesSiteThatLosesPort() async {
         let id = UUID()
         let node = makeSite(id: id, name: "node", domain: "node.test", kind: .node, nodePort: 3000)
         let server = FakeSiteServerControl(state: SiteServerState(isRunning: true, isBusy: false, lastError: nil, phpVersions: ["8.4"]))
@@ -159,15 +159,37 @@ final class SitesViewModelTests: XCTestCase {
         let vm = h.vm
         let catalog = h.catalog
 
-        await vm.refreshNodeRunning()
-        XCTAssertEqual(vm.nodeRunning[id], true)
+        await vm.refreshUpstreamRunning()
+        XCTAssertEqual(vm.upstreamRunning[id], true)
 
         let bare = makeSite(id: id, name: "node", domain: "node.test", kind: .node, nodePort: nil)
         catalog.emit(SiteCatalogState(sites: [bare], tld: "test"))
         try? await Task.sleep(nanoseconds: 80_000_000)
 
-        await vm.refreshNodeRunning()
-        XCTAssertNil(vm.nodeRunning[id])
+        await vm.refreshUpstreamRunning()
+        XCTAssertNil(vm.upstreamRunning[id])
+    }
+
+    func testSetProxyTargetRejectsBadInputWithoutCallingCatalog() {
+        let site = makeSite(kind: .proxy, proxyTarget: "http://127.0.0.1:8000")
+        let h = makeVM(sites: [site])
+        let vm = h.vm
+        let catalog = h.catalog
+
+        XCTAssertThrowsError(try vm.setProxyTarget(site.id, "not a url/path")) { error in
+            XCTAssertTrue(error is SiteActionError)
+        }
+        XCTAssertTrue(catalog.setProxyTargetCalls.isEmpty)
+    }
+
+    func testSetProxyTargetForwardsValidInput() throws {
+        let site = makeSite(kind: .proxy, proxyTarget: "http://127.0.0.1:8000")
+        let h = makeVM(sites: [site])
+        let vm = h.vm
+        let catalog = h.catalog
+
+        try vm.setProxyTarget(site.id, "http://127.0.0.1:9000")
+        XCTAssertEqual(catalog.setProxyTargetCalls.first?.1, "http://127.0.0.1:9000")
     }
 
     func testEnableDisableResetDNSDelegate() {

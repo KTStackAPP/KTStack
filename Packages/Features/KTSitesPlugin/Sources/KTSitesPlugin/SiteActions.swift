@@ -4,10 +4,12 @@ import KTPlatformContracts
 
 enum SiteActions {
     static func revealInFinder(_ site: SiteSummary) {
+        guard !site.path.isEmpty else { return }
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: site.path)])
     }
 
     static func openTerminal(_ site: SiteSummary) {
+        guard !site.path.isEmpty else { return }
         let folder = URL(fileURLWithPath: site.path)
         let terminal = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
         NSWorkspace.shared.open(

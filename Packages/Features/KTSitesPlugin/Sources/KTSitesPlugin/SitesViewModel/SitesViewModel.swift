@@ -4,11 +4,14 @@ import KTStackCore
 
 enum SiteActionError: LocalizedError {
     case duplicateNodePort(port: Int, domain: String)
+    case invalidProxyTarget(message: String)
 
     var errorDescription: String? {
         switch self {
         case let .duplicateNodePort(port, domain):
             "Port \(port) is already used by \(domain). Each Node site needs its own port."
+        case let .invalidProxyTarget(message):
+            message
         }
     }
 }
@@ -22,7 +25,7 @@ final class SitesViewModel: ObservableObject {
     @Published private(set) var runtimes: RuntimeState
     @Published private(set) var shares: [UUID: SiteShareState] = [:]
     @Published private(set) var dns: DNSResolverState
-    @Published var nodeRunning: [UUID: Bool] = [:]
+    @Published var upstreamRunning: [UUID: Bool] = [:]
     @Published var frameworks: [UUID: PHPFramework] = [:]
 
     let catalog: any SiteCatalogManaging

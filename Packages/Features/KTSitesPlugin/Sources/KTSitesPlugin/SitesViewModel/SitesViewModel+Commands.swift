@@ -30,6 +30,14 @@ extension SitesViewModel {
         catalog.setEngine(id, engine)
     }
 
+    func setProxyTarget(_ id: UUID, _ raw: String) throws {
+        // Validate client-side để báo lỗi ngay; platform validate lại khi ghi.
+        if case let .failure(error) = ProxyTarget.parse(raw) {
+            throw SiteActionError.invalidProxyTarget(message: error.localizedDescription)
+        }
+        try catalog.setProxyTarget(id, raw)
+    }
+
     func installApache() {
         webEngineManager.installApache()
     }

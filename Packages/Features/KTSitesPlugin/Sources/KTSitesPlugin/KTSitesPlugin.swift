@@ -81,11 +81,11 @@ public final class KTSitesPlugin: KTStackPlugin, SectionActivationObserving {
 
     @MainActor
     public func sectionDidActivate() {
-        vm.startNodeProbing()
+        vm.startUpstreamProbing()
     }
 
     @MainActor
     public func sectionDidDeactivate() {
-        vm.stopNodeProbing()
+        vm.stopUpstreamProbing()
     }
 }

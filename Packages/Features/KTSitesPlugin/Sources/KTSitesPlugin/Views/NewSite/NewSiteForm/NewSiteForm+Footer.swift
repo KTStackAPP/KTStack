@@ -52,6 +52,31 @@ extension NewSiteForm {
         .overlay(alignment: .top) { SiteFormControls.hairline }
     }
 
+    var proxyFooter: some View {
+        HStack(spacing: 10) {
+            if model.finished {
+                Spacer()
+                KTButton(title: "Done", kind: .primary) { onClose() }
+            } else if model.installing {
+                Spacer()
+                KTButton(title: "Cancel", kind: .secondary) { model.cancel() }
+            } else if model.error != nil {
+                Spacer()
+                KTButton(title: "Back", kind: .secondary) { model.reset() }
+                KTButton(title: "Try Again", kind: .primary) { addProxy() }
+            } else {
+                resolvesLabel(domain)
+                Spacer()
+                KTButton(title: "Cancel", kind: .secondary) { onClose() }
+                KTButton(title: "Add Proxy", systemImage: "arrow.left.arrow.right", kind: .primary) { addProxy() }
+                    .disabled(!proxyValid)
+            }
+        }
+        .padding(16)
+        .padding(.horizontal, 8)
+        .overlay(alignment: .top) { SiteFormControls.hairline }
+    }
+
     func resolvesLabel(_ value: String) -> some View {
         Text("Resolves at ")
             .font(.jbMono(12.5)).foregroundColor(KTColor.muted)
