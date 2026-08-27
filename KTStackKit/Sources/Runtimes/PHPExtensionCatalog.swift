@@ -104,12 +104,17 @@ public struct PHPExtensionCatalog: Sendable {
         ))
     }
 
+    public func compiledInModules(_ phpVersion: String) -> Set<String> {
+        Set(PHPModules.compiledIn(version: phpVersion, paths: paths))
+    }
+
     public func status(_ ext: PHPExtension, phpVersion: String) -> PHPExtensionStatus {
         status(
             ext,
             phpVersion: phpVersion,
             installed: installedExtensions(phpVersion),
-            soOnDisk: sharedObjectExists(ext.id, phpVersion: phpVersion)
+            soOnDisk: sharedObjectExists(ext.id, phpVersion: phpVersion),
+            compiledIn: compiledInModules(phpVersion)
         )
     }
 
@@ -117,9 +122,10 @@ public struct PHPExtensionCatalog: Sendable {
         _ ext: PHPExtension,
         phpVersion: String,
         installed: Set<String>,
-        soOnDisk: Bool
+        soOnDisk: Bool,
+        compiledIn: Set<String> = []
     ) -> PHPExtensionStatus {
-        if ext.isBuiltIn { return .builtIn }
+        if ext.isBuiltIn || compiledIn.contains(ext.id) { return .builtIn }
         if installed.contains(ext.id) { return .installed }
         if soOnDisk { return .installedButFailedToLoad }
         return release(ext.id, phpVersion: phpVersion) != nil ? .available : .unavailable

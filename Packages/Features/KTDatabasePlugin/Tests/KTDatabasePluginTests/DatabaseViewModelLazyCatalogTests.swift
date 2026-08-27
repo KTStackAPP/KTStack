@@ -5,14 +5,14 @@ import XCTest
 final class DatabaseViewModelLazyCatalogTests: XCTestCase {
     private final class CatalogStub: RelationalDriver, @unchecked Sendable {
         let kind: DatabaseKind = .mysql
-        var databasesDelay: Duration = .zero
+        var databasesGate: ReleaseGate?
         private(set) var allColumnsCalls = 0
         private(set) var foreignKeysCalls = 0
         var allColumnsFailNextCall = false
 
         func ping() async throws {}
         func listDatabases() async throws -> [DatabaseInfo] {
-            if databasesDelay > .zero { try? await Task.sleep(for: databasesDelay) }
+            if let databasesGate { await databasesGate.wait() }
             return [DatabaseInfo(name: "db")]
         }
 
@@ -175,12 +175,17 @@ final class DatabaseViewModelLazyCatalogTests: XCTestCase {
 
     func testActivityLabelShowsConnectingWhileConnecting() async {
         let driver = CatalogStub()
-        driver.databasesDelay = .milliseconds(60)
+        let gate = ReleaseGate()
+        driver.databasesGate = gate
         let vm = makeVM(driver)
 
         async let connecting: Void = vm.select(profile: .managedMySQL)
-        try? await Task.sleep(for: .milliseconds(15))
+        // listDatabases chặn tại gate nên nhãn "Connecting…" giữ nguyên; chờ trạng thái thay vì đồng hồ.
+        for _ in 0 ..< 400 where vm.currentActivityLabel != "Connecting…" {
+            try? await Task.sleep(for: .milliseconds(5))
+        }
         XCTAssertEqual(vm.currentActivityLabel, "Connecting…")
+        gate.release()
         await connecting
         XCTAssertNil(vm.currentActivityLabel)
     }

@@ -1,0 +1,35 @@
+# Mirrors scripts/ci-local.sh --quick minus lint (see lint.yml): architecture-check → package tests →
+# KTStackKit-Tests. Change one, change the other.
+name: Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  tests:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - run: xcodebuild -version && swift --version
+      - run: brew install xcodegen
+      # Folder reference in project.yml; its contents are gitignored build artifacts.
+      - run: mkdir -p KTStack/Resources/bin
+      - run: scripts/architecture-check.sh
+      - uses: actions/cache@v4
+        with:
+          path: Packages/Features/*/.build
+          key: spm-${{ runner.os }}-${{ hashFiles('Packages/Features/*/Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+      - name: Package tests
+        run: |
+          for pkg in Packages/Features/*/; do
+            [ -d "${pkg}Tests" ] || continue
+            swift test --package-path "$pkg"
+          done
+      - run: xcodegen generate
+      - name: KTStackKit-Tests
+        run: xcodebuild -project KTStack.xcodeproj -scheme KTStackKit-Tests -destination 'platform=macOS' -derivedDataPath .build-ci test

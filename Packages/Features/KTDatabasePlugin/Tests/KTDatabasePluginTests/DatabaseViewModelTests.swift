@@ -6,7 +6,7 @@ final class DatabaseViewModelTests: XCTestCase {
     private final class StubDriver: RelationalDriver, @unchecked Sendable {
         let kind: DatabaseKind = .mysql
         let tag: String
-        var databasesDelay: Duration = .zero
+        var databasesGate: ReleaseGate?
         var databasesResult: [DatabaseInfo]
         var queryDelay: Duration = .zero
         var queryShouldThrow: DatabaseError?
@@ -29,7 +29,7 @@ final class DatabaseViewModelTests: XCTestCase {
         func ping() async throws {}
 
         func listDatabases() async throws -> [DatabaseInfo] {
-            if databasesDelay > .zero { try? await Task.sleep(for: databasesDelay) }
+            if let databasesGate { await databasesGate.wait() }
             return databasesResult
         }
 
@@ -428,16 +428,20 @@ final class DatabaseViewModelTests: XCTestCase {
 
     func testStaleConnectResultIsDiscarded() async {
         // A slow connection started first must not clobber a faster one that supersedes it.
-        let slow = StubDriver(tag: "slow"); slow.databasesDelay = .milliseconds(120)
+        let gate = ReleaseGate()
+        let slow = StubDriver(tag: "slow"); slow.databasesGate = gate
         let fast = StubDriver(tag: "fast")
         var next: StubDriver = slow
         let vm = DatabaseViewModel(tools: FakeDatabaseTools(), makeDriver: { _, _ in next }, passwordFor: { _ in nil })
 
         async let first: Void = vm.select(profile: .managedMySQL)
-        // Let the slow select reach its awaiting listDatabases, then supersede it.
-        try? await Task.sleep(for: .milliseconds(20))
+        // Chờ slow vào listDatabases (đã lấy slow driver, đang chặn ở gate) rồi mới supersede.
+        for _ in 0 ..< 400 where vm.currentActivityLabel != "Connecting…" {
+            try? await Task.sleep(for: .milliseconds(5))
+        }
         next = fast
         await vm.select(profile: .managedMySQL)
+        gate.release()
         await first
 
         XCTAssertEqual(vm.databases.map(\.name), ["db_fast"]) // fast won; slow discarded

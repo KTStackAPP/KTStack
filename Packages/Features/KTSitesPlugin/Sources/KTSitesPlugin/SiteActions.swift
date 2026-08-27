@@ -20,6 +20,16 @@ enum SiteActions {
         )
     }
 
+    static func openInEditor(_ site: SiteSummary, editor: CodeEditor, catalog: CodeEditorCatalog) {
+        guard !site.path.isEmpty, let app = catalog.appURL(editor) else { return }
+        catalog.setPreferred(editor)
+        NSWorkspace.shared.open(
+            [URL(fileURLWithPath: site.path)],
+            withApplicationAt: app,
+            configuration: NSWorkspace.OpenConfiguration()
+        )
+    }
+
     static func openInBrowser(_ site: SiteSummary) {
         let scheme = site.secure ? "https" : "http"
         guard let url = URL(string: "\(scheme)://\(site.domain)/") else { return }

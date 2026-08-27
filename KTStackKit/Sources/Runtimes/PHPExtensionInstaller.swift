@@ -12,6 +12,7 @@ public struct PHPExtensionInstaller: Sendable {
         case noReleaseAvailable(ext: String, phpVersion: String)
         case checksumMissing(ext: String, phpVersion: String)
         case checksumMismatch(ext: String, expected: String, actual: String)
+        case alreadyBuiltIn(ext: String, phpVersion: String)
         public var errorDescription: String? {
             switch self {
             case let .noReleaseAvailable(ext, v):
@@ -20,6 +21,8 @@ public struct PHPExtensionInstaller: Sendable {
                 "\(ext).so for PHP \(v) has no verification record."
             case let .checksumMismatch(ext, expected, actual):
                 "\(ext).so checksum mismatch. Expected \(expected.prefix(12))…, got \(actual.prefix(12))…"
+            case let .alreadyBuiltIn(ext, v):
+                "\(ext) is compiled into PHP \(v), nothing to install."
             }
         }
     }
