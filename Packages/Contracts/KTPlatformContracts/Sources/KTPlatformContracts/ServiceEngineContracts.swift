@@ -4,7 +4,7 @@ import Foundation
 // ServiceManaging cho màn Services; nếu snapshot này khớp thì tái dùng, không thiết kế trước.
 
 public enum ServiceEngine: String, Sendable, CaseIterable, Hashable {
-    case mysql, postgres, redis, mongodb
+    case mysql, mariadb, postgres, redis, memcached, mongodb
 }
 
 public struct ServiceEngineRelease: Sendable, Hashable, Identifiable {

@@ -1,7 +1,7 @@
 import Foundation
 
 public enum ServiceKind: String, CaseIterable, Sendable, Hashable {
-    case nginx, phpFpm, dnsmasq, mysql, postgres, redis, mongodb, mailpit
+    case nginx, phpFpm, dnsmasq, mysql, mariadb, postgres, redis, memcached, mongodb, mailpit
 
     public var displayName: String {
         switch self {
@@ -10,8 +10,10 @@ public enum ServiceKind: String, CaseIterable, Sendable, Hashable {
         case .phpFpm: "PHP-FPM"
         case .dnsmasq: "dnsmasq"
         case .mysql: "MySQL"
+        case .mariadb: "MariaDB"
         case .postgres: "PostgreSQL"
         case .redis: "Redis"
+        case .memcached: "Memcached"
         case .mongodb: "MongoDB"
         case .mailpit: "Mailpit"
         }
@@ -23,8 +25,10 @@ public enum ServiceKind: String, CaseIterable, Sendable, Hashable {
         case .phpFpm: "chevron.left.forwardslash.chevron.right"
         case .dnsmasq: "point.3.connected.trianglepath.dotted"
         case .mysql: "cylinder.split.1x2"
+        case .mariadb: "cylinder.split.1x2"
         case .postgres: "cylinder.split.1x2.fill"
         case .redis: "bolt.fill"
+        case .memcached: "memorychip"
         case .mongodb: "leaf.fill"
         case .mailpit: "envelope"
         }
@@ -36,8 +40,10 @@ public enum ServiceKind: String, CaseIterable, Sendable, Hashable {
         case .phpFpm: nil
         case .dnsmasq: 53
         case .mysql: 3306
+        case .mariadb: 3306
         case .postgres: 5432
         case .redis: 6379
+        case .memcached: 11211
         case .mongodb: 27017
         case .mailpit: 8025
         }
@@ -49,8 +55,10 @@ public enum ServiceKind: String, CaseIterable, Sendable, Hashable {
         case .phpFpm: "php-fpm"
         case .dnsmasq: "dnsmasq"
         case .mysql: "mysqld"
+        case .mariadb: "mariadbd"
         case .postgres: "postgres"
         case .redis: "redis-server"
+        case .memcached: "memcached"
         case .mongodb: "mongod"
         case .mailpit: "mailpit"
         }

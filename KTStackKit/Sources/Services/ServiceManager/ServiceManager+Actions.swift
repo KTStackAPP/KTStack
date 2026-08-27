@@ -11,7 +11,56 @@ extension ServiceManager {
             server.togglePHP()
         default:
             guard let svc = services[kind] else { return }
-            perform(kind) { running ? try await svc.stop() : try await svc.start() }
+            if running {
+                perform(kind) { try await svc.stop() }
+            } else {
+                run3306Aware(kind, svc) { try await svc.start() }
+            }
+        }
+    }
+
+    // Sibling họ 3306 đang chạy hay không (chỉ mysql/mariadb có sibling).
+    private func runningSibling3306(_ kind: ServiceKind) -> (other: ServiceKind, svc: ManagedService)? {
+        guard let other = SQLFamily.other(kind),
+              snapshot(other)?.status == .running, let otherSvc = services[other] else { return nil }
+        return (other, otherSvc)
+    }
+
+    // MySQL và MariaDB dùng chung 3306: nếu sibling đang chạy thì bootout nó trước rồi start engine này,
+    // không thì chạy action bình thường. Chặn mọi lối start/restart nạp hai job 3306 cùng lúc.
+    private func run3306Aware(_ kind: ServiceKind, _ svc: ManagedService,
+                              action: @escaping @Sendable () async throws -> Void) {
+        if let (other, otherSvc) = runningSibling3306(kind) {
+            handoff3306(start: kind, startSvc: svc, stop: other, stopSvc: otherSvc)
+        } else {
+            perform(kind) { try await action() }
+        }
+    }
+
+    // Bootout engine 3306 đang chạy rồi mới bootstrap engine mới: không có lúc nào hai job cùng loaded.
+    private func handoff3306(
+        start: ServiceKind, startSvc: ManagedService,
+        stop: ServiceKind, stopSvc: ManagedService
+    ) {
+        guard !busy.contains(start), !busy.contains(stop) else { return }
+        busy.insert(start); busy.insert(stop)
+        restart.reset(start); restart.reset(stop)
+        setSnapshotBusy(start, true); setSnapshotBusy(stop, true)
+        Task { [weak self] in
+            var startMessage: String?
+            do {
+                try await stopSvc.stop()
+                try await startSvc.start()
+            } catch {
+                startMessage = error.localizedDescription
+            }
+            await self?.refresh()
+            await MainActor.run {
+                guard let self else { return }
+                self.busy.remove(start); self.busy.remove(stop)
+                self.setSnapshotBusy(start, false, errorMessage: startMessage)
+                self.setSnapshotBusy(stop, false)
+            }
         }
     }
 
@@ -23,21 +72,24 @@ extension ServiceManager {
             server.restartPHP()
         default:
             guard let svc = services[kind] else { return }
-            perform(kind) { try await svc.restart() }
+            run3306Aware(kind, svc) { try await svc.restart() }
         }
     }
 
     public func startAll() {
         if !server.isRunning { server.start() }
-        for kind in [ServiceKind.mysql, .postgres, .redis, .mongodb, .mailpit] {
+        let mysqlInstalled = services[.mysql]?.isInstalled == true
+        for kind in Self.onDemandKinds {
+            // Cùng port 3306: nếu MySQL đã cài thì bỏ qua MariaDB, tránh start hai engine tranh cổng.
+            if kind == .mariadb, mysqlInstalled { continue }
             guard let svc = services[kind], svc.isInstalled, activeInstallKey(kind) == nil else { continue }
-            perform(kind) { try await svc.start() }
+            run3306Aware(kind, svc) { try await svc.start() }
         }
     }
 
     public func stopAll() {
         if server.isRunning { server.stop() }
-        for kind in [ServiceKind.mysql, .postgres, .redis, .mongodb, .mailpit] {
+        for kind in Self.onDemandKinds {
             guard let svc = services[kind], activeInstallKey(kind) == nil else { continue }
             perform(kind) { try await svc.stop() }
         }
@@ -45,9 +97,11 @@ extension ServiceManager {
 
     public func restartAll() {
         server.restart()
-        for kind in [ServiceKind.mysql, .postgres, .redis, .mongodb, .mailpit] {
+        let mysqlInstalled = services[.mysql]?.isInstalled == true
+        for kind in Self.onDemandKinds {
+            if kind == .mariadb, mysqlInstalled { continue }
             guard let svc = services[kind], svc.isInstalled, activeInstallKey(kind) == nil else { continue }
-            perform(kind) { try await svc.restart() }
+            run3306Aware(kind, svc) { try await svc.restart() }
         }
     }
 

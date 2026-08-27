@@ -16,7 +16,7 @@ final class ServiceManagementTests: XCTestCase {
         XCTAssertEqual(ServiceKind.mongodb.defaultPort, 27017)
         XCTAssertEqual(ServiceKind.mongodb.launchdLabel, "com.ktstack.mongodb")
         XCTAssertEqual(ServiceKind.mongodb.binaryName, "mongod")
-        XCTAssertEqual(Set(ServiceKind.allCases).count, 8)
+        XCTAssertEqual(Set(ServiceKind.allCases).count, 10)
     }
 
     func testServiceDataAndLaunchAgentPaths() {
@@ -265,12 +265,14 @@ final class ServiceManagementTests: XCTestCase {
     func testServiceManagerOrderIncludesMongoDB() {
         let order = ServiceManager.order
         guard let redisIdx = order.firstIndex(of: .redis),
+              let memcachedIdx = order.firstIndex(of: .memcached),
               let mongoIdx = order.firstIndex(of: .mongodb),
               let mailpitIdx = order.firstIndex(of: .mailpit)
         else {
             return XCTFail("order missing an expected kind")
         }
-        XCTAssertEqual(mongoIdx, redisIdx + 1, "MongoDB must sit right after Redis")
+        XCTAssertEqual(memcachedIdx, redisIdx + 1, "Memcached must sit right after Redis")
+        XCTAssertEqual(mongoIdx, memcachedIdx + 1, "MongoDB must sit right after Memcached")
         XCTAssertLessThan(mongoIdx, mailpitIdx, "MongoDB must precede Mailpit")
     }
 

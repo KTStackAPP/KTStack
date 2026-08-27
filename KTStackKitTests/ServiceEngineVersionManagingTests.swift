@@ -31,7 +31,7 @@ final class ServiceEngineVersionManagingTests: XCTestCase {
         try installRedis("7.4.2", paths)
 
         let snapshots = sut.engineSnapshots
-        XCTAssertEqual(snapshots.map(\.engine), [.mysql, .postgres, .redis, .mongodb])
+        XCTAssertEqual(snapshots.map(\.engine), [.mysql, .mariadb, .postgres, .redis, .memcached, .mongodb])
 
         let redis = try XCTUnwrap(snapshots.first { $0.engine == .redis })
         XCTAssertTrue(redis.installed.contains("7.4.2"))

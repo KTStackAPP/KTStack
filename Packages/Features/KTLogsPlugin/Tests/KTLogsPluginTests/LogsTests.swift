@@ -33,12 +33,16 @@ final class LogsTests: XCTestCase {
         let paths = AppSupportPaths(root: root)
         try paths.ensureDirectoryTree()
         try Data().write(to: paths.serviceLog("redis")) // redis ran
+        try Data().write(to: paths.serviceLog("mariadb")) // mariadb ran
+        try Data().write(to: paths.serviceLog("memcached")) // memcached ran
         try Data().write(to: paths.siteAccessLog("demo.test")) // a site served
         let sources = LogCatalog(paths: paths).sources(siteDomains: ["demo.test"], phpVersions: ["8.4"])
         let ids = Set(sources.map(\.id))
         XCTAssertTrue(ids.contains("nginx-error")) // core, always listed
         XCTAssertTrue(ids.contains("php-8.4")) // active pool
         XCTAssertTrue(ids.contains("redis")) // exists
+        XCTAssertTrue(ids.contains("mariadb")) // exists
+        XCTAssertTrue(ids.contains("memcached")) // exists
         XCTAssertTrue(ids.contains("site-demo.test-access")) // exists
         XCTAssertFalse(ids.contains("mysql")) // never ran → absent
     }

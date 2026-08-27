@@ -45,7 +45,7 @@ The features other tools **lock behind a paid plan or a separate app** (the data
 | No Docker / no Homebrew needed | ✅ | ✅ | ❌ (Homebrew) |
 | Trusted local HTTPS | ✅ | ✅ | extra setup |
 | Multiple PHP versions | ✅ 7.4 → 8.5 | ✅ | ✅ |
-| Database engines (MySQL/PG/Redis/Mongo) | ✅ **built in** | Pro | ❌ |
+| Database engines (MySQL/MariaDB/PG/Redis/Memcached/Mongo) | ✅ **built in** | Pro | ❌ |
 | **Database editor** (browse/edit/SQL/ER) | ✅ **built in** | ❌ (use TablePlus) | ❌ |
 | Mail testing (Mailpit) | ✅ | Pro | ❌ |
 | Public sharing (Cloudflare Tunnel) | ✅ | Pro | ❌ |
@@ -60,7 +60,7 @@ The features other tools **lock behind a paid plan or a separate app** (the data
 - **PHP 7.4 → 8.5** (seven versions, EOL versions clearly flagged) and **Node.js 20/22/24/26**, self-contained, no Homebrew required
 - **Proxy sites**: point a `.test` domain at any local port, LAN host or remote HTTPS origin
 - **Per-site settings**: alias domains (extra `.test` names, added to the HTTPS certificate), environment variables (passed to PHP and Node), and custom nginx directives (validated with `nginx -t` before reload)
-- **Databases**: MySQL, PostgreSQL, Redis, MongoDB
+- **Databases & cache**: MySQL, MariaDB, PostgreSQL, Redis, Memcached, MongoDB
 - **Built-in database editor**: browse & edit rows, run SQL, structure/DDL, foreign-key navigation, and an interactive ER diagram, for MySQL, PostgreSQL and SQLite
 - **Mailpit** mail catcher
 - **Per-site & per-service log viewer**

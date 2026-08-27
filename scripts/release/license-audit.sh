@@ -15,8 +15,10 @@ COMPONENTS=(
   "mkcert|BSD-3-Clause|https://github.com/FiloSottile/mkcert"
   "Mailpit|MIT|https://github.com/axllent/mailpit"
   "MySQL (mysqld)|GPL-2.0-only|https://dev.mysql.com/downloads/mysql/"
+  "MariaDB (mariadbd)|GPL-2.0-only|https://mariadb.org/download/"
   "PostgreSQL|PostgreSQL|https://www.postgresql.org/ftp/source/"
   "Redis (>=7)|SSPL-1.0 / RSALv2|https://github.com/redis/redis"
+  "Memcached (server)|BSD-3-Clause|https://memcached.org/"
   "Node.js|MIT (+deps)|https://nodejs.org/dist/"
   "Go (on-demand)|BSD-3-Clause|https://go.dev/dl/"
   "Sparkle|MIT|https://github.com/sparkle-project/Sparkle"
@@ -66,7 +68,7 @@ COMPONENTS=(
 )
 # Copyleft components that require a written offer of source.
 SOURCE_OFFER=(
-  "dnsmasq" "MySQL (mysqld)" "Redis (>=7)"
+  "dnsmasq" "MySQL (mysqld)" "MariaDB (mariadbd)" "Redis (>=7)"
   "unixODBC (libodbc)" "FreeTDS (libsybdb)" "GMP (libgmp)"
   "GNU gettext (libintl)" "GNU Aspell (libaspell/libpspell)" "GNU libtool (libltdl)"
 )

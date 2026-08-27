@@ -22,7 +22,7 @@ final class ServicesViewModel: ObservableObject {
         ("Mail", [.mailpit]),
     ]
 
-    static let dbIDs: [ServiceID] = [.mysql, .postgres, .redis, .mongodb]
+    static let dbIDs: [ServiceID] = [.mysql, .mariadb, .postgres, .redis, .memcached, .mongodb]
 
     private let servicesManager: any ServiceManaging
     private let enginesManager: any ServiceEngineVersionManaging
@@ -107,8 +107,10 @@ final class ServicesViewModel: ObservableObject {
         switch id {
         case .nginx: "nginx-error"
         case .mysql: "mysql"
+        case .mariadb: "mariadb"
         case .postgres: "postgres"
         case .redis: "redis"
+        case .memcached: "memcached"
         case .mongodb: "mongodb"
         case .mailpit: "mailpit"
         case .phpFpm, .dnsmasq: nil

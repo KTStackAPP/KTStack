@@ -89,6 +89,22 @@ public struct ServiceBinaryCatalog: Sendable {
             ]
         ),
         ServiceBinaryRelease(
+            kind: .mariadb,
+            version: "11.4.13",
+            sha256ByArch: [
+                "arm64": "7bc55a8a39823524058e1aedcec72c0c1df8975ba6042f7d448eed5d4f2ae9f8",
+                "x86_64": "4ca2355c8893c13cb6dce87a19cc0855617d1d28abff291afe0276e1dda9cc25",
+            ]
+        ),
+        ServiceBinaryRelease(
+            kind: .mariadb,
+            version: "10.11.19",
+            sha256ByArch: [
+                "arm64": "a87ea0fd33974039dce1ee6180822303ed39124fde525d63e0322275aa87755e",
+                "x86_64": "b1209a9d78fa6c6714f115de9dc527fb80ea85b841f0aaecaf6523c9c39f3f04",
+            ]
+        ),
+        ServiceBinaryRelease(
             kind: .redis,
             version: "7.4.2",
             sha256ByArch: [
@@ -102,6 +118,14 @@ public struct ServiceBinaryCatalog: Sendable {
             sha256ByArch: [
                 "arm64": "83e6efea6503673d73712856c333d101c62242f0d6a71c4da4c4eed3903e5d2b",
                 "x86_64": "50044fcd76cee4e35c86b642c7d794937ed98014c0876ca26471bc04fd821f85",
+            ]
+        ),
+        ServiceBinaryRelease(
+            kind: .memcached,
+            version: "1.6.38",
+            sha256ByArch: [
+                "arm64": "8189a5edabd51ff74d8c9070046c493a4824fab30738978cacbc55fc979405f5",
+                "x86_64": "3640fa60ea2e16b0323eea6b3e6f193f6977bc559b656050a59ca7f51fb69bff",
             ]
         ),
         ServiceBinaryRelease(
@@ -174,6 +198,8 @@ public struct ServiceBinaryCatalog: Sendable {
         case .redis: "bin/redis-server"
         case .postgres: "bin/postgres"
         case .mysql: "bin/mysqld"
+        case .mariadb: "bin/mariadbd"
+        case .memcached: "bin/memcached"
         case .mongodb: "bin/mongod"
         default: nil
         }

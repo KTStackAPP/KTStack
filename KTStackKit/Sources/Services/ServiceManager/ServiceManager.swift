@@ -4,8 +4,10 @@ import KTStackCore
 
 @MainActor
 public final class ServiceManager: ObservableObject {
-    public static let order: [ServiceKind] = [.nginx, .phpFpm, .dnsmasq, .mysql, .postgres, .redis, .mongodb, .mailpit]
-    static let dbCacheKinds: Set<ServiceKind> = [.mysql, .postgres, .redis, .mongodb]
+    public static let order: [ServiceKind] = [.nginx, .phpFpm, .dnsmasq, .mysql, .mariadb, .postgres, .redis, .memcached, .mongodb, .mailpit]
+    static let dbCacheKinds: Set<ServiceKind> = [.mysql, .mariadb, .postgres, .redis, .memcached, .mongodb]
+    // On-demand engine (không phải web front): Start/Stop/Restart All lặp qua đây.
+    static let onDemandKinds: [ServiceKind] = [.mysql, .mariadb, .postgres, .redis, .memcached, .mongodb, .mailpit]
 
     @Published public internal(set) var snapshots: [ServiceSnapshot] = []
 
@@ -59,11 +61,19 @@ public final class ServiceManager: ObservableObject {
         let mongoProvider: () -> String? = {
             ServiceVersionStore(paths: paths, catalog: ServiceBinaryCatalog(paths: paths)).activeVersion(.mongodb)
         }
+        let mariadbProvider: () -> String? = {
+            ServiceVersionStore(paths: paths, catalog: ServiceBinaryCatalog(paths: paths)).activeVersion(.mariadb)
+        }
+        let memcachedProvider: () -> String? = {
+            ServiceVersionStore(paths: paths, catalog: ServiceBinaryCatalog(paths: paths)).activeVersion(.memcached)
+        }
         services = [
             .dnsmasq: DnsmasqProxyService(dns: dns),
             .mysql: MySQLController(paths: paths, agents: agents, activeVersion: mysqlProvider),
+            .mariadb: MySQLController(paths: paths, agents: agents, activeVersion: mariadbProvider, flavor: .mariadb),
             .postgres: PostgreSQLController(paths: paths, agents: agents, activeVersion: postgresProvider),
             .redis: RedisController(paths: paths, agents: agents, activeVersion: redisProvider),
+            .memcached: MemcachedController(paths: paths, agents: agents, activeVersion: memcachedProvider),
             .mongodb: MongoDBController(paths: paths, agents: agents, activeVersion: mongoProvider),
             .mailpit: MailpitController(paths: paths, agents: agents),
         ]

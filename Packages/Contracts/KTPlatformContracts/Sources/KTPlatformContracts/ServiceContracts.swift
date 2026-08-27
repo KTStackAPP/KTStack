@@ -2,13 +2,15 @@ import Foundation
 
 // rawValue trùng ServiceKind.rawValue: banner id "error-<raw>" và runtime dir dùng nó. Frozen.
 public enum ServiceID: String, Sendable, CaseIterable, Hashable {
-    case nginx, phpFpm, dnsmasq, mysql, postgres, redis, mongodb, mailpit
+    case nginx, phpFpm, dnsmasq, mysql, mariadb, postgres, redis, memcached, mongodb, mailpit
 
     public var engine: ServiceEngine? {
         switch self {
         case .mysql: .mysql
+        case .mariadb: .mariadb
         case .postgres: .postgres
         case .redis: .redis
+        case .memcached: .memcached
         case .mongodb: .mongodb
         default: nil
         }
