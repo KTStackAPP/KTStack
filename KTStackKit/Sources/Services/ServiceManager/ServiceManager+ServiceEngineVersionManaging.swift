@@ -61,8 +61,10 @@ extension ServiceEngine {
     var serviceKind: ServiceKind {
         switch self {
         case .mysql: .mysql
+        case .mariadb: .mariadb
         case .postgres: .postgres
         case .redis: .redis
+        case .memcached: .memcached
         case .mongodb: .mongodb
         }
     }

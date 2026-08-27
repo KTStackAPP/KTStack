@@ -174,6 +174,8 @@ public struct ServiceBinaryCatalog: Sendable {
         case .redis: "bin/redis-server"
         case .postgres: "bin/postgres"
         case .mysql: "bin/mysqld"
+        case .mariadb: "bin/mariadbd"
+        case .memcached: "bin/memcached"
         case .mongodb: "bin/mongod"
         default: nil
         }

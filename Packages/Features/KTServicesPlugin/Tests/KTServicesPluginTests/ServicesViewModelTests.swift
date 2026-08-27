@@ -47,8 +47,10 @@ final class ServicesViewModelTests: XCTestCase {
     func testLogSourceID() {
         XCTAssertEqual(ServicesViewModel.logSourceID(.nginx), "nginx-error")
         XCTAssertEqual(ServicesViewModel.logSourceID(.mysql), "mysql")
+        XCTAssertEqual(ServicesViewModel.logSourceID(.mariadb), "mariadb")
         XCTAssertEqual(ServicesViewModel.logSourceID(.postgres), "postgres")
         XCTAssertEqual(ServicesViewModel.logSourceID(.redis), "redis")
+        XCTAssertEqual(ServicesViewModel.logSourceID(.memcached), "memcached")
         XCTAssertEqual(ServicesViewModel.logSourceID(.mongodb), "mongodb")
         XCTAssertEqual(ServicesViewModel.logSourceID(.mailpit), "mailpit")
         XCTAssertNil(ServicesViewModel.logSourceID(.phpFpm))

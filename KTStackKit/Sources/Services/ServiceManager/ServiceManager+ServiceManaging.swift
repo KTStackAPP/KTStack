@@ -39,8 +39,10 @@ extension ServiceID {
         case .phpFpm: .phpFpm
         case .dnsmasq: .dnsmasq
         case .mysql: .mysql
+        case .mariadb: .mariadb
         case .postgres: .postgres
         case .redis: .redis
+        case .memcached: .memcached
         case .mongodb: .mongodb
         case .mailpit: .mailpit
         }

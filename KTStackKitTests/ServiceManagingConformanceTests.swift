@@ -19,7 +19,7 @@ final class ServiceManagingConformanceTests: XCTestCase {
         let (sut, paths) = try makeManager()
         defer { try? FileManager.default.removeItem(at: paths.config.deletingLastPathComponent()) }
         let states = (sut as any ServiceManaging).serviceStates
-        XCTAssertEqual(states.map(\.id), [.nginx, .phpFpm, .dnsmasq, .mysql, .postgres, .redis, .mongodb, .mailpit])
+        XCTAssertEqual(states.map(\.id), [.nginx, .phpFpm, .dnsmasq, .mysql, .mariadb, .postgres, .redis, .memcached, .mongodb, .mailpit])
         XCTAssertEqual(states.map(\.id.rawValue), ServiceManager.order.map(\.rawValue))
     }
 
@@ -36,8 +36,10 @@ final class ServiceManagingConformanceTests: XCTestCase {
 
     func testServiceIDEngineMapping() {
         XCTAssertEqual(ServiceID.mysql.engine, .mysql)
+        XCTAssertEqual(ServiceID.mariadb.engine, .mariadb)
         XCTAssertEqual(ServiceID.postgres.engine, .postgres)
         XCTAssertEqual(ServiceID.redis.engine, .redis)
+        XCTAssertEqual(ServiceID.memcached.engine, .memcached)
         XCTAssertEqual(ServiceID.mongodb.engine, .mongodb)
         for id in [ServiceID.nginx, .phpFpm, .dnsmasq, .mailpit] {
             XCTAssertNil(id.engine)

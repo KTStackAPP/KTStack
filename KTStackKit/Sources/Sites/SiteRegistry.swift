@@ -151,7 +151,7 @@ public final class SiteRegistry: ObservableObject {
 
     public func nextFreeNodePort() -> Int {
         let used = Set(sites.compactMap(\.nodePort))
-        let reserved: Set = [3306, 5432, 6379, 8025, 27017]
+        let reserved: Set = [3306, 5432, 6379, 8025, 11211, 27017]
         for port in 3000...3999 where !used.contains(port) && !reserved.contains(port) {
             return port
         }

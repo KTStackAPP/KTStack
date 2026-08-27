@@ -2,7 +2,7 @@ import KTPlatformContracts
 import KTPluginKit
 import KTStackCore
 
-/// Một mục trên rail: 2 ngôn ngữ, 2 web engine, 4 DB/cache engine.
+/// Một mục trên rail: 2 ngôn ngữ, 2 web engine, 6 DB/cache engine.
 enum RuntimesCategory: Hashable {
     case php
     case node
@@ -26,6 +26,7 @@ enum RuntimesCategory: Hashable {
         case .node: "Default applies to terminals. Sites run their own server."
         case .nginx: "Front terminator and default per-site engine."
         case .apache: "Per-site engine over mod_proxy_fcgi."
+        case .engine(.memcached): "In-memory only, nothing stored on disk."
         case .engine: "Data is stored separately per version."
         }
     }

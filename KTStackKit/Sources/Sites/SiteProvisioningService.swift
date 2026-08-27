@@ -54,8 +54,8 @@ public final class SiteProvisioningService: SiteProvisioning, WordPressRestoring
 
     public convenience init(paths: AppSupportPaths = AppSupportPaths(), server: LocalServerController) {
         let registry = server.registry
-        let mysql = MySQLController(paths: paths, agents: LaunchAgentManager(paths: paths))
-        let ensureEngine: @Sendable () async throws -> Void = { try await mysql.start() }
+        let sqlFamily = SQLFamily(paths: paths, agents: LaunchAgentManager(paths: paths))
+        let ensureEngine: @Sendable () async throws -> Void = { try await sqlFamily.ensureRunning() }
         let database = DatabaseProvisioner(ensureEngine: ensureEngine)
         let mkcert = MkcertRunner(mkcert: paths.mkcertBinary, caroot: paths.caDir)
         let httpsProvisioner = SiteHTTPSProvisioner(

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publish the self-built, relocatable runtime/engine artifacts (PHP, Redis, Postgres) to a GitHub
+# Publish the self-built, relocatable runtime/engine artifacts (PHP, MySQL, MariaDB, Redis, Memcached, Postgres) to a GitHub
 # Release so the in-app on-demand installer can download them. php.net / Redis / Postgres ship no
 # relocatable macOS arm64 drop-in, so KTStack builds its own (scripts/build-*.sh) and hosts them here;
 # the manifests in RuntimeCatalog.swift / ServiceBinaryCatalog.swift point at this Release's assets.
@@ -26,7 +26,9 @@ DEFAULT_ARTIFACTS=(
   "php-8.3-arm64.tar.gz"
   "php-8.1-arm64.tar.gz"
   "mysql-9.6.0-arm64.tar.gz"
+  "mariadb-11.4.4-arm64.tar.gz"
   "redis-7.4.2-arm64.tar.gz"
+  "memcached-1.6.38-arm64.tar.gz"
   "postgres-17.10-arm64.tar.gz"
 )
 ARTIFACTS=("$@")
@@ -54,7 +56,7 @@ else
   echo "Creating release $TAG."
   gh release create "$TAG" --repo "$REPO" \
     --title "KTStack runtime binaries ($TAG)" \
-    --notes "Self-built, relocatable macOS arm64 runtime/engine artifacts (PHP, Redis, Postgres) for KTStack's on-demand installer. Each .tar.gz has a matching .sha256." \
+    --notes "Self-built, relocatable macOS runtime/engine artifacts (PHP, MySQL, MariaDB, Redis, Memcached, Postgres) for KTStack's on-demand installer. Each .tar.gz has a matching .sha256." \
     --latest=false
 fi
 
