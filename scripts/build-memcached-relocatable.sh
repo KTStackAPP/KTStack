@@ -30,7 +30,8 @@ cd "$BUILD"
 SRC="memcached-$MEMCACHED_VER"
 if [[ ! -d "$SRC" ]]; then
     echo "=== fetch memcached source ==="
-    curl -fsSL "https://memcached.org/files/memcached-${MEMCACHED_VER}.tar.gz" -o memcached.tgz
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
+        "https://memcached.org/files/memcached-${MEMCACHED_VER}.tar.gz" -o memcached.tgz
     tar -xf memcached.tgz
 fi
 

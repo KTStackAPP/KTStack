@@ -26,7 +26,19 @@ BUILD="${BUILD:-$ROOT/.build-cache/mariadb-$ARCH-$MARIADB_VER}"
 PREFIX="$BUILD/buildroot"
 source "$ROOT/scripts/lib-relocatable.sh"
 
-command -v cmake >/dev/null || { echo "cmake required (brew install cmake)" >&2; exit 2; }
+# Pick the arch-matched cmake explicitly, never PATH: the host runs a cmake per Homebrew, and a plain
+# `cmake` can resolve to the sibling-arch one. cmake's host-CPU detection drives the mysys crc32 source
+# gate, so an x86_64 cmake on an arm64 build compiles crc32c_amd64.cc (x86 intrinsics) and fails, and a
+# cross-build's CMAKE_SYSTEM_PROCESSOR is forced back to the host anyway. Run the target-arch cmake so
+# detection matches the target: arm64 cmake for arm64, x86_64 cmake under Rosetta for x86_64.
+if [[ "$ARCH" == "x86_64" && "$(uname -m)" == "arm64" ]]; then
+    CMAKE=(arch -x86_64 /usr/local/bin/cmake)
+elif [[ "$ARCH" == "arm64" ]]; then
+    CMAKE=(/opt/homebrew/bin/cmake)
+else
+    CMAKE=(cmake)
+fi
+"${CMAKE[@]}" --version >/dev/null 2>&1 || { echo "cmake required for $ARCH (brew install cmake)" >&2; exit 2; }
 BREW="$(brew_for_arch)"
 OPENSSL_PREFIX="${OPENSSL_PREFIX:-$($BREW --prefix openssl@3 2>/dev/null || true)}"
 [[ -n "$OPENSSL_PREFIX" ]] || { echo "openssl@3 required (brew install openssl@3)" >&2; exit 2; }
@@ -38,34 +50,40 @@ cd "$BUILD"
 SRC="mariadb-$MARIADB_VER"
 if [[ ! -d "$SRC" ]]; then
     echo "=== fetch mariadb source ($MARIADB_VER) ==="
-    curl -fsSL "https://archive.mariadb.org/mariadb-${MARIADB_VER}/source/mariadb-${MARIADB_VER}.tar.gz" -o mariadb.tgz
+    # Source tarball is large; HTTP/2 CANCEL flakes on archive.mariadb.org, so retry over HTTP/1.1.
+    curl -fsSL --http1.1 --retry 5 --retry-delay 3 --retry-all-errors \
+        "https://archive.mariadb.org/mariadb-${MARIADB_VER}/source/mariadb-${MARIADB_VER}.tar.gz" -o mariadb.tgz
     tar -xf mariadb.tgz
 fi
 
 if [[ ! -x "$PREFIX/bin/mariadbd" ]]; then
     echo "=== cmake configure (lean: storage-heavy plugins off) ==="
-    XLIB_FLAGS=()
-    if [[ "$ARCH" != "$(uname -m)" ]]; then
-        XLIB_FLAGS=(-DCMAKE_PREFIX_PATH="$($BREW --prefix pcre2);$($BREW --prefix zlib)")
-    fi
-    # Bundled pcre2/libfmt keep the link surface free of external dylibs. If cmake can't fetch them
+    # Pin the active Xcode SDK: mixed CommandLineTools/Xcode SDKs make libc++ <cstddef> fail to find its
+    # sibling <stddef.h> and the build dies early in gen_lex_hash. One coherent sysroot fixes it.
+    SDKROOT_PATH="$(xcrun --show-sdk-path)"
+    # Point cmake at the arch-correct Homebrew root so zstd/zlib resolve to the target arch, not the sibling
+    # Homebrew (arm64 build must not pick /usr/local x86_64 libzstd, and vice versa).
+    BREW_ROOT="$($BREW --prefix)"
+    # Bundled pcre2/libfmt/zlib keep the link surface free of external dylibs. If cmake can't fetch them
     # offline, swap -DWITH_PCRE=bundled → =system and vendor libpcre2-8.dylib after staging.
-    cmake -S "$SRC" -B "$BUILD/cmbuild" \
+    "${CMAKE[@]}" -S "$SRC" -B "$BUILD/cmbuild" \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
         -DCMAKE_SYSTEM_PROCESSOR="$ARCH" \
+        -DCMAKE_OSX_SYSROOT="$SDKROOT_PATH" \
         -DCMAKE_INSTALL_PREFIX="$PREFIX" \
-        ${XLIB_FLAGS[@]+"${XLIB_FLAGS[@]}"} \
+        -DCMAKE_PREFIX_PATH="$BREW_ROOT" \
         -DWITH_SSL="$OPENSSL_PREFIX" \
-        -DWITH_PCRE=bundled -DWITH_LIBFMT=bundled \
+        -DWITH_PCRE=bundled -DWITH_LIBFMT=bundled -DWITH_ZLIB=bundled \
         -DWITH_UNIT_TESTS=OFF -DWITH_WSREP=OFF \
         -DPLUGIN_COLUMNSTORE=NO -DPLUGIN_ROCKSDB=NO -DPLUGIN_SPIDER=NO \
         -DPLUGIN_MROONGA=NO -DPLUGIN_CONNECT=NO -DPLUGIN_OQGRAPH=NO \
         -DPLUGIN_S3=NO -DPLUGIN_TOKUDB=NO \
+        -DPLUGIN_AUTH_PAM=NO -DPLUGIN_AUTH_PAM_V1=NO \
         -DINSTALL_MYSQLTESTDIR= >/dev/null
     echo "=== make + install (this is the long part) ==="
-    cmake --build "$BUILD/cmbuild" -j"$(sysctl -n hw.ncpu)" >/dev/null
-    cmake --install "$BUILD/cmbuild" >/dev/null
+    "${CMAKE[@]}" --build "$BUILD/cmbuild" -j"$(sysctl -n hw.ncpu)" >/dev/null
+    "${CMAKE[@]}" --install "$BUILD/cmbuild" >/dev/null
 fi
 
 echo "=== stage self-contained artifact tree ==="
