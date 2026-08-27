@@ -1,3 +1,4 @@
+import AppKit
 import KTPlatformContracts
 import KTPluginKit
 import SwiftUI
@@ -12,6 +13,8 @@ struct SiteActionsMenu: View {
     var onSettings: () -> Void = {}
 
     @State private var open = false
+    @State private var pickingEditor = false
+    @State private var editors = CodeEditorCatalog(locate: { _ in nil })
 
     var body: some View {
         Button { open.toggle() } label: {
@@ -24,32 +27,84 @@ struct SiteActionsMenu: View {
         .buttonStyle(.plain)
         .accessibilityLabel("More actions for \(site.name)")
         .popover(isPresented: $open, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 0) {
-                header
-                divider
-                VStack(alignment: .leading, spacing: 1) {
-                    sectionLabel("Open")
-                    row("Open in Browser", "safari", "⌘O", enabled: canOpen) { SiteActions.openInBrowser(site) }
-                    if !site.path.isEmpty {
-                        row("Reveal in Finder", "folder", "⇧⌘R") { SiteActions.revealInFinder(site) }
-                        row("Open Terminal Here", "terminal", "⌥⌘T") { SiteActions.openTerminal(site) }
-                    }
-                    sectionLabel("Develop")
-                    row("Site Settings…", "slider.horizontal.3", "", action: onSettings)
-                    row("Logs", "text.alignleft", "⌘L", action: onOpenLogs)
-                    if site.kind == .php {
-                        row("Configure VS Code Debug", "curlybraces", "", action: onConfigureVSCode)
-                        row("Restore from Backup…", "arrow.uturn.backward.circle", "", action: onRestore)
-                    }
+            Group {
+                if pickingEditor {
+                    editorPicker
+                } else {
+                    mainMenu
                 }
-                .padding(.horizontal, 6)
-                divider
-                row("Remove Site", "trash", "⌘⌫", danger: true, action: onRemove)
-                    .padding(.horizontal, 6).padding(.bottom, 6)
             }
             .padding(.top, 8)
             .frame(width: 268)
             .background(Color.white)
+            .onAppear {
+                editors = CodeEditorCatalog(locate: {
+                    NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0)
+                })
+            }
+            .onChange(of: open) { if !$0 { pickingEditor = false } }
+        }
+    }
+
+    private var mainMenu: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+            divider
+            VStack(alignment: .leading, spacing: 1) {
+                sectionLabel("Open")
+                row("Open in Browser", "safari", "⌘O", enabled: canOpen) { SiteActions.openInBrowser(site) }
+                if !site.path.isEmpty {
+                    row("Reveal in Finder", "folder", "⇧⌘R") { SiteActions.revealInFinder(site) }
+                    row("Open Terminal Here", "terminal", "⌥⌘T") { SiteActions.openTerminal(site) }
+                    editorRows
+                }
+                sectionLabel("Develop")
+                row("Site Settings…", "slider.horizontal.3", "", action: onSettings)
+                row("Logs", "text.alignleft", "⌘L", action: onOpenLogs)
+                if site.kind == .php {
+                    row("Configure VS Code Debug", "curlybraces", "", action: onConfigureVSCode)
+                    row("Restore from Backup…", "arrow.uturn.backward.circle", "", action: onRestore)
+                }
+            }
+            .padding(.horizontal, 6)
+            divider
+            row("Remove Site", "trash", "⌘⌫", danger: true, action: onRemove)
+                .padding(.horizontal, 6).padding(.bottom, 6)
+        }
+    }
+
+    @ViewBuilder
+    private var editorRows: some View {
+        if let preferred = editors.preferred() {
+            row("Open in \(preferred.displayName)", preferred.symbol, "") {
+                SiteActions.openInEditor(site, editor: preferred, catalog: editors)
+            }
+            if editors.installed.count >= 2 {
+                // Không đóng popover: chuyển sang trang chọn editor.
+                SiteActionRow(title: "Open in Other Editor…", symbol: "ellipsis.rectangle",
+                              shortcut: "", enabled: true, danger: false) {
+                    pickingEditor = true
+                }
+            }
+        }
+    }
+
+    private var editorPicker: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SiteActionRow(title: "Back", symbol: "chevron.left", shortcut: "", enabled: true, danger: false) {
+                pickingEditor = false
+            }
+            .padding(.horizontal, 6)
+            divider
+            VStack(alignment: .leading, spacing: 1) {
+                sectionLabel("Open in…")
+                ForEach(editors.installed) { editor in
+                    row(editor.displayName, editor.symbol, "") {
+                        SiteActions.openInEditor(site, editor: editor, catalog: editors)
+                    }
+                }
+            }
+            .padding(.horizontal, 6).padding(.bottom, 6)
         }
     }
 
