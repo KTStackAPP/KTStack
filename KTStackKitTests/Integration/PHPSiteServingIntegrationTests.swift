@@ -62,6 +62,31 @@ final class PHPSiteServingIntegrationTests: XCTestCase {
         XCTAssertEqual(reply.body, "ktstack-php-fpm-ok")
     }
 
+    func testEnvVarReachesPHPViaFastCGI() throws {
+        guard IntegrationStackHarness.installedRealPHPVersion() != nil else {
+            throw XCTSkip("no PHP runtime installed; env-var-through-fastcgi case needs a real php-fpm")
+        }
+        let docroot = try harness.makeDocroot("phpenv", files: [
+            "index.php": "<?php echo 'APP_DEBUG=' . getenv('APP_DEBUG');",
+        ])
+        let envSite = Site(
+            name: "phpenv", path: docroot.path, docroot: docroot.path,
+            domain: domain, phpVersion: phpVersion, type: .php, backendPort: backendPort,
+            envVars: ["APP_DEBUG": "1"]
+        )
+        try harness.generateConfigs(sites: [envSite])
+        try harness.linkRealPHPRuntime(version: phpVersion)
+        try harness.startPHPFPM(version: phpVersion)
+        try harness.startNginx(conf: harness.paths.siteBackendConf(envSite.id.uuidString))
+        try harness.waitForPort(backendPort, logTailFrom: harness.paths.siteErrorLog(domain))
+        try harness.startNginx(conf: harness.paths.nginxConf)
+        try harness.waitForPort(harness.httpPort)
+
+        let reply = try harness.request(scheme: "http", domain: domain, port: harness.httpPort)
+        XCTAssertEqual(reply.status, 200)
+        XCTAssertEqual(reply.body, "APP_DEBUG=1")
+    }
+
     private func startFrontAndBackend() throws {
         try harness.startNginx(conf: harness.paths.siteBackendConf(site.id.uuidString))
         try harness.waitForPort(backendPort, logTailFrom: harness.paths.siteErrorLog(domain))

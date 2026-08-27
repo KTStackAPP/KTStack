@@ -9,6 +9,7 @@ struct SiteActionsMenu: View {
     let onRemove: () -> Void
     var onConfigureVSCode: () -> Void = {}
     var onRestore: () -> Void = {}
+    var onSettings: () -> Void = {}
 
     @State private var open = false
 
@@ -34,6 +35,7 @@ struct SiteActionsMenu: View {
                         row("Open Terminal Here", "terminal", "⌥⌘T") { SiteActions.openTerminal(site) }
                     }
                     sectionLabel("Develop")
+                    row("Site Settings…", "slider.horizontal.3", "", action: onSettings)
                     row("Logs", "text.alignleft", "⌘L", action: onOpenLogs)
                     if site.kind == .php {
                         row("Configure VS Code Debug", "curlybraces", "", action: onConfigureVSCode)

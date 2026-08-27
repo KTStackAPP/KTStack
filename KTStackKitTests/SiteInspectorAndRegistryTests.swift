@@ -288,6 +288,76 @@ final class SiteRegistryTests: XCTestCase {
         XCTAssertEqual(reg.sites.first?.domain, "shop.test")
     }
 
+    func testSetAliasesPersistsNormalized() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        let site = try reg.add(folder: phpFolder(in: dir, named: "shop"))
+        try reg.setAliases(site, ["  WWW.Shop.test ", "cdn.shop.test"])
+        XCTAssertEqual(reg.sites[0].aliases, ["www.shop.test", "cdn.shop.test"])
+
+        let reloaded = SiteRegistry(storeURL: dir.appendingPathComponent("sites.json"))
+        XCTAssertEqual(reloaded.sites.first?.aliases, ["www.shop.test", "cdn.shop.test"])
+    }
+
+    func testSetAliasesRejectsWrongTLD() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        let site = try reg.add(folder: phpFolder(in: dir, named: "shop"))
+        XCTAssertThrowsError(try reg.setAliases(site, ["www.shop.local"])) { error in
+            XCTAssertEqual(error as? SiteRegistry.RegistryError, .wrongTLD("www.shop.local", expected: "test"))
+        }
+    }
+
+    func testSetAliasesRejectsAliasEqualToOwnDomain() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        let site = try reg.add(folder: phpFolder(in: dir, named: "shop"))
+        XCTAssertThrowsError(try reg.setAliases(site, ["shop.test"])) { error in
+            XCTAssertEqual(error as? SiteRegistry.RegistryError, .aliasEqualsDomain("shop.test"))
+        }
+    }
+
+    func testSetAliasesRejectsAnotherSitesDomain() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        _ = try reg.add(folder: phpFolder(in: dir, named: "shop"))
+        let blog = try reg.add(folder: phpFolder(in: dir.appendingPathComponent("b", isDirectory: true), named: "blog"))
+        XCTAssertThrowsError(try reg.setAliases(blog, ["shop.test"])) { error in
+            XCTAssertEqual(error as? SiteRegistry.RegistryError, .aliasTaken("shop.test", by: "shop.test"))
+        }
+    }
+
+    func testEditDomainRejectsAnotherSitesAlias() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        let shop = try reg.add(folder: phpFolder(in: dir, named: "shop"))
+        try reg.setAliases(shop, ["store.test"])
+        let blog = try reg.add(folder: phpFolder(in: dir.appendingPathComponent("b", isDirectory: true), named: "blog"))
+        XCTAssertThrowsError(try reg.editDomain(blog, to: "store.test")) { error in
+            XCTAssertEqual(error as? SiteRegistry.RegistryError, .domainTaken("store.test"))
+        }
+    }
+
+    func testSetEnvVarsRejectsReservedKey() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        let site = try reg.add(folder: phpFolder(in: dir, named: "shop"))
+        XCTAssertThrowsError(try reg.setEnvVars(site, ["SERVER_NAME": "x"])) { error in
+            XCTAssertEqual(error as? SiteRegistry.RegistryError, .invalidEnv("SERVER_NAME"))
+        }
+    }
+
+    func testSetEnvVarsPersists() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        let site = try reg.add(folder: phpFolder(in: dir, named: "shop"))
+        try reg.setEnvVars(site, ["APP_ENV": "local", "APP_DEBUG": "1"])
+        let reloaded = SiteRegistry(storeURL: dir.appendingPathComponent("sites.json"))
+        XCTAssertEqual(reloaded.sites.first?.envVars, ["APP_ENV": "local", "APP_DEBUG": "1"])
+    }
+
+    func testMigrateTLDRewritesAliasSuffix() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        let site = try reg.add(folder: phpFolder(in: dir, named: "shop"))
+        try reg.setAliases(site, ["www.shop.test"])
+        _ = reg.migrateTLD(from: "test", to: "dev")
+        XCTAssertEqual(reg.sites.first?.domain, "shop.dev")
+        XCTAssertEqual(reg.sites.first?.aliases, ["www.shop.dev"])
+    }
+
     func testAddProxyPersistsFolderlessSiteAndReloads() throws {
         let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
         let target = ProxyTarget.loopback(port: 8000)

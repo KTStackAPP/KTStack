@@ -25,6 +25,7 @@ struct SiteListRow: View, Equatable {
     let onRemove: () -> Void
     var onConfigureVSCode: () -> Void = {}
     var onRestore: () -> Void = {}
+    var onSettings: () -> Void = {}
     var onError: (String) -> Void = { _ in }
 
     // Held as plain value props (not @ObservedObject) so one site's toggle doesn't re-lay-out the
@@ -57,6 +58,7 @@ struct SiteListRow: View, Equatable {
         onRemove: @escaping () -> Void,
         onConfigureVSCode: @escaping () -> Void = {},
         onRestore: @escaping () -> Void = {},
+        onSettings: @escaping () -> Void = {},
         onError: @escaping (String) -> Void = { _ in }
     ) {
         self.site = site
@@ -80,6 +82,7 @@ struct SiteListRow: View, Equatable {
         self.onRemove = onRemove
         self.onConfigureVSCode = onConfigureVSCode
         self.onRestore = onRestore
+        self.onSettings = onSettings
         self.onError = onError
         _domainDraft = State(initialValue: site.domain)
         _nodePortDraft = State(initialValue: site.nodePort.map(String.init) ?? "")
@@ -124,12 +127,18 @@ struct SiteListRow: View, Equatable {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(site.name).font(KTType.rowName).foregroundStyle(KTColor.ink).lineLimit(1)
-                TextField("domain", text: $domainDraft)
-                    .textFieldStyle(.plain)
-                    .font(.jbMono(12.5))
-                    .foregroundStyle(domainError ? KTColor.danger : KTColor.muted)
-                    .lineLimit(1)
-                    .onSubmit(commitDomain)
+                HStack(spacing: 6) {
+                    TextField("domain", text: $domainDraft)
+                        .textFieldStyle(.plain)
+                        .font(.jbMono(12.5))
+                        .foregroundStyle(domainError ? KTColor.danger : KTColor.muted)
+                        .lineLimit(1)
+                        .onSubmit(commitDomain)
+                    if !site.aliases.isEmpty {
+                        KTPill(text: "+\(site.aliases.count)")
+                            .ktTip(site.aliases.joined(separator: ", "))
+                    }
+                }
             }
             .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             .layoutPriority(-1)
@@ -188,7 +197,8 @@ struct SiteListRow: View, Equatable {
                 onOpenLogs: onOpenLogs,
                 onRemove: onRemove,
                 onConfigureVSCode: onConfigureVSCode,
-                onRestore: onRestore
+                onRestore: onRestore,
+                onSettings: onSettings
             )
         }
         .padding(.vertical, 13)

@@ -59,6 +59,7 @@ The features other tools **lock behind a paid plan or a separate app** (the data
 - **Nginx + PHP-FPM** with per-site PHP version isolation; per-version editable `php.ini`, extensions, Xdebug and FPM pool tuning
 - **PHP 7.4 → 8.5** (seven versions, EOL versions clearly flagged) and **Node.js 20/22/24/26**, self-contained, no Homebrew required
 - **Proxy sites**: point a `.test` domain at any local port, LAN host or remote HTTPS origin
+- **Per-site settings**: alias domains (extra `.test` names, added to the HTTPS certificate), environment variables (passed to PHP and Node), and custom nginx directives (validated with `nginx -t` before reload)
 - **Databases**: MySQL, PostgreSQL, Redis, MongoDB
 - **Built-in database editor**: browse & edit rows, run SQL, structure/DDL, foreign-key navigation, and an interactive ER diagram, for MySQL, PostgreSQL and SQLite
 - **Mailpit** mail catcher

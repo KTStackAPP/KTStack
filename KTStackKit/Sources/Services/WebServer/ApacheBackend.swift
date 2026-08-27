@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 // Standalone Apache config for one PHP site's loopback backend. Plain HTTP on 127.0.0.1:<port>,
 // PHP via mod_proxy_fcgi to the existing PHP-FPM unix socket (never mod_php, never mod_ssl: the
@@ -19,6 +20,10 @@ public struct ApacheBackend: WebServerBackend {
         let q = NginxConfigWriter.q
         let serverPort = context.secure ? 443 : 80
         let httpsEnv = context.secure ? "\n    SetEnv HTTPS on" : ""
+        let aliasLine = context.aliases.isEmpty ? "" : "\n    ServerAlias \(context.aliases.joined(separator: " "))"
+        let envEnv = SiteEnvVars.sorted(context.env)
+            .map { "\n    SetEnv \($0.key) \"\(Self.apacheEscaped($0.value))\"" }
+            .joined()
         let handler = "proxy:unix:\(context.phpFpmSocket.path)|fcgi://localhost/"
         return """
         ServerRoot \(q(serverRoot.path))
@@ -35,8 +40,8 @@ public struct ApacheBackend: WebServerBackend {
         CustomLog \(q(context.accessLog.path)) common
 
         <VirtualHost 127.0.0.1:\(context.backendPort)>
-            ServerName \(context.domain):\(serverPort)
-            DocumentRoot \(q(context.root.path))\(httpsEnv)
+            ServerName \(context.domain):\(serverPort)\(aliasLine)
+            DocumentRoot \(q(context.root.path))\(httpsEnv)\(envEnv)
 
             <Directory \(q(context.root.path))>
                 Options Indexes FollowSymLinks
@@ -58,6 +63,13 @@ public struct ApacheBackend: WebServerBackend {
             </FilesMatch>
         </VirtualHost>
         """
+    }
+
+    // Escape cho SetEnv "value": backslash trước, rồi dấu ngoặc kép.
+    static func apacheEscaped(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
     }
 
     // mod_proxy + mod_proxy_fcgi for PHP-FPM. The rest matches a typical shared-hosting Apache so

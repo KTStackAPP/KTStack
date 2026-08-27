@@ -192,6 +192,35 @@ final class SitesViewModelTests: XCTestCase {
         XCTAssertEqual(catalog.setProxyTargetCalls.first?.1, "http://127.0.0.1:9000")
     }
 
+    func testSetAliasesForwardsToCatalog() throws {
+        let site = makeSite()
+        let h = makeVM(sites: [site])
+        try h.vm.setAliases(site.id, ["www.example.test"])
+        XCTAssertEqual(h.catalog.setAliasesCalls.first?.0, site.id)
+        XCTAssertEqual(h.catalog.setAliasesCalls.first?.1, ["www.example.test"])
+    }
+
+    func testValidateAliasesForwardsToCatalog() {
+        let site = makeSite()
+        let h = makeVM(sites: [site])
+        h.catalog.validateAliasesShouldThrow = SiteActionError.invalidProxyTarget(message: "bad")
+        XCTAssertThrowsError(try h.vm.validateAliases(["x.test"], for: site.id))
+    }
+
+    func testSetEnvVarsForwardsToCatalog() throws {
+        let site = makeSite()
+        let h = makeVM(sites: [site])
+        try h.vm.setEnvVars(site.id, ["APP_ENV": "local"])
+        XCTAssertEqual(h.catalog.setEnvVarsCalls.first?.1, ["APP_ENV": "local"])
+    }
+
+    func testSaveFrontDirectivesForwardsToCatalog() async throws {
+        let site = makeSite()
+        let h = makeVM(sites: [site])
+        try await h.vm.saveFrontDirectives(site.id, "add_header X-A 1;")
+        XCTAssertEqual(h.catalog.saveFrontDirectivesCalls.first?.1, "add_header X-A 1;")
+    }
+
     func testEnableDisableResetDNSDelegate() {
         let h = makeVM()
         let vm = h.vm

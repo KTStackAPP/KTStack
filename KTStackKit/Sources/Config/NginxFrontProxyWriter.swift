@@ -12,16 +12,20 @@ public struct NginxFrontProxyWriter {
         secure: Bool,
         certFile: URL?,
         keyFile: URL?,
+        aliases: [String] = [],
+        directivesInclude: URL? = nil,
         accessLog: URL? = nil,
         errorLog: URL? = nil
     ) -> String {
         let q = NginxConfigWriter.q
         let logs = NginxConfigWriter.logDirectives(access: accessLog, error: errorLog)
+        let names = NginxConfigWriter.serverName(domain, aliases)
+        let include = NginxConfigWriter.includeDirective(directivesInclude)
         guard secure, let certFile, let keyFile else {
             return """
             server {
                 listen \(NginxConfigWriter.listenAddress):80;
-                server_name \(domain);\(logs)
+                server_name \(names);\(logs)\(include)
 
             \(routing(backendPort: backendPort, scheme: "http"))
             }
@@ -30,19 +34,19 @@ public struct NginxFrontProxyWriter {
         return """
         server {
             listen \(NginxConfigWriter.listenAddress):80;
-            server_name \(domain);
+            server_name \(names);
             return 301 https://$host$request_uri;
         }
 
         server {
             listen \(NginxConfigWriter.listenAddress):443 ssl;
             http2 on;
-            server_name \(domain);\(logs)
+            server_name \(names);\(logs)
 
             ssl_certificate \(q(certFile.path));
             ssl_certificate_key \(q(keyFile.path));
             ssl_protocols TLSv1.2 TLSv1.3;
-            ssl_prefer_server_ciphers off;
+            ssl_prefer_server_ciphers off;\(include)
 
         \(routing(backendPort: backendPort, scheme: "https"))
         }

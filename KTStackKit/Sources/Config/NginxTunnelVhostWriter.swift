@@ -34,7 +34,7 @@ public struct NginxTunnelVhostWriter {
         }
         let root = URL(fileURLWithPath: site.docroot)
         let prepend = publicHost == nil ? nil : hostPrependFile
-        let routing = phpFpmSocket.map { phpRouting(socket: $0, localHost: site.domain, publicHost: publicHost, prependFile: prepend) } ?? staticRouting()
+        let routing = phpFpmSocket.map { phpRouting(socket: $0, localHost: site.domain, publicHost: publicHost, prependFile: prepend, env: site.envVars) } ?? staticRouting()
         let index = phpFpmSocket == nil ? "index.html index.htm" : "index.php index.html"
         let rewrite = supportsBodyRewrite ? publicHostRewrite(localDomain: site.domain, publicHost: publicHost) : ""
         return """
@@ -61,11 +61,14 @@ public struct NginxTunnelVhostWriter {
         return "\n" + lines.map { "    " + $0 }.joined(separator: "\n")
     }
 
-    private func phpRouting(socket: URL, localHost: String, publicHost: String?, prependFile: URL?) -> String {
+    private func phpRouting(socket: URL, localHost: String, publicHost: String?, prependFile: URL?, env: [String: String] = [:]) -> String {
         let forwardedHost = publicHost ?? localHost
         let prependParam = prependFile.map {
             "\n                fastcgi_param PHP_VALUE                \(NginxConfigWriter.q("auto_prepend_file=" + $0.path));"
         } ?? ""
+        let envParams = SiteEnvVars.sorted(env)
+            .map { "\n                fastcgi_param \($0.key) \(NginxConfigWriter.q($0.value));" }
+            .joined()
         return """
             location / {
                 try_files $uri $uri/ /index.php?$query_string;
@@ -94,7 +97,7 @@ public struct NginxTunnelVhostWriter {
                 fastcgi_param HTTP_X_FORWARDED_PORT    443;
                 fastcgi_param REMOTE_ADDR              $remote_addr;
                 fastcgi_param REMOTE_PORT              $remote_port;
-                fastcgi_param SERVER_ADDR              $server_addr;\(prependParam)
+                fastcgi_param SERVER_ADDR              $server_addr;\(prependParam)\(envParams)
             }
 
             location ~ /\\.(?!well-known).* {

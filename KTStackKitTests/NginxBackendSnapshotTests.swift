@@ -57,6 +57,44 @@ final class NginxBackendSnapshotTests: XCTestCase {
         XCTAssertTrue(config.contains("absolute_redirect off;"))
     }
 
+    func testBackendRendersSortedEnvAndAliases() {
+        let ctx = BackendRenderContext(
+            domain: "demo.test",
+            root: URL(fileURLWithPath: "/s/public"),
+            phpFpmSocket: paths.phpFpmSocket("8.4"),
+            backendPort: 4001,
+            secure: false,
+            pidFile: paths.siteBackendPid("ID", engine: "nginx"),
+            accessLog: paths.siteAccessLog("demo.test"),
+            errorLog: paths.siteErrorLog("demo.test"),
+            aliases: ["api.demo.test"],
+            env: ["B_KEY": "two", "A_KEY": "has space"]
+        )
+        let config = backend.backendConfig(context: ctx)
+        XCTAssertTrue(config.contains("server_name demo.test api.demo.test;"))
+        XCTAssertTrue(config.contains("fastcgi_param A_KEY \"has space\";"))
+        XCTAssertTrue(config.contains("fastcgi_param B_KEY \"two\";"))
+        guard let a = config.range(of: "fastcgi_param A_KEY")?.lowerBound,
+              let b = config.range(of: "fastcgi_param B_KEY")?.lowerBound
+        else { return XCTFail("env params missing") }
+        XCTAssertLessThan(a, b, "env params render sorted by key")
+    }
+
+    func testBackendEmptyEnvMatchesBase() {
+        let config = backend.backendConfig(context: context(domain: "demo.test", secure: false))
+        let base = writer.config(
+            domain: "demo.test",
+            root: URL(fileURLWithPath: "/s/public"),
+            phpFpmSocket: paths.phpFpmSocket("8.4"),
+            backendPort: 4001,
+            secure: false,
+            pid: paths.siteBackendPid("ID", engine: "nginx"),
+            accessLog: paths.siteAccessLog("demo.test"),
+            errorLog: paths.siteErrorLog("demo.test")
+        )
+        XCTAssertEqual(config, base)
+    }
+
     func testFactoryReturnsNginxForNginxEngine() {
         XCTAssertEqual(WebServerBackendFactory.backend(for: .nginx, paths: paths).engine, .nginx)
     }

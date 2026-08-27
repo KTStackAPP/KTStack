@@ -21,16 +21,17 @@ public struct MkcertRunner {
         try run(["-uninstall"])
     }
 
-    public func mint(domain: String, certFile: URL, keyFile: URL) throws {
+    public func mint(domain: String, aliases: [String] = [], certFile: URL, keyFile: URL) throws {
         try FileManager.default.createDirectory(
             at: certFile.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        try run(Self.mintArgs(domain: domain, certFile: certFile, keyFile: keyFile))
+        try run(Self.mintArgs(domain: domain, aliases: aliases, certFile: certFile, keyFile: keyFile))
     }
 
-    public static func mintArgs(domain: String, certFile: URL, keyFile: URL) -> [String] {
-        ["-cert-file", certFile.path, "-key-file", keyFile.path, domain]
+    // mkcert nhận domain chính + alias trên một lệnh; alias thành SAN của leaf.
+    public static func mintArgs(domain: String, aliases: [String] = [], certFile: URL, keyFile: URL) -> [String] {
+        ["-cert-file", certFile.path, "-key-file", keyFile.path, domain] + aliases
     }
 
     @discardableResult

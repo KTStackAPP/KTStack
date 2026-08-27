@@ -17,12 +17,16 @@ func makeSite(
     nodeCommand: String? = nil,
     engine: SiteServerEngine = .nginx,
     backendPort: Int? = 9001,
-    proxyTarget: String? = nil
+    proxyTarget: String? = nil,
+    aliases: [String] = [],
+    envVars: [String: String] = [:],
+    frontDirectives: String? = nil
 ) -> SiteSummary {
     SiteSummary(
         id: id, name: name, path: path, docroot: docroot, domain: domain, phpVersion: phpVersion,
         kind: kind, databaseName: databaseName, secure: secure, nodePort: nodePort,
-        nodeCommand: nodeCommand, engine: engine, backendPort: backendPort, proxyTarget: proxyTarget
+        nodeCommand: nodeCommand, engine: engine, backendPort: backendPort, proxyTarget: proxyTarget,
+        aliases: aliases, envVars: envVars, frontDirectives: frontDirectives
     )
 }
 
@@ -36,6 +40,13 @@ final class FakeSiteCatalog: SiteCatalogManaging {
     private(set) var setEngineCalls: [(UUID, SiteServerEngine)] = []
     private(set) var setProxyTargetCalls: [(UUID, String)] = []
     var setProxyTargetShouldThrow: Error?
+    private(set) var setAliasesCalls: [(UUID, [String])] = []
+    var setAliasesShouldThrow: Error?
+    var validateAliasesShouldThrow: Error?
+    private(set) var setEnvVarsCalls: [(UUID, [String: String])] = []
+    var setEnvVarsShouldThrow: Error?
+    private(set) var saveFrontDirectivesCalls: [(UUID, String)] = []
+    var saveFrontDirectivesShouldThrow: Error?
     private var continuation: AsyncStream<SiteCatalogState>.Continuation?
 
     nonisolated init(catalog: SiteCatalogState) {
@@ -68,6 +79,25 @@ final class FakeSiteCatalog: SiteCatalogManaging {
     func setProxyTarget(_ id: UUID, _ target: String) throws {
         if let setProxyTargetShouldThrow { throw setProxyTargetShouldThrow }
         setProxyTargetCalls.append((id, target))
+    }
+
+    func setAliases(_ id: UUID, _ aliases: [String]) throws {
+        if let setAliasesShouldThrow { throw setAliasesShouldThrow }
+        setAliasesCalls.append((id, aliases))
+    }
+
+    func validateAliases(_: [String], for _: UUID) throws {
+        if let validateAliasesShouldThrow { throw validateAliasesShouldThrow }
+    }
+
+    func setEnvVars(_ id: UUID, _ env: [String: String]) throws {
+        if let setEnvVarsShouldThrow { throw setEnvVarsShouldThrow }
+        setEnvVarsCalls.append((id, env))
+    }
+
+    func saveFrontDirectives(_ id: UUID, _ text: String) async throws {
+        if let saveFrontDirectivesShouldThrow { throw saveFrontDirectivesShouldThrow }
+        saveFrontDirectivesCalls.append((id, text))
     }
 }
 

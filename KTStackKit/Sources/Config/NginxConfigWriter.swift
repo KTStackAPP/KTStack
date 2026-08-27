@@ -75,6 +75,17 @@ public struct NginxConfigWriter {
         return lines.isEmpty ? "" : "\n" + lines.joined(separator: "\n")
     }
 
+    // domain chính + alias cho server_name; alias rỗng trả đúng domain (byte-for-byte).
+    public static func serverName(_ domain: String, _ aliases: [String]) -> String {
+        ([domain] + aliases).joined(separator: " ")
+    }
+
+    // Chèn `include` ngay trước location /; nil trả "" nên output không đổi khi không có directives.
+    public static func includeDirective(_ url: URL?) -> String {
+        guard let url else { return "" }
+        return "\n    include \(q(url.path));"
+    }
+
     public func vhost(
         domain: String,
         root: URL,
@@ -126,15 +137,17 @@ public struct NginxConfigWriter {
         domain: String,
         root: URL,
         port: Int = 80,
+        aliases: [String] = [],
+        directivesInclude: URL? = nil,
         accessLog: URL? = nil,
         errorLog: URL? = nil
     ) -> String {
         """
         server {
             listen \(Self.listenAddress):\(port);
-            server_name \(domain);
+            server_name \(Self.serverName(domain, aliases));
             root \(Self.q(root.path));
-            index index.html index.htm;\(Self.logDirectives(access: accessLog, error: errorLog))
+            index index.html index.htm;\(Self.logDirectives(access: accessLog, error: errorLog))\(Self.includeDirective(directivesInclude))
 
             location / {
                 try_files $uri $uri/ =404;
@@ -151,13 +164,15 @@ public struct NginxConfigWriter {
         domain: String,
         upstream: ProxyTarget,
         port: Int = 80,
+        aliases: [String] = [],
+        directivesInclude: URL? = nil,
         accessLog: URL? = nil,
         errorLog: URL? = nil
     ) -> String {
         """
         server {
             listen \(Self.listenAddress):\(port);
-            server_name \(domain);\(Self.logDirectives(access: accessLog, error: errorLog))
+            server_name \(Self.serverName(domain, aliases));\(Self.logDirectives(access: accessLog, error: errorLog))\(Self.includeDirective(directivesInclude))
 
         \(Self.proxyRouting(upstream: upstream))
         }

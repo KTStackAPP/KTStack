@@ -58,6 +58,25 @@ final class ApacheConfigWriterTests: XCTestCase {
         XCTAssertFalse(config(secure: true).contains("SSLEngine"))
     }
 
+    func testServerAliasAndSetEnvRendered() {
+        let backend = ApacheBackend(serverRoot: paths.apacheRoot)
+        let c = backend.backendConfig(context: BackendRenderContext(
+            domain: "demo.test",
+            root: URL(fileURLWithPath: "/s/public"),
+            phpFpmSocket: paths.phpFpmSocket("8.4"),
+            backendPort: 4002,
+            secure: false,
+            pidFile: paths.siteBackendPid("ID", engine: "apache"),
+            accessLog: paths.siteAccessLog("demo.test"),
+            errorLog: paths.siteErrorLog("demo.test"),
+            aliases: ["api.demo.test", "cdn.demo.test"],
+            env: ["APP_DEBUG": "1", "QUOTE": "a\"b\\c"]
+        ))
+        XCTAssertTrue(c.contains("ServerAlias api.demo.test cdn.demo.test"))
+        XCTAssertTrue(c.contains("SetEnv APP_DEBUG \"1\""))
+        XCTAssertTrue(c.contains("SetEnv QUOTE \"a\\\"b\\\\c\""))
+    }
+
     func testFactoryFallsBackToNginxWhenApacheBinaryMissing() {
         // /tmp/ktstack-test has no httpd binary → apache request degrades to nginx.
         XCTAssertEqual(WebServerBackendFactory.effectiveEngine(.apache, paths: paths), .nginx)

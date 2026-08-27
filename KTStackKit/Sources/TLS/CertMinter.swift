@@ -27,10 +27,13 @@ public struct CertMinter {
     }
 
     @discardableResult
-    public func mint(name: String, domain: String, tld: String = AppPreferences.defaultTLD) throws -> (cert: URL, key: URL) {
+    public func mint(name: String, domain: String, aliases: [String] = [], tld: String = AppPreferences.defaultTLD) throws -> (cert: URL, key: URL) {
         guard domain.hasSuffix(".\(tld)") else { throw CertError.nonLocalDomain(domain, tld: tld) }
+        for alias in aliases where !alias.hasSuffix(".\(tld)") {
+            throw CertError.nonLocalDomain(alias, tld: tld)
+        }
         let cert = paths.siteCert(name), key = paths.siteKey(name)
-        try runner.mint(domain: domain, certFile: cert, keyFile: key)
+        try runner.mint(domain: domain, aliases: aliases, certFile: cert, keyFile: key)
         return (cert, key)
     }
 
@@ -78,7 +81,7 @@ public struct CertMinter {
 public struct SiteHTTPSProvisioner: Sendable {
     public typealias TrustQuery = @Sendable (URL) -> Bool
     public typealias InstallCA = @Sendable () throws -> Void
-    public typealias MintLeaf = @Sendable (String, String) throws -> Void
+    public typealias MintLeaf = @Sendable (String, [String], String) throws -> Void
 
     private let caCert: URL
     private let tld: String
@@ -119,8 +122,8 @@ public struct SiteHTTPSProvisioner: Sendable {
                     usesHelper: HelperIdentity.hasSigningIdentity
                 )
             },
-            mintLeaf: { domain, tld in
-                try certMinter.mint(name: domain, domain: domain, tld: tld)
+            mintLeaf: { domain, aliases, tld in
+                try certMinter.mint(name: domain, domain: domain, aliases: aliases, tld: tld)
             }
         )
     }
@@ -134,6 +137,6 @@ public struct SiteHTTPSProvisioner: Sendable {
         if !trustQuery(caCert) {
             try installCA()
         }
-        try mintLeaf(site.domain, tld)
+        try mintLeaf(site.domain, site.aliases, tld)
     }
 }
