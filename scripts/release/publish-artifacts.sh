@@ -26,9 +26,13 @@ DEFAULT_ARTIFACTS=(
   "php-8.3-arm64.tar.gz"
   "php-8.1-arm64.tar.gz"
   "mysql-9.6.0-arm64.tar.gz"
-  "mariadb-11.4.4-arm64.tar.gz"
+  "mariadb-11.4.13-arm64.tar.gz"
+  "mariadb-11.4.13-x86_64.tar.gz"
+  "mariadb-10.11.19-arm64.tar.gz"
+  "mariadb-10.11.19-x86_64.tar.gz"
   "redis-7.4.2-arm64.tar.gz"
   "memcached-1.6.38-arm64.tar.gz"
+  "memcached-1.6.38-x86_64.tar.gz"
   "postgres-17.10-arm64.tar.gz"
 )
 ARTIFACTS=("$@")
