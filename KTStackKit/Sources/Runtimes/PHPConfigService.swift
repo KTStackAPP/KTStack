@@ -30,22 +30,26 @@ public struct PHPConfigService: PHPExtensionManaging, PHPIniEditing, PHPPoolEdit
     public func extensions(phpVersion: String) async -> [PHPExtensionEntry] {
         let catalog = PHPExtensionCatalog(paths: paths)
         let version = phpVersion
-        let (installed, onDisk): (Set<String>, [String: Bool]) = await Task.detached(priority: .utility) {
-            let installed = catalog.installedExtensions(version)
-            var onDisk: [String: Bool] = [:]
-            for ext in PHPExtensionCatalog.descriptors where !ext.isBuiltIn {
-                onDisk[ext.id] = catalog.sharedObjectExists(ext.id, phpVersion: version)
-            }
-            return (installed, onDisk)
+        let probe = await Task.detached(priority: .utility) {
+            ExtensionProbe(
+                installed: catalog.installedExtensions(version),
+                compiledIn: catalog.compiledInModules(version),
+                onDisk: Dictionary(uniqueKeysWithValues: PHPExtensionCatalog.descriptors
+                    .filter { !$0.isBuiltIn }
+                    .map { ($0.id, catalog.sharedObjectExists($0.id, phpVersion: version)) })
+            )
         }.value
 
         return PHPExtensionCatalog.descriptors
             .filter { $0.id != "xdebug" }
             .map { ext in
                 let status = catalog.status(
-                    ext, phpVersion: version, installed: installed, soOnDisk: onDisk[ext.id] ?? false
+                    ext, phpVersion: version,
+                    installed: probe.installed, soOnDisk: probe.onDisk[ext.id] ?? false,
+                    compiledIn: probe.compiledIn
                 )
-                return PHPExtensionEntry(ext: Self.info(ext), state: Self.state(status))
+                let effectiveBuiltIn = ext.isBuiltIn || probe.compiledIn.contains(ext.id)
+                return PHPExtensionEntry(ext: Self.info(ext, isBuiltIn: effectiveBuiltIn), state: Self.state(status))
             }
             .sorted { lhs, rhs in
                 if lhs.ext.isBuiltIn != rhs.ext.isBuiltIn { return !lhs.ext.isBuiltIn } // optional first
@@ -58,6 +62,10 @@ public struct PHPConfigService: PHPExtensionManaging, PHPIniEditing, PHPPoolEdit
         phpVersion: String,
         onProgress: @escaping @Sendable (Double) -> Void
     ) async throws -> PHPExtensionInstallOutcome {
+        let version = phpVersion
+        if PHPExtensionCatalog(paths: paths).compiledInModules(version).contains(id) {
+            throw PHPExtensionInstaller.InstallError.alreadyBuiltIn(ext: id, phpVersion: version)
+        }
         let installer = PHPExtensionInstaller(paths: paths)
         let result = try await installer.install(id, phpVersion: phpVersion) { progress in
             onProgress(progress.fraction)
@@ -156,13 +164,19 @@ public struct PHPConfigService: PHPExtensionManaging, PHPIniEditing, PHPPoolEdit
         XdebugController(paths: paths, reloadPool: restartPool)
     }
 
-    private static func info(_ ext: PHPExtension) -> PHPExtensionInfo {
+    private struct ExtensionProbe: Sendable {
+        let installed: Set<String>
+        let compiledIn: Set<String>
+        let onDisk: [String: Bool]
+    }
+
+    private static func info(_ ext: PHPExtension, isBuiltIn: Bool) -> PHPExtensionInfo {
         PHPExtensionInfo(
             id: ext.id,
             displayName: ext.displayName,
             kind: ext.type.rawValue,
             summary: ext.summary,
-            isBuiltIn: ext.isBuiltIn
+            isBuiltIn: isBuiltIn
         )
     }
 

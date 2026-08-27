@@ -87,6 +87,45 @@ final class PHPExtensionCatalogTests: XCTestCase {
         XCTAssertEqual(catalog.status(swoole, phpVersion: "8.1", installed: [], soOnDisk: false), .unavailable)
     }
 
+    func testStatusCompiledInIsBuiltInRegardlessOfStaticFlag() {
+        let snmp = PHPExtensionCatalog.descriptor("snmp")!
+        XCTAssertFalse(snmp.isBuiltIn) // optional descriptor for ≤8.3
+        // 8.4/8.5 compile snmp in → built-in, no Uninstall, no reinstall.
+        XCTAssertEqual(
+            catalog.status(snmp, phpVersion: "8.4", installed: ["snmp"], soOnDisk: false, compiledIn: ["snmp"]),
+            .builtIn
+        )
+    }
+
+    func testStatusCompiledInEmptyKeepsOptionalBehavior() {
+        let snmp = PHPExtensionCatalog.descriptor("snmp")!
+        // 8.3 has a release, snmp not compiled in → available; installed .so → installed.
+        XCTAssertEqual(
+            catalog.status(snmp, phpVersion: "8.3", installed: [], soOnDisk: false, compiledIn: []),
+            .available
+        )
+        XCTAssertEqual(
+            catalog.status(snmp, phpVersion: "8.3", installed: ["snmp"], soOnDisk: true, compiledIn: []),
+            .installed
+        )
+    }
+
+    func testStaticBuiltInStaysBuiltInWithEmptyCompiledIn() {
+        let intl = PHPExtensionCatalog.descriptor("intl")!
+        XCTAssertEqual(
+            catalog.status(intl, phpVersion: "8.4", installed: [], soOnDisk: false, compiledIn: []),
+            .builtIn
+        )
+    }
+
+    func testCompiledInModulesEmptyWhenBinaryAbsent() {
+        let paths = AppSupportPaths(
+            root: FileManager.default.temporaryDirectory
+                .appendingPathComponent("ktstack-ext-\(UUID().uuidString)")
+        )
+        XCTAssertTrue(catalogFor(paths).compiledInModules("9.9").isEmpty)
+    }
+
     func testInstalledExtensionsEmptyWhenBinaryAbsent() {
         let paths = AppSupportPaths(
             root: FileManager.default.temporaryDirectory
