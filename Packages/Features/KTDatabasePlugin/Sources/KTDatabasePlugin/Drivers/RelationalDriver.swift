@@ -34,6 +34,8 @@ public protocol RelationalDriver: DatabaseDriver {
     func update(database: String, table: String, values: [ColumnValue], key: [ColumnValue]) async throws
 
     func delete(database: String, table: String, key: [ColumnValue]) async throws
+
+    func executeTransaction(_ steps: [WriteStep], database: String) async throws
 }
 
 public extension RelationalDriver {
@@ -41,4 +43,9 @@ public extension RelationalDriver {
     var capabilities: DriverCapabilities { DriverCapabilities() }
 
     func cancelCurrentQuery() async {}
+
+    // Batch commit chỉ bật cho engine MVP (MySQL/MariaDB); engine khác override khi có nhu cầu.
+    func executeTransaction(_ steps: [WriteStep], database: String) async throws {
+        throw DatabaseError.connection("Batch commit isn't supported for this engine yet")
+    }
 }

@@ -82,6 +82,6 @@ public extension MySQLDriver {
     }
 }
 
-private final class AffectedRowsBox: @unchecked Sendable {
+final class AffectedRowsBox: @unchecked Sendable {
     var value: UInt64 = 0
 }

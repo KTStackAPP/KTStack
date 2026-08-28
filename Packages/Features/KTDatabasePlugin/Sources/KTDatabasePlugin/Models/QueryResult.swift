@@ -1,6 +1,6 @@
 import Foundation
 
-public enum Cell: Sendable, Equatable {
+public enum Cell: Sendable, Hashable {
     case text(String)
     case int(Int64)
     case double(Double)
@@ -61,7 +61,7 @@ public struct QueryResult: Sendable, Equatable {
     }
 }
 
-public struct ColumnValue: Sendable, Equatable {
+public struct ColumnValue: Sendable, Hashable {
     public let column: String
     public let value: Cell
 
