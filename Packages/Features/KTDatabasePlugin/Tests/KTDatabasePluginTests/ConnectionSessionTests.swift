@@ -114,6 +114,32 @@ final class ConnectionSessionTests: XCTestCase {
         XCTAssertEqual(result.rows.first, binds)
     }
 
+    func testCancelInFlightSurfacesCancelled() async throws {
+        let probe = Probe()
+        let session = makeSession(probe: probe, box: ConnectionBox())
+        async let query: QueryResult = session.runText("SELECT SLEEP", database: nil)
+        try await Task.sleep(for: .milliseconds(5)) // để query giữ gate và vào runText
+        await session.cancelInFlight()
+        do {
+            _ = try await query
+            XCTFail("expected .cancelled after cancelInFlight")
+        } catch let error as DatabaseError {
+            XCTAssertEqual(error, .cancelled)
+        }
+    }
+
+    func testCancelledFlagDoesNotLeakIntoNextQuery() async throws {
+        let probe = Probe()
+        let session = makeSession(probe: probe, box: ConnectionBox())
+        async let query: QueryResult = session.runText("a", database: nil)
+        try await Task.sleep(for: .milliseconds(5))
+        await session.cancelInFlight()
+        _ = try? await query
+        // Query kế tiếp phải chạy bình thường, không bị coi là đã hủy.
+        let next = try await session.runText("b", database: nil)
+        XCTAssertEqual(next.columns.first?.name, "b")
+    }
+
     func testShutdownClosesTheLiveConnection() async throws {
         let probe = Probe()
         let box = ConnectionBox()

@@ -17,6 +17,8 @@ public enum DatabaseError: Error, Equatable, Sendable {
 
     case cancelled
 
+    case writeConflict(String)
+
     public var message: String {
         switch self {
         case let .engineNotInstalled(kind): "The \(kind) engine isn't installed."
@@ -27,6 +29,7 @@ public enum DatabaseError: Error, Equatable, Sendable {
         case let .connection(d): "Connection failed: \(d)"
         case let .unexpectedResponse(d): "Unexpected database response: \(d)"
         case .cancelled: "Query cancelled."
+        case let .writeConflict(d): "Write conflict: \(d)"
         }
     }
 }

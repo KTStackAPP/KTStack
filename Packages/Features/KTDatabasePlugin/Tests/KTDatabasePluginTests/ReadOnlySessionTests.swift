@@ -60,8 +60,36 @@ final class ReadOnlySessionTests: XCTestCase {
             crudInsertRejected = true
         }
 
+        await readonly.closeSession()
         _ = try? await writable.query("DROP DATABASE IF EXISTS \(scratchDB)", database: nil)
+        await writable.closeSession()
         XCTAssertTrue(rawInsertRejected, "read-only session must reject SQL-runner INSERT server-side")
         XCTAssertTrue(crudInsertRejected, "read-only session must reject CRUD insert() server-side")
+    }
+
+    /// Reconnect must reapply READ ONLY: after the session drops and re-opens, a write is still rejected.
+    func testReadOnlyReappliedAfterReconnect() async throws {
+        try skipUnlessEngine()
+        let writable = MySQLDriver(profile: loopbackProfile(readOnly: false), password: nil, tools: FakeDatabaseTools.allInstalled)
+        _ = try await writable.query("CREATE DATABASE IF NOT EXISTS \(scratchDB)", database: nil)
+        _ = try await writable.query(
+            "CREATE TABLE IF NOT EXISTS \(scratchDB).t (id INT PRIMARY KEY)", database: nil
+        )
+
+        let readonly = MySQLDriver(profile: loopbackProfile(readOnly: true), password: nil, tools: FakeDatabaseTools.allInstalled)
+        try await readonly.openSession()
+        await readonly.closeSession() // buộc lần query kế tiếp mở lại connection qua factory
+
+        var rejectedAfterReconnect = false
+        do {
+            _ = try await readonly.query("INSERT INTO \(scratchDB).t (id) VALUES (1)", database: nil)
+        } catch {
+            rejectedAfterReconnect = true
+        }
+
+        await readonly.closeSession()
+        _ = try? await writable.query("DROP DATABASE IF EXISTS \(scratchDB)", database: nil)
+        await writable.closeSession()
+        XCTAssertTrue(rejectedAfterReconnect, "reconnect must reapply READ ONLY and reject the write")
     }
 }

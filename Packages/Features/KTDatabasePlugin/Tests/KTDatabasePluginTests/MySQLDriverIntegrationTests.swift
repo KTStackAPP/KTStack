@@ -8,12 +8,21 @@ import XCTest
 /// running on :3306. Proves the driver returns real schema + query results and that the NIO→result
 /// path is safe under rapid concurrent re-query (stressing the NIO→@MainActor result boundary).
 final class MySQLDriverIntegrationTests: XCTestCase {
+
+    private var opened: [MySQLDriver] = []
+
+    override func tearDown() async throws {
+        for driver in opened { await driver.closeSession() }
+        opened = []
+    }
     private func makeDriver() throws -> MySQLDriver {
         try XCTSkipUnless(
             ProcessInfo.processInfo.environment["KTSTACK_DB_IT"] == "1",
             "Set KTSTACK_DB_IT=1 with the MySQL engine installed + running on :3306."
         )
-        return MySQLDriver(profile: .managedMySQL, password: nil, tools: FakeDatabaseTools.allInstalled)
+        let driver = MySQLDriver(profile: .managedMySQL, password: nil, tools: FakeDatabaseTools.allInstalled)
+        opened.append(driver)
+        return driver
     }
 
     func testPingSucceeds() async throws {

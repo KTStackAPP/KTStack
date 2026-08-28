@@ -102,6 +102,21 @@ public struct SQLDialect: Sendable {
         )
     }
 
+    // Tồn tại key trong cùng transaction: phân biệt no-op (matched, unchanged) với stale (matched nothing).
+    public func selectKeyExists(schema: String, table: String, key: [ColumnValue]) throws -> DMLStatement {
+        try requireUsableKey(key)
+        let qualified = try qualifiedTable(schema: schema, table: table)
+        var index = 0
+        let whereClause = try key.map { col -> String in
+            index += 1
+            return try "\(quoteIdent(col.column)) = \(placeholderStyle.placeholder(index))"
+        }.joined(separator: " AND ")
+        return DMLStatement(
+            sql: "SELECT 1 FROM \(qualified) WHERE \(whereClause) LIMIT 1",
+            binds: key.map(\.value)
+        )
+    }
+
     private func requireUsableKey(_ key: [ColumnValue]) throws {
         guard !key.isEmpty else {
             throw DatabaseError.connection("Refusing an UPDATE/DELETE with no key (would affect every row)")

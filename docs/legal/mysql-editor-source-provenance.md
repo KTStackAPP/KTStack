@@ -31,14 +31,16 @@ code is rejected by `scripts/release/license-audit.sh`. Separately distributed
 executables (bundled engines) are audited under their own licenses with the
 written source offer in `NOTICES.txt`.
 
+Versions are the `Package.resolved` pins as of phase 2 (2026-08-28).
+
 | Component | Author / source basis | License | Version / URL | Reviewer |
 |---|---|---|---|---|
-| MySQLNIO | vapor/mysql-nio, upstream | MIT | https://github.com/vapor/mysql-nio | pending |
-| PostgresNIO | vapor/postgres-nio, upstream | Apache-2.0 | https://github.com/vapor/postgres-nio | pending |
-| GRDB.swift | groue/GRDB.swift, upstream | MIT | https://github.com/groue/GRDB.swift | pending |
-| MongoKitten / BSON | orlandos-nl, upstream | MIT | https://github.com/orlandos-nl/MongoKitten | pending |
-| SwiftNIO stack (nio, nio-ssl, nio-transport-services, atomics, collections, crypto, asn1, log, metrics, numerics, system, service-lifecycle, service-context, distributed-tracing, algorithms, async-algorithms) | apple + swift-server, upstream | Apache-2.0 | https://github.com/apple | pending |
-| DNSClient | orlandos-nl, upstream | MIT | https://github.com/orlandos-nl/DNSClient | pending |
+| MySQLNIO | vapor/mysql-nio, upstream | MIT | 1.9.1 · https://github.com/vapor/mysql-nio | pending |
+| PostgresNIO | vapor/postgres-nio, upstream | Apache-2.0 | 1.33.1 · https://github.com/vapor/postgres-nio | pending |
+| GRDB.swift | groue/GRDB.swift, upstream | MIT | 7.11.1 · https://github.com/groue/GRDB.swift | pending |
+| MongoKitten / BSON | orlandos-nl, upstream | MIT | 7.16.3 / 8.2.2 · https://github.com/orlandos-nl/MongoKitten | pending |
+| SwiftNIO stack | apple + swift-server, upstream | Apache-2.0 | nio 2.101.3, nio-ssl 2.37.2, nio-transport-services 1.28.0, atomics 1.3.1, collections 1.6.0, crypto 4.5.1, asn1 1.7.1, log 1.15.0, metrics 2.11.0, numerics 1.1.1, system 1.8.1, service-lifecycle 2.12.0, service-context 1.3.0, distributed-tracing 1.4.1, algorithms 1.2.1, async-algorithms 1.1.5 · https://github.com/apple | pending |
+| DNSClient | orlandos-nl, upstream | MIT | 2.7.0 · https://github.com/orlandos-nl/DNSClient | pending |
 | Sparkle | sparkle-project, upstream | MIT | https://github.com/sparkle-project/Sparkle | pending |
 
 ## Feature areas

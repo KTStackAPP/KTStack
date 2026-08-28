@@ -5,7 +5,13 @@ protocol SessionConnection: Sendable {
     func useDatabase(_ database: String) async throws
     func runText(_ sql: String) async throws -> QueryResult
     func runSelect(_ statement: DMLStatement) async throws -> QueryResult
+    func cancel() async
     func shutdown() async
+}
+
+extension SessionConnection {
+    // Mặc định hủy = đóng connection; engine có kênh hủy riêng (MySQL KILL QUERY) tự override.
+    func cancel() async { await shutdown() }
 }
 
 public actor ConnectionSession {
@@ -47,7 +53,11 @@ public actor ConnectionSession {
         try await applyDatabaseIfNeeded(database, on: live)
         do {
             let result = try await live.runText(sql)
-            cancelRequested = false
+            // KILL QUERY có thể để query trả về bình thường (vd SLEEP): vẫn coi là đã hủy.
+            if cancelRequested, myEpoch == epoch {
+                cancelRequested = false
+                throw DatabaseError.cancelled
+            }
             return result
         } catch {
             if cancelRequested, myEpoch == epoch {
@@ -62,12 +72,10 @@ public actor ConnectionSession {
         try await withConnection { try await $0.runSelect(statement) }
     }
 
-    func cancelInFlight() {
+    func cancelInFlight() async {
         cancelRequested = true
-        let dead = connection
-        connection = nil
-        databaseApplied = false
-        Task { await dead?.shutdown() }
+        // Giữ session sống: MySQL KILL QUERY dừng query trên server, connection tái dùng được.
+        await connection?.cancel()
     }
 
     private func applyDatabaseIfNeeded(_ database: String?, on connection: SessionConnection) async throws {

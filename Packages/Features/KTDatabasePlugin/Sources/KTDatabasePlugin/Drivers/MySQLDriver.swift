@@ -169,7 +169,48 @@ public struct MySQLDriver: RelationalDriver {
             throw MySQLErrorMapper.map(error, isManaged: profile.isManaged)
         }
         try await applyReadOnly(to: connection, profile: profile)
-        return MySQLSessionConnection(connection: connection, isManaged: profile.isManaged)
+        let threadID = try await sessionThreadID(of: connection, profile: profile)
+        return MySQLSessionConnection(
+            connection: connection,
+            isManaged: profile.isManaged,
+            threadID: threadID,
+            makeControl: { try await makeControlConnection(profile: profile, password: password) }
+        )
+    }
+
+    // Id của thread server cho session, dùng để KILL QUERY khi hủy.
+    private static func sessionThreadID(
+        of connection: MySQLConnection,
+        profile: ConnectionProfile
+    ) async throws -> Int {
+        do {
+            let rows = try await connection.simpleQuery("SELECT CONNECTION_ID()").get()
+            return rows.first?.column("CONNECTION_ID()")?.int ?? -1
+        } catch {
+            try? await connection.close().get()
+            throw MySQLErrorMapper.map(error, isManaged: profile.isManaged)
+        }
+    }
+
+    // Control connection tách biệt để phát KILL QUERY mà không đụng session đang bận.
+    private static func makeControlConnection(
+        profile: ConnectionProfile,
+        password: String?
+    ) async throws -> MySQLConnection {
+        let group = try EventLoopProvider.shared.group()
+        let address = try SocketAddress.makeAddressResolvingHost(profile.host, port: profile.port)
+        do {
+            return try await MySQLConnection.connect(
+                to: address,
+                username: profile.user,
+                database: profile.database,
+                password: password,
+                tlsConfiguration: tlsConfiguration(for: profile),
+                on: group.next()
+            ).get()
+        } catch {
+            throw MySQLErrorMapper.map(error, isManaged: profile.isManaged)
+        }
     }
 
     private static func applyReadOnly(
