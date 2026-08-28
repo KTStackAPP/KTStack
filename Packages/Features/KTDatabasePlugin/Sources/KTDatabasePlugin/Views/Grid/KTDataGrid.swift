@@ -33,14 +33,15 @@ struct KTDataGrid: NSViewRepresentable {
         table.allowsMultipleSelection = true
         table.dataSource = coordinator
         table.delegate = coordinator
-        table.target = coordinator
-        table.doubleAction = #selector(Coordinator.handleDoubleClick)
-        table.onCopy = { [weak coordinator] in
-            coordinator?.copySelectedRows(includeHeaders: false, asCSV: false)
-        }
+        table.input = coordinator
         table.menu = coordinator.makeContextMenu()
         coordinator.table = table
         coordinator.rebuildColumns(for: result)
+
+        let overlay = GridSelectionOverlay()
+        overlay.frame = table.bounds
+        table.addSubview(overlay)
+        coordinator.overlay = overlay
 
         let scroll = NSScrollView()
         scroll.documentView = table
@@ -72,8 +73,10 @@ struct KTDataGrid: NSViewRepresentable {
 
     final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate {
         private(set) var result: QueryResult
-        weak var table: NSTableView?
+        weak var table: KTGridTableView?
         weak var scrollView: NSScrollView?
+        weak var overlay: GridSelectionOverlay?
+        var selection = GridSelectionModel()
         var selectedRow: Binding<Int?>?
         var onActivate: ((Int) -> Void)?
         var onNearEnd: (() -> Void)?
@@ -119,7 +122,7 @@ struct KTDataGrid: NSViewRepresentable {
             return Int(raw.dropFirst(4))
         }
 
-        private func dataIndex(ofViewColumn viewColumn: Int) -> Int? {
+        func dataIndex(ofViewColumn viewColumn: Int) -> Int? {
             guard let table, viewColumn >= 0, viewColumn < table.tableColumns.count else { return nil }
             return dataIndex(of: table.tableColumns[viewColumn])
         }
@@ -206,14 +209,14 @@ struct KTDataGrid: NSViewRepresentable {
 
         @objc
         private func editRow() {
-            guard let onActivate, let row = table?.selectedRowIndexes.first,
+            guard let onActivate, let row = selection.rowRange?.lowerBound,
                   row < result.rows.count else { return }
             onActivate(row)
         }
 
         func validateMenuItem(_ item: NSMenuItem) -> Bool {
             if item.action == #selector(editRow) {
-                return onActivate != nil && !(table?.selectedRowIndexes.isEmpty ?? true)
+                return onActivate != nil && !selection.isEmpty
             }
             if item.action == #selector(followForeignKey) {
                 guard onNavigateFK != nil, let grid = table as? KTGridTableView,
@@ -227,8 +230,7 @@ struct KTDataGrid: NSViewRepresentable {
         }
 
         func copySelectedRows(includeHeaders: Bool, asCSV: Bool) {
-            let selected = table?.selectedRowIndexes ?? []
-            let indices: [Int]? = selected.isEmpty ? nil : Array(selected).sorted()
+            let indices: [Int]? = selection.rowRange.map { Array($0) }
             let text = asCSV
                 ? QueryResultTextSerializer.csv(result, rows: indices, includeHeaders: includeHeaders)
                 : QueryResultTextSerializer.tsv(result, rows: indices, includeHeaders: includeHeaders)
@@ -245,6 +247,7 @@ struct KTDataGrid: NSViewRepresentable {
             if rowCountChanged { nearEndRequested = false }
             table?.reloadData()
             updateSortIndicators()
+            clampSelection()
         }
 
         func tableView(_: NSTableView, didClick tableColumn: NSTableColumn) {
@@ -361,32 +364,14 @@ struct KTDataGrid: NSViewRepresentable {
             return field
         }
 
-        func tableViewSelectionDidChange(_: Notification) {
-            guard let table else { return }
-            let indexes = table.selectedRowIndexes
-            selectedRow?.wrappedValue = indexes.count == 1 ? indexes.first : nil
-        }
-
-        @objc
-        func handleDoubleClick() {
-            guard let table, table.clickedRow >= 0, table.clickedRow < result.rows.count else { return }
-            let row = table.clickedRow
-            let viewColumn = table.clickedColumn
-            guard let column = dataIndex(ofViewColumn: viewColumn), cellIsInlineEditable(row: row, column: column) else {
-                onActivate?(row)
-                return
-            }
-            beginInlineEdit(row: row, viewColumn: viewColumn, dataColumn: column)
-        }
-
-        private func cellIsInlineEditable(row: Int, column: Int) -> Bool {
+        func cellIsInlineEditable(row: Int, column: Int) -> Bool {
             guard onCommitEdit != nil, column < result.columns.count else { return false }
             guard editableColumns.contains(result.columns[column].name) else { return false }
             if case .blob = result.rows[row][column] { return false }
             return true
         }
 
-        private func beginInlineEdit(row: Int, viewColumn: Int, dataColumn: Int) {
+        func beginInlineEdit(row: Int, viewColumn: Int, dataColumn: Int) {
             guard let table,
                   let field = table.view(atColumn: viewColumn, row: row, makeIfNecessary: true) as? NSTextField
             else { return }
@@ -431,43 +416,6 @@ struct KTDataGrid: NSViewRepresentable {
         }
     }
 }
-
-final class KTGridTableView: NSTableView {
-    var onCopy: (() -> Void)?
-    private(set) var menuRow = -1
-    private(set) var menuColumn = -1
-
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
-           event.charactersIgnoringModifiers == "c"
-        {
-            onCopy?()
-            return true
-        }
-        return super.performKeyEquivalent(with: event)
-    }
-
-    override func menu(for event: NSEvent) -> NSMenu? {
-        let point = convert(event.locationInWindow, from: nil)
-        menuRow = row(at: point)
-        menuColumn = column(at: point)
-        if menuRow >= 0, !selectedRowIndexes.contains(menuRow) {
-            selectRowIndexes(IndexSet(integer: menuRow), byExtendingSelection: false)
-        }
-        return super.menu(for: event)
-    }
-}
-
-final class KTGridRowView: NSTableRowView {
-    private static let selectionFill = NSColor(srgbRed: 47 / 255, green: 107 / 255, blue: 255 / 255, alpha: 0.10)
-
-    override func drawSelection(in _: NSRect) {
-        guard isSelected else { return }
-        Self.selectionFill.setFill()
-        bounds.fill()
-    }
-}
-
 private extension NSColor {
     convenience init(hexValue: UInt32) {
         self.init(
