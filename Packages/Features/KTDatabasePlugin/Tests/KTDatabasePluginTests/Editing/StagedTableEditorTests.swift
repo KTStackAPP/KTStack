@@ -133,4 +133,24 @@ final class StagedTableEditorTests: XCTestCase {
             XCTAssertTrue(editor.hasPendingChanges)
         }
     }
+
+    func testStageDefaultEmitsUnboundDefaultKeyword() throws {
+        let editor = makeEditor(RecordingDriver())
+        XCTAssertTrue(try editor.stageUpdate(row: row(id: 1, name: .text("ann"), age: .int(30)), column: "age", edit: .default))
+        let preview = try editor.sqlPreview()
+        XCTAssertEqual(preview.statements.count, 1)
+        XCTAssertTrue(preview.statements[0].contains("`age` = DEFAULT"))
+        XCTAssertEqual(preview.bindCount, 1) // chỉ còn bind của key
+    }
+
+    func testStageDefaultAfterValueOnSameColumnKeepsDefaultOnly() throws {
+        let editor = makeEditor(RecordingDriver())
+        let existing = row(id: 1, name: .text("ann"), age: .int(30))
+        _ = try editor.stageUpdate(row: existing, column: "age", edit: .value("31"))
+        _ = try editor.stageUpdate(row: existing, column: "age", edit: .default)
+        let preview = try editor.sqlPreview()
+        XCTAssertTrue(preview.statements[0].contains("`age` = DEFAULT"))
+        XCTAssertFalse(preview.statements[0].contains("`age` = ?"))
+        XCTAssertEqual(editor.pendingCount, 1)
+    }
 }

@@ -45,6 +45,10 @@ public final class StagedTableEditor {
         guard let identity = resolver.identity(for: row) else {
             throw DatabaseError.connection("Can't identify this row to edit (no key).")
         }
+        if edit == .default {
+            buffer.stageDefault(identity: identity, column: column)
+            return true
+        }
         let value = try CellCoercion.cell(for: edit, column: info, kind: .forColumn(info))
         if let current = row[column], current == value { return false }
         buffer.stageUpdate(identity: identity, column: column, value: value)
@@ -80,6 +84,10 @@ public final class StagedTableEditor {
 
     public func setDraftValue(_ id: DraftRowID, column: String, edit: CellEdit) throws {
         guard let info = columnByName[column] else { return }
+        if edit == .default {
+            buffer.setDraftDefault(id, column: column)
+            return
+        }
         let value = try CellCoercion.cell(for: edit, column: info, kind: .forColumn(info))
         buffer.setDraftValue(id, column: column, value: value)
     }
@@ -111,11 +119,17 @@ public final class StagedTableEditor {
         let rows = base.rows.map { cells -> [Cell] in
             var dict: [String: Cell] = [:]
             for (index, name) in names.enumerated() where index < cells.count { dict[name] = cells[index] }
-            guard let identity = resolver.identity(for: dict),
-                  let changes = buffer.stagedUpdate(for: identity) else { return cells }
+            guard let identity = resolver.identity(for: dict) else { return cells }
+            let changes = buffer.stagedUpdate(for: identity)
+            let defaults = buffer.stagedDefaults(for: identity)
+            guard changes != nil || !defaults.isEmpty else { return cells }
             var updated = cells
             for (index, name) in names.enumerated() where index < updated.count {
-                if let value = changes[name] { updated[index] = value }
+                if defaults.contains(name) {
+                    updated[index] = .text("(default)")
+                } else if let value = changes?[name] {
+                    updated[index] = value
+                }
             }
             return updated
         }

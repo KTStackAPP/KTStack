@@ -64,9 +64,18 @@ public struct QueryResult: Sendable, Equatable {
 public struct ColumnValue: Sendable, Hashable {
     public let column: String
     public let value: Cell
+    // Ghi bằng keyword DEFAULT (unbound), không đưa `value` vào binds.
+    public let isDefault: Bool
 
     public init(column: String, value: Cell) {
         self.column = column
         self.value = value
+        self.isDefault = false
+    }
+
+    public init(defaultFor column: String) {
+        self.column = column
+        self.value = .null
+        self.isDefault = true
     }
 }

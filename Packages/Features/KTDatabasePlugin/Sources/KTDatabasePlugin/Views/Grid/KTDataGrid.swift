@@ -193,6 +193,7 @@ struct KTDataGrid: NSViewRepresentable {
             menu.addItem(withTitle: "Set NULL", action: #selector(setSelectionNull), keyEquivalent: "")
             menu.addItem(withTitle: "Set Empty", action: #selector(setSelectionEmpty), keyEquivalent: "")
             menu.addItem(withTitle: "Set Current Time", action: #selector(setSelectionNow), keyEquivalent: "")
+            menu.addItem(withTitle: "Set DEFAULT", action: #selector(setSelectionDefault), keyEquivalent: "")
             menu.addItem(.separator())
             menu.addItem(withTitle: "Follow Foreign Key", action: #selector(followForeignKey), keyEquivalent: "")
             menu.addItem(withTitle: "Edit Row…", action: #selector(editRow), keyEquivalent: "")
@@ -233,7 +234,8 @@ struct KTDataGrid: NSViewRepresentable {
 
         func validateMenuItem(_ item: NSMenuItem) -> Bool {
             let setEditActions: [Selector] = [
-                #selector(setSelectionNull), #selector(setSelectionEmpty), #selector(setSelectionNow)
+                #selector(setSelectionNull), #selector(setSelectionEmpty),
+                #selector(setSelectionNow), #selector(setSelectionDefault)
             ]
             if setEditActions.contains(item.action ?? Selector("")) {
                 return onSetEdit != nil && !selection.isEmpty

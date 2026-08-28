@@ -68,12 +68,14 @@ public enum CellEdit: Equatable, Sendable {
     case null
     case empty
     case now
+    case `default`
 }
 
 public enum CellCoercionError: Error, Equatable {
     case notNullable
     case notInEnum(String)
     case invalidSetMembers([String])
+    case defaultNotCoercible
 }
 
 /// Turns a typed edit into a bound `Cell`, honouring nullability and the column's editor kind. An
@@ -93,6 +95,9 @@ public enum CellCoercion {
             return .text("")
         case .now:
             return .text(timestampString(kind: kind, date: now))
+        case .default:
+            // DEFAULT là keyword, không phải Cell; phải đi qua đường unbound của editor.
+            throw CellCoercionError.defaultNotCoercible
         case let .value(raw):
             return try coerceValue(raw, column: column, kind: kind)
         }

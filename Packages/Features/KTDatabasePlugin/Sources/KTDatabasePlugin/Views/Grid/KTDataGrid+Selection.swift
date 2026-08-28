@@ -138,6 +138,7 @@ extension KTDataGrid.Coordinator: KTGridInput {
     @objc func setSelectionNull() { applyEditToSelection(.null) }
     @objc func setSelectionEmpty() { applyEditToSelection(.empty) }
     @objc func setSelectionNow() { applyEditToSelection(.now) }
+    @objc func setSelectionDefault() { applyEditToSelection(.default) }
 
     private func applyEditToSelection(_ edit: CellEdit) {
         guard let onSetEdit, let rowRange = selection.rowRange, let columnRange = selection.columnRange else { return }

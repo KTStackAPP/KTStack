@@ -87,4 +87,29 @@ final class MySQLBatchCommitIntegrationTests: XCTestCase {
         XCTAssertEqual(page.rowCount, 2)
         XCTAssertEqual(byID[.int(1)], .text("a"))
     }
+
+    func testStageDefaultResetsColumnToItsColumnDefault() async throws {
+        let driver = try makeDriver()
+        _ = try await driver.query("DROP DATABASE IF EXISTS \(schema)", database: nil)
+        _ = try await driver.query("CREATE DATABASE \(schema)", database: nil)
+        _ = try await driver.query(
+            "CREATE TABLE \(schema).d (id INT PRIMARY KEY, status VARCHAR(20) NOT NULL DEFAULT 'active')",
+            database: nil
+        )
+        _ = try await driver.query("INSERT INTO \(schema).d (id, status) VALUES (1, 'blocked')", database: nil)
+
+        let staged = StagedTableEditor(
+            schema: schema, table: "d", dialect: .forKind(.mysql),
+            columns: [
+                ColumnInfo(name: "id", dataType: "int", isNullable: false, isPrimaryKey: true),
+                ColumnInfo(name: "status", dataType: "varchar(20)", isNullable: false, isPrimaryKey: false),
+            ],
+            driver: driver, database: schema
+        )
+        _ = try staged.stageUpdate(row: ["id": .int(1), "status": .text("blocked")], column: "status", edit: .default)
+        try await staged.commit()
+
+        let page = try await driver.paginatedRows(database: schema, table: "d", limit: 10, offset: 0)
+        XCTAssertEqual(page.rows.first?[1], .text("active"))
+    }
 }
