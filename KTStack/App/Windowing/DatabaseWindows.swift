@@ -33,7 +33,11 @@ final class DatabaseWindows {
     func handle(_ route: DatabaseRoute) {
         switch route {
         case .sqlEditor:
-            sqlEditor.present(plugin.makeSQLEditorView(), onClose: { [plugin] in plugin.sqlEditorDidClose() })
+            sqlEditor.present(
+                plugin.makeSQLEditorView(),
+                onClose: { [plugin] in plugin.sqlEditorDidClose() },
+                shouldClose: { [plugin] in plugin.sqlEditorShouldClose() }
+            )
         case .documentBrowser:
             documentBrowser.present(plugin.makeDocumentBrowserView(), onClose: {})
         case .closeSQLEditor:
