@@ -6,8 +6,8 @@
 #    redis, ...) are separately distributed executables, not app-linked; they keep
 #    their own licenses via the NOTICES table + source offer below.
 # 2. Provenance scan (ADR 0003): reject AGPL and forbidden editor-fork markers
-#    and stray license files in KTStack-owned Swift source. One signal, not proof
-#    of authorship.
+#    in tracked Swift and stray license files anywhere in the tree. One signal,
+#    not proof of authorship.
 # 3. Generate NOTICES.txt: attribution + license identifiers for every
 #    redistributed component, plus a written offer of source for the copyleft ones.
 #
@@ -21,6 +21,8 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
 # ---- SPM app-linked dependency allowlist (identity|SPDX license) ----
 # App-target pins live in the workspace + KTDatabasePlugin Package.resolved.
+# Run after `xcodegen generate`: the workspace Package.resolved is generated, so
+# on a bare checkout only the plugin deps below get audited.
 SPM_ALLOW=(
   "mysql-nio|MIT"
   "postgres-nio|Apache-2.0"
@@ -150,7 +152,8 @@ self_test() {
 # third-party editor identifiers in KTStack-owned source. A text scan is one
 # signal, not proof of independent authorship; the independent review is primary.
 #
-# Product source only: git-tracked Swift under Packages/ and the app/tool targets.
+# Scans every git-tracked Swift file, not just KTStack-owned targets, so an
+# accidentally committed third-party tree anywhere in the repo is caught too.
 #
 # Base markers stay in-tree: generic copyleft (AGPL/Affero/SSPL) plus known
 # editor-fork type names. Any brand-specific markers load from a gitignored
@@ -165,11 +168,7 @@ if [ -f "$EXTRA_MARKERS_FILE" ]; then
 fi
 
 provenance_source_files() {
-  git -C "$ROOT" ls-files \
-    'Packages/**/*.swift' \
-    'KTStack/**/*.swift' \
-    'KTStackHelper/**/*.swift' \
-    'ktstack-resolve/**/*.swift' 2>/dev/null
+  git -C "$ROOT" ls-files '*.swift' 2>/dev/null
 }
 
 # stdin/arg text -> non-zero when a marker is present (used by scan + self-test).
@@ -180,7 +179,7 @@ scan_text_for_markers() {
 
 run_provenance_scan() {
   local fail=0 hits license_files
-  echo "Provenance scan: KTStack-owned Swift source for AGPL/editor-fork markers..."
+  echo "Provenance scan: tracked Swift source for AGPL/editor-fork markers..."
   hits="$(provenance_source_files | tr '\n' '\0' \
     | xargs -0 grep -EinH "$PROVENANCE_MARKERS" 2>/dev/null || true)"
   if [ -n "$hits" ]; then
@@ -189,13 +188,13 @@ run_provenance_scan() {
     fail=1
   fi
 
-  # A committed LICENSE/COPYING inside product source would mean vendored code
-  # of unknown provenance; only the root LICENSE (MIT) is expected.
-  license_files="$(git -C "$ROOT" ls-files \
-    'Packages/**/LICENSE*' 'Packages/**/COPYING*' 'Packages/**/*.license' \
-    'KTStack/**/LICENSE*' 'KTStack/**/COPYING*' 2>/dev/null || true)"
+  # Any tracked LICENSE/COPYING outside the root MIT one means vendored code of
+  # unknown provenance (an AGPL tree drops its own LICENSE), so scan repo-wide.
+  license_files="$(git -C "$ROOT" ls-files 2>/dev/null \
+    | grep -iE '(^|/)(LICENSE|LICENCE|COPYING)(\.[A-Za-z0-9]+)?$|\.license$' \
+    | grep -vxE 'LICENSE' || true)"
   if [ -n "$license_files" ]; then
-    echo "FAIL: unexpected license file(s) under product source (possible vendored code):" >&2
+    echo "FAIL: unexpected license file(s) in the tree (possible vendored code):" >&2
     echo "$license_files" >&2
     fail=1
   fi

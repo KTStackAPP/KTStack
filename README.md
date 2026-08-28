@@ -61,7 +61,7 @@ The features other tools **lock behind a paid plan or a separate app** (the data
 - **Proxy sites**: point a `.test` domain at any local port, LAN host or remote HTTPS origin
 - **Per-site settings**: alias domains (extra `.test` names, added to the HTTPS certificate), environment variables (passed to PHP and Node), and custom nginx directives (validated with `nginx -t` before reload)
 - **Databases & cache**: MySQL, MariaDB, PostgreSQL, Redis, Memcached, MongoDB
-- **Built-in database editor**: browse & edit rows, run SQL, structure/DDL, foreign-key navigation, and an interactive ER diagram, for MySQL, PostgreSQL and SQLite
+- **Built-in database editor**: browse & edit rows, run SQL, structure/DDL, foreign-key navigation, and an interactive ER diagram, for MySQL/MariaDB, PostgreSQL and SQLite
 - **Mailpit** mail catcher
 - **Per-site & per-service log viewer**
 - **`dd()` / `dump()` viewer**, Laravel/Symfony dumps stream straight into the app, no code changes
