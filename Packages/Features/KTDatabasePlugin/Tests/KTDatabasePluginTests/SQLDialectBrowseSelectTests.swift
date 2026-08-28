@@ -127,4 +127,51 @@ final class SQLDialectBrowseSelectTests: XCTestCase {
         )
         XCTAssertEqual(stmt.sql, "SELECT * FROM `db`.`t` LIMIT 1 OFFSET 0")
     }
+
+    func testMultiSortEmitsOrderedColumns() throws {
+        let stmt = try mysql.browseSelect(
+            schema: "db", table: "t", filters: [],
+            sorts: [SortSpec(column: "a", ascending: true), SortSpec(column: "b", ascending: false)],
+            limit: 100, offset: 0
+        )
+        XCTAssertEqual(
+            stmt.sql,
+            "SELECT * FROM `db`.`t` ORDER BY `a` ASC, `b` DESC LIMIT 100 OFFSET 0"
+        )
+    }
+
+    func testSingleSortOverloadMatchesMultiSort() throws {
+        let single = try mysql.browseSelect(
+            schema: "db", table: "t", filters: [],
+            sort: SortSpec(column: "a", ascending: true), limit: 100, offset: 0
+        )
+        let multi = try mysql.browseSelect(
+            schema: "db", table: "t", filters: [],
+            sorts: [SortSpec(column: "a", ascending: true)], limit: 100, offset: 0
+        )
+        XCTAssertEqual(single.sql, multi.sql)
+    }
+
+    func testCountSelectAppliesFilters() throws {
+        let stmt = try mysql.countSelect(
+            schema: "db", table: "orders",
+            filters: [FilterCondition(column: "status", op: .equals, value: .text("paid"))]
+        )
+        XCTAssertEqual(stmt.sql, "SELECT COUNT(*) FROM `db`.`orders` WHERE `status` = ?")
+        XCTAssertEqual(stmt.binds, [.text("paid")])
+    }
+
+    func testCountSelectNoFilters() throws {
+        let stmt = try mysql.countSelect(schema: "db", table: "t", filters: [])
+        XCTAssertEqual(stmt.sql, "SELECT COUNT(*) FROM `db`.`t`")
+        XCTAssertTrue(stmt.binds.isEmpty)
+    }
+
+    func testWhereClausePreviewRedactsValues() throws {
+        let preview = try mysql.whereClausePreview([
+            FilterCondition(column: "name", op: .contains, value: .text("nope")),
+        ])
+        XCTAssertEqual(preview, "`name` LIKE ?")
+        XCTAssertFalse(preview?.contains("nope") ?? true)
+    }
 }
