@@ -69,6 +69,8 @@ extension KTDataGrid.Coordinator: KTGridInput {
             presentValuePicker(row: row, viewColumn: viewColumn, dataColumn: dataColumn, choices: members, isBool: false)
         case .bool:
             presentValuePicker(row: row, viewColumn: viewColumn, dataColumn: dataColumn, choices: ["1", "0"], isBool: true)
+        case let .setMembership(members) where !members.isEmpty:
+            presentSetPicker(row: row, viewColumn: viewColumn, dataColumn: dataColumn, members: members)
         default:
             beginInlineEdit(row: row, viewColumn: viewColumn, dataColumn: dataColumn)
         }
@@ -96,6 +98,35 @@ extension KTDataGrid.Coordinator: KTGridInput {
     @objc private func didPickValue(_ item: NSMenuItem) {
         guard let context = item.representedObject as? GridPickContext else { return }
         onSetEdit?(context.row, context.column, .value(context.value))
+    }
+
+    private func presentSetPicker(row: Int, viewColumn: Int, dataColumn: Int, members: [String]) {
+        guard onSetEdit != nil, let table else { return }
+        let current = currentSetMembers(row: row, dataColumn: dataColumn)
+        let menu = NSMenu()
+        for member in members {
+            let item = NSMenuItem(title: member, action: #selector(didToggleSetMember(_:)), keyEquivalent: "")
+            item.target = self
+            item.state = current.contains(member) ? .on : .off
+            item.representedObject = GridSetPickContext(row: row, column: dataColumn, member: member, members: members)
+            menu.addItem(item)
+        }
+        let origin = table.frameOfCell(atColumn: viewColumn, row: row).origin
+        menu.popUp(positioning: nil, at: origin, in: table)
+    }
+
+    private func currentSetMembers(row: Int, dataColumn: Int) -> Set<String> {
+        guard row < result.rows.count, dataColumn < result.rows[row].count,
+              let text = result.rows[row][dataColumn].displayText, !text.isEmpty else { return [] }
+        return Set(text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
+    }
+
+    @objc private func didToggleSetMember(_ item: NSMenuItem) {
+        guard let context = item.representedObject as? GridSetPickContext else { return }
+        var selected = currentSetMembers(row: context.row, dataColumn: context.column)
+        if selected.contains(context.member) { selected.remove(context.member) } else { selected.insert(context.member) }
+        let ordered = context.members.filter { selected.contains($0) }
+        onSetEdit?(context.row, context.column, .value(ordered.joined(separator: ",")))
     }
 
     @objc func setSelectionNull() { applyEditToSelection(.null) }
@@ -201,5 +232,20 @@ final class GridPickContext: NSObject {
         self.row = row
         self.column = column
         self.value = value
+    }
+}
+
+/// Ngữ cảnh cho picker set: thành viên vừa bấm và toàn bộ thứ tự thành viên để giữ đúng thứ tự khi join.
+final class GridSetPickContext: NSObject {
+    let row: Int
+    let column: Int
+    let member: String
+    let members: [String]
+
+    init(row: Int, column: Int, member: String, members: [String]) {
+        self.row = row
+        self.column = column
+        self.member = member
+        self.members = members
     }
 }
