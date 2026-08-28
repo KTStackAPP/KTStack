@@ -13,6 +13,8 @@ struct KTDataGrid: NSViewRepresentable {
     var foreignKeyColumns: Set<String> = []
     var onNavigateFK: ((Int, Int) -> Void)?
     var onPaste: (([PastedCell]) -> Void)?
+    var onSetEdit: ((Int, Int, CellEdit) -> Void)?
+    var columnEditors: [String: CellEditorKind] = [:]
 
     func makeCoordinator() -> Coordinator {
         Coordinator(result: result)
@@ -66,6 +68,8 @@ struct KTDataGrid: NSViewRepresentable {
         context.coordinator.foreignKeyColumns = foreignKeyColumns
         context.coordinator.onNavigateFK = onNavigateFK
         context.coordinator.onPaste = onPaste
+        context.coordinator.onSetEdit = onSetEdit
+        context.coordinator.columnEditors = columnEditors
         context.coordinator.apply(result)
     }
 
@@ -89,6 +93,8 @@ struct KTDataGrid: NSViewRepresentable {
         var foreignKeyColumns: Set<String> = []
         var onNavigateFK: ((Int, Int) -> Void)?
         var onPaste: (([PastedCell]) -> Void)?
+        var onSetEdit: ((Int, Int, CellEdit) -> Void)?
+        var columnEditors: [String: CellEditorKind] = [:]
         private var nearEndRequested = false
         private weak var editingField: NSTextField?
         private var editingRow = -1
@@ -180,6 +186,10 @@ struct KTDataGrid: NSViewRepresentable {
             menu.addItem(withTitle: "Copy as JSON", action: #selector(copyJSON), keyEquivalent: "")
             menu.addItem(withTitle: "Copy as Markdown", action: #selector(copyMarkdown), keyEquivalent: "")
             menu.addItem(.separator())
+            menu.addItem(withTitle: "Set NULL", action: #selector(setSelectionNull), keyEquivalent: "")
+            menu.addItem(withTitle: "Set Empty", action: #selector(setSelectionEmpty), keyEquivalent: "")
+            menu.addItem(withTitle: "Set Current Time", action: #selector(setSelectionNow), keyEquivalent: "")
+            menu.addItem(.separator())
             menu.addItem(withTitle: "Follow Foreign Key", action: #selector(followForeignKey), keyEquivalent: "")
             menu.addItem(withTitle: "Edit Row…", action: #selector(editRow), keyEquivalent: "")
             menu.items.forEach { $0.target = self }
@@ -218,6 +228,12 @@ struct KTDataGrid: NSViewRepresentable {
         }
 
         func validateMenuItem(_ item: NSMenuItem) -> Bool {
+            let setEditActions: [Selector] = [
+                #selector(setSelectionNull), #selector(setSelectionEmpty), #selector(setSelectionNow)
+            ]
+            if setEditActions.contains(item.action ?? Selector("")) {
+                return onSetEdit != nil && !selection.isEmpty
+            }
             if item.action == #selector(editRow) {
                 return onActivate != nil && !selection.isEmpty
             }

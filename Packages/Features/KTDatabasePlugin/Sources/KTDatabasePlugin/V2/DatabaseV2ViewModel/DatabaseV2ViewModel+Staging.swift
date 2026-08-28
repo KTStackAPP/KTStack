@@ -36,12 +36,16 @@ public extension DatabaseV2ViewModel {
     }
 
     func stageCellEdit(row: Int, column: Int, newValue: String) {
+        stageCellEdit(row: row, column: column, edit: .value(newValue))
+    }
+
+    func stageCellEdit(row: Int, column: Int, edit: CellEdit) {
         guard let editor = staged, let result = rows,
               row >= 0, row < result.rows.count,
               column >= 0, column < result.columns.count else { return }
         editError = nil
         do {
-            try editor.stageUpdate(row: rowDict(result, row), column: result.columns[column].name, edit: .value(newValue))
+            try editor.stageUpdate(row: rowDict(result, row), column: result.columns[column].name, edit: edit)
             refreshStagedState()
         } catch {
             editError = error.localizedDescription

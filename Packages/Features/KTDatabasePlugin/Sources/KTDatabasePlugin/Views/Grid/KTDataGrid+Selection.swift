@@ -53,13 +53,63 @@ extension KTDataGrid.Coordinator: KTGridInput {
             if viewRow < result.rows.count { onActivate?(viewRow) }
             return
         }
-        beginInlineEdit(row: viewRow, viewColumn: viewColumn, dataColumn: column)
+        beginEditOrPicker(row: viewRow, viewColumn: viewColumn, dataColumn: column)
     }
 
     func gridBeginEditFocus() {
         guard let focus = selection.focus, focus.row < result.rows.count,
               cellIsInlineEditable(row: focus.row, column: focus.column) else { return }
-        beginInlineEdit(row: focus.row, viewColumn: focus.column + 1, dataColumn: focus.column)
+        beginEditOrPicker(row: focus.row, viewColumn: focus.column + 1, dataColumn: focus.column)
+    }
+
+    private func beginEditOrPicker(row: Int, viewColumn: Int, dataColumn: Int) {
+        let kind = editorKind(forColumn: dataColumn)
+        switch kind {
+        case let .enumeration(members) where !members.isEmpty:
+            presentValuePicker(row: row, viewColumn: viewColumn, dataColumn: dataColumn, choices: members, isBool: false)
+        case .bool:
+            presentValuePicker(row: row, viewColumn: viewColumn, dataColumn: dataColumn, choices: ["1", "0"], isBool: true)
+        default:
+            beginInlineEdit(row: row, viewColumn: viewColumn, dataColumn: dataColumn)
+        }
+    }
+
+    private func editorKind(forColumn dataColumn: Int) -> CellEditorKind {
+        guard dataColumn < result.columns.count else { return .text }
+        return columnEditors[result.columns[dataColumn].name] ?? .text
+    }
+
+    private func presentValuePicker(row: Int, viewColumn: Int, dataColumn: Int, choices: [String], isBool: Bool) {
+        guard onSetEdit != nil, let table else { return }
+        let menu = NSMenu()
+        for choice in choices {
+            let title = isBool ? (choice == "1" ? "true (1)" : "false (0)") : choice
+            let item = NSMenuItem(title: title, action: #selector(didPickValue(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = GridPickContext(row: row, column: dataColumn, value: choice)
+            menu.addItem(item)
+        }
+        let origin = table.frameOfCell(atColumn: viewColumn, row: row).origin
+        menu.popUp(positioning: nil, at: origin, in: table)
+    }
+
+    @objc private func didPickValue(_ item: NSMenuItem) {
+        guard let context = item.representedObject as? GridPickContext else { return }
+        onSetEdit?(context.row, context.column, .value(context.value))
+    }
+
+    @objc func setSelectionNull() { applyEditToSelection(.null) }
+    @objc func setSelectionEmpty() { applyEditToSelection(.empty) }
+    @objc func setSelectionNow() { applyEditToSelection(.now) }
+
+    private func applyEditToSelection(_ edit: CellEdit) {
+        guard let onSetEdit, let rowRange = selection.rowRange, let columnRange = selection.columnRange else { return }
+        for row in rowRange {
+            for column in columnRange where column < result.columns.count
+                && editableColumns.contains(result.columns[column].name) {
+                onSetEdit(row, column, edit)
+            }
+        }
     }
 
     func gridCopy() { copyCells(format: .tsv) }
@@ -138,5 +188,18 @@ extension KTDataGrid.Coordinator: KTGridInput {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
+    }
+}
+
+/// Ngữ cảnh (hàng, cột, giá trị) gắn vào item menu chọn giá trị enum/bool.
+final class GridPickContext: NSObject {
+    let row: Int
+    let column: Int
+    let value: String
+
+    init(row: Int, column: Int, value: String) {
+        self.row = row
+        self.column = column
+        self.value = value
     }
 }

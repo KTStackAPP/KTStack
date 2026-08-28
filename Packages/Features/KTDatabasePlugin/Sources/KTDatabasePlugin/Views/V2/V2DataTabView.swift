@@ -33,7 +33,9 @@ struct V2DataTabView: View {
                         },
                         foreignKeyColumns: foreignKeyColumnNames,
                         onNavigateFK: nil,
-                        onPaste: vm.canEdit ? { cells in vm.stagePaste(cells) } : nil
+                        onPaste: vm.canEdit ? { cells in vm.stagePaste(cells) } : nil,
+                        onSetEdit: vm.canEdit ? { row, column, edit in vm.stageCellEdit(row: row, column: column, edit: edit) } : nil,
+                        columnEditors: vm.canEdit ? columnEditorKinds : [:]
                     )
                     if showRowDetail, let idx = selectedRowIndex, idx < result.rows.count {
                         rowDetailPanel(columns: result.columns, row: result.rows[idx])
@@ -51,6 +53,10 @@ struct V2DataTabView: View {
     private var foreignKeyColumnNames: Set<String> {
         guard let table = vm.selectedTable else { return [] }
         return Set(vm.foreignKeys.filter { $0.fromTable == table.name }.map(\.fromColumn))
+    }
+
+    private var columnEditorKinds: [String: CellEditorKind] {
+        Dictionary(vm.columns.map { ($0.name, CellEditorKind.forColumn($0)) }, uniquingKeysWith: { first, _ in first })
     }
 
     private var contentHeader: some View {
