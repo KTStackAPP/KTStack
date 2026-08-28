@@ -32,7 +32,7 @@ struct V2DataTabView: View {
                             vm.stageCellEdit(row: row, column: column, newValue: value)
                         },
                         foreignKeyColumns: foreignKeyColumnNames,
-                        onNavigateFK: nil,
+                        onNavigateFK: { row, column in Task { await vm.previewForeignKey(row: row, column: column) } },
                         onPaste: vm.canEdit ? { cells in vm.stagePaste(cells) } : nil,
                         onSetEdit: vm.canEdit ? { row, column, edit in vm.stageCellEdit(row: row, column: column, edit: edit) } : nil,
                         columnEditors: vm.canEdit ? columnEditorKinds : [:]

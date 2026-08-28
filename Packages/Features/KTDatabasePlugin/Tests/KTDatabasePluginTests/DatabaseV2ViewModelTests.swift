@@ -122,8 +122,11 @@ final class DatabaseV2ViewModelTests: XCTestCase {
             cancelCalled = true
         }
 
-        func runSelect(_: DMLStatement, database _: String?) async throws -> QueryResult {
-            QueryResult(columns: [], rows: [])
+        var runSelectStatements: [DMLStatement] = []
+
+        func runSelect(_ statement: DMLStatement, database _: String?) async throws -> QueryResult {
+            runSelectStatements.append(statement)
+            return QueryResult(columns: [ColumnMeta(name: "id")], rows: [[.int(7)]])
         }
 
         func insert(database: String, table: String, values: [ColumnValue]) async throws {
@@ -1243,6 +1246,32 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         XCTAssertEqual(vm.pendingChangeCount, 1)
         XCTAssertEqual(vm.displayRows?.rows[0][1], .null)
         XCTAssertNil(vm.editError)
+    }
+
+    func testPreviewForeignKeyQueriesReferencedTable() async {
+        let driver = TestDriver()
+        driver.foreignKeys = [
+            ForeignKeyRelation(fromTable: "users", fromColumn: "name", toTable: "roles", toColumn: "id")
+        ]
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        await vm.previewForeignKey(row: 0, column: 1)
+
+        XCTAssertEqual(vm.fkPreview?.relation.toTable, "roles")
+        XCTAssertEqual(vm.fkPreview?.result.rowCount, 1)
+        XCTAssertEqual(driver.runSelectStatements.count, 1)
+        XCTAssertTrue(driver.runSelectStatements[0].sql.contains("roles"))
+        XCTAssertEqual(driver.runSelectStatements[0].binds, [.text("test-name")])
+
+        vm.closeForeignKeyPreview()
+        XCTAssertNil(vm.fkPreview)
     }
 
 }

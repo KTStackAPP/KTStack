@@ -39,6 +39,7 @@ public final class DatabaseV2ViewModel: ObservableObject {
     @Published public internal(set) var canUndoStaged: Bool = false
     @Published public internal(set) var canRedoStaged: Bool = false
     @Published public internal(set) var isCommitting: Bool = false
+    @Published public internal(set) var fkPreview: ForeignKeyPreview?
 
     var staged: StagedTableEditor?
 
@@ -307,6 +308,7 @@ public final class DatabaseV2ViewModel: ObservableObject {
         canUndoStaged = false
         canRedoStaged = false
         isCommitting = false
+        fkPreview = nil
     }
 
     func reloadAfterDDL() async {
