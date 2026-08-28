@@ -32,7 +32,7 @@ struct V2DataTabView: View {
                             vm.stageCellEdit(row: row, column: column, newValue: value)
                         },
                         foreignKeyColumns: foreignKeyColumnNames,
-                        onNavigateFK: { row, column in Task { await vm.previewForeignKey(row: row, column: column) } },
+                        onNavigateFK: { row, column in vm.navigateForeignKey(row: row, column: column) },
                         onPaste: vm.canEdit ? { cells in vm.stagePaste(cells) } : nil,
                         onSetEdit: vm.canEdit ? { row, column, edit in vm.stageCellEdit(row: row, column: column, edit: edit) } : nil,
                         onOpenEditor: { row, column in vm.openCellEditor(row: row, column: column) },
@@ -56,12 +56,35 @@ struct V2DataTabView: View {
         return Set(vm.foreignKeys.filter { $0.fromTable == table.name }.map(\.fromColumn))
     }
 
+    private func filterChip(_ label: String) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: "line.3.horizontal.decrease")
+                .font(.system(size: 9))
+            Text(label)
+                .font(.jbMono(11))
+        }
+        .foregroundStyle(KTEditorTheme.accent)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(KTEditorTheme.accent.opacity(0.1), in: Capsule())
+    }
+
     private var columnEditorKinds: [String: CellEditorKind] {
         Dictionary(vm.columns.map { ($0.name, CellEditorKind.forColumn($0)) }, uniquingKeysWith: { first, _ in first })
     }
 
     private var contentHeader: some View {
         HStack(spacing: 10) {
+            V2IconButton(
+                systemImage: "chevron.left",
+                tint: vm.canGoBack ? KTEditorTheme.label2 : KTEditorTheme.label3
+            ) { vm.goBack() }
+                .disabled(!vm.canGoBack)
+            V2IconButton(
+                systemImage: "chevron.right",
+                tint: vm.canGoForward ? KTEditorTheme.label2 : KTEditorTheme.label3
+            ) { vm.goForward() }
+                .disabled(!vm.canGoForward)
             RoundedRectangle(cornerRadius: 6)
                 .fill(Color(hex: 0xFFF1E0))
                 .frame(width: 22, height: 22)
@@ -73,6 +96,9 @@ struct V2DataTabView: View {
             Text(vm.selectedTable?.name ?? "—")
                 .font(.jbMono(14))
                 .foregroundStyle(KTEditorTheme.label)
+            if let filterLabel = vm.activeFilterLabel {
+                filterChip(filterLabel)
+            }
             if let result = vm.rows {
                 Text("\(result.rowCount) rows loaded")
                     .font(.jbMono(12.5))

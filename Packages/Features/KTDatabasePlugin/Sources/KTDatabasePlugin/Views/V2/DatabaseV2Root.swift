@@ -247,9 +247,6 @@ struct DatabaseV2Root: View {
         } message: {
             Text("Marks 1 row from \(vm.selectedTable?.name ?? "the table") for deletion. It applies when you commit, and you can undo before then.")
         }
-        .sheet(item: $vm.fkPreview) { preview in
-            V2ForeignKeyPreviewSheet(preview: preview) { vm.closeForeignKeyPreview() }
-        }
         .sheet(item: $vm.cellEditor) { context in
             V2CellEditorSheet(
                 context: context,

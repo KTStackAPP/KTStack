@@ -39,8 +39,9 @@ public final class DatabaseV2ViewModel: ObservableObject {
     @Published public internal(set) var canUndoStaged: Bool = false
     @Published public internal(set) var canRedoStaged: Bool = false
     @Published public internal(set) var isCommitting: Bool = false
-    @Published public internal(set) var fkPreview: ForeignKeyPreview?
     @Published public internal(set) var cellEditor: V2CellEditorContext?
+    @Published public internal(set) var navStack: [FKNavEntry] = []
+    @Published public internal(set) var navIndex: Int = -1
 
     var staged: StagedTableEditor?
 
@@ -170,11 +171,40 @@ public final class DatabaseV2ViewModel: ObservableObject {
         let token = generation
         selectedTable = table
         resetTableState()
+        navStack = [FKNavEntry(table: table, filter: nil)]
+        navIndex = 0
         isLoadingRows = true
         isLoadingStructure = true
         Task {
             await loadRows(table: table, token: token)
             await loadStructure(table: table, token: token)
+        }
+    }
+
+    // Tải bước lịch sử FK hiện tại (navIndex đã trỏ đúng); light reset, giữ nguyên navStack.
+    func loadNavEntry() {
+        guard navStack.indices.contains(navIndex) else { return }
+        let entry = navStack[navIndex]
+        generation += 1
+        let token = generation
+        selectedTable = entry.table
+        rows = nil
+        pageOffset = 0
+        hasMore = false
+        columns = []
+        indexes = []
+        staged = nil
+        pendingChangeCount = 0
+        canUndoStaged = false
+        canRedoStaged = false
+        editError = nil
+        loadError = nil
+        cellEditor = nil
+        isLoadingRows = true
+        isLoadingStructure = true
+        Task {
+            await loadRows(table: entry.table, token: token)
+            await loadStructure(table: entry.table, token: token)
         }
     }
 
@@ -187,8 +217,8 @@ public final class DatabaseV2ViewModel: ObservableObject {
         isLoadingRows = true
         loadError = nil
         do {
-            let result = try await driver.paginatedRows(
-                database: database, table: table.name, limit: pageSize, offset: 0
+            let result = try await fetchRows(
+                driver: driver, database: database, table: table.name, limit: pageSize, offset: 0
             )
             guard token == generation else { return }
             rows = result
@@ -207,8 +237,8 @@ public final class DatabaseV2ViewModel: ObservableObject {
               hasMore, !isLoadingRows else { return }
         isLoadingRows = true
         do {
-            let result = try await driver.paginatedRows(
-                database: database, table: table.name, limit: pageSize, offset: pageOffset
+            let result = try await fetchRows(
+                driver: driver, database: database, table: table.name, limit: pageSize, offset: pageOffset
             )
             guard token == generation else { return }
             if let existing = rows {
@@ -235,8 +265,8 @@ public final class DatabaseV2ViewModel: ObservableObject {
         guard let driver, let database = selectedDatabase, let table = selectedTable else { return }
         let limit = max(pageOffset, pageSize)
         do {
-            let result = try await driver.paginatedRows(
-                database: database, table: table.name, limit: limit, offset: 0
+            let result = try await fetchRows(
+                driver: driver, database: database, table: table.name, limit: limit, offset: 0
             )
             guard token == generation else { return }
             rows = result
@@ -309,8 +339,9 @@ public final class DatabaseV2ViewModel: ObservableObject {
         canUndoStaged = false
         canRedoStaged = false
         isCommitting = false
-        fkPreview = nil
         cellEditor = nil
+        navStack = []
+        navIndex = -1
     }
 
     func reloadAfterDDL() async {

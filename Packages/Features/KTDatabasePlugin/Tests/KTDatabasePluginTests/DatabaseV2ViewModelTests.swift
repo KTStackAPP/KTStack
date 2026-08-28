@@ -1248,7 +1248,7 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         XCTAssertNil(vm.editError)
     }
 
-    func testPreviewForeignKeyQueriesReferencedTable() async {
+    func testNavigateForeignKeyLoadsReferencedTableFilteredThenBack() async {
         let driver = TestDriver()
         driver.foreignKeys = [
             ForeignKeyRelation(fromTable: "users", fromColumn: "name", toTable: "roles", toColumn: "id")
@@ -1262,16 +1262,23 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         vm.select(table: TableInfo(name: "users"))
         try? await Task.sleep(for: .milliseconds(100))
 
-        await vm.previewForeignKey(row: 0, column: 1)
+        vm.navigateForeignKey(row: 0, column: 1)
+        try? await Task.sleep(for: .milliseconds(100))
 
-        XCTAssertEqual(vm.fkPreview?.relation.toTable, "roles")
-        XCTAssertEqual(vm.fkPreview?.result.rowCount, 1)
-        XCTAssertEqual(driver.runSelectStatements.count, 1)
-        XCTAssertTrue(driver.runSelectStatements[0].sql.contains("roles"))
-        XCTAssertEqual(driver.runSelectStatements[0].binds, [.text("test-name")])
+        XCTAssertEqual(vm.selectedTable?.name, "roles")
+        XCTAssertTrue(vm.canGoBack)
+        XCTAssertFalse(vm.canGoForward)
+        XCTAssertEqual(vm.activeFilter?.column, "id")
+        XCTAssertEqual(vm.activeFilter?.value, .text("test-name"))
+        XCTAssertTrue(driver.runSelectStatements.contains { $0.sql.contains("roles") && $0.binds == [.text("test-name")] })
 
-        vm.closeForeignKeyPreview()
-        XCTAssertNil(vm.fkPreview)
+        vm.goBack()
+        try? await Task.sleep(for: .milliseconds(100))
+
+        XCTAssertEqual(vm.selectedTable?.name, "users")
+        XCTAssertNil(vm.activeFilter)
+        XCTAssertTrue(vm.canGoForward)
+        XCTAssertFalse(vm.canGoBack)
     }
 
     func testOpenCellEditorForJSONColumnStagesOnSave() async {
