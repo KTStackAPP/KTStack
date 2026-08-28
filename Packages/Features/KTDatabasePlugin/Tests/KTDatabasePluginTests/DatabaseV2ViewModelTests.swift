@@ -1268,15 +1268,15 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         XCTAssertEqual(vm.selectedTable?.name, "roles")
         XCTAssertTrue(vm.canGoBack)
         XCTAssertFalse(vm.canGoForward)
-        XCTAssertEqual(vm.activeFilter?.column, "id")
-        XCTAssertEqual(vm.activeFilter?.value, .text("test-name"))
+        XCTAssertEqual(vm.activeFilters.first?.column, "id")
+        XCTAssertEqual(vm.activeFilters.first?.value, .text("test-name"))
         XCTAssertTrue(driver.runSelectStatements.contains { $0.sql.contains("roles") && $0.binds == [.text("test-name")] })
 
         vm.goBack()
         try? await Task.sleep(for: .milliseconds(100))
 
         XCTAssertEqual(vm.selectedTable?.name, "users")
-        XCTAssertNil(vm.activeFilter)
+        XCTAssertTrue(vm.activeFilters.isEmpty)
         XCTAssertTrue(vm.canGoForward)
         XCTAssertFalse(vm.canGoBack)
     }
@@ -1305,6 +1305,65 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         XCTAssertNil(vm.cellEditor)
         XCTAssertEqual(vm.pendingChangeCount, 1)
         XCTAssertEqual(vm.displayRows?.rows[0][1], .text("{\"k\":1}"))
+    }
+
+    func testSaveApplyAndDeleteFilterPreset() async {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kt-vm-presets-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("filter-presets.json")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            presetStore: FilterPresetStore(storeURL: url),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        let condition = FilterCondition(column: "id", op: .equals, value: .int(7))
+        vm.applyFilters([condition])
+        vm.saveCurrentFiltersAsPreset(name: "seven")
+        XCTAssertEqual(vm.savedPresets.map(\.name), ["seven"])
+
+        vm.applyFilters([])
+        XCTAssertTrue(vm.activeFilters.isEmpty)
+
+        vm.applyPreset(vm.savedPresets[0])
+        try? await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(vm.activeFilters, [condition])
+
+        vm.deletePreset(vm.savedPresets[0])
+        XCTAssertTrue(vm.savedPresets.isEmpty)
+    }
+
+    func testSavePresetIgnoresEmptyNameAndNoConditions() async {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kt-vm-presets-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("filter-presets.json")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            presetStore: FilterPresetStore(storeURL: url),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        vm.applyFilters([FilterCondition(column: "id", op: .equals, value: .int(1))])
+        vm.saveCurrentFiltersAsPreset(name: "   ")
+        XCTAssertTrue(vm.savedPresets.isEmpty)
+
+        vm.applyFilters([])
+        vm.savePreset(name: "empty", conditions: [])
+        XCTAssertTrue(vm.savedPresets.isEmpty)
     }
 
 }

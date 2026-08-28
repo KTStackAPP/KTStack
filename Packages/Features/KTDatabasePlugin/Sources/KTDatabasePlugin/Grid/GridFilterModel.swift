@@ -1,6 +1,6 @@
 import Foundation
 
-public struct FilterPreset: Equatable, Sendable {
+public struct FilterPreset: Equatable, Sendable, Codable {
     public let name: String
     public let conditions: [FilterCondition]
 

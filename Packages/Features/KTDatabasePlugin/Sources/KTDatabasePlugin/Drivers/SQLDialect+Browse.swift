@@ -1,6 +1,6 @@
 import Foundation
 
-public enum FilterOperator: String, Sendable, CaseIterable {
+public enum FilterOperator: String, Sendable, CaseIterable, Codable {
     case equals
     case notEquals
     case contains
@@ -15,9 +15,21 @@ public enum FilterOperator: String, Sendable, CaseIterable {
         default: true
         }
     }
+
+    public var symbol: String {
+        switch self {
+        case .equals: "="
+        case .notEquals: "≠"
+        case .contains: "contains"
+        case .greaterThan: ">"
+        case .lessThan: "<"
+        case .isNull: "IS NULL"
+        case .isNotNull: "IS NOT NULL"
+        }
+    }
 }
 
-public struct FilterCondition: Sendable, Equatable {
+public struct FilterCondition: Sendable, Equatable, Codable {
     public let column: String
     public let op: FilterOperator
     public let value: Cell

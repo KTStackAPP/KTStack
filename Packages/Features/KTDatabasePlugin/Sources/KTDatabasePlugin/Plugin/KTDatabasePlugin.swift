@@ -19,7 +19,12 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
     )
     @MainActor lazy var databaseVM = DatabaseViewModel(tools: tools)
     @MainActor lazy var documentVM = DocumentViewModel(tools: tools)
-    @MainActor lazy var v2VM = DatabaseV2ViewModel(tools: tools)
+    @MainActor lazy var filterPresetStore = FilterPresetStore(
+        storeURL: paths.config
+            .appendingPathComponent("database", isDirectory: true)
+            .appendingPathComponent("filter-presets.json")
+    )
+    @MainActor lazy var v2VM = DatabaseV2ViewModel(tools: tools, presetStore: filterPresetStore)
     @MainActor lazy var backupSession = BackupSession.managed(tools: tools, paths: paths)
     @MainActor let feedback = KTFeedbackCenter()
     @MainActor let sectionState = DatabaseSectionState()

@@ -20,6 +20,35 @@ public enum Cell: Sendable, Hashable {
     }
 }
 
+extension Cell: Codable {
+    private enum Kind: String, Codable { case text, int, double, bool, null, blob }
+    private enum CodingKeys: String, CodingKey { case kind, value }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        switch try container.decode(Kind.self, forKey: .kind) {
+        case .text: self = .text(try container.decode(String.self, forKey: .value))
+        case .int: self = .int(try container.decode(Int64.self, forKey: .value))
+        case .double: self = .double(try container.decode(Double.self, forKey: .value))
+        case .bool: self = .bool(try container.decode(Bool.self, forKey: .value))
+        case .null: self = .null
+        case .blob: self = .blob(try container.decode(Data.self, forKey: .value))
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case let .text(value): try container.encode(Kind.text, forKey: .kind); try container.encode(value, forKey: .value)
+        case let .int(value): try container.encode(Kind.int, forKey: .kind); try container.encode(value, forKey: .value)
+        case let .double(value): try container.encode(Kind.double, forKey: .kind); try container.encode(value, forKey: .value)
+        case let .bool(value): try container.encode(Kind.bool, forKey: .kind); try container.encode(value, forKey: .value)
+        case .null: try container.encode(Kind.null, forKey: .kind)
+        case let .blob(value): try container.encode(Kind.blob, forKey: .kind); try container.encode(value, forKey: .value)
+        }
+    }
+}
+
 public struct ColumnMeta: Sendable, Equatable {
     public let name: String
     public let typeName: String?

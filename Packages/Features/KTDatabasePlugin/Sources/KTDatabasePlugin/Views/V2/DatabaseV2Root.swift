@@ -196,6 +196,7 @@ struct DatabaseV2Root: View {
 
     @State private var activeTab: V2EditorTab = .data
     @State private var showInsertSheet = false
+    @State private var showFilterSheet = false
     @State private var pendingDeleteRow: Int? = nil
     @State private var pendingSwitch: PendingSwitch?
 
@@ -229,6 +230,9 @@ struct DatabaseV2Root: View {
         .background(KTEditorTheme.window)
         .sheet(isPresented: $showInsertSheet) {
             V2RowEditorSheet(vm: vm)
+        }
+        .sheet(isPresented: $showFilterSheet) {
+            V2FilterSheet(vm: vm, onClose: { showFilterSheet = false })
         }
         .alert(
             "Stage delete of this row?",
@@ -363,7 +367,7 @@ struct DatabaseV2Root: View {
     private var tabContent: some View {
         switch activeTab {
         case .data:
-            V2DataTabView(vm: vm, showInsertSheet: $showInsertSheet, pendingDeleteRow: $pendingDeleteRow)
+            V2DataTabView(vm: vm, showInsertSheet: $showInsertSheet, showFilterSheet: $showFilterSheet, pendingDeleteRow: $pendingDeleteRow)
         case .structure:
             V2StructureTabView(vm: vm)
         case .query:

@@ -68,16 +68,19 @@ public final class DatabaseV2ViewModel: ObservableObject {
 
     private let makeDriver: DatabaseViewModel.DriverFactory
     private let passwordFor: @Sendable (ConnectionProfile) -> String?
+    let presetStore: FilterPresetStore?
     var driver: RelationalDriver?
     var generation = 0
 
     public init(
         tools: any DatabaseToolsProviding,
+        presetStore: FilterPresetStore? = nil,
         makeDriver: DatabaseViewModel.DriverFactory? = nil,
         passwordFor: @escaping @Sendable (ConnectionProfile) -> String? = DatabaseViewModel.defaultPassword
     ) {
         self.makeDriver = makeDriver ?? DatabaseViewModel.defaultDriver(tools: tools)
         self.passwordFor = passwordFor
+        self.presetStore = presetStore
         let initialTab = V2QueryTab(title: "Query 1")
         queryTabs = [initialTab]
         activeQueryTabID = initialTab.id
@@ -171,7 +174,7 @@ public final class DatabaseV2ViewModel: ObservableObject {
         let token = generation
         selectedTable = table
         resetTableState()
-        navStack = [FKNavEntry(table: table, filter: nil)]
+        navStack = [FKNavEntry(table: table, filters: [])]
         navIndex = 0
         isLoadingRows = true
         isLoadingStructure = true

@@ -4,6 +4,7 @@ import SwiftUI
 struct V2DataTabView: View {
     @ObservedObject var vm: DatabaseV2ViewModel
     @Binding var showInsertSheet: Bool
+    @Binding var showFilterSheet: Bool
     @Binding var pendingDeleteRow: Int?
 
     @State private var selectedRowIndex: Int? = nil
@@ -110,6 +111,13 @@ struct V2DataTabView: View {
                     .foregroundStyle(KTEditorTheme.label3)
             }
             Spacer()
+            V2IconButton(
+                systemImage: "line.3.horizontal.decrease",
+                tint: vm.activeFilterLabel != nil ? KTEditorTheme.accent : KTEditorTheme.label2
+            ) {
+                showFilterSheet = true
+            }
+            .disabled(vm.selectedTable == nil)
             V2IconButton(systemImage: "plus") {
                 showInsertSheet = true
             }
