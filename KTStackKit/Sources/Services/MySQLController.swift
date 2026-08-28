@@ -121,18 +121,29 @@ public final class MySQLController: ManagedService, @unchecked Sendable {
             )
         case .mariadb:
             guard let basedir else { throw ServiceNotInstalled(.mariadb) }
-            let installDB = basedir.appendingPathComponent("scripts/mariadb-install-db")
-            try ServiceInitializer.run(
-                installDB,
-                [
-                    "--basedir=\(basedir.path)",
-                    "--datadir=\(dataDir.path)",
-                    "--auth-root-authentication-method=normal",
-                    "--skip-test-db",
-                ],
-                tool: "mariadb-install-db"
-            )
+            try initializeMariaDB(basedir: basedir)
         }
+    }
+
+    // mariadb-install-db là shell script word-split $basedir; khoảng trắng trong path ("Application Support") làm nó không thấy my_print_defaults. Chạy qua symlink basedir không khoảng trắng để né; spaced datadir thì script xử lý được.
+    private func initializeMariaDB(basedir: URL) throws {
+        let fm = FileManager.default
+        let linkBase = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("ktstack-mariadb-\(UUID().uuidString)")
+        try? fm.removeItem(at: linkBase)
+        try fm.createSymbolicLink(at: linkBase, withDestinationURL: basedir)
+        defer { try? fm.removeItem(at: linkBase) }
+
+        try ServiceInitializer.run(
+            linkBase.appendingPathComponent("scripts/mariadb-install-db"),
+            [
+                "--basedir=\(linkBase.path)",
+                "--datadir=\(dataDir.path)",
+                "--auth-root-authentication-method=normal",
+                "--skip-test-db",
+            ],
+            tool: "mariadb-install-db"
+        )
     }
 
     private func writeConfig() throws {

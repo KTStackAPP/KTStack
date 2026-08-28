@@ -1,3 +1,4 @@
+import AppKit
 import KTPlatformContracts
 import KTPluginKit
 import KTStackCore
@@ -18,7 +19,12 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
     )
     @MainActor lazy var databaseVM = DatabaseViewModel(tools: tools)
     @MainActor lazy var documentVM = DocumentViewModel(tools: tools)
-    @MainActor lazy var v2VM = DatabaseV2ViewModel(tools: tools)
+    @MainActor lazy var filterPresetStore = FilterPresetStore(
+        storeURL: paths.config
+            .appendingPathComponent("database", isDirectory: true)
+            .appendingPathComponent("filter-presets.json")
+    )
+    @MainActor lazy var v2VM = DatabaseV2ViewModel(tools: tools, presetStore: filterPresetStore)
     @MainActor lazy var backupSession = BackupSession.managed(tools: tools, paths: paths)
     @MainActor let feedback = KTFeedbackCenter()
     @MainActor let sectionState = DatabaseSectionState()
@@ -92,6 +98,20 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
     @MainActor
     public func sqlEditorDidClose() {
         Task { await v2VM.disconnect() }
+    }
+
+    // Chặn đóng cửa sổ khi còn thay đổi chưa commit; xác nhận trước khi mất dữ liệu.
+    @MainActor
+    public func sqlEditorShouldClose() -> Bool {
+        let pending = v2VM.pendingChangeCount
+        guard pending > 0 else { return true }
+        let alert = NSAlert()
+        alert.messageText = "Discard pending changes?"
+        alert.informativeText =
+            "\(pending) pending change\(pending == 1 ? "" : "s") will be discarded if you close. Commit or undo first to keep them."
+        alert.addButton(withTitle: "Discard & Close")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     // SectionActivationObserving: keep-alive shell ẩn view nên onDisappear không fire khi đổi tab.

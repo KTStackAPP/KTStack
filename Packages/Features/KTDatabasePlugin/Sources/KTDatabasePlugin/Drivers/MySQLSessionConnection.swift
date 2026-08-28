@@ -5,10 +5,19 @@ import NIOCore
 final class MySQLSessionConnection: SessionConnection, @unchecked Sendable {
     private let connection: MySQLConnection
     private let isManaged: Bool
+    private let threadID: Int
+    private let makeControl: @Sendable () async throws -> MySQLConnection
 
-    init(connection: MySQLConnection, isManaged: Bool) {
+    init(
+        connection: MySQLConnection,
+        isManaged: Bool,
+        threadID: Int,
+        makeControl: @escaping @Sendable () async throws -> MySQLConnection
+    ) {
         self.connection = connection
         self.isManaged = isManaged
+        self.threadID = threadID
+        self.makeControl = makeControl
     }
 
     var isLive: Bool {
@@ -46,6 +55,13 @@ final class MySQLSessionConnection: SessionConnection, @unchecked Sendable {
         } catch {
             throw MySQLErrorMapper.map(error, isManaged: isManaged)
         }
+    }
+
+    // Dừng query đang chạy trên server qua control connection; session vẫn sống để tái dùng.
+    func cancel() async {
+        guard threadID > 0, let control = try? await makeControl() else { return }
+        _ = try? await control.simpleQuery("KILL QUERY \(threadID)").get()
+        try? await control.close().get()
     }
 
     func shutdown() async {

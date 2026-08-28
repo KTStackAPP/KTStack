@@ -54,11 +54,17 @@ public struct SQLDialect: Sendable {
         }
         let qualified = try qualifiedTable(schema: schema, table: table)
         let columns = try values.map { try quoteIdent($0.column) }.joined(separator: ", ")
-        let placeholders = (1...values.count)
-            .map { placeholderStyle.placeholder($0) }.joined(separator: ", ")
+        var index = 0
+        var binds: [Cell] = []
+        let placeholders = values.map { col -> String in
+            if col.isDefault { return "DEFAULT" }
+            index += 1
+            binds.append(col.value)
+            return placeholderStyle.placeholder(index)
+        }.joined(separator: ", ")
         return DMLStatement(
             sql: "INSERT INTO \(qualified) (\(columns)) VALUES (\(placeholders))",
-            binds: values.map(\.value)
+            binds: binds
         )
     }
 
@@ -74,17 +80,23 @@ public struct SQLDialect: Sendable {
         try requireUsableKey(key)
         let qualified = try qualifiedTable(schema: schema, table: table)
         var index = 0
+        var binds: [Cell] = []
         let setClause = try values.map { col -> String in
+            if col.isDefault {
+                return try "\(quoteIdent(col.column)) = DEFAULT"
+            }
             index += 1
+            binds.append(col.value)
             return try "\(quoteIdent(col.column)) = \(placeholderStyle.placeholder(index))"
         }.joined(separator: ", ")
         let whereClause = try key.map { col -> String in
             index += 1
+            binds.append(col.value)
             return try "\(quoteIdent(col.column)) = \(placeholderStyle.placeholder(index))"
         }.joined(separator: " AND ")
         return DMLStatement(
             sql: "UPDATE \(qualified) SET \(setClause) WHERE \(whereClause)",
-            binds: values.map(\.value) + key.map(\.value)
+            binds: binds
         )
     }
 
@@ -98,6 +110,21 @@ public struct SQLDialect: Sendable {
         }.joined(separator: " AND ")
         return DMLStatement(
             sql: "DELETE FROM \(qualified) WHERE \(whereClause)",
+            binds: key.map(\.value)
+        )
+    }
+
+    // Tồn tại key trong cùng transaction: phân biệt no-op (matched, unchanged) với stale (matched nothing).
+    public func selectKeyExists(schema: String, table: String, key: [ColumnValue]) throws -> DMLStatement {
+        try requireUsableKey(key)
+        let qualified = try qualifiedTable(schema: schema, table: table)
+        var index = 0
+        let whereClause = try key.map { col -> String in
+            index += 1
+            return try "\(quoteIdent(col.column)) = \(placeholderStyle.placeholder(index))"
+        }.joined(separator: " AND ")
+        return DMLStatement(
+            sql: "SELECT 1 FROM \(qualified) WHERE \(whereClause) LIMIT 1",
             binds: key.map(\.value)
         )
     }

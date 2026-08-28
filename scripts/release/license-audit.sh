@@ -1,12 +1,233 @@
 #!/usr/bin/env bash
-# Generate NOTICES.txt: attribution + license identifiers for every redistributed component, plus a
-# written offer of source for the copyleft ones (GPL/SSPL). KTStack is distributed free / open-source,
-# so GPL/SSPL redistribution is compatible — this file satisfies the attribution + source-offer
-# obligation. Runnable now (does not need signing). Edit the table below as the bundled set changes.
+# Three jobs:
+# 1. Audit app-linked SPM dependencies. KTStack root is MIT, so every dependency
+#    linked into an app target must be permissive. Copyleft (AGPL/GPL/LGPL/SSPL)
+#    or unknown app-linked code fails the audit. Bundled engines (mysqld, dnsmasq,
+#    redis, ...) are separately distributed executables, not app-linked; they keep
+#    their own licenses via the NOTICES table + source offer below.
+# 2. Provenance scan (ADR 0003): reject AGPL and forbidden editor-fork markers
+#    in tracked Swift and stray license files anywhere in the tree. One signal,
+#    not proof of authorship.
+# 3. Generate NOTICES.txt: attribution + license identifiers for every
+#    redistributed component, plus a written offer of source for the copyleft ones.
+#
+# Usage:
+#   license-audit.sh [OUT]           # audit SPM deps + provenance scan, then write NOTICES.txt
+#   license-audit.sh --audit-only    # audit SPM deps + provenance scan, no NOTICES
+#   license-audit.sh --provenance-scan # provenance scan only
+#   license-audit.sh --self-test     # prove audit + scan accept current tree and reject fixtures
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-OUT="${1:-$ROOT/NOTICES.txt}"
 
+# ---- SPM app-linked dependency allowlist (identity|SPDX license) ----
+# App-target pins live in the workspace + KTDatabasePlugin Package.resolved.
+# Run after `xcodegen generate`: the workspace Package.resolved is generated, so
+# on a bare checkout only the plugin deps below get audited.
+SPM_ALLOW=(
+  "mysql-nio|MIT"
+  "postgres-nio|Apache-2.0"
+  "grdb.swift|MIT"
+  "mongokitten|MIT"
+  "bson|MIT"
+  "dnsclient|MIT"
+  "sparkle|MIT"
+  "swift-algorithms|Apache-2.0"
+  "swift-async-algorithms|Apache-2.0"
+  "swift-asn1|Apache-2.0"
+  "swift-atomics|Apache-2.0"
+  "swift-collections|Apache-2.0"
+  "swift-crypto|Apache-2.0"
+  "swift-distributed-tracing|Apache-2.0"
+  "swift-log|Apache-2.0"
+  "swift-metrics|Apache-2.0"
+  "swift-nio|Apache-2.0"
+  "swift-nio-ssl|Apache-2.0"
+  "swift-nio-transport-services|Apache-2.0"
+  "swift-numerics|Apache-2.0"
+  "swift-service-context|Apache-2.0"
+  "swift-service-lifecycle|Apache-2.0"
+  "swift-system|Apache-2.0"
+)
+
+# Override with SPM_RESOLVED (colon-separated paths) for tests; defaults to the app-target pins.
+if [ -n "${SPM_RESOLVED:-}" ]; then
+  IFS=':' read -r -a SPM_RESOLVED_FILES <<< "$SPM_RESOLVED"
+else
+  SPM_RESOLVED_FILES=(
+    "$ROOT/KTStack.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+    "$ROOT/Packages/Features/KTDatabasePlugin/Package.resolved"
+  )
+fi
+
+spm_allowed_license() {
+  local id="$1" row
+  for row in "${SPM_ALLOW[@]}"; do
+    if [ "${row%%|*}" = "$id" ]; then printf '%s' "${row#*|}"; return 0; fi
+  done
+  return 1
+}
+
+# LGPL is excluded too: static linking into an app target carries relinking/source duties.
+is_copyleft() {
+  case "$1" in
+    *AGPL*|*GPL*|*SSPL*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# stdin: "identity|license" lines (license "UNKNOWN" when not allowlisted). Non-zero on any violation.
+audit_identities() {
+  local fail=0 id lic
+  while IFS='|' read -r id lic; do
+    [ -z "$id" ] && continue
+    if [ "$lic" = "UNKNOWN" ]; then
+      echo "FAIL: app-linked SPM dependency '$id' is not in the license allowlist (unknown provenance)" >&2
+      fail=1
+    elif is_copyleft "$lic"; then
+      echo "FAIL: app-linked SPM dependency '$id' is copyleft ($lic); not allowed in an MIT app target" >&2
+      fail=1
+    fi
+  done
+  return $fail
+}
+
+collect_spm_pairs() {
+  local f id lic
+  for f in "${SPM_RESOLVED_FILES[@]}"; do
+    [ -f "$f" ] || continue
+    grep -E '"identity"' "$f" | sed -E 's/.*: *"([^"]+)".*/\1/' | while read -r id; do
+      if lic="$(spm_allowed_license "$id")"; then
+        printf '%s|%s\n' "$id" "$lic"
+      else
+        printf '%s|UNKNOWN\n' "$id"
+      fi
+    done
+  done | sort -u
+}
+
+run_audit() {
+  local n
+  n="$(collect_spm_pairs | wc -l | tr -d ' ')"
+  echo "Auditing $n app-linked SPM dependencies..."
+  if collect_spm_pairs | audit_identities; then
+    echo "SPM license audit passed."
+  else
+    echo "SPM license audit FAILED. See rejected dependencies above." >&2
+    exit 1
+  fi
+}
+
+self_test() {
+  echo "self-test: current dependency set must pass"
+  if ! collect_spm_pairs | audit_identities; then
+    echo "self-test FAILED: current dependency set was rejected" >&2; exit 1
+  fi
+  echo "self-test: AGPL fixture must be rejected"
+  if printf 'fixture-agpl|AGPL-3.0-only\n' | audit_identities 2>/dev/null; then
+    echo "self-test FAILED: AGPL fixture was accepted" >&2; exit 1
+  fi
+  echo "self-test: unknown fixture must be rejected"
+  if printf 'fixture-unknown|UNKNOWN\n' | audit_identities 2>/dev/null; then
+    echo "self-test FAILED: unknown fixture was accepted" >&2; exit 1
+  fi
+  echo "self-test passed: current deps accepted, AGPL and unknown fixtures rejected."
+
+  echo "self-test: current source tree must pass provenance scan"
+  if ! run_provenance_scan >/dev/null; then
+    echo "self-test FAILED: current source tree was rejected by provenance scan" >&2; exit 1
+  fi
+  echo "self-test: an AGPL marker fixture must be detected"
+  if ! scan_text_for_markers 'licensed under the GNU Affero General Public License'; then
+    echo "self-test FAILED: AGPL marker fixture was not detected" >&2; exit 1
+  fi
+  echo "self-test: a forbidden editor-fork identifier fixture must be detected"
+  if ! scan_text_for_markers 'import CodeEditSourceEditor'; then
+    echo "self-test FAILED: editor-fork identifier fixture was not detected" >&2; exit 1
+  fi
+  echo "self-test passed: source tree clean, AGPL and editor-fork fixtures detected."
+}
+
+# ---- provenance scan ----
+# Prove the MIT boundary in ADR 0003: no AGPL-derived material and no copied
+# third-party editor identifiers in KTStack-owned source. A text scan is one
+# signal, not proof of independent authorship; the independent review is primary.
+#
+# Scans every git-tracked Swift file, not just KTStack-owned targets, so an
+# accidentally committed third-party tree anywhere in the repo is caught too.
+#
+# Base markers stay in-tree: generic copyleft (AGPL/Affero/SSPL) plus known
+# editor-fork type names. Any brand-specific markers load from a gitignored
+# local file so they never enter git. Word-bounded so identifiers like
+# NSSplitView (SSPL) do not false-positive.
+PROVENANCE_MARKERS='\b(AGPL|Affero General Public|SSPL|CodeEditSourceEditor|CodeEditTextView)\b'
+
+EXTRA_MARKERS_FILE="${PROVENANCE_EXTRA_MARKERS_FILE:-$ROOT/.provenance-markers.local}"
+if [ -f "$EXTRA_MARKERS_FILE" ]; then
+  extra="$(grep -vE '^[[:space:]]*(#|$)' "$EXTRA_MARKERS_FILE" | paste -sd'|' -)"
+  [ -n "$extra" ] && PROVENANCE_MARKERS="${PROVENANCE_MARKERS}|\\b(${extra})\\b"
+fi
+
+provenance_source_files() {
+  git -C "$ROOT" ls-files '*.swift' 2>/dev/null
+}
+
+# stdin/arg text -> non-zero when a marker is present (used by scan + self-test).
+scan_text_for_markers() {
+  local text="$1"
+  printf '%s' "$text" | grep -Eiq "$PROVENANCE_MARKERS"
+}
+
+run_provenance_scan() {
+  local fail=0 hits license_files
+  echo "Provenance scan: tracked Swift source for AGPL/editor-fork markers..."
+  hits="$(provenance_source_files | tr '\n' '\0' \
+    | xargs -0 grep -EinH "$PROVENANCE_MARKERS" 2>/dev/null || true)"
+  if [ -n "$hits" ]; then
+    echo "FAIL: provenance markers found in KTStack-owned source:" >&2
+    echo "$hits" >&2
+    fail=1
+  fi
+
+  # Any tracked LICENSE/COPYING outside the root MIT one means vendored code of
+  # unknown provenance (an AGPL tree drops its own LICENSE), so scan repo-wide.
+  license_files="$(git -C "$ROOT" ls-files 2>/dev/null \
+    | grep -iE '(^|/)(LICENSE|LICENCE|COPYING)(\.[A-Za-z0-9]+)?$|\.license$' \
+    | grep -vxE 'LICENSE' || true)"
+  if [ -n "$license_files" ]; then
+    echo "FAIL: unexpected license file(s) in the tree (possible vendored code):" >&2
+    echo "$license_files" >&2
+    fail=1
+  fi
+
+  if [ "$fail" -eq 0 ]; then
+    echo "Provenance scan passed: no AGPL/editor-fork markers, no stray license files."
+  fi
+  return $fail
+}
+
+# ---- arg parsing ----
+MODE="generate"
+OUT=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --audit-only)      MODE="audit" ;;
+    --provenance-scan) MODE="provenance" ;;
+    --self-test)       MODE="selftest" ;;
+    -*) echo "unknown flag: $1" >&2; exit 2 ;;
+    *) OUT="$1" ;;
+  esac
+  shift
+done
+OUT="${OUT:-$ROOT/NOTICES.txt}"
+
+case "$MODE" in
+  selftest)   self_test; exit 0 ;;
+  provenance) run_provenance_scan; exit $? ;;
+  audit)      run_audit; run_provenance_scan; exit $? ;;
+  generate)   run_audit; run_provenance_scan || exit 1 ;;
+esac
+
+# ---- NOTICES.txt generation ----
 # component | license (SPDX-ish) | upstream source
 COMPONENTS=(
   "nginx|BSD-2-Clause|https://nginx.org/en/download.html"

@@ -8,6 +8,7 @@ import NIOSSL
 
 public struct MySQLDriver: RelationalDriver {
     public let kind: DatabaseKind = .mysql
+    public let capabilities = DriverCapabilities()
 
     let profile: ConnectionProfile
     let password: String?
@@ -56,7 +57,8 @@ public struct MySQLDriver: RelationalDriver {
 
     public func columns(database: String, table: String) async throws -> [ColumnInfo] {
         let sql = try """
-        SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT \
+        SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT, \
+        EXTRA, COLUMN_COMMENT, CHARACTER_SET_NAME, COLLATION_NAME, GENERATION_EXPRESSION \
         FROM information_schema.COLUMNS \
         WHERE TABLE_SCHEMA = \(MySQLErrorMapper.quoteLiteral(database)) \
         AND TABLE_NAME = \(MySQLErrorMapper.quoteLiteral(table)) \
@@ -64,13 +66,24 @@ public struct MySQLDriver: RelationalDriver {
         """
         let result = try await runStatement(sql)
         return result.rows.compactMap { row in
-            guard row.count >= 4, let name = row[0].displayText else { return nil }
+            guard row.count >= 10, let name = row[0].displayText else { return nil }
+            let extra = (row[5].displayText ?? "").lowercased()
+            let generation = row[9].displayText
+            let hasGeneration = !(generation ?? "").isEmpty
             return ColumnInfo(
                 name: name,
                 dataType: row[1].displayText ?? "",
                 isNullable: row[2].displayText == "YES",
                 isPrimaryKey: row[3].displayText == "PRI",
-                defaultValue: row[4].displayText
+                defaultValue: row[4].displayText,
+                isAutoIncrement: extra.contains("auto_increment"),
+                comment: row[6].displayText.flatMap { $0.isEmpty ? nil : $0 },
+                charset: row[7].displayText,
+                collation: row[8].displayText,
+                generationExpression: hasGeneration ? generation : nil,
+                generationStored: extra.contains("stored generated"),
+                onUpdateCurrentTimestamp: extra.contains("on update current_timestamp"),
+                defaultIsExpression: extra.contains("default_generated") && !hasGeneration
             )
         }
     }
@@ -105,9 +118,9 @@ public struct MySQLDriver: RelationalDriver {
         await session.shutdown()
     }
 
-    public func runSelect(_ statement: DMLStatement, database _: String?) async throws -> QueryResult {
+    public func runSelect(_ statement: DMLStatement, database: String?) async throws -> QueryResult {
         try preflightManagedEngine()
-        return try await session.runSelect(statement)
+        return try await session.runSelect(statement, database: database)
     }
 
     private func runStatement(_ sql: String, database: String? = nil) async throws -> QueryResult {
@@ -169,7 +182,48 @@ public struct MySQLDriver: RelationalDriver {
             throw MySQLErrorMapper.map(error, isManaged: profile.isManaged)
         }
         try await applyReadOnly(to: connection, profile: profile)
-        return MySQLSessionConnection(connection: connection, isManaged: profile.isManaged)
+        let threadID = try await sessionThreadID(of: connection, profile: profile)
+        return MySQLSessionConnection(
+            connection: connection,
+            isManaged: profile.isManaged,
+            threadID: threadID,
+            makeControl: { try await makeControlConnection(profile: profile, password: password) }
+        )
+    }
+
+    // Id của thread server cho session, dùng để KILL QUERY khi hủy.
+    private static func sessionThreadID(
+        of connection: MySQLConnection,
+        profile: ConnectionProfile
+    ) async throws -> Int {
+        do {
+            let rows = try await connection.simpleQuery("SELECT CONNECTION_ID()").get()
+            return rows.first?.column("CONNECTION_ID()")?.int ?? -1
+        } catch {
+            try? await connection.close().get()
+            throw MySQLErrorMapper.map(error, isManaged: profile.isManaged)
+        }
+    }
+
+    // Control connection tách biệt để phát KILL QUERY mà không đụng session đang bận.
+    private static func makeControlConnection(
+        profile: ConnectionProfile,
+        password: String?
+    ) async throws -> MySQLConnection {
+        let group = try EventLoopProvider.shared.group()
+        let address = try SocketAddress.makeAddressResolvingHost(profile.host, port: profile.port)
+        do {
+            return try await MySQLConnection.connect(
+                to: address,
+                username: profile.user,
+                database: profile.database,
+                password: password,
+                tlsConfiguration: tlsConfiguration(for: profile),
+                on: group.next()
+            ).get()
+        } catch {
+            throw MySQLErrorMapper.map(error, isManaged: profile.isManaged)
+        }
     }
 
     private static func applyReadOnly(

@@ -4,6 +4,13 @@ import XCTest
 @testable import KTDatabasePlugin
 
 final class DumpServiceTests: XCTestCase {
+    private var opened: [MySQLDriver] = []
+
+    override func tearDown() async throws {
+        for driver in opened { await driver.closeSession() }
+        opened = []
+    }
+
     func testValidateIdentifierAcceptsNormalNames() throws {
         try DumpService.validateIdentifier("app_db", label: "database")
         try DumpService.validateIdentifier("users", label: "table")
@@ -85,6 +92,23 @@ final class DumpServiceTests: XCTestCase {
         }
     }
 
+    func testDefaultsContentOmitsSSLModeWhenDisabled() throws {
+        let content = try DumpService.defaultsContent(
+            user: "root", host: "127.0.0.1", port: 3306, password: nil,
+            tlsMode: .prefer, emitSSLMode: false
+        )
+        XCTAssertFalse(content.contains("ssl-mode"), "MariaDB's client rejects ssl-mode; it must be omitted")
+        XCTAssertTrue(content.hasPrefix("[client]\n"))
+        XCTAssertTrue(content.contains("port=3306"))
+    }
+
+    func testIsMariaDBClientDetectsFlavorFromPath() {
+        let mariadb = URL(fileURLWithPath: "/x/runtimes/mariadb/11.4.13/bin/mysql")
+        let mysql = URL(fileURLWithPath: "/x/runtimes/mysql/8.4.5/bin/mysql")
+        XCTAssertTrue(DumpService.isMariaDBClient(mariadb))
+        XCTAssertFalse(DumpService.isMariaDBClient(mysql))
+    }
+
     func testEnsureDumpNotEmptyThrowsOnZeroBytes() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("ktstack-empty-dump-\(UUID().uuidString).sql")
@@ -159,16 +183,21 @@ final class DumpServiceTests: XCTestCase {
             ProcessInfo.processInfo.environment["KTSTACK_DB_IT"] == "1",
             "Set KTSTACK_DB_IT=1 with the MySQL engine installed + running on :3306."
         )
-        let tools = FakeDatabaseTools()
+        // Resolve the real mysqldump/mysql from the running engine so the round-trip runs live; the
+        // driver still needs .mysql marked installed to clear the managed-engine preflight.
+        var tools = FakeDatabaseTools(installed: [.mysql])
+        if let bindir = ProcessInfo.processInfo.environment["KTSTACK_DB_IT_BINDIR"] {
+            tools.binaries = [
+                "mysql:bin/mysqldump": URL(fileURLWithPath: "\(bindir)/mysqldump"),
+                "mysql:bin/mysql": URL(fileURLWithPath: "\(bindir)/mysql"),
+            ]
+        }
         let service = DumpService(tools: tools)
         let driver = MySQLDriver(profile: .managedMySQL, password: nil, tools: tools)
+        opened.append(driver)
         let suffix = UUID().uuidString.prefix(8)
         let source = "ktstack_dump_src_\(suffix)"
         let target = "ktstack_dump_dst_\(suffix)"
-        defer {
-            Task { _ = try? await driver.query("DROP DATABASE IF EXISTS \(self.bt(source))", database: nil) }
-            Task { _ = try? await driver.query("DROP DATABASE IF EXISTS \(self.bt(target))", database: nil) }
-        }
 
         _ = try await driver.query("CREATE DATABASE \(bt(source))", database: nil)
         _ = try await driver.query("CREATE TABLE \(bt(source)).t (id INT PRIMARY KEY)", database: nil)
@@ -196,6 +225,9 @@ final class DumpServiceTests: XCTestCase {
 
         let count = try await driver.query("SELECT COUNT(*) AS n FROM \(bt(target)).t", database: nil)
         XCTAssertEqual(count.rows.first?.first, .int(3))
+
+        _ = try? await driver.query("DROP DATABASE IF EXISTS \(bt(source))", database: nil)
+        _ = try? await driver.query("DROP DATABASE IF EXISTS \(bt(target))", database: nil)
     }
 
     private func bt(_ id: String) -> String {

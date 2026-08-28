@@ -1,6 +1,6 @@
 import Foundation
 
-public enum FilterOperator: String, Sendable, CaseIterable {
+public enum FilterOperator: String, Sendable, CaseIterable, Codable {
     case equals
     case notEquals
     case contains
@@ -15,9 +15,21 @@ public enum FilterOperator: String, Sendable, CaseIterable {
         default: true
         }
     }
+
+    public var symbol: String {
+        switch self {
+        case .equals: "="
+        case .notEquals: "≠"
+        case .contains: "contains"
+        case .greaterThan: ">"
+        case .lessThan: "<"
+        case .isNull: "IS NULL"
+        case .isNotNull: "IS NOT NULL"
+        }
+    }
 }
 
-public struct FilterCondition: Sendable, Equatable {
+public struct FilterCondition: Sendable, Equatable, Codable {
     public let column: String
     public let op: FilterOperator
     public let value: Cell
@@ -48,21 +60,61 @@ public extension SQLDialect {
         limit: Int,
         offset: Int
     ) throws -> DMLStatement {
+        try browseSelect(
+            schema: schema, table: table, filters: filters,
+            sorts: sort.map { [$0] } ?? [], limit: limit, offset: offset
+        )
+    }
+
+    func browseSelect(
+        schema: String,
+        table: String,
+        filters: [FilterCondition],
+        sorts: [SortSpec],
+        limit: Int,
+        offset: Int
+    ) throws -> DMLStatement {
         let qualified = try qualifiedTable(schema: schema, table: table)
-        var sql = "SELECT * FROM \(qualified)"
         var binds: [Cell] = []
+        var sql = "SELECT * FROM \(qualified)"
 
-        if !filters.isEmpty {
-            let clauses = try filters.map { try clause(for: $0, binds: &binds) }
-            sql += " WHERE " + clauses.joined(separator: " AND ")
+        if let clause = try whereClause(filters, binds: &binds) {
+            sql += " WHERE " + clause
         }
-
-        if let sort {
-            try sql += " ORDER BY \(quoteIdent(sort.column)) \(sort.ascending ? "ASC" : "DESC")"
+        if let order = try orderByClause(sorts) {
+            sql += " ORDER BY " + order
         }
 
         sql += " LIMIT \(max(1, limit)) OFFSET \(max(0, offset))"
         return DMLStatement(sql: sql, binds: binds)
+    }
+
+    func countSelect(schema: String, table: String, filters: [FilterCondition]) throws -> DMLStatement {
+        let qualified = try qualifiedTable(schema: schema, table: table)
+        var binds: [Cell] = []
+        var sql = "SELECT COUNT(*) FROM \(qualified)"
+        if let clause = try whereClause(filters, binds: &binds) {
+            sql += " WHERE " + clause
+        }
+        return DMLStatement(sql: sql, binds: binds)
+    }
+
+    // WHERE fragment với placeholder, bỏ binds: preview an toàn, không lộ giá trị literal.
+    func whereClausePreview(_ filters: [FilterCondition]) throws -> String? {
+        var binds: [Cell] = []
+        return try whereClause(filters, binds: &binds)
+    }
+
+    private func whereClause(_ filters: [FilterCondition], binds: inout [Cell]) throws -> String? {
+        guard !filters.isEmpty else { return nil }
+        return try filters.map { try clause(for: $0, binds: &binds) }.joined(separator: " AND ")
+    }
+
+    private func orderByClause(_ sorts: [SortSpec]) throws -> String? {
+        guard !sorts.isEmpty else { return nil }
+        return try sorts
+            .map { try "\(quoteIdent($0.column)) \($0.ascending ? "ASC" : "DESC")" }
+            .joined(separator: ", ")
     }
 
     private func clause(for filter: FilterCondition, binds: inout [Cell]) throws -> String {

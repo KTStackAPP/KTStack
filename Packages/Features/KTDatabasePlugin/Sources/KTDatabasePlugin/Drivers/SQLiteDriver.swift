@@ -8,6 +8,7 @@ import GRDB
 /// read-only (`Configuration.readonly`), the SQLite-equivalent of a server-side read-only session.
 public struct SQLiteDriver: RelationalDriver {
     public let kind: DatabaseKind = .sqlite
+    public let capabilities = DriverCapabilities(canCancelQueries: false)
 
     let profile: ConnectionProfile
     let dialect = SQLDialect.forKind(.sqlite)

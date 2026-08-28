@@ -1,6 +1,8 @@
 import Foundation
 
 public protocol RelationalDriver: DatabaseDriver {
+    var capabilities: DriverCapabilities { get }
+
     func listDatabases() async throws -> [DatabaseInfo]
 
     func listTables(database: String) async throws -> [TableInfo]
@@ -14,6 +16,8 @@ public protocol RelationalDriver: DatabaseDriver {
     func indexes(database: String, table: String) async throws -> [IndexInfo]
 
     func foreignKeys(database: String) async throws -> [ForeignKeyRelation]
+
+    func checkConstraints(database: String, table: String) async throws -> [CheckConstraintInfo]
 
     func query(_ sql: String, database: String?) async throws -> QueryResult
 
@@ -32,8 +36,21 @@ public protocol RelationalDriver: DatabaseDriver {
     func update(database: String, table: String, values: [ColumnValue], key: [ColumnValue]) async throws
 
     func delete(database: String, table: String, key: [ColumnValue]) async throws
+
+    func executeTransaction(_ steps: [WriteStep], database: String) async throws
 }
 
 public extension RelationalDriver {
+    // Mặc định relational: hỗ trợ đủ; driver có giới hạn tự override (SQLite không hủy được query).
+    var capabilities: DriverCapabilities { DriverCapabilities() }
+
     func cancelCurrentQuery() async {}
+
+    // Engine không introspect CHECK (Postgres/SQLite/Mongo, hoặc MySQL cũ) trả rỗng.
+    func checkConstraints(database: String, table: String) async throws -> [CheckConstraintInfo] { [] }
+
+    // Batch commit chỉ bật cho engine MVP (MySQL/MariaDB); engine khác override khi có nhu cầu.
+    func executeTransaction(_ steps: [WriteStep], database: String) async throws {
+        throw DatabaseError.connection("Batch commit isn't supported for this engine yet")
+    }
 }

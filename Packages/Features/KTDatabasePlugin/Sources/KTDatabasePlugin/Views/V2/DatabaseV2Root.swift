@@ -196,7 +196,14 @@ struct DatabaseV2Root: View {
 
     @State private var activeTab: V2EditorTab = .data
     @State private var showInsertSheet = false
+    @State private var showFilterSheet = false
     @State private var pendingDeleteRow: Int? = nil
+    @State private var pendingSwitch: PendingSwitch?
+
+    private enum PendingSwitch {
+        case table(TableInfo)
+        case database(String)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -208,8 +215,8 @@ struct DatabaseV2Root: View {
                     databases: vm.databases,
                     tables: vm.tables,
                     selectedTable: vm.selectedTable,
-                    onSelectDatabase: { name in Task { await vm.select(database: name) } },
-                    onSelect: { vm.select(table: $0) }
+                    onSelectDatabase: { name in requestDatabaseSwitch(name) },
+                    onSelect: { requestTableSwitch($0) }
                 )
                 tabContent
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -224,22 +231,96 @@ struct DatabaseV2Root: View {
         .sheet(isPresented: $showInsertSheet) {
             V2RowEditorSheet(vm: vm)
         }
+        .sheet(isPresented: $showFilterSheet) {
+            V2FilterSheet(vm: vm, onClose: { showFilterSheet = false })
+        }
         .alert(
-            "Delete this row?",
+            "Stage delete of this row?",
             isPresented: Binding(
                 get: { pendingDeleteRow != nil },
                 set: { if !$0 { pendingDeleteRow = nil } }
             )
         ) {
             Button("Cancel", role: .cancel) { pendingDeleteRow = nil }
-            Button("Delete", role: .destructive) {
+            Button("Stage Delete", role: .destructive) {
                 if let row = pendingDeleteRow {
-                    Task { await vm.deleteRow(row) }
+                    vm.stageDelete(row: row)
                     pendingDeleteRow = nil
                 }
             }
         } message: {
-            Text("This permanently removes 1 row from \(vm.selectedTable?.name ?? "the table"). This action cannot be undone.")
+            Text("Marks 1 row from \(vm.selectedTable?.name ?? "the table") for deletion. It applies when you commit, and you can undo before then.")
+        }
+        .sheet(item: $vm.cellEditor) { context in
+            V2CellEditorSheet(
+                context: context,
+                onSave: { text in vm.saveCellEditor(text: text) },
+                onClose: { vm.closeCellEditor() }
+            )
+        }
+        .sheet(item: $vm.parameterPrompt) { prompt in
+            V2ParameterSheet(vm: vm, prompt: prompt)
+        }
+        .sheet(item: $vm.activeQuerySheet) { sheet in
+            switch sheet {
+            case .history: V2HistorySheet(vm: vm)
+            case .favorites: V2FavoritesSheet(vm: vm)
+            }
+        }
+        .sheet(item: $vm.explainSheet) { result in
+            V2ExplainSheet(vm: vm, result: result)
+        }
+        .alert(
+            "Run this destructive statement?",
+            isPresented: Binding(
+                get: { vm.destructivePrompt != nil },
+                set: { if !$0 { vm.cancelDestructiveRun() } }
+            )
+        ) {
+            Button("Cancel", role: .cancel) { vm.cancelDestructiveRun() }
+            Button("Run", role: .destructive) { Task { await vm.confirmDestructiveRun() } }
+        } message: {
+            Text(vm.destructivePrompt?.reason ?? "")
+        }
+        .alert(
+            "Discard pending changes?",
+            isPresented: Binding(
+                get: { pendingSwitch != nil },
+                set: { if !$0 { pendingSwitch = nil } }
+            )
+        ) {
+            Button("Cancel", role: .cancel) { pendingSwitch = nil }
+            Button("Discard & Switch", role: .destructive) { performPendingSwitch() }
+        } message: {
+            Text("\(vm.pendingChangeCount) pending change\(vm.pendingChangeCount == 1 ? "" : "s") will be discarded if you switch. Commit or undo first to keep them.")
+        }
+    }
+
+    private func requestTableSwitch(_ table: TableInfo) {
+        guard table.name != vm.selectedTable?.name else { return }
+        if vm.pendingChangeCount > 0 {
+            pendingSwitch = .table(table)
+        } else {
+            vm.select(table: table)
+        }
+    }
+
+    private func requestDatabaseSwitch(_ name: String) {
+        guard name != vm.selectedDatabase else { return }
+        if vm.pendingChangeCount > 0 {
+            pendingSwitch = .database(name)
+        } else {
+            Task { await vm.select(database: name) }
+        }
+    }
+
+    private func performPendingSwitch() {
+        let target = pendingSwitch
+        pendingSwitch = nil
+        switch target {
+        case let .table(table): vm.select(table: table)
+        case let .database(name): Task { await vm.select(database: name) }
+        case .none: break
         }
     }
 
@@ -310,7 +391,7 @@ struct DatabaseV2Root: View {
     private var tabContent: some View {
         switch activeTab {
         case .data:
-            V2DataTabView(vm: vm, showInsertSheet: $showInsertSheet, pendingDeleteRow: $pendingDeleteRow)
+            V2DataTabView(vm: vm, showInsertSheet: $showInsertSheet, showFilterSheet: $showFilterSheet, pendingDeleteRow: $pendingDeleteRow)
         case .structure:
             V2StructureTabView(vm: vm)
         case .query:

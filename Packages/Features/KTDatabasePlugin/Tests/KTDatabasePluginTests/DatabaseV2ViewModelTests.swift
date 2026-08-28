@@ -1,10 +1,21 @@
+import KTStackCore
 import XCTest
 @testable import KTDatabasePlugin
+
+private func makeTempHistory() -> QueryHistoryStore {
+    QueryHistoryStore(paths: AppSupportPaths(root: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)))
+}
+
+private func makeTempFavorites() -> QueryFavoriteStore {
+    QueryFavoriteStore(paths: AppSupportPaths(root: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)))
+}
 
 @MainActor
 final class DatabaseV2ViewModelTests: XCTestCase {
     private final class TestDriver: RelationalDriver, @unchecked Sendable {
         let kind: DatabaseKind = .mysql
+        var capabilitiesOverride: DriverCapabilities?
+        var capabilities: DriverCapabilities { capabilitiesOverride ?? DriverCapabilities() }
 
         var shouldPingFail = false
         var shouldListDatabasesFail = false
@@ -42,14 +53,29 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         ]
 
         var total: Int = 250
-        private(set) var lastQueryText: String?
-        private(set) var lastQueryDatabase: String?
-        private(set) var paginateCalls: [(database: String, table: String, limit: Int, offset: Int)] = []
-        private(set) var cancelCalled = false
-        private(set) var insertCalls: [(database: String, table: String, values: [ColumnValue])] = []
-        private(set) var updateCalls: [(database: String, table: String, values: [ColumnValue], key: [ColumnValue])] = []
-        private(set) var deleteCalls: [(database: String, table: String, key: [ColumnValue])] = []
-        private(set) var listTablesCalls: [String] = []
+        // Fire-and-forget VM tasks call these off the main actor, so recording is locked.
+        private let lock = NSLock()
+        private var _lastQueryText: String?
+        private var _lastQueryDatabase: String?
+        private var _paginateCalls: [(database: String, table: String, limit: Int, offset: Int)] = []
+        private var _cancelCalled = false
+        private var _insertCalls: [(database: String, table: String, values: [ColumnValue])] = []
+        private var _updateCalls: [(database: String, table: String, values: [ColumnValue], key: [ColumnValue])] = []
+        private var _deleteCalls: [(database: String, table: String, key: [ColumnValue])] = []
+        private var _committedBatches: [[WriteStep]] = []
+        private var _listTablesCalls: [String] = []
+        private var _runSelectStatements: [DMLStatement] = []
+
+        var lastQueryText: String? { lock.withLock { _lastQueryText } }
+        var lastQueryDatabase: String? { lock.withLock { _lastQueryDatabase } }
+        var paginateCalls: [(database: String, table: String, limit: Int, offset: Int)] { lock.withLock { _paginateCalls } }
+        var cancelCalled: Bool { lock.withLock { _cancelCalled } }
+        var insertCalls: [(database: String, table: String, values: [ColumnValue])] { lock.withLock { _insertCalls } }
+        var updateCalls: [(database: String, table: String, values: [ColumnValue], key: [ColumnValue])] { lock.withLock { _updateCalls } }
+        var deleteCalls: [(database: String, table: String, key: [ColumnValue])] { lock.withLock { _deleteCalls } }
+        var committedBatches: [[WriteStep]] { lock.withLock { _committedBatches } }
+        var listTablesCalls: [String] { lock.withLock { _listTablesCalls } }
+        var runSelectStatements: [DMLStatement] { lock.withLock { _runSelectStatements } }
 
         init(total: Int = 250) {
             self.total = total
@@ -66,7 +92,7 @@ final class DatabaseV2ViewModelTests: XCTestCase {
 
         func listTables(database: String) async throws -> [TableInfo] {
             if shouldListTablesFail { throw TestError.listTablesFailed }
-            listTablesCalls.append(database)
+            lock.withLock { _listTablesCalls.append(database) }
             return tables
         }
 
@@ -96,14 +122,13 @@ final class DatabaseV2ViewModelTests: XCTestCase {
 
         func query(_ sql: String, database: String?) async throws -> QueryResult {
             if shouldQueryFail { throw TestError.queryFailed }
-            lastQueryText = sql
-            lastQueryDatabase = database
+            lock.withLock { _lastQueryText = sql; _lastQueryDatabase = database }
             return QueryResult(columns: [ColumnMeta(name: "id")], rows: [[.int(1)]])
         }
 
         func paginatedRows(database: String, table: String, limit: Int, offset: Int) async throws -> QueryResult {
             if shouldPaginateFail { throw TestError.paginateFailed }
-            paginateCalls.append((database, table, limit, offset))
+            lock.withLock { _paginateCalls.append((database, table, limit, offset)) }
             let rows = (0..<min(limit, total - offset)).map { _ in [Cell.int(1), Cell.text("test-name")] }
             return QueryResult(
                 columns: [ColumnMeta(name: "id"), ColumnMeta(name: "name")],
@@ -116,23 +141,28 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         func closeSession() async {}
 
         func cancelCurrentQuery() async {
-            cancelCalled = true
+            lock.withLock { _cancelCalled = true }
         }
 
-        func runSelect(_: DMLStatement, database _: String?) async throws -> QueryResult {
-            QueryResult(columns: [], rows: [])
+        func runSelect(_ statement: DMLStatement, database _: String?) async throws -> QueryResult {
+            lock.withLock { _runSelectStatements.append(statement) }
+            return QueryResult(columns: [ColumnMeta(name: "id")], rows: [[.int(7)]])
         }
 
         func insert(database: String, table: String, values: [ColumnValue]) async throws {
-            insertCalls.append((database, table, values))
+            lock.withLock { _insertCalls.append((database, table, values)) }
         }
 
         func update(database: String, table: String, values: [ColumnValue], key: [ColumnValue]) async throws {
-            updateCalls.append((database, table, values, key))
+            lock.withLock { _updateCalls.append((database, table, values, key)) }
         }
 
         func delete(database: String, table: String, key: [ColumnValue]) async throws {
-            deleteCalls.append((database, table, key))
+            lock.withLock { _deleteCalls.append((database, table, key)) }
+        }
+
+        func executeTransaction(_ steps: [WriteStep], database _: String) async throws {
+            lock.withLock { _committedBatches.append(steps) }
         }
     }
 
@@ -152,6 +182,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -173,6 +205,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -188,6 +222,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         driver.shouldPingFail = true
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -206,6 +242,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         driver.shouldListDatabasesFail = true
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -222,6 +260,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
     func testConnectFailureWhenUnsupportedEngine() async {
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in nil },
             passwordFor: { _ in nil }
         )
@@ -249,6 +289,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
 
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: makeDriver,
             passwordFor: { _ in nil }
         )
@@ -266,6 +308,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -281,6 +325,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -298,6 +344,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -317,6 +365,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -337,6 +387,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -355,6 +407,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         driver.databases = [DatabaseInfo(name: "small")]
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -373,6 +427,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver(total: 500)
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -394,6 +450,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver(total: 500)
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -414,6 +472,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver(total: 500)
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -436,6 +496,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -452,6 +514,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -468,6 +532,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -484,6 +550,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -500,6 +568,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -514,6 +584,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -524,13 +596,17 @@ final class DatabaseV2ViewModelTests: XCTestCase {
 
         XCTAssertNotNil(vm.queryResult)
         XCTAssertNil(vm.queryError)
-        XCTAssertEqual(driver.lastQueryText, "SELECT * FROM users")
+        // Row cap: bare SELECT được auto-limit trước khi gửi.
+        let sent = SQLAutoLimit.augment("SELECT * FROM users", dialect: SQLDialect.forKind(.mysql)).sql
+        XCTAssertEqual(driver.lastQueryText, sent)
     }
 
     func testRunQueryIgnoresEmptyQuery() async {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -547,6 +623,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
     func testRunQueryIgnoresQueryWithoutDriver() async {
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in nil },
             passwordFor: { _ in nil }
         )
@@ -562,6 +640,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         driver.shouldQueryFail = true
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -583,6 +663,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
 
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in wrappedDriver },
             passwordFor: { _ in nil }
         )
@@ -604,6 +686,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -618,6 +702,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -647,6 +733,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
 
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: makeDriver,
             passwordFor: { _ in nil }
         )
@@ -661,6 +749,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -681,6 +771,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -696,6 +788,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         ]
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -708,6 +802,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -721,6 +817,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -728,22 +826,24 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         vm.select(table: TableInfo(name: "users"))
         try? await Task.sleep(for: .milliseconds(100))
 
-        await vm.updateCell(row: 0, column: 1, newValue: "Alice")
+        vm.stageCellEdit(row: 0, column: 1, newValue: "Alice")
+        XCTAssertEqual(vm.pendingChangeCount, 1)
+        await vm.commitStaged()
 
-        XCTAssertEqual(driver.updateCalls.count, 1)
-        let call = driver.updateCalls[0]
-        XCTAssertEqual(call.values.count, 1)
-        XCTAssertEqual(call.values[0].column, "name")
-        XCTAssertEqual(call.values[0].value, .text("Alice"))
-        XCTAssertEqual(call.key.count, 1)
-        XCTAssertEqual(call.key[0].column, "id")
-        XCTAssertEqual(call.key[0].value, .int(1))
+        XCTAssertEqual(driver.committedBatches.count, 1)
+        XCTAssertEqual(driver.committedBatches[0].count, 1)
+        let step = driver.committedBatches[0][0]
+        XCTAssertTrue(step.statement.sql.contains("UPDATE"))
+        XCTAssertEqual(step.statement.binds, [.text("Alice"), .int(1)])
+        XCTAssertFalse(vm.pendingChangeCount > 0)
     }
 
     func testUpdateCellSkipsWhenValueUnchanged() async {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -751,15 +851,17 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         vm.select(table: TableInfo(name: "users"))
         try? await Task.sleep(for: .milliseconds(100))
 
-        await vm.updateCell(row: 0, column: 1, newValue: "test-name")
+        vm.stageCellEdit(row: 0, column: 1, newValue: "test-name")
 
-        XCTAssertEqual(driver.updateCalls.count, 0)
+        XCTAssertEqual(vm.pendingChangeCount, 0)
     }
 
     func testDeleteRowSendsPrimaryKeyAsKey() async {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -767,13 +869,14 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         vm.select(table: TableInfo(name: "users"))
         try? await Task.sleep(for: .milliseconds(100))
 
-        await vm.deleteRow(0)
+        vm.stageDelete(row: 0)
+        XCTAssertEqual(vm.pendingChangeCount, 1)
+        await vm.commitStaged()
 
-        XCTAssertEqual(driver.deleteCalls.count, 1)
-        let call = driver.deleteCalls[0]
-        XCTAssertEqual(call.key.count, 1)
-        XCTAssertEqual(call.key[0].column, "id")
-        XCTAssertEqual(call.key[0].value, .int(1))
+        XCTAssertEqual(driver.committedBatches.count, 1)
+        let step = driver.committedBatches[0][0]
+        XCTAssertTrue(step.statement.sql.contains("DELETE"))
+        XCTAssertEqual(step.statement.binds, [.int(1)])
     }
 
     func testDeleteRowDoesNothingWhenNoPrimaryKey() async {
@@ -783,6 +886,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         ]
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -790,9 +895,9 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         vm.select(table: TableInfo(name: "users"))
         try? await Task.sleep(for: .milliseconds(100))
 
-        await vm.deleteRow(0)
+        vm.stageDelete(row: 0)
 
-        XCTAssertEqual(driver.deleteCalls.count, 0)
+        XCTAssertEqual(vm.pendingChangeCount, 0)
         XCTAssertNotNil(vm.editError)
     }
 
@@ -800,6 +905,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -808,18 +915,22 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         try? await Task.sleep(for: .milliseconds(50))
 
         let values = [ColumnValue(column: "name", value: .text("Bob"))]
-        await vm.insertRow(values)
+        vm.stageInsertRow(values)
+        XCTAssertEqual(vm.pendingChangeCount, 1)
+        await vm.commitStaged()
 
-        XCTAssertEqual(driver.insertCalls.count, 1)
-        XCTAssertEqual(driver.insertCalls[0].values, values)
-        XCTAssertEqual(driver.insertCalls[0].database, "testdb")
-        XCTAssertEqual(driver.insertCalls[0].table, "users")
+        XCTAssertEqual(driver.committedBatches.count, 1)
+        let step = driver.committedBatches[0][0]
+        XCTAssertTrue(step.statement.sql.contains("INSERT"))
+        XCTAssertEqual(step.statement.binds, [.text("Bob")])
     }
 
     func testUpdateCellReloadsRowsAfterSuccess() async {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -827,8 +938,9 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         vm.select(table: TableInfo(name: "users"))
         try? await Task.sleep(for: .milliseconds(100))
 
+        vm.stageCellEdit(row: 0, column: 1, newValue: "Alice")
         let callCountBefore = driver.paginateCalls.count
-        await vm.updateCell(row: 0, column: 1, newValue: "Alice")
+        await vm.commitStaged()
 
         XCTAssertGreaterThan(driver.paginateCalls.count, callCountBefore)
     }
@@ -837,6 +949,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -855,6 +969,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -875,6 +991,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -894,6 +1012,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -913,6 +1033,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -929,6 +1051,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -946,6 +1070,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -960,6 +1086,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
     func testComposeCreateTableWithoutDatabaseSetsError() {
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in nil },
             passwordFor: { _ in nil }
         )
@@ -976,6 +1104,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
     func testAddQueryTabIncrementsCountAndActivatesNew() {
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in nil },
             passwordFor: { _ in nil }
         )
@@ -993,6 +1123,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
     func testCloseQueryTabKeepsAtLeastOneAndReselects() {
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in nil },
             passwordFor: { _ in nil }
         )
@@ -1016,6 +1148,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -1035,4 +1169,351 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let otherTabs = vm.queryTabs.filter { $0.id != activeID }
         XCTAssertTrue(otherTabs.allSatisfy { $0.result == nil })
     }
+
+    func testConnectPublishesDriverCapabilities() async {
+        let driver = TestDriver()
+        driver.capabilitiesOverride = DriverCapabilities(canCancelQueries: false)
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        XCTAssertEqual(vm.capabilities, .none)
+        await vm.connect(profile: .managedMySQL)
+        XCTAssertTrue(vm.capabilities.canEditRows)
+        XCTAssertFalse(vm.capabilities.canCancelQueries)
+    }
+
+    func testDisconnectResetsCapabilities() async {
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        XCTAssertTrue(vm.capabilities.canEditRows)
+        await vm.disconnect()
+        XCTAssertEqual(vm.capabilities, .none)
+    }
+
+    func testCanEditIsFalseWhenDriverForbidsRowEditsDespitePrimaryKey() async {
+        let driver = TestDriver()
+        driver.capabilitiesOverride = DriverCapabilities(canEditRows: false)
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        await vm.loadStructure(table: TableInfo(name: "users"))
+        XCTAssertFalse(vm.canEdit)
+    }
+
+    func testUpdateCellWithoutPrimaryKeySetsEditError() async {
+        let driver = TestDriver()
+        driver.columns = [
+            ColumnInfo(name: "id", dataType: "int", isNullable: false, isPrimaryKey: false),
+            ColumnInfo(name: "name", dataType: "varchar(255)", isNullable: true, isPrimaryKey: false),
+        ]
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        vm.stageCellEdit(row: 0, column: 1, newValue: "Alice")
+
+        XCTAssertEqual(vm.pendingChangeCount, 0)
+        XCTAssertNotNil(vm.editError)
+    }
+
+    func testUpdateCellEmptyStringOnNullableColumnSendsNull() async {
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        vm.stageCellEdit(row: 0, column: 1, newValue: "")
+        await vm.commitStaged()
+
+        XCTAssertEqual(driver.committedBatches.count, 1)
+        XCTAssertEqual(driver.committedBatches[0][0].statement.binds, [.null, .int(1)])
+    }
+
+    func testStagedUpdateShowsInDisplayRowsAndUndoRedo() async {
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        vm.stageCellEdit(row: 0, column: 1, newValue: "Alice")
+        XCTAssertEqual(vm.displayRows?.rows[0][1], .text("Alice"))
+        XCTAssertTrue(vm.canUndoStaged)
+
+        vm.undoStaged()
+        XCTAssertEqual(vm.pendingChangeCount, 0)
+        XCTAssertEqual(vm.displayRows?.rows[0][1], .text("test-name"))
+        XCTAssertTrue(vm.canRedoStaged)
+
+        vm.redoStaged()
+        XCTAssertEqual(vm.displayRows?.rows[0][1], .text("Alice"))
+    }
+
+    func testDiscardClearsAllPending() async {
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        vm.stageCellEdit(row: 0, column: 1, newValue: "Alice")
+        vm.stageInsertRow([ColumnValue(column: "name", value: .text("Bob"))])
+        XCTAssertEqual(vm.pendingChangeCount, 2)
+
+        vm.discardStaged()
+        XCTAssertEqual(vm.pendingChangeCount, 0)
+        XCTAssertTrue(driver.committedBatches.isEmpty)
+    }
+
+    func testMultipleStagedOpsCommitInOneTransaction() async {
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        vm.stageCellEdit(row: 0, column: 1, newValue: "Alice")
+        vm.stageInsertRow([ColumnValue(column: "name", value: .text("Bob"))])
+        vm.stageInsertRow([ColumnValue(column: "name", value: .text("Carol"))])
+        XCTAssertEqual(vm.pendingChangeCount, 3)
+
+        await vm.commitStaged()
+        XCTAssertEqual(driver.committedBatches.count, 1)
+        XCTAssertEqual(driver.committedBatches[0].count, 3)
+        XCTAssertEqual(vm.pendingChangeCount, 0)
+    }
+
+    func testSelectingTableResetsStagedEditor() async {
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+        vm.stageCellEdit(row: 0, column: 1, newValue: "Alice")
+        XCTAssertEqual(vm.pendingChangeCount, 1)
+
+        vm.select(table: TableInfo(name: "posts"))
+        try? await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(vm.pendingChangeCount, 0)
+    }
+
+    func testStagePasteStagesUpdatesIntoEditableCells() async {
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        vm.stagePaste([PastedCell(row: 0, column: 1, value: "Pasted")])
+
+        XCTAssertEqual(vm.pendingChangeCount, 1)
+        XCTAssertEqual(vm.displayRows?.rows[0][1], .text("Pasted"))
+    }
+
+    func testStageCellEditSetsNullOnNullableColumn() async {
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        vm.stageCellEdit(row: 0, column: 1, edit: .null)
+
+        XCTAssertEqual(vm.pendingChangeCount, 1)
+        XCTAssertEqual(vm.displayRows?.rows[0][1], .null)
+        XCTAssertNil(vm.editError)
+    }
+
+    func testNavigateForeignKeyLoadsReferencedTableFilteredThenBack() async {
+        let driver = TestDriver()
+        driver.foreignKeys = [
+            ForeignKeyRelation(fromTable: "users", fromColumn: "name", toTable: "roles", toColumn: "id")
+        ]
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        vm.navigateForeignKey(row: 0, column: 1)
+        try? await Task.sleep(for: .milliseconds(100))
+
+        XCTAssertEqual(vm.selectedTable?.name, "roles")
+        XCTAssertTrue(vm.canGoBack)
+        XCTAssertFalse(vm.canGoForward)
+        XCTAssertEqual(vm.activeFilters.first?.column, "id")
+        XCTAssertEqual(vm.activeFilters.first?.value, .text("test-name"))
+        XCTAssertTrue(driver.runSelectStatements.contains { $0.sql.contains("roles") && $0.binds == [.text("test-name")] })
+
+        vm.goBack()
+        try? await Task.sleep(for: .milliseconds(100))
+
+        XCTAssertEqual(vm.selectedTable?.name, "users")
+        XCTAssertTrue(vm.activeFilters.isEmpty)
+        XCTAssertTrue(vm.canGoForward)
+        XCTAssertFalse(vm.canGoBack)
+    }
+
+    func testOpenCellEditorForJSONColumnStagesOnSave() async {
+        let driver = TestDriver()
+        driver.columns = [
+            ColumnInfo(name: "id", dataType: "int", isNullable: false, isPrimaryKey: true),
+            ColumnInfo(name: "name", dataType: "json", isNullable: true, isPrimaryKey: false),
+        ]
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        vm.openCellEditor(row: 0, column: 1)
+        XCTAssertEqual(vm.cellEditor?.columnName, "name")
+        XCTAssertEqual(vm.cellEditor?.isBinary, false)
+        XCTAssertEqual(vm.cellEditor?.text, "test-name")
+
+        vm.saveCellEditor(text: "{\"k\":1}")
+        XCTAssertNil(vm.cellEditor)
+        XCTAssertEqual(vm.pendingChangeCount, 1)
+        XCTAssertEqual(vm.displayRows?.rows[0][1], .text("{\"k\":1}"))
+    }
+
+    func testSaveApplyAndDeleteFilterPreset() async {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kt-vm-presets-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("filter-presets.json")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            presetStore: FilterPresetStore(storeURL: url),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        let condition = FilterCondition(column: "id", op: .equals, value: .int(7))
+        vm.applyFilters([condition])
+        vm.saveCurrentFiltersAsPreset(name: "seven")
+        XCTAssertEqual(vm.savedPresets.map(\.name), ["seven"])
+
+        vm.applyFilters([])
+        XCTAssertTrue(vm.activeFilters.isEmpty)
+
+        vm.applyPreset(vm.savedPresets[0])
+        try? await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(vm.activeFilters, [condition])
+
+        vm.deletePreset(vm.savedPresets[0])
+        XCTAssertTrue(vm.savedPresets.isEmpty)
+    }
+
+    func testSavePresetIgnoresEmptyNameAndNoConditions() async {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kt-vm-presets-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("filter-presets.json")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            presetStore: FilterPresetStore(storeURL: url),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        vm.applyFilters([FilterCondition(column: "id", op: .equals, value: .int(1))])
+        vm.saveCurrentFiltersAsPreset(name: "   ")
+        XCTAssertTrue(vm.savedPresets.isEmpty)
+
+        vm.applyFilters([])
+        vm.savePreset(name: "empty", conditions: [])
+        XCTAssertTrue(vm.savedPresets.isEmpty)
+    }
+
 }

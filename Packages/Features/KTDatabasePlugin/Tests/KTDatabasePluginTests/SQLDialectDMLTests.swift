@@ -82,4 +82,31 @@ final class SQLDialectDMLTests: XCTestCase {
         )
         XCTAssertEqual(stmt.sql, "INSERT INTO `a`.`t` (`ev``il`) VALUES (?)")
     }
+
+    func testUpdateEmitsDefaultKeywordUnboundAndKeepsBindOrder() throws {
+        let stmt = try d.update(
+            schema: "app",
+            table: "t",
+            values: [
+                ColumnValue(column: "name", value: .text("Khoi")),
+                ColumnValue(defaultFor: "status"),
+            ],
+            key: [ColumnValue(column: "id", value: .int(5))]
+        )
+        XCTAssertEqual(
+            stmt.sql,
+            "UPDATE `app`.`t` SET `name` = ?, `status` = DEFAULT WHERE `id` = ?"
+        )
+        // DEFAULT consumes no placeholder and no bind; only the bound value and the key ride.
+        XCTAssertEqual(stmt.binds, [.text("Khoi"), .int(5)])
+    }
+
+    func testInsertEmitsDefaultKeywordUnbound() throws {
+        let stmt = try d.insert(schema: "app", table: "t", values: [
+            ColumnValue(column: "id", value: .int(1)),
+            ColumnValue(defaultFor: "created_at"),
+        ])
+        XCTAssertEqual(stmt.sql, "INSERT INTO `app`.`t` (`id`, `created_at`) VALUES (?, DEFAULT)")
+        XCTAssertEqual(stmt.binds, [.int(1)])
+    }
 }

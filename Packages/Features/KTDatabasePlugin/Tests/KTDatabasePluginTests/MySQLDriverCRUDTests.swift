@@ -8,6 +8,14 @@ import XCTest
 /// insert→read→update→delete round-trip, composite-key updates, and the affect-exactly-one transaction
 /// guard that rolls back a write touching ≠1 row. Each test owns a throwaway database it drops at the end.
 final class MySQLDriverCRUDTests: XCTestCase {
+
+    private var opened: [MySQLDriver] = []
+
+    override func tearDown() async throws {
+        if let driver = opened.first { await dropSchema(driver) }
+        for driver in opened { await driver.closeSession() }
+        opened = []
+    }
     private let schema = "ktstack_crud_it"
 
     private func makeDriver() throws -> MySQLDriver {
@@ -15,7 +23,9 @@ final class MySQLDriverCRUDTests: XCTestCase {
             ProcessInfo.processInfo.environment["KTSTACK_DB_IT"] == "1",
             "Set KTSTACK_DB_IT=1 with the MySQL engine installed + running on :3306."
         )
-        return MySQLDriver(profile: .managedMySQL, password: nil, tools: FakeDatabaseTools.allInstalled)
+        let driver = MySQLDriver(profile: .managedMySQL, password: nil, tools: FakeDatabaseTools.allInstalled)
+        opened.append(driver)
+        return driver
     }
 
     private func resetSchema(_ driver: MySQLDriver) async throws {
@@ -30,7 +40,6 @@ final class MySQLDriverCRUDTests: XCTestCase {
     func testInsertReadUpdateDeleteRoundTrip() async throws {
         let driver = try makeDriver()
         try await resetSchema(driver)
-        defer { Task { await dropSchema(driver) } }
         _ = try await driver.query(
             "CREATE TABLE \(schema).t (id INT PRIMARY KEY, name VARCHAR(50))", database: nil
         )
@@ -68,7 +77,6 @@ final class MySQLDriverCRUDTests: XCTestCase {
     func testCompositeKeyUpdateAffectsOneRow() async throws {
         let driver = try makeDriver()
         try await resetSchema(driver)
-        defer { Task { await dropSchema(driver) } }
         _ = try await driver.query(
             "CREATE TABLE \(schema).t2 (a INT, b INT, v INT, PRIMARY KEY (a, b))", database: nil
         )
@@ -99,10 +107,67 @@ final class MySQLDriverCRUDTests: XCTestCase {
         XCTAssertEqual(v(forB: 3), .int(20)) // untouched
     }
 
+    func testNoOpUpdateSucceeds() async throws {
+        let driver = try makeDriver()
+        try await resetSchema(driver)
+        _ = try await driver.query(
+            "CREATE TABLE \(schema).t (id INT PRIMARY KEY, name VARCHAR(50))", database: nil
+        )
+        try await driver.insert(database: schema, table: "t", values: [
+            ColumnValue(column: "id", value: .int(1)),
+            ColumnValue(column: "name", value: .text("alice")),
+        ])
+        // Set giá trị y hệt: server báo 0 hàng đổi nhưng key vẫn tồn tại → no-op hợp lệ, không throw.
+        try await driver.update(
+            database: schema,
+            table: "t",
+            values: [ColumnValue(column: "name", value: .text("alice"))],
+            key: [ColumnValue(column: "id", value: .int(1))]
+        )
+        let page = try await driver.paginatedRows(database: schema, table: "t", limit: 10, offset: 0)
+        XCTAssertEqual(page.rowCount, 1)
+        XCTAssertEqual(page.rows[0][1], .text("alice"))
+    }
+
+    func testStaleUpdateThrowsWriteConflict() async throws {
+        let driver = try makeDriver()
+        try await resetSchema(driver)
+        _ = try await driver.query(
+            "CREATE TABLE \(schema).t (id INT PRIMARY KEY, name VARCHAR(50))", database: nil
+        )
+        // Key không match hàng nào → phân biệt với no-op: phải là writeConflict.
+        do {
+            try await driver.update(
+                database: schema,
+                table: "t",
+                values: [ColumnValue(column: "name", value: .text("x"))],
+                key: [ColumnValue(column: "id", value: .int(999))]
+            )
+            XCTFail("expected .writeConflict for a stale key")
+        } catch let error as DatabaseError {
+            XCTAssertEqual(error, .writeConflict("The row no longer matches; it was changed or removed."))
+        }
+    }
+
+    func testStaleDeleteThrowsWriteConflict() async throws {
+        let driver = try makeDriver()
+        try await resetSchema(driver)
+        _ = try await driver.query(
+            "CREATE TABLE \(schema).t (id INT PRIMARY KEY)", database: nil
+        )
+        do {
+            try await driver.delete(
+                database: schema, table: "t", key: [ColumnValue(column: "id", value: .int(1))]
+            )
+            XCTFail("expected .writeConflict deleting a missing row")
+        } catch let error as DatabaseError {
+            XCTAssertEqual(error, .writeConflict("The row no longer matches; it was changed or removed."))
+        }
+    }
+
     func testWriteAffectingMultipleRowsRollsBack() async throws {
         let driver = try makeDriver()
         try await resetSchema(driver)
-        defer { Task { await dropSchema(driver) } }
         // No unique key, two identical `tag` values → a key on `tag` matches both rows.
         _ = try await driver.query(
             "CREATE TABLE \(schema).t3 (tag INT, v INT)", database: nil

@@ -10,10 +10,11 @@ public extension DumpService {
     func databaseExists(profile: ConnectionProfile, password: String?, database: String) async throws -> Bool {
         try DumpService.validateIdentifier(database, label: "database")
         let mysql = try resolveBinary("bin/mysql")
+        let emitSSL = !DumpService.isMariaDBClient(mysql)
         let defaults = try DumpService.writeDefaultsFile(
             content: DumpService.defaultsContent(
                 user: profile.user, host: profile.host, port: profile.port, password: password,
-                tlsMode: profile.tlsMode
+                tlsMode: profile.tlsMode, emitSSLMode: emitSSL
             )
         )
         defer { try? FileManager.default.removeItem(at: defaults) }
@@ -27,10 +28,11 @@ public extension DumpService {
 
     func runStatement(profile: ConnectionProfile, password: String?, sql: String) async throws {
         let mysql = try resolveBinary("bin/mysql")
+        let emitSSL = !DumpService.isMariaDBClient(mysql)
         let defaults = try DumpService.writeDefaultsFile(
             content: DumpService.defaultsContent(
                 user: profile.user, host: profile.host, port: profile.port, password: password,
-                tlsMode: profile.tlsMode
+                tlsMode: profile.tlsMode, emitSSLMode: emitSSL
             )
         )
         defer { try? FileManager.default.removeItem(at: defaults) }

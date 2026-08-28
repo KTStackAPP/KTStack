@@ -111,9 +111,7 @@ struct V2RowEditorSheet: View {
                 values.append(ColumnValue(column: column.name, value: .text(field.text)))
             }
         }
-        Task {
-            await vm.insertRow(values)
-            dismiss()
-        }
+        vm.stageInsertRow(values)
+        dismiss()
     }
 }

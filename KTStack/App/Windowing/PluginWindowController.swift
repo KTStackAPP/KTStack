@@ -10,6 +10,7 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
 
     private var window: NSWindow?
     private var onClose: (() -> Void)?
+    private var shouldClose: (() -> Bool)?
 
     init(title: String, autosaveName: String, minSize: NSSize, defaultSize: NSSize) {
         self.title = title
@@ -18,9 +19,10 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
         self.defaultSize = defaultSize
     }
 
-    func present(_ content: AnyView, onClose: @escaping () -> Void) {
+    func present(_ content: AnyView, onClose: @escaping () -> Void, shouldClose: (() -> Bool)? = nil) {
         AppActivationPolicy.activateRegular()
         self.onClose = onClose
+        self.shouldClose = shouldClose
 
         if let window {
             window.makeKeyAndOrderFront(nil)
@@ -55,8 +57,13 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
         window?.close()
     }
 
+    func windowShouldClose(_: NSWindow) -> Bool {
+        shouldClose?() ?? true
+    }
+
     func windowWillClose(_: Notification) {
         window = nil
+        shouldClose = nil
         let callback = onClose
         onClose = nil
         callback?()
