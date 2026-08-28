@@ -59,6 +59,19 @@ public extension DatabaseV2ViewModel {
         }
     }
 
+    func stagePaste(_ cells: [PastedCell]) {
+        guard let editor = staged, let result = rows, !cells.isEmpty else { return }
+        editError = nil
+        let names = result.columns.map(\.name)
+        let dictRows = result.rows.indices.map { rowDict(result, $0) }
+        do {
+            try editor.applyPaste(cells, rows: dictRows, columnNames: names)
+            refreshStagedState()
+        } catch {
+            editError = error.localizedDescription
+        }
+    }
+
     func stageInsertRow(_ values: [ColumnValue]) {
         guard let editor = staged else { return }
         editor.stageInsert(values: values)

@@ -32,7 +32,8 @@ struct V2DataTabView: View {
                             vm.stageCellEdit(row: row, column: column, newValue: value)
                         },
                         foreignKeyColumns: foreignKeyColumnNames,
-                        onNavigateFK: nil
+                        onNavigateFK: nil,
+                        onPaste: vm.canEdit ? { cells in vm.stagePaste(cells) } : nil
                     )
                     if showRowDetail, let idx = selectedRowIndex, idx < result.rows.count {
                         rowDetailPanel(columns: result.columns, row: result.rows[idx])

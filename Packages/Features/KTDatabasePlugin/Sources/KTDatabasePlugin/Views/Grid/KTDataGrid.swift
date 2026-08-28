@@ -12,6 +12,7 @@ struct KTDataGrid: NSViewRepresentable {
     var onCommitEdit: ((Int, Int, String) -> Void)?
     var foreignKeyColumns: Set<String> = []
     var onNavigateFK: ((Int, Int) -> Void)?
+    var onPaste: (([PastedCell]) -> Void)?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(result: result)
@@ -64,6 +65,7 @@ struct KTDataGrid: NSViewRepresentable {
         context.coordinator.onCommitEdit = onCommitEdit
         context.coordinator.foreignKeyColumns = foreignKeyColumns
         context.coordinator.onNavigateFK = onNavigateFK
+        context.coordinator.onPaste = onPaste
         context.coordinator.apply(result)
     }
 
@@ -86,6 +88,7 @@ struct KTDataGrid: NSViewRepresentable {
         var onCommitEdit: ((Int, Int, String) -> Void)?
         var foreignKeyColumns: Set<String> = []
         var onNavigateFK: ((Int, Int) -> Void)?
+        var onPaste: (([PastedCell]) -> Void)?
         private var nearEndRequested = false
         private weak var editingField: NSTextField?
         private var editingRow = -1

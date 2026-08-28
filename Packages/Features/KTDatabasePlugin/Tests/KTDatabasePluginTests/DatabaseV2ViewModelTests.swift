@@ -1210,4 +1210,21 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         XCTAssertEqual(vm.pendingChangeCount, 0)
     }
 
+    func testStagePasteStagesUpdatesIntoEditableCells() async {
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        vm.stagePaste([PastedCell(row: 0, column: 1, value: "Pasted")])
+
+        XCTAssertEqual(vm.pendingChangeCount, 1)
+        XCTAssertEqual(vm.displayRows?.rows[0][1], .text("Pasted"))
+    }
+
 }

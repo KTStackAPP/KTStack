@@ -64,7 +64,26 @@ extension KTDataGrid.Coordinator: KTGridInput {
 
     func gridCopy() { copyCells(format: .tsv) }
 
-    func gridPaste() {}
+    func gridPaste() {
+        guard let onPaste, !editableColumns.isEmpty,
+              let rowRange = selection.rowRange, let columnRange = selection.columnRange,
+              let string = NSPasteboard.general.string(forType: .string), !string.isEmpty else { return }
+        guard let grid = try? (string.contains("\t") ? GridPasteParser.parseTSV(string) : GridPasteParser.parseCSV(string)) else { return }
+        let target = PasteTarget(
+            anchorRow: rowRange.lowerBound,
+            anchorColumn: columnRange.lowerBound,
+            targetRows: rowRange.count,
+            targetColumns: columnRange.count,
+            gridRowCount: result.rows.count,
+            gridColumnCount: result.columns.count
+        )
+        guard let cells = try? GridPasteParser.resolve(grid, into: target) else { return }
+        let editable = cells.filter {
+            $0.column < result.columns.count && editableColumns.contains(result.columns[$0.column].name)
+        }
+        guard !editable.isEmpty else { return }
+        onPaste(editable)
+    }
 
     func refreshSelectionUI() {
         guard let table, let overlay else { return }
