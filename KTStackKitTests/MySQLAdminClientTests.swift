@@ -23,7 +23,8 @@ final class MySQLAdminClientTests: XCTestCase {
 
     func testDefaultsFileIs0600AndCarriesNoPassword() throws {
         let client = MySQLAdminClient(host: "127.0.0.1", port: 3306)
-        let url = try client.writeDefaultsFile()
+        let mysql = URL(fileURLWithPath: "/x/runtimes/mysql/8.4.5/bin/mysql")
+        let url = try client.writeDefaultsFile(client: mysql)
         defer { try? FileManager.default.removeItem(at: url) }
 
         let perms = try FileManager.default.attributesOfItem(atPath: url.path)[.posixPermissions] as? Int
@@ -33,6 +34,18 @@ final class MySQLAdminClientTests: XCTestCase {
         XCTAssertFalse(content.lowercased().contains("password"))
         XCTAssertTrue(content.contains("user=root"))
         XCTAssertTrue(content.contains("ssl-mode=PREFERRED"))
+    }
+
+    func testDefaultsFileOmitsSSLModeForMariaDBClient() throws {
+        let client = MySQLAdminClient(host: "127.0.0.1", port: 3306)
+        // MariaDB's client rejects ssl-mode; the resolved mariadb symlink must produce no ssl-mode line.
+        let mariadb = URL(fileURLWithPath: "/x/runtimes/mariadb/11.4.13/bin/mysql")
+        let url = try client.writeDefaultsFile(client: mariadb)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let content = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertFalse(content.contains("ssl-mode"))
+        XCTAssertTrue(content.contains("user=root"))
     }
 
     func testClientNotInstalledWhenNoBinaryResolves() async throws {

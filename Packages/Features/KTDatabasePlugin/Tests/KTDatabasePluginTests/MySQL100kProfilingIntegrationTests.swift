@@ -12,13 +12,21 @@ final class MySQL100kProfilingIntegrationTests: XCTestCase {
     private let database = "kt_sample_100k"
     private let table = "events"
     private let pageSize = 200
+    private var opened: [MySQLDriver] = []
+
+    override func tearDown() async throws {
+        for driver in opened { await driver.closeSession() }
+        opened = []
+    }
 
     private func makeDriver() async throws -> MySQLDriver {
         try XCTSkipUnless(
             ProcessInfo.processInfo.environment["KTSTACK_DB_IT"] == "1",
             "Set KTSTACK_DB_IT=1 with kt_sample_100k seeded on the MySQL engine (:3306)."
         )
+        // Track before the first query so tearDown closes the session even when the seed check skips.
         let driver = MySQLDriver(profile: .managedMySQL, password: nil, tools: FakeDatabaseTools.allInstalled)
+        opened.append(driver)
         let total = try await rowCount(driver)
         try XCTSkipUnless(total >= 100_000, "kt_sample_100k.events has \(total) rows; seed 100k first.")
         return driver
@@ -50,7 +58,6 @@ final class MySQL100kProfilingIntegrationTests: XCTestCase {
 
     func testBrowseStaysBoundedToTheFetchWindow() async throws {
         let driver = try await makeDriver()
-        defer { Task { await driver.closeSession() } }
 
         // Trang đầu: đúng cái editor gọi (paginatedRows limit=pageSize offset=0).
         let first = try await timed {

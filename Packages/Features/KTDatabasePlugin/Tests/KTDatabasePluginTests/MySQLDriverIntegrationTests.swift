@@ -37,26 +37,40 @@ final class MySQLDriverIntegrationTests: XCTestCase {
         XCTAssertTrue(names.contains("information_schema"))
     }
 
-    func testListTablesAndColumnsForSystemTable() async throws {
+    func testCompositePrimaryKeyIntrospection() async throws {
+        // Engine-neutral: MariaDB's mysql.user is a keyless VIEW, so build our own composite-PK table
+        // and prove introspection reports both key columns (the case the row-edit phase relies on).
         let driver = try makeDriver()
-        let tables = try await driver.listTables(database: "mysql").map(\.name)
-        XCTAssertTrue(tables.contains("user")) // mysql.user always exists
+        let suffix = UUID().uuidString.prefix(8)
+        let db = "kt_pk_\(suffix)"
+        _ = try await driver.query("CREATE DATABASE \(db)", database: nil)
+        _ = try await driver.query(
+            "CREATE TABLE \(db).t (a INT NOT NULL, b INT NOT NULL, note VARCHAR(16), PRIMARY KEY (a, b))",
+            database: nil
+        )
 
-        let columns = try await driver.columns(database: "mysql", table: "user")
+        let tables = try await driver.listTables(database: db).map(\.name)
+        XCTAssertTrue(tables.contains("t"))
+
+        let columns = try await driver.columns(database: db, table: "t")
         XCTAssertFalse(columns.isEmpty)
-        // mysql.user is keyed on (Host, User) — a composite PK, the case the row-edit phase relies on.
-        XCTAssertTrue(columns.primaryKeyColumns.count >= 2)
+        XCTAssertEqual(Set(columns.primaryKeyColumns.map(\.name)), ["a", "b"])
+
+        _ = try? await driver.query("DROP DATABASE IF EXISTS \(db)", database: nil)
     }
 
     func testQueryMapsTypedCellsAndNull() async throws {
         let driver = try makeDriver()
-        let result = try await driver.query("SELECT 1 AS i, 1.5 AS d, NULL AS n, 'x' AS s", database: nil)
-        XCTAssertEqual(result.columnNames, ["i", "d", "n", "s"])
+        // 1.5e0 is a DOUBLE literal; a bare 1.5 is DECIMAL, which the mapper keeps as text to preserve
+        // precision. Cover both so the double vs decimal distinction stays asserted.
+        let result = try await driver.query("SELECT 1 AS i, 1.5e0 AS d, 1.5 AS dnum, NULL AS n, 'x' AS s", database: nil)
+        XCTAssertEqual(result.columnNames, ["i", "d", "dnum", "n", "s"])
         XCTAssertEqual(result.rows.count, 1)
         XCTAssertEqual(result.rows[0][0], .int(1))
         XCTAssertEqual(result.rows[0][1], .double(1.5))
-        XCTAssertEqual(result.rows[0][2], .null)
-        XCTAssertEqual(result.rows[0][3], .text("x"))
+        XCTAssertEqual(result.rows[0][2], .text("1.5"))
+        XCTAssertEqual(result.rows[0][3], .null)
+        XCTAssertEqual(result.rows[0][4], .text("x"))
     }
 
     func testZeroRowQueryPreservesColumns() async throws {

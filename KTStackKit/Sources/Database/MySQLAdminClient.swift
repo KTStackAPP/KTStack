@@ -51,7 +51,7 @@ public struct MySQLAdminClient: Sendable {
     public func databaseExists(_ name: String) async throws -> Bool {
         try Self.validateIdentifier(name)
         let mysql = try resolveClient()
-        let defaults = try writeDefaultsFile()
+        let defaults = try writeDefaultsFile(client: mysql)
         defer { try? FileManager.default.removeItem(at: defaults) }
         let output = try await runCapturing(
             mysql, args: ["--defaults-extra-file=\(defaults.path)", "-N", "-B", "-e", "SHOW DATABASES"]
@@ -62,7 +62,7 @@ public struct MySQLAdminClient: Sendable {
     public func createDatabase(_ name: String) async throws {
         try Self.validateIdentifier(name)
         let mysql = try resolveClient()
-        let defaults = try writeDefaultsFile()
+        let defaults = try writeDefaultsFile(client: mysql)
         defer { try? FileManager.default.removeItem(at: defaults) }
         try await run(
             mysql,
@@ -74,7 +74,7 @@ public struct MySQLAdminClient: Sendable {
     public func dropDatabase(_ name: String) async throws {
         try Self.validateIdentifier(name)
         let mysql = try resolveClient()
-        let defaults = try writeDefaultsFile()
+        let defaults = try writeDefaultsFile(client: mysql)
         defer { try? FileManager.default.removeItem(at: defaults) }
         try await run(
             mysql,
@@ -89,7 +89,7 @@ public struct MySQLAdminClient: Sendable {
         guard FileManager.default.fileExists(atPath: input.path) else {
             throw ClientError.failed("Dump file not found: \(input.lastPathComponent)")
         }
-        let defaults = try writeDefaultsFile()
+        let defaults = try writeDefaultsFile(client: mysql)
         defer { try? FileManager.default.removeItem(at: defaults) }
 
         try await run(
@@ -141,8 +141,15 @@ public struct MySQLAdminClient: Sendable {
         throw ClientError.clientNotInstalled
     }
 
-    func writeDefaultsFile() throws -> URL {
-        let content = "[client]\nuser=root\nhost=\(host)\nport=\(port)\nssl-mode=PREFERRED\n"
+    private func isMariaDBClient(_ url: URL) -> Bool {
+        if url.pathComponents.contains(where: { $0.lowercased().contains("mariadb") }) { return true }
+        return url.resolvingSymlinksInPath().lastPathComponent.lowercased().contains("mariadb")
+    }
+
+    func writeDefaultsFile(client: URL) throws -> URL {
+        // MariaDB's client rejects the MySQL-only ssl-mode option; emit it only for a real mysql client.
+        let sslLine = isMariaDBClient(client) ? "" : "ssl-mode=PREFERRED\n"
+        let content = "[client]\nuser=root\nhost=\(host)\nport=\(port)\n\(sslLine)"
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("ktstack-mysqladmin-\(UUID().uuidString).cnf")
         let created = FileManager.default.createFile(

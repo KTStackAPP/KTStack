@@ -48,7 +48,8 @@ extension DumpService {
         host: String,
         port: Int,
         password: String?,
-        tlsMode: TLSMode = .prefer
+        tlsMode: TLSMode = .prefer,
+        emitSSLMode: Bool = true
     ) throws -> String {
         try validateIdentifier(user, label: "user", maxLength: 255)
         try validateHost(host)
@@ -60,8 +61,9 @@ extension DumpService {
             "user=\(user)",
             "host=\(host)",
             "port=\(port)",
-            "ssl-mode=\(sslMode(for: tlsMode))",
         ]
+        // MariaDB's client rejects ssl-mode; only MySQL's client understands it.
+        if emitSSLMode { lines.append("ssl-mode=\(sslMode(for: tlsMode))") }
         if let password { lines.append("password=\(password)") }
         return lines.joined(separator: "\n") + "\n"
     }
@@ -73,6 +75,13 @@ extension DumpService {
         case .require: "REQUIRED"
         case .verifyFull: "VERIFY_IDENTITY"
         }
+    }
+
+    /// A resolved `mysql`/`mysqldump` path is MariaDB's when it sits under a `mariadb` runtime dir or
+    /// resolves through the mariadb symlink. MariaDB's client rejects the MySQL-only `ssl-mode` option.
+    static func isMariaDBClient(_ url: URL) -> Bool {
+        if url.pathComponents.contains(where: { $0.lowercased().contains("mariadb") }) { return true }
+        return url.resolvingSymlinksInPath().lastPathComponent.lowercased().contains("mariadb")
     }
 
     /// mysqldump exits 0 but writes nothing when the account lacks privileges on every table; a

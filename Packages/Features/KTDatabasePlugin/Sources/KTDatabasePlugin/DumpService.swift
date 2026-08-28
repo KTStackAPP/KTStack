@@ -59,13 +59,14 @@ public struct DumpService: Sendable {
         to output: URL
     ) async throws {
         let dump = try resolveBinary("bin/mysqldump")
+        let emitSSL = !DumpService.isMariaDBClient(dump)
         try DumpService.validateIdentifier(database, label: "database")
         if let table { try DumpService.validateIdentifier(table, label: "table") }
 
         let defaults = try DumpService.writeDefaultsFile(
             content: DumpService.defaultsContent(
                 user: profile.user, host: profile.host, port: profile.port, password: password,
-                tlsMode: profile.tlsMode
+                tlsMode: profile.tlsMode, emitSSLMode: emitSSL
             )
         )
         defer { try? FileManager.default.removeItem(at: defaults) }
@@ -101,6 +102,7 @@ public struct DumpService: Sendable {
         from input: URL
     ) async throws {
         let mysql = try resolveBinary("bin/mysql")
+        let emitSSL = !DumpService.isMariaDBClient(mysql)
         try DumpService.validateIdentifier(database, label: "database")
         guard FileManager.default.fileExists(atPath: input.path) else {
             throw DatabaseError.connection("Dump file not found: \(input.lastPathComponent)")
@@ -109,7 +111,7 @@ public struct DumpService: Sendable {
         let defaults = try DumpService.writeDefaultsFile(
             content: DumpService.defaultsContent(
                 user: profile.user, host: profile.host, port: profile.port, password: password,
-                tlsMode: profile.tlsMode
+                tlsMode: profile.tlsMode, emitSSLMode: emitSSL
             )
         )
         defer { try? FileManager.default.removeItem(at: defaults) }
@@ -142,6 +144,7 @@ public struct DumpService: Sendable {
 
     public func importFullDump(profile: ConnectionProfile, password: String?, from input: URL) async throws {
         let mysql = try resolveBinary("bin/mysql")
+        let emitSSL = !DumpService.isMariaDBClient(mysql)
         guard FileManager.default.fileExists(atPath: input.path) else {
             throw DatabaseError.connection("Dump file not found: \(input.lastPathComponent)")
         }
@@ -149,7 +152,7 @@ public struct DumpService: Sendable {
         let defaults = try DumpService.writeDefaultsFile(
             content: DumpService.defaultsContent(
                 user: profile.user, host: profile.host, port: profile.port, password: password,
-                tlsMode: profile.tlsMode
+                tlsMode: profile.tlsMode, emitSSLMode: emitSSL
             )
         )
         defer { try? FileManager.default.removeItem(at: defaults) }
@@ -172,12 +175,13 @@ public struct DumpService: Sendable {
         database: String
     ) async throws {
         let mysql = try resolveBinary("bin/mysql")
+        let emitSSL = !DumpService.isMariaDBClient(mysql)
         try DumpService.validateIdentifier(database, label: "database")
 
         let defaults = try DumpService.writeDefaultsFile(
             content: DumpService.defaultsContent(
                 user: profile.user, host: profile.host, port: profile.port, password: password,
-                tlsMode: profile.tlsMode
+                tlsMode: profile.tlsMode, emitSSLMode: emitSSL
             )
         )
         defer { try? FileManager.default.removeItem(at: defaults) }
