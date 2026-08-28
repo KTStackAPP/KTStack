@@ -250,6 +250,13 @@ struct DatabaseV2Root: View {
         .sheet(item: $vm.fkPreview) { preview in
             V2ForeignKeyPreviewSheet(preview: preview) { vm.closeForeignKeyPreview() }
         }
+        .sheet(item: $vm.cellEditor) { context in
+            V2CellEditorSheet(
+                context: context,
+                onSave: { text in vm.saveCellEditor(text: text) },
+                onClose: { vm.closeCellEditor() }
+            )
+        }
         .alert(
             "Discard pending changes?",
             isPresented: Binding(

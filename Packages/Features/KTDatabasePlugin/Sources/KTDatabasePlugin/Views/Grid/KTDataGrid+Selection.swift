@@ -73,6 +73,10 @@ extension KTDataGrid.Coordinator: KTGridInput {
             presentSetPicker(row: row, viewColumn: viewColumn, dataColumn: dataColumn, members: members)
         case .date, .datetime, .time:
             presentDatePicker(row: row, viewColumn: viewColumn, dataColumn: dataColumn, kind: kind)
+        case .json, .binary:
+            if let onOpenEditor { onOpenEditor(row, dataColumn) } else {
+                beginInlineEdit(row: row, viewColumn: viewColumn, dataColumn: dataColumn)
+            }
         default:
             beginInlineEdit(row: row, viewColumn: viewColumn, dataColumn: dataColumn)
         }

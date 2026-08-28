@@ -14,6 +14,7 @@ struct KTDataGrid: NSViewRepresentable {
     var onNavigateFK: ((Int, Int) -> Void)?
     var onPaste: (([PastedCell]) -> Void)?
     var onSetEdit: ((Int, Int, CellEdit) -> Void)?
+    var onOpenEditor: ((Int, Int) -> Void)?
     var columnEditors: [String: CellEditorKind] = [:]
 
     func makeCoordinator() -> Coordinator {
@@ -69,6 +70,7 @@ struct KTDataGrid: NSViewRepresentable {
         context.coordinator.onNavigateFK = onNavigateFK
         context.coordinator.onPaste = onPaste
         context.coordinator.onSetEdit = onSetEdit
+        context.coordinator.onOpenEditor = onOpenEditor
         context.coordinator.columnEditors = columnEditors
         context.coordinator.apply(result)
     }
@@ -94,6 +96,7 @@ struct KTDataGrid: NSViewRepresentable {
         var onNavigateFK: ((Int, Int) -> Void)?
         var onPaste: (([PastedCell]) -> Void)?
         var onSetEdit: ((Int, Int, CellEdit) -> Void)?
+        var onOpenEditor: ((Int, Int) -> Void)?
         var columnEditors: [String: CellEditorKind] = [:]
         var datePickerPopover: NSPopover?
         private var nearEndRequested = false

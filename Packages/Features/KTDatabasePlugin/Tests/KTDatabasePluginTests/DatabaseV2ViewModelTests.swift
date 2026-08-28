@@ -1274,4 +1274,30 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         XCTAssertNil(vm.fkPreview)
     }
 
+    func testOpenCellEditorForJSONColumnStagesOnSave() async {
+        let driver = TestDriver()
+        driver.columns = [
+            ColumnInfo(name: "id", dataType: "int", isNullable: false, isPrimaryKey: true),
+            ColumnInfo(name: "name", dataType: "json", isNullable: true, isPrimaryKey: false),
+        ]
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        vm.openCellEditor(row: 0, column: 1)
+        XCTAssertEqual(vm.cellEditor?.columnName, "name")
+        XCTAssertEqual(vm.cellEditor?.isBinary, false)
+        XCTAssertEqual(vm.cellEditor?.text, "test-name")
+
+        vm.saveCellEditor(text: "{\"k\":1}")
+        XCTAssertNil(vm.cellEditor)
+        XCTAssertEqual(vm.pendingChangeCount, 1)
+        XCTAssertEqual(vm.displayRows?.rows[0][1], .text("{\"k\":1}"))
+    }
+
 }

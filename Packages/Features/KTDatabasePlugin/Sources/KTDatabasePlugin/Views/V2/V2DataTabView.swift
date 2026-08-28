@@ -35,6 +35,7 @@ struct V2DataTabView: View {
                         onNavigateFK: { row, column in Task { await vm.previewForeignKey(row: row, column: column) } },
                         onPaste: vm.canEdit ? { cells in vm.stagePaste(cells) } : nil,
                         onSetEdit: vm.canEdit ? { row, column, edit in vm.stageCellEdit(row: row, column: column, edit: edit) } : nil,
+                        onOpenEditor: { row, column in vm.openCellEditor(row: row, column: column) },
                         columnEditors: vm.canEdit ? columnEditorKinds : [:]
                     )
                     if showRowDetail, let idx = selectedRowIndex, idx < result.rows.count {
