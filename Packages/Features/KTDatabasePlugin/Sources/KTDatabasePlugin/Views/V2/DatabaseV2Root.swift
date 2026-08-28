@@ -197,6 +197,12 @@ struct DatabaseV2Root: View {
     @State private var activeTab: V2EditorTab = .data
     @State private var showInsertSheet = false
     @State private var pendingDeleteRow: Int? = nil
+    @State private var pendingSwitch: PendingSwitch?
+
+    private enum PendingSwitch {
+        case table(TableInfo)
+        case database(String)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -208,8 +214,8 @@ struct DatabaseV2Root: View {
                     databases: vm.databases,
                     tables: vm.tables,
                     selectedTable: vm.selectedTable,
-                    onSelectDatabase: { name in Task { await vm.select(database: name) } },
-                    onSelect: { vm.select(table: $0) }
+                    onSelectDatabase: { name in requestDatabaseSwitch(name) },
+                    onSelect: { requestTableSwitch($0) }
                 )
                 tabContent
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -243,6 +249,46 @@ struct DatabaseV2Root: View {
         }
         .sheet(item: $vm.fkPreview) { preview in
             V2ForeignKeyPreviewSheet(preview: preview) { vm.closeForeignKeyPreview() }
+        }
+        .alert(
+            "Discard pending changes?",
+            isPresented: Binding(
+                get: { pendingSwitch != nil },
+                set: { if !$0 { pendingSwitch = nil } }
+            )
+        ) {
+            Button("Cancel", role: .cancel) { pendingSwitch = nil }
+            Button("Discard & Switch", role: .destructive) { performPendingSwitch() }
+        } message: {
+            Text("\(vm.pendingChangeCount) pending change\(vm.pendingChangeCount == 1 ? "" : "s") will be discarded if you switch. Commit or undo first to keep them.")
+        }
+    }
+
+    private func requestTableSwitch(_ table: TableInfo) {
+        guard table.name != vm.selectedTable?.name else { return }
+        if vm.pendingChangeCount > 0 {
+            pendingSwitch = .table(table)
+        } else {
+            vm.select(table: table)
+        }
+    }
+
+    private func requestDatabaseSwitch(_ name: String) {
+        guard name != vm.selectedDatabase else { return }
+        if vm.pendingChangeCount > 0 {
+            pendingSwitch = .database(name)
+        } else {
+            Task { await vm.select(database: name) }
+        }
+    }
+
+    private func performPendingSwitch() {
+        let target = pendingSwitch
+        pendingSwitch = nil
+        switch target {
+        case let .table(table): vm.select(table: table)
+        case let .database(name): Task { await vm.select(database: name) }
+        case .none: break
         }
     }
 
