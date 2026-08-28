@@ -39,6 +39,7 @@ public final class DatabaseV2ViewModel: ObservableObject {
     @Published public internal(set) var activeQueryTabID: UUID?
     public private(set) var connectionProfileID: String?
     @Published public private(set) var connectionKind: DatabaseKind?
+    @Published public private(set) var capabilities: DriverCapabilities = .none
 
     public var schemaName: String {
         selectedDatabase ?? ""
@@ -80,6 +81,7 @@ public final class DatabaseV2ViewModel: ObservableObject {
         connectionState = .connecting
         connectionProfileID = profile.id.uuidString
         connectionKind = profile.kind
+        capabilities = .none
         databases = []
         tables = []
         selectedDatabase = nil
@@ -103,6 +105,7 @@ public final class DatabaseV2ViewModel: ObservableObject {
             guard token == generation else { return }
             try? await newDriver.openSession()
             databases = dbs
+            capabilities = newDriver.capabilities
             connectionState = .connected
             if let firstDatabase = dbs.first {
                 await select(database: firstDatabase.name)
@@ -119,6 +122,7 @@ public final class DatabaseV2ViewModel: ObservableObject {
         let oldDriver = driver
         driver = nil
         connectionState = .idle
+        capabilities = .none
         databases = []
         tables = []
         selectedDatabase = nil

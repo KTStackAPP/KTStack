@@ -2,7 +2,7 @@ import Foundation
 
 public extension DatabaseV2ViewModel {
     var canEdit: Bool {
-        !columns.primaryKeyColumns.isEmpty
+        capabilities.canEditRows && !columns.primaryKeyColumns.isEmpty
     }
 
     var editableColumns: Set<String> {

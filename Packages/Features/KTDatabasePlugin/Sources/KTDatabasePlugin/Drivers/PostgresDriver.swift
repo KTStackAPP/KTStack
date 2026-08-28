@@ -14,6 +14,7 @@ import PostgresNIO
 /// `default_transaction_read_only`.
 public struct PostgresDriver: RelationalDriver {
     public let kind: DatabaseKind = .postgres
+    public let capabilities = DriverCapabilities()
 
     let profile: ConnectionProfile
     let password: String?

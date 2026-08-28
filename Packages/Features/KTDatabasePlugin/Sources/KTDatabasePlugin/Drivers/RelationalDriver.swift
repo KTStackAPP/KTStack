@@ -1,6 +1,8 @@
 import Foundation
 
 public protocol RelationalDriver: DatabaseDriver {
+    var capabilities: DriverCapabilities { get }
+
     func listDatabases() async throws -> [DatabaseInfo]
 
     func listTables(database: String) async throws -> [TableInfo]
@@ -35,5 +37,8 @@ public protocol RelationalDriver: DatabaseDriver {
 }
 
 public extension RelationalDriver {
+    // Mặc định relational: hỗ trợ đủ; driver có giới hạn tự override (SQLite không hủy được query).
+    var capabilities: DriverCapabilities { DriverCapabilities() }
+
     func cancelCurrentQuery() async {}
 }

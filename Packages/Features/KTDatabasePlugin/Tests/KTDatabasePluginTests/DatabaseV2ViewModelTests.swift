@@ -5,6 +5,8 @@ import XCTest
 final class DatabaseV2ViewModelTests: XCTestCase {
     private final class TestDriver: RelationalDriver, @unchecked Sendable {
         let kind: DatabaseKind = .mysql
+        var capabilitiesOverride: DriverCapabilities?
+        var capabilities: DriverCapabilities { capabilitiesOverride ?? DriverCapabilities() }
 
         var shouldPingFail = false
         var shouldListDatabasesFail = false
@@ -1034,5 +1036,83 @@ final class DatabaseV2ViewModelTests: XCTestCase {
 
         let otherTabs = vm.queryTabs.filter { $0.id != activeID }
         XCTAssertTrue(otherTabs.allSatisfy { $0.result == nil })
+    }
+
+    func testConnectPublishesDriverCapabilities() async {
+        let driver = TestDriver()
+        driver.capabilitiesOverride = DriverCapabilities(canCancelQueries: false)
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        XCTAssertEqual(vm.capabilities, .none)
+        await vm.connect(profile: .managedMySQL)
+        XCTAssertTrue(vm.capabilities.canEditRows)
+        XCTAssertFalse(vm.capabilities.canCancelQueries)
+    }
+
+    func testDisconnectResetsCapabilities() async {
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        XCTAssertTrue(vm.capabilities.canEditRows)
+        await vm.disconnect()
+        XCTAssertEqual(vm.capabilities, .none)
+    }
+
+    func testCanEditIsFalseWhenDriverForbidsRowEditsDespitePrimaryKey() async {
+        let driver = TestDriver()
+        driver.capabilitiesOverride = DriverCapabilities(canEditRows: false)
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        await vm.loadStructure(table: TableInfo(name: "users"))
+        XCTAssertFalse(vm.canEdit)
+    }
+
+    func testUpdateCellWithoutPrimaryKeySetsEditError() async {
+        let driver = TestDriver()
+        driver.columns = [
+            ColumnInfo(name: "id", dataType: "int", isNullable: false, isPrimaryKey: false),
+            ColumnInfo(name: "name", dataType: "varchar(255)", isNullable: true, isPrimaryKey: false),
+        ]
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        await vm.updateCell(row: 0, column: 1, newValue: "Alice")
+
+        XCTAssertEqual(driver.updateCalls.count, 0)
+        XCTAssertNotNil(vm.editError)
+    }
+
+    func testUpdateCellEmptyStringOnNullableColumnSendsNull() async {
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        await vm.updateCell(row: 0, column: 1, newValue: "")
+
+        XCTAssertEqual(driver.updateCalls.count, 1)
+        XCTAssertEqual(driver.updateCalls[0].values[0].value, .null)
     }
 }

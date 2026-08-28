@@ -8,6 +8,7 @@ import NIOSSL
 
 public struct MySQLDriver: RelationalDriver {
     public let kind: DatabaseKind = .mysql
+    public let capabilities = DriverCapabilities()
 
     let profile: ConnectionProfile
     let password: String?

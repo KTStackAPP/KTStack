@@ -77,8 +77,10 @@ struct V2QueryTabView: View {
     private var toolbar: some View {
         HStack(spacing: 10) {
             if vm.isRunning {
-                V2Button(title: "Cancel", systemImage: "stop.fill", kind: .danger) {
-                    Task { await vm.cancelQuery() }
+                if vm.capabilities.canCancelQueries {
+                    V2Button(title: "Cancel", systemImage: "stop.fill", kind: .danger) {
+                        Task { await vm.cancelQuery() }
+                    }
                 }
             } else {
                 V2Button(title: "Run Query", systemImage: "play.fill", kind: .primary) {
