@@ -17,6 +17,8 @@ public protocol RelationalDriver: DatabaseDriver {
 
     func foreignKeys(database: String) async throws -> [ForeignKeyRelation]
 
+    func checkConstraints(database: String, table: String) async throws -> [CheckConstraintInfo]
+
     func query(_ sql: String, database: String?) async throws -> QueryResult
 
     func paginatedRows(database: String, table: String, limit: Int, offset: Int) async throws -> QueryResult
@@ -43,6 +45,9 @@ public extension RelationalDriver {
     var capabilities: DriverCapabilities { DriverCapabilities() }
 
     func cancelCurrentQuery() async {}
+
+    // Engine không introspect CHECK (Postgres/SQLite/Mongo, hoặc MySQL cũ) trả rỗng.
+    func checkConstraints(database: String, table: String) async throws -> [CheckConstraintInfo] { [] }
 
     // Batch commit chỉ bật cho engine MVP (MySQL/MariaDB); engine khác override khi có nhu cầu.
     func executeTransaction(_ steps: [WriteStep], database: String) async throws {

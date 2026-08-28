@@ -113,6 +113,26 @@ final class ForeignKeyIntrospectionTests: XCTestCase {
         XCTAssertEqual(parsed[3].toTable, "node")
     }
 
+    func testRowParserReadsReferentialActionsWhenPresent() {
+        let rows: [[Cell]] = [
+            [.text("orders"), .text("user_id"), .text("users"), .text("id"),
+             .text("fk_orders_user"), .text("CASCADE"), .text("SET NULL")],
+        ]
+        let parsed = ForeignKeyRowParser.parseRelational(rows)
+        XCTAssertEqual(parsed.count, 1)
+        XCTAssertEqual(parsed[0].onUpdate, .cascade)
+        XCTAssertEqual(parsed[0].onDelete, .setNull)
+    }
+
+    func testRowParserLeavesActionsNilWithoutRuleColumns() {
+        let rows: [[Cell]] = [
+            [.text("orders"), .text("user_id"), .text("users"), .text("id"), .text("fk_orders_user")],
+        ]
+        let parsed = ForeignKeyRowParser.parseRelational(rows)
+        XCTAssertNil(parsed[0].onUpdate)
+        XCTAssertNil(parsed[0].onDelete)
+    }
+
     func testRowParserSkipsRowsWithMissingFields() {
         let rows: [[Cell]] = [
             [.text("orders"), .text("user_id"), .text("users"), .text("id")],

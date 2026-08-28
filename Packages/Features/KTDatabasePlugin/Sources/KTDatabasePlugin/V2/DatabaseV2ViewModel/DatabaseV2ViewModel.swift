@@ -26,6 +26,7 @@ public final class DatabaseV2ViewModel: ObservableObject {
     @Published public private(set) var columns: [ColumnInfo] = []
     @Published public private(set) var indexes: [IndexInfo] = []
     @Published public private(set) var foreignKeys: [ForeignKeyRelation] = []
+    @Published public private(set) var checks: [CheckConstraintInfo] = []
     @Published public private(set) var diagramColumns: [String: [ColumnInfo]] = [:]
     @Published public private(set) var isLoadingDiagram: Bool = false
     @Published public private(set) var diagramLoaded: Bool = false
@@ -34,6 +35,8 @@ public final class DatabaseV2ViewModel: ObservableObject {
     @Published public internal(set) var editError: String?
     @Published public internal(set) var ddlError: String?
     @Published public internal(set) var isDDLBusy: Bool = false
+    @Published public internal(set) var createTableDDL: String?
+    @Published public internal(set) var ddlPreview: DDLPreview?
 
     @Published public internal(set) var pendingChangeCount: Int = 0
     @Published public internal(set) var canUndoStaged: Bool = false
@@ -215,6 +218,7 @@ public final class DatabaseV2ViewModel: ObservableObject {
         hasMore = false
         columns = []
         indexes = []
+        checks = []
         staged = nil
         pendingChangeCount = 0
         canUndoStaged = false
@@ -313,9 +317,12 @@ public final class DatabaseV2ViewModel: ObservableObject {
             guard token == generation else { return }
             let fks = try await driver.foreignKeys(database: database)
             guard token == generation else { return }
+            let checkList = try await driver.checkConstraints(database: database, table: table.name)
+            guard token == generation else { return }
             columns = cols
             indexes = idxs
             foreignKeys = fks
+            checks = checkList
             rebuildStagedEditor()
         } catch {
             guard token == generation else { return }
@@ -353,6 +360,7 @@ public final class DatabaseV2ViewModel: ObservableObject {
         isLoadingStructure = false
         columns = []
         indexes = []
+        checks = []
         loadError = nil
         editError = nil
         ddlError = nil

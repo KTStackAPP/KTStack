@@ -57,7 +57,8 @@ public struct MySQLDriver: RelationalDriver {
 
     public func columns(database: String, table: String) async throws -> [ColumnInfo] {
         let sql = try """
-        SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT \
+        SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT, \
+        EXTRA, COLUMN_COMMENT, CHARACTER_SET_NAME, COLLATION_NAME, GENERATION_EXPRESSION \
         FROM information_schema.COLUMNS \
         WHERE TABLE_SCHEMA = \(MySQLErrorMapper.quoteLiteral(database)) \
         AND TABLE_NAME = \(MySQLErrorMapper.quoteLiteral(table)) \
@@ -65,13 +66,24 @@ public struct MySQLDriver: RelationalDriver {
         """
         let result = try await runStatement(sql)
         return result.rows.compactMap { row in
-            guard row.count >= 4, let name = row[0].displayText else { return nil }
+            guard row.count >= 10, let name = row[0].displayText else { return nil }
+            let extra = (row[5].displayText ?? "").lowercased()
+            let generation = row[9].displayText
+            let hasGeneration = !(generation ?? "").isEmpty
             return ColumnInfo(
                 name: name,
                 dataType: row[1].displayText ?? "",
                 isNullable: row[2].displayText == "YES",
                 isPrimaryKey: row[3].displayText == "PRI",
-                defaultValue: row[4].displayText
+                defaultValue: row[4].displayText,
+                isAutoIncrement: extra.contains("auto_increment"),
+                comment: row[6].displayText.flatMap { $0.isEmpty ? nil : $0 },
+                charset: row[7].displayText,
+                collation: row[8].displayText,
+                generationExpression: hasGeneration ? generation : nil,
+                generationStored: extra.contains("stored generated"),
+                onUpdateCurrentTimestamp: extra.contains("on update current_timestamp"),
+                defaultIsExpression: extra.contains("default_generated") && !hasGeneration
             )
         }
     }
