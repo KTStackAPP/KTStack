@@ -171,6 +171,8 @@ struct KTDataGrid: NSViewRepresentable {
             menu.addItem(withTitle: "Copy", action: #selector(copyTSV), keyEquivalent: "")
             menu.addItem(withTitle: "Copy with Headers", action: #selector(copyTSVWithHeaders), keyEquivalent: "")
             menu.addItem(withTitle: "Copy as CSV", action: #selector(copyCSV), keyEquivalent: "")
+            menu.addItem(withTitle: "Copy as JSON", action: #selector(copyJSON), keyEquivalent: "")
+            menu.addItem(withTitle: "Copy as Markdown", action: #selector(copyMarkdown), keyEquivalent: "")
             menu.addItem(.separator())
             menu.addItem(withTitle: "Follow Foreign Key", action: #selector(followForeignKey), keyEquivalent: "")
             menu.addItem(withTitle: "Edit Row…", action: #selector(editRow), keyEquivalent: "")
