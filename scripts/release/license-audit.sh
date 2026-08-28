@@ -1,12 +1,153 @@
 #!/usr/bin/env bash
-# Generate NOTICES.txt: attribution + license identifiers for every redistributed component, plus a
-# written offer of source for the copyleft ones (GPL/SSPL). KTStack is distributed free / open-source,
-# so GPL/SSPL redistribution is compatible — this file satisfies the attribution + source-offer
-# obligation. Runnable now (does not need signing). Edit the table below as the bundled set changes.
+# Two jobs:
+# 1. Audit app-linked SPM dependencies. KTStack root is MIT, so every dependency
+#    linked into an app target must be permissive. Copyleft (AGPL/GPL/LGPL/SSPL)
+#    or unknown app-linked code fails the audit. Bundled engines (mysqld, dnsmasq,
+#    redis, ...) are separately distributed executables, not app-linked; they keep
+#    their own licenses via the NOTICES table + source offer below.
+# 2. Generate NOTICES.txt: attribution + license identifiers for every
+#    redistributed component, plus a written offer of source for the copyleft ones.
+#
+# Usage:
+#   license-audit.sh [OUT]        # audit SPM deps, then write NOTICES.txt (default OUT: ROOT/NOTICES.txt)
+#   license-audit.sh --audit-only # audit SPM deps only, no NOTICES
+#   license-audit.sh --self-test  # prove the audit accepts current deps and rejects an AGPL/unknown fixture
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-OUT="${1:-$ROOT/NOTICES.txt}"
 
+# ---- SPM app-linked dependency allowlist (identity|SPDX license) ----
+# App-target pins live in the workspace + KTDatabasePlugin Package.resolved.
+SPM_ALLOW=(
+  "mysql-nio|MIT"
+  "postgres-nio|Apache-2.0"
+  "grdb.swift|MIT"
+  "mongokitten|MIT"
+  "bson|MIT"
+  "dnsclient|MIT"
+  "sparkle|MIT"
+  "swift-algorithms|Apache-2.0"
+  "swift-async-algorithms|Apache-2.0"
+  "swift-asn1|Apache-2.0"
+  "swift-atomics|Apache-2.0"
+  "swift-collections|Apache-2.0"
+  "swift-crypto|Apache-2.0"
+  "swift-distributed-tracing|Apache-2.0"
+  "swift-log|Apache-2.0"
+  "swift-metrics|Apache-2.0"
+  "swift-nio|Apache-2.0"
+  "swift-nio-ssl|Apache-2.0"
+  "swift-nio-transport-services|Apache-2.0"
+  "swift-numerics|Apache-2.0"
+  "swift-service-context|Apache-2.0"
+  "swift-service-lifecycle|Apache-2.0"
+  "swift-system|Apache-2.0"
+)
+
+# Override with SPM_RESOLVED (colon-separated paths) for tests; defaults to the app-target pins.
+if [ -n "${SPM_RESOLVED:-}" ]; then
+  IFS=':' read -r -a SPM_RESOLVED_FILES <<< "$SPM_RESOLVED"
+else
+  SPM_RESOLVED_FILES=(
+    "$ROOT/KTStack.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+    "$ROOT/Packages/Features/KTDatabasePlugin/Package.resolved"
+  )
+fi
+
+spm_allowed_license() {
+  local id="$1" row
+  for row in "${SPM_ALLOW[@]}"; do
+    if [ "${row%%|*}" = "$id" ]; then printf '%s' "${row#*|}"; return 0; fi
+  done
+  return 1
+}
+
+# LGPL is excluded too: static linking into an app target carries relinking/source duties.
+is_copyleft() {
+  case "$1" in
+    *AGPL*|*GPL*|*SSPL*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# stdin: "identity|license" lines (license "UNKNOWN" when not allowlisted). Non-zero on any violation.
+audit_identities() {
+  local fail=0 id lic
+  while IFS='|' read -r id lic; do
+    [ -z "$id" ] && continue
+    if [ "$lic" = "UNKNOWN" ]; then
+      echo "FAIL: app-linked SPM dependency '$id' is not in the license allowlist (unknown provenance)" >&2
+      fail=1
+    elif is_copyleft "$lic"; then
+      echo "FAIL: app-linked SPM dependency '$id' is copyleft ($lic); not allowed in an MIT app target" >&2
+      fail=1
+    fi
+  done
+  return $fail
+}
+
+collect_spm_pairs() {
+  local f id lic
+  for f in "${SPM_RESOLVED_FILES[@]}"; do
+    [ -f "$f" ] || continue
+    grep -E '"identity"' "$f" | sed -E 's/.*: *"([^"]+)".*/\1/' | while read -r id; do
+      if lic="$(spm_allowed_license "$id")"; then
+        printf '%s|%s\n' "$id" "$lic"
+      else
+        printf '%s|UNKNOWN\n' "$id"
+      fi
+    done
+  done | sort -u
+}
+
+run_audit() {
+  local n
+  n="$(collect_spm_pairs | wc -l | tr -d ' ')"
+  echo "Auditing $n app-linked SPM dependencies..."
+  if collect_spm_pairs | audit_identities; then
+    echo "SPM license audit passed."
+  else
+    echo "SPM license audit FAILED. See rejected dependencies above." >&2
+    exit 1
+  fi
+}
+
+self_test() {
+  echo "self-test: current dependency set must pass"
+  if ! collect_spm_pairs | audit_identities; then
+    echo "self-test FAILED: current dependency set was rejected" >&2; exit 1
+  fi
+  echo "self-test: AGPL fixture must be rejected"
+  if printf 'fixture-agpl|AGPL-3.0-only\n' | audit_identities 2>/dev/null; then
+    echo "self-test FAILED: AGPL fixture was accepted" >&2; exit 1
+  fi
+  echo "self-test: unknown fixture must be rejected"
+  if printf 'fixture-unknown|UNKNOWN\n' | audit_identities 2>/dev/null; then
+    echo "self-test FAILED: unknown fixture was accepted" >&2; exit 1
+  fi
+  echo "self-test passed: current deps accepted, AGPL and unknown fixtures rejected."
+}
+
+# ---- arg parsing ----
+MODE="generate"
+OUT=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --audit-only) MODE="audit" ;;
+    --self-test)  MODE="selftest" ;;
+    -*) echo "unknown flag: $1" >&2; exit 2 ;;
+    *) OUT="$1" ;;
+  esac
+  shift
+done
+OUT="${OUT:-$ROOT/NOTICES.txt}"
+
+case "$MODE" in
+  selftest) self_test; exit 0 ;;
+  audit)    run_audit; exit 0 ;;
+  generate) run_audit ;;
+esac
+
+# ---- NOTICES.txt generation ----
 # component | license (SPDX-ish) | upstream source
 COMPONENTS=(
   "nginx|BSD-2-Clause|https://nginx.org/en/download.html"
