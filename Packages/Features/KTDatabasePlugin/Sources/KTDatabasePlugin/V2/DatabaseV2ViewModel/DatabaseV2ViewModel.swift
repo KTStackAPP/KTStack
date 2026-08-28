@@ -35,6 +35,13 @@ public final class DatabaseV2ViewModel: ObservableObject {
     @Published public internal(set) var ddlError: String?
     @Published public internal(set) var isDDLBusy: Bool = false
 
+    @Published public internal(set) var pendingChangeCount: Int = 0
+    @Published public internal(set) var canUndoStaged: Bool = false
+    @Published public internal(set) var canRedoStaged: Bool = false
+    @Published public internal(set) var isCommitting: Bool = false
+
+    var staged: StagedTableEditor?
+
     @Published public var queryTabs: [V2QueryTab]
     @Published public internal(set) var activeQueryTabID: UUID?
     public private(set) var connectionProfileID: String?
@@ -255,6 +262,7 @@ public final class DatabaseV2ViewModel: ObservableObject {
             columns = cols
             indexes = idxs
             foreignKeys = fks
+            rebuildStagedEditor()
         } catch {
             guard token == generation else { return }
             loadError = error.localizedDescription
@@ -294,6 +302,11 @@ public final class DatabaseV2ViewModel: ObservableObject {
         loadError = nil
         editError = nil
         ddlError = nil
+        staged = nil
+        pendingChangeCount = 0
+        canUndoStaged = false
+        canRedoStaged = false
+        isCommitting = false
     }
 
     func reloadAfterDDL() async {

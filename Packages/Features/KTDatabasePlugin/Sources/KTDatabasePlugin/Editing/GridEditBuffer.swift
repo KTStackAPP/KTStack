@@ -32,6 +32,14 @@ public final class GridEditBuffer {
         state.updates.count + state.deletes.count + state.inserts.count
     }
 
+    public func stagedUpdate(for identity: RowIdentity) -> [String: Cell]? {
+        state.updates[identity]
+    }
+
+    public func isStagedDelete(_ identity: RowIdentity) -> Bool {
+        state.deletes.contains(identity)
+    }
+
     public var canUndo: Bool { !undoStack.isEmpty }
     public var canRedo: Bool { !redoStack.isEmpty }
 

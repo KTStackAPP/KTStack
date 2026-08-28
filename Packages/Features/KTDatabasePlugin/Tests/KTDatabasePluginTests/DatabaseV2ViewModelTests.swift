@@ -51,6 +51,7 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         private(set) var insertCalls: [(database: String, table: String, values: [ColumnValue])] = []
         private(set) var updateCalls: [(database: String, table: String, values: [ColumnValue], key: [ColumnValue])] = []
         private(set) var deleteCalls: [(database: String, table: String, key: [ColumnValue])] = []
+        private(set) var committedBatches: [[WriteStep]] = []
         private(set) var listTablesCalls: [String] = []
 
         init(total: Int = 250) {
@@ -135,6 +136,10 @@ final class DatabaseV2ViewModelTests: XCTestCase {
 
         func delete(database: String, table: String, key: [ColumnValue]) async throws {
             deleteCalls.append((database, table, key))
+        }
+
+        func executeTransaction(_ steps: [WriteStep], database _: String) async throws {
+            committedBatches.append(steps)
         }
     }
 
@@ -730,16 +735,16 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         vm.select(table: TableInfo(name: "users"))
         try? await Task.sleep(for: .milliseconds(100))
 
-        await vm.updateCell(row: 0, column: 1, newValue: "Alice")
+        vm.stageCellEdit(row: 0, column: 1, newValue: "Alice")
+        XCTAssertEqual(vm.pendingChangeCount, 1)
+        await vm.commitStaged()
 
-        XCTAssertEqual(driver.updateCalls.count, 1)
-        let call = driver.updateCalls[0]
-        XCTAssertEqual(call.values.count, 1)
-        XCTAssertEqual(call.values[0].column, "name")
-        XCTAssertEqual(call.values[0].value, .text("Alice"))
-        XCTAssertEqual(call.key.count, 1)
-        XCTAssertEqual(call.key[0].column, "id")
-        XCTAssertEqual(call.key[0].value, .int(1))
+        XCTAssertEqual(driver.committedBatches.count, 1)
+        XCTAssertEqual(driver.committedBatches[0].count, 1)
+        let step = driver.committedBatches[0][0]
+        XCTAssertTrue(step.statement.sql.contains("UPDATE"))
+        XCTAssertEqual(step.statement.binds, [.text("Alice"), .int(1)])
+        XCTAssertFalse(vm.pendingChangeCount > 0)
     }
 
     func testUpdateCellSkipsWhenValueUnchanged() async {
@@ -753,9 +758,9 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         vm.select(table: TableInfo(name: "users"))
         try? await Task.sleep(for: .milliseconds(100))
 
-        await vm.updateCell(row: 0, column: 1, newValue: "test-name")
+        vm.stageCellEdit(row: 0, column: 1, newValue: "test-name")
 
-        XCTAssertEqual(driver.updateCalls.count, 0)
+        XCTAssertEqual(vm.pendingChangeCount, 0)
     }
 
     func testDeleteRowSendsPrimaryKeyAsKey() async {
@@ -769,13 +774,14 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         vm.select(table: TableInfo(name: "users"))
         try? await Task.sleep(for: .milliseconds(100))
 
-        await vm.deleteRow(0)
+        vm.stageDelete(row: 0)
+        XCTAssertEqual(vm.pendingChangeCount, 1)
+        await vm.commitStaged()
 
-        XCTAssertEqual(driver.deleteCalls.count, 1)
-        let call = driver.deleteCalls[0]
-        XCTAssertEqual(call.key.count, 1)
-        XCTAssertEqual(call.key[0].column, "id")
-        XCTAssertEqual(call.key[0].value, .int(1))
+        XCTAssertEqual(driver.committedBatches.count, 1)
+        let step = driver.committedBatches[0][0]
+        XCTAssertTrue(step.statement.sql.contains("DELETE"))
+        XCTAssertEqual(step.statement.binds, [.int(1)])
     }
 
     func testDeleteRowDoesNothingWhenNoPrimaryKey() async {
@@ -792,9 +798,9 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         vm.select(table: TableInfo(name: "users"))
         try? await Task.sleep(for: .milliseconds(100))
 
-        await vm.deleteRow(0)
+        vm.stageDelete(row: 0)
 
-        XCTAssertEqual(driver.deleteCalls.count, 0)
+        XCTAssertEqual(vm.pendingChangeCount, 0)
         XCTAssertNotNil(vm.editError)
     }
 
@@ -810,12 +816,14 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         try? await Task.sleep(for: .milliseconds(50))
 
         let values = [ColumnValue(column: "name", value: .text("Bob"))]
-        await vm.insertRow(values)
+        vm.stageInsertRow(values)
+        XCTAssertEqual(vm.pendingChangeCount, 1)
+        await vm.commitStaged()
 
-        XCTAssertEqual(driver.insertCalls.count, 1)
-        XCTAssertEqual(driver.insertCalls[0].values, values)
-        XCTAssertEqual(driver.insertCalls[0].database, "testdb")
-        XCTAssertEqual(driver.insertCalls[0].table, "users")
+        XCTAssertEqual(driver.committedBatches.count, 1)
+        let step = driver.committedBatches[0][0]
+        XCTAssertTrue(step.statement.sql.contains("INSERT"))
+        XCTAssertEqual(step.statement.binds, [.text("Bob")])
     }
 
     func testUpdateCellReloadsRowsAfterSuccess() async {
@@ -829,8 +837,9 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         vm.select(table: TableInfo(name: "users"))
         try? await Task.sleep(for: .milliseconds(100))
 
+        vm.stageCellEdit(row: 0, column: 1, newValue: "Alice")
         let callCountBefore = driver.paginateCalls.count
-        await vm.updateCell(row: 0, column: 1, newValue: "Alice")
+        await vm.commitStaged()
 
         XCTAssertGreaterThan(driver.paginateCalls.count, callCountBefore)
     }
@@ -1093,9 +1102,9 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         vm.select(table: TableInfo(name: "users"))
         try? await Task.sleep(for: .milliseconds(100))
 
-        await vm.updateCell(row: 0, column: 1, newValue: "Alice")
+        vm.stageCellEdit(row: 0, column: 1, newValue: "Alice")
 
-        XCTAssertEqual(driver.updateCalls.count, 0)
+        XCTAssertEqual(vm.pendingChangeCount, 0)
         XCTAssertNotNil(vm.editError)
     }
 
@@ -1110,9 +1119,95 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         vm.select(table: TableInfo(name: "users"))
         try? await Task.sleep(for: .milliseconds(100))
 
-        await vm.updateCell(row: 0, column: 1, newValue: "")
+        vm.stageCellEdit(row: 0, column: 1, newValue: "")
+        await vm.commitStaged()
 
-        XCTAssertEqual(driver.updateCalls.count, 1)
-        XCTAssertEqual(driver.updateCalls[0].values[0].value, .null)
+        XCTAssertEqual(driver.committedBatches.count, 1)
+        XCTAssertEqual(driver.committedBatches[0][0].statement.binds, [.null, .int(1)])
     }
+
+    func testStagedUpdateShowsInDisplayRowsAndUndoRedo() async {
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        vm.stageCellEdit(row: 0, column: 1, newValue: "Alice")
+        XCTAssertEqual(vm.displayRows?.rows[0][1], .text("Alice"))
+        XCTAssertTrue(vm.canUndoStaged)
+
+        vm.undoStaged()
+        XCTAssertEqual(vm.pendingChangeCount, 0)
+        XCTAssertEqual(vm.displayRows?.rows[0][1], .text("test-name"))
+        XCTAssertTrue(vm.canRedoStaged)
+
+        vm.redoStaged()
+        XCTAssertEqual(vm.displayRows?.rows[0][1], .text("Alice"))
+    }
+
+    func testDiscardClearsAllPending() async {
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        vm.stageCellEdit(row: 0, column: 1, newValue: "Alice")
+        vm.stageInsertRow([ColumnValue(column: "name", value: .text("Bob"))])
+        XCTAssertEqual(vm.pendingChangeCount, 2)
+
+        vm.discardStaged()
+        XCTAssertEqual(vm.pendingChangeCount, 0)
+        XCTAssertTrue(driver.committedBatches.isEmpty)
+    }
+
+    func testMultipleStagedOpsCommitInOneTransaction() async {
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+
+        vm.stageCellEdit(row: 0, column: 1, newValue: "Alice")
+        vm.stageInsertRow([ColumnValue(column: "name", value: .text("Bob"))])
+        vm.stageInsertRow([ColumnValue(column: "name", value: .text("Carol"))])
+        XCTAssertEqual(vm.pendingChangeCount, 3)
+
+        await vm.commitStaged()
+        XCTAssertEqual(driver.committedBatches.count, 1)
+        XCTAssertEqual(driver.committedBatches[0].count, 3)
+        XCTAssertEqual(vm.pendingChangeCount, 0)
+    }
+
+    func testSelectingTableResetsStagedEditor() async {
+        let driver = TestDriver()
+        let vm = DatabaseV2ViewModel(
+            tools: FakeDatabaseTools(),
+            makeDriver: { _, _ in driver },
+            passwordFor: { _ in nil }
+        )
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "users"))
+        try? await Task.sleep(for: .milliseconds(100))
+        vm.stageCellEdit(row: 0, column: 1, newValue: "Alice")
+        XCTAssertEqual(vm.pendingChangeCount, 1)
+
+        vm.select(table: TableInfo(name: "posts"))
+        try? await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(vm.pendingChangeCount, 0)
+    }
+
 }

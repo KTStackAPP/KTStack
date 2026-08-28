@@ -225,21 +225,21 @@ struct DatabaseV2Root: View {
             V2RowEditorSheet(vm: vm)
         }
         .alert(
-            "Delete this row?",
+            "Stage delete of this row?",
             isPresented: Binding(
                 get: { pendingDeleteRow != nil },
                 set: { if !$0 { pendingDeleteRow = nil } }
             )
         ) {
             Button("Cancel", role: .cancel) { pendingDeleteRow = nil }
-            Button("Delete", role: .destructive) {
+            Button("Stage Delete", role: .destructive) {
                 if let row = pendingDeleteRow {
-                    Task { await vm.deleteRow(row) }
+                    vm.stageDelete(row: row)
                     pendingDeleteRow = nil
                 }
             }
         } message: {
-            Text("This permanently removes 1 row from \(vm.selectedTable?.name ?? "the table"). This action cannot be undone.")
+            Text("Marks 1 row from \(vm.selectedTable?.name ?? "the table") for deletion. It applies when you commit, and you can undo before then.")
         }
     }
 

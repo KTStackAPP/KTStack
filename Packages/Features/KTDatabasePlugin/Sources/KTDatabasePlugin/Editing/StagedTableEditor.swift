@@ -69,6 +69,15 @@ public final class StagedTableEditor {
         buffer.stageInsert()
     }
 
+    @discardableResult
+    public func stageInsert(values: [ColumnValue]) -> DraftRowID {
+        let id = buffer.stageInsert()
+        for value in values {
+            buffer.setDraftValue(id, column: value.column, value: value.value)
+        }
+        return id
+    }
+
     public func setDraftValue(_ id: DraftRowID, column: String, edit: CellEdit) throws {
         guard let info = columnByName[column] else { return }
         let value = try CellCoercion.cell(for: edit, column: info, kind: .forColumn(info))
@@ -91,6 +100,41 @@ public final class StagedTableEditor {
             }
         }
         return staged
+    }
+
+    /// Applies staged updates onto the base rows in place (same count and order) so the grid shows
+    /// pending edits immediately. Deletes and inserts stay pending until commit; row indices are kept
+    /// stable so the caller's index -> row mapping still holds.
+    public func displayResult(base: QueryResult) -> QueryResult {
+        guard hasPendingChanges else { return base }
+        let names = base.columns.map(\.name)
+        let rows = base.rows.map { cells -> [Cell] in
+            var dict: [String: Cell] = [:]
+            for (index, name) in names.enumerated() where index < cells.count { dict[name] = cells[index] }
+            guard let identity = resolver.identity(for: dict),
+                  let changes = buffer.stagedUpdate(for: identity) else { return cells }
+            var updated = cells
+            for (index, name) in names.enumerated() where index < updated.count {
+                if let value = changes[name] { updated[index] = value }
+            }
+            return updated
+        }
+        return QueryResult(columns: base.columns, rows: rows, truncated: base.truncated, estimatedTotal: base.estimatedTotal)
+    }
+
+    /// Row indices in `base` staged for deletion, for the grid to mark (D3 styling).
+    public func stagedDeleteRows(in base: QueryResult) -> Set<Int> {
+        guard hasPendingChanges else { return [] }
+        let names = base.columns.map(\.name)
+        var result: Set<Int> = []
+        for (rowIndex, cells) in base.rows.enumerated() {
+            var dict: [String: Cell] = [:]
+            for (index, name) in names.enumerated() where index < cells.count { dict[name] = cells[index] }
+            if let identity = resolver.identity(for: dict), buffer.isStagedDelete(identity) {
+                result.insert(rowIndex)
+            }
+        }
+        return result
     }
 
     public func undo() { buffer.undo() }

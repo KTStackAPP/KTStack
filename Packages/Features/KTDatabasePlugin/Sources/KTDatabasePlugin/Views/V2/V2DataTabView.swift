@@ -12,12 +12,15 @@ struct V2DataTabView: View {
     var body: some View {
         VStack(spacing: 0) {
             contentHeader
+            if vm.pendingChangeCount > 0 {
+                stagedBar
+            }
             if let errorMessage = vm.editError {
                 editErrorBanner(errorMessage)
             }
             if vm.isLoadingRows, vm.rows == nil {
                 loadingPlaceholder
-            } else if let result = vm.rows {
+            } else if let result = vm.displayRows {
                 HStack(spacing: 0) {
                     KTDataGrid(
                         result: result,
@@ -26,7 +29,7 @@ struct V2DataTabView: View {
                         onNearEnd: { Task { await vm.fetchMore() } },
                         editableColumns: vm.canEdit ? vm.editableColumns : [],
                         onCommitEdit: { row, column, value in
-                            Task { await vm.updateCell(row: row, column: column, newValue: value) }
+                            vm.stageCellEdit(row: row, column: column, newValue: value)
                         },
                         foreignKeyColumns: foreignKeyColumnNames,
                         onNavigateFK: nil
@@ -94,6 +97,35 @@ struct V2DataTabView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 11)
+        .overlay(alignment: .bottom) { Divider().overlay(KTEditorTheme.separator) }
+    }
+
+    private var stagedBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "square.and.pencil")
+                .font(.system(size: 11))
+                .foregroundStyle(KTEditorTheme.accent)
+            Text("\(vm.pendingChangeCount) pending change\(vm.pendingChangeCount == 1 ? "" : "s")")
+                .font(.jbMono(12))
+                .foregroundStyle(KTEditorTheme.label)
+            Spacer()
+            V2IconButton(
+                systemImage: "arrow.uturn.backward",
+                tint: vm.canUndoStaged ? KTEditorTheme.label2 : KTEditorTheme.label3
+            ) { vm.undoStaged() }
+                .disabled(!vm.canUndoStaged)
+            V2IconButton(
+                systemImage: "arrow.uturn.forward",
+                tint: vm.canRedoStaged ? KTEditorTheme.label2 : KTEditorTheme.label3
+            ) { vm.redoStaged() }
+                .disabled(!vm.canRedoStaged)
+            V2Button(title: "Discard", kind: .danger) { vm.discardStaged() }
+            V2Button(title: "Commit", kind: .primary) { Task { await vm.commitStaged() } }
+                .disabled(vm.isCommitting)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(KTEditorTheme.accent.opacity(0.06))
         .overlay(alignment: .bottom) { Divider().overlay(KTEditorTheme.separator) }
     }
 
