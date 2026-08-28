@@ -10,7 +10,7 @@ public enum SQLAutoLimit {
 
     public static func augment(_ sql: String, dialect: SQLDialect, max: Int = defaultMax) -> Outcome {
         let unchanged = Outcome(sql: sql, applied: false)
-        let scan = Skeleton.scan(sql)
+        let scan = SQLSkeleton.scan(sql)
         guard scan.isWellFormed else { return unchanged }
         let skeleton = scan.text
         guard isSingleStatement(skeleton) else { return unchanged }
@@ -59,64 +59,5 @@ public enum SQLAutoLimit {
         let distance = skeleton.distance(from: skeleton.startIndex, to: endOfContent)
         let cut = sql.index(sql.startIndex, offsetBy: distance)
         return String(sql[..<cut])
-    }
-}
-
-private extension SQLAutoLimit {
-    struct Skeleton {
-        let text: String
-        let isWellFormed: Bool
-
-        static func scan(_ sql: String) -> Skeleton {
-            enum Mode { case normal, single, double, backtick, lineComment, blockComment }
-            var mode: Mode = .normal
-            var output = ""
-            output.reserveCapacity(sql.count)
-            let characters = Array(sql)
-            var index = 0
-
-            func peek(_ offset: Int) -> Character? {
-                let target = index + offset
-                return target < characters.count ? characters[target] : nil
-            }
-
-            while index < characters.count {
-                let character = characters[index]
-                switch mode {
-                case .normal:
-                    if character == "'" { mode = .single; output.append(" ") }
-                    else if character == "\"" { mode = .double; output.append(" ") }
-                    else if character == "`" { mode = .backtick; output.append(" ") }
-                    else if character == "-", peek(1) == "-" { mode = .lineComment; output.append("  "); index += 1 }
-                    else if character == "#" { mode = .lineComment; output.append(" ") }
-                    else if character == "/", peek(1) == "*" { mode = .blockComment; output.append("  "); index += 1 }
-                    else { output.append(character) }
-                case .single:
-                    output.append(" ")
-                    if character == "'" {
-                        if peek(1) == "'" { output.append(" "); index += 1 } else { mode = .normal }
-                    }
-                case .double:
-                    output.append(" ")
-                    if character == "\"" {
-                        if peek(1) == "\"" { output.append(" "); index += 1 } else { mode = .normal }
-                    }
-                case .backtick:
-                    output.append(" ")
-                    if character == "`" {
-                        if peek(1) == "`" { output.append(" "); index += 1 } else { mode = .normal }
-                    }
-                case .lineComment:
-                    if character == "\n" { mode = .normal; output.append(character) } else { output.append(" ") }
-                case .blockComment:
-                    output.append(" ")
-                    if character == "*", peek(1) == "/" { output.append(" "); index += 1; mode = .normal }
-                }
-                index += 1
-            }
-
-            let wellFormed = (mode == .normal || mode == .lineComment)
-            return Skeleton(text: output, isWellFormed: wellFormed)
-        }
     }
 }

@@ -5,6 +5,7 @@ struct SQLCodeEditor: NSViewRepresentable {
     @Binding var text: String
     var catalog: SchemaCatalog
     var keywords: [String]
+    var formatTrigger: Int = 0
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -65,17 +66,36 @@ struct SQLCodeEditor: NSViewRepresentable {
             textView.setSelectedRange(NSRange(location: clamped, length: 0))
             textView.highlightNow()
         }
+        if formatTrigger != context.coordinator.appliedFormatTrigger {
+            context.coordinator.appliedFormatTrigger = formatTrigger
+            let keywords = keywords
+            DispatchQueue.main.async { context.coordinator.applyFormat(to: textView, keywords: keywords) }
+        }
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: SQLCodeEditor
+        var appliedFormatTrigger: Int
         init(_ parent: SQLCodeEditor) {
             self.parent = parent
+            self.appliedFormatTrigger = parent.formatTrigger
         }
 
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
             parent.text = textView.string
+        }
+
+        // Thay toàn văn qua shouldChangeText/didChangeText để đăng ký một undo group duy nhất.
+        func applyFormat(to textView: CompletingTextView, keywords: [String]) {
+            let current = textView.string
+            let formatted = SQLFormatter.format(current, keywords: keywords)
+            guard formatted != current else { return }
+            let range = NSRange(location: 0, length: (current as NSString).length)
+            guard textView.shouldChangeText(in: range, replacementString: formatted) else { return }
+            textView.textStorage?.replaceCharacters(in: range, with: formatted)
+            textView.didChangeText()
+            textView.highlightNow()
         }
     }
 }

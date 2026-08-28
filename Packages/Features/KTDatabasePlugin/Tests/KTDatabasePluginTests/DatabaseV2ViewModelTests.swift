@@ -1,5 +1,14 @@
+import KTStackCore
 import XCTest
 @testable import KTDatabasePlugin
+
+private func makeTempHistory() -> QueryHistoryStore {
+    QueryHistoryStore(paths: AppSupportPaths(root: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)))
+}
+
+private func makeTempFavorites() -> QueryFavoriteStore {
+    QueryFavoriteStore(paths: AppSupportPaths(root: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)))
+}
 
 @MainActor
 final class DatabaseV2ViewModelTests: XCTestCase {
@@ -44,15 +53,29 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         ]
 
         var total: Int = 250
-        private(set) var lastQueryText: String?
-        private(set) var lastQueryDatabase: String?
-        private(set) var paginateCalls: [(database: String, table: String, limit: Int, offset: Int)] = []
-        private(set) var cancelCalled = false
-        private(set) var insertCalls: [(database: String, table: String, values: [ColumnValue])] = []
-        private(set) var updateCalls: [(database: String, table: String, values: [ColumnValue], key: [ColumnValue])] = []
-        private(set) var deleteCalls: [(database: String, table: String, key: [ColumnValue])] = []
-        private(set) var committedBatches: [[WriteStep]] = []
-        private(set) var listTablesCalls: [String] = []
+        // Fire-and-forget VM tasks call these off the main actor, so recording is locked.
+        private let lock = NSLock()
+        private var _lastQueryText: String?
+        private var _lastQueryDatabase: String?
+        private var _paginateCalls: [(database: String, table: String, limit: Int, offset: Int)] = []
+        private var _cancelCalled = false
+        private var _insertCalls: [(database: String, table: String, values: [ColumnValue])] = []
+        private var _updateCalls: [(database: String, table: String, values: [ColumnValue], key: [ColumnValue])] = []
+        private var _deleteCalls: [(database: String, table: String, key: [ColumnValue])] = []
+        private var _committedBatches: [[WriteStep]] = []
+        private var _listTablesCalls: [String] = []
+        private var _runSelectStatements: [DMLStatement] = []
+
+        var lastQueryText: String? { lock.withLock { _lastQueryText } }
+        var lastQueryDatabase: String? { lock.withLock { _lastQueryDatabase } }
+        var paginateCalls: [(database: String, table: String, limit: Int, offset: Int)] { lock.withLock { _paginateCalls } }
+        var cancelCalled: Bool { lock.withLock { _cancelCalled } }
+        var insertCalls: [(database: String, table: String, values: [ColumnValue])] { lock.withLock { _insertCalls } }
+        var updateCalls: [(database: String, table: String, values: [ColumnValue], key: [ColumnValue])] { lock.withLock { _updateCalls } }
+        var deleteCalls: [(database: String, table: String, key: [ColumnValue])] { lock.withLock { _deleteCalls } }
+        var committedBatches: [[WriteStep]] { lock.withLock { _committedBatches } }
+        var listTablesCalls: [String] { lock.withLock { _listTablesCalls } }
+        var runSelectStatements: [DMLStatement] { lock.withLock { _runSelectStatements } }
 
         init(total: Int = 250) {
             self.total = total
@@ -69,7 +92,7 @@ final class DatabaseV2ViewModelTests: XCTestCase {
 
         func listTables(database: String) async throws -> [TableInfo] {
             if shouldListTablesFail { throw TestError.listTablesFailed }
-            listTablesCalls.append(database)
+            lock.withLock { _listTablesCalls.append(database) }
             return tables
         }
 
@@ -99,14 +122,13 @@ final class DatabaseV2ViewModelTests: XCTestCase {
 
         func query(_ sql: String, database: String?) async throws -> QueryResult {
             if shouldQueryFail { throw TestError.queryFailed }
-            lastQueryText = sql
-            lastQueryDatabase = database
+            lock.withLock { _lastQueryText = sql; _lastQueryDatabase = database }
             return QueryResult(columns: [ColumnMeta(name: "id")], rows: [[.int(1)]])
         }
 
         func paginatedRows(database: String, table: String, limit: Int, offset: Int) async throws -> QueryResult {
             if shouldPaginateFail { throw TestError.paginateFailed }
-            paginateCalls.append((database, table, limit, offset))
+            lock.withLock { _paginateCalls.append((database, table, limit, offset)) }
             let rows = (0..<min(limit, total - offset)).map { _ in [Cell.int(1), Cell.text("test-name")] }
             return QueryResult(
                 columns: [ColumnMeta(name: "id"), ColumnMeta(name: "name")],
@@ -119,30 +141,28 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         func closeSession() async {}
 
         func cancelCurrentQuery() async {
-            cancelCalled = true
+            lock.withLock { _cancelCalled = true }
         }
 
-        var runSelectStatements: [DMLStatement] = []
-
         func runSelect(_ statement: DMLStatement, database _: String?) async throws -> QueryResult {
-            runSelectStatements.append(statement)
+            lock.withLock { _runSelectStatements.append(statement) }
             return QueryResult(columns: [ColumnMeta(name: "id")], rows: [[.int(7)]])
         }
 
         func insert(database: String, table: String, values: [ColumnValue]) async throws {
-            insertCalls.append((database, table, values))
+            lock.withLock { _insertCalls.append((database, table, values)) }
         }
 
         func update(database: String, table: String, values: [ColumnValue], key: [ColumnValue]) async throws {
-            updateCalls.append((database, table, values, key))
+            lock.withLock { _updateCalls.append((database, table, values, key)) }
         }
 
         func delete(database: String, table: String, key: [ColumnValue]) async throws {
-            deleteCalls.append((database, table, key))
+            lock.withLock { _deleteCalls.append((database, table, key)) }
         }
 
         func executeTransaction(_ steps: [WriteStep], database _: String) async throws {
-            committedBatches.append(steps)
+            lock.withLock { _committedBatches.append(steps) }
         }
     }
 
@@ -162,6 +182,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -183,6 +205,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -198,6 +222,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         driver.shouldPingFail = true
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -216,6 +242,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         driver.shouldListDatabasesFail = true
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -232,6 +260,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
     func testConnectFailureWhenUnsupportedEngine() async {
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in nil },
             passwordFor: { _ in nil }
         )
@@ -259,6 +289,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
 
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: makeDriver,
             passwordFor: { _ in nil }
         )
@@ -276,6 +308,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -291,6 +325,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -308,6 +344,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -327,6 +365,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -347,6 +387,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -365,6 +407,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         driver.databases = [DatabaseInfo(name: "small")]
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -383,6 +427,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver(total: 500)
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -404,6 +450,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver(total: 500)
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -424,6 +472,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver(total: 500)
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -446,6 +496,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -462,6 +514,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -478,6 +532,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -494,6 +550,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -510,6 +568,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -524,6 +584,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -534,13 +596,17 @@ final class DatabaseV2ViewModelTests: XCTestCase {
 
         XCTAssertNotNil(vm.queryResult)
         XCTAssertNil(vm.queryError)
-        XCTAssertEqual(driver.lastQueryText, "SELECT * FROM users")
+        // Row cap: bare SELECT được auto-limit trước khi gửi.
+        let sent = SQLAutoLimit.augment("SELECT * FROM users", dialect: SQLDialect.forKind(.mysql)).sql
+        XCTAssertEqual(driver.lastQueryText, sent)
     }
 
     func testRunQueryIgnoresEmptyQuery() async {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -557,6 +623,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
     func testRunQueryIgnoresQueryWithoutDriver() async {
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in nil },
             passwordFor: { _ in nil }
         )
@@ -572,6 +640,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         driver.shouldQueryFail = true
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -593,6 +663,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
 
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in wrappedDriver },
             passwordFor: { _ in nil }
         )
@@ -614,6 +686,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -628,6 +702,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -657,6 +733,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
 
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: makeDriver,
             passwordFor: { _ in nil }
         )
@@ -671,6 +749,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -691,6 +771,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -706,6 +788,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         ]
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -718,6 +802,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -731,6 +817,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -754,6 +842,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -770,6 +860,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -794,6 +886,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         ]
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -811,6 +905,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -833,6 +929,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -851,6 +949,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -869,6 +969,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -889,6 +991,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -908,6 +1012,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -927,6 +1033,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -943,6 +1051,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -960,6 +1070,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -974,6 +1086,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
     func testComposeCreateTableWithoutDatabaseSetsError() {
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in nil },
             passwordFor: { _ in nil }
         )
@@ -990,6 +1104,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
     func testAddQueryTabIncrementsCountAndActivatesNew() {
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in nil },
             passwordFor: { _ in nil }
         )
@@ -1007,6 +1123,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
     func testCloseQueryTabKeepsAtLeastOneAndReselects() {
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in nil },
             passwordFor: { _ in nil }
         )
@@ -1030,6 +1148,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -1055,6 +1175,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         driver.capabilitiesOverride = DriverCapabilities(canCancelQueries: false)
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -1068,6 +1190,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -1082,6 +1206,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         driver.capabilitiesOverride = DriverCapabilities(canEditRows: false)
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -1098,6 +1224,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         ]
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -1115,6 +1243,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -1133,6 +1263,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -1157,6 +1289,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -1177,6 +1311,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -1199,6 +1335,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -1217,6 +1355,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -1234,6 +1374,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver = TestDriver()
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -1255,6 +1397,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         ]
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -1289,6 +1433,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         ]
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -1317,6 +1463,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
             presetStore: FilterPresetStore(storeURL: url),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )
@@ -1350,6 +1498,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let vm = DatabaseV2ViewModel(
             tools: FakeDatabaseTools(),
             presetStore: FilterPresetStore(storeURL: url),
+            historyStore: makeTempHistory(),
+            favoriteStore: makeTempFavorites(),
             makeDriver: { _, _ in driver },
             passwordFor: { _ in nil }
         )

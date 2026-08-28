@@ -47,7 +47,16 @@ public final class DatabaseV2ViewModel: ObservableObject {
 
     @Published public var queryTabs: [V2QueryTab]
     @Published public internal(set) var activeQueryTabID: UUID?
+    @Published public internal(set) var parameterPrompt: QueryParameterPrompt?
+    @Published public internal(set) var formatTrigger = 0
+    @Published public internal(set) var queryHistory: [QueryHistoryEntry] = []
+    @Published public internal(set) var favorites: [QueryFavorite] = []
+    @Published public internal(set) var activeQuerySheet: V2QuerySheet?
+    @Published public internal(set) var destructivePrompt: DestructivePrompt?
+    @Published public internal(set) var explainSheet: ExplainResult?
     public private(set) var connectionProfileID: String?
+    private(set) var connectionLabel: String?
+    private(set) var connectionReadOnly = false
     @Published public private(set) var connectionKind: DatabaseKind?
     @Published public private(set) var capabilities: DriverCapabilities = .none
 
@@ -69,21 +78,29 @@ public final class DatabaseV2ViewModel: ObservableObject {
     private let makeDriver: DatabaseViewModel.DriverFactory
     private let passwordFor: @Sendable (ConnectionProfile) -> String?
     let presetStore: FilterPresetStore?
+    let historyStore: QueryHistoryStore
+    let favoriteStore: QueryFavoriteStore
     var driver: RelationalDriver?
     var generation = 0
 
     public init(
         tools: any DatabaseToolsProviding,
         presetStore: FilterPresetStore? = nil,
+        historyStore: QueryHistoryStore = QueryHistoryStore(),
+        favoriteStore: QueryFavoriteStore = QueryFavoriteStore(),
         makeDriver: DatabaseViewModel.DriverFactory? = nil,
         passwordFor: @escaping @Sendable (ConnectionProfile) -> String? = DatabaseViewModel.defaultPassword
     ) {
         self.makeDriver = makeDriver ?? DatabaseViewModel.defaultDriver(tools: tools)
         self.passwordFor = passwordFor
         self.presetStore = presetStore
+        self.historyStore = historyStore
+        self.favoriteStore = favoriteStore
         let initialTab = V2QueryTab(title: "Query 1")
         queryTabs = [initialTab]
         activeQueryTabID = initialTab.id
+        queryHistory = historyStore.entries()
+        favorites = favoriteStore.entries()
     }
 
     public func connect(profile: ConnectionProfile) async {
@@ -93,6 +110,8 @@ public final class DatabaseV2ViewModel: ObservableObject {
         driver = nil
         connectionState = .connecting
         connectionProfileID = profile.id.uuidString
+        connectionLabel = profile.name
+        connectionReadOnly = profile.readOnly
         connectionKind = profile.kind
         capabilities = .none
         databases = []

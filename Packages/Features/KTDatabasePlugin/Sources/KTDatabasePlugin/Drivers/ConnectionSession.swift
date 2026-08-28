@@ -72,6 +72,29 @@ public actor ConnectionSession {
         try await withConnection { try await $0.runSelect(statement) }
     }
 
+    func runSelect(_ statement: DMLStatement, database: String?) async throws -> QueryResult {
+        await acquire()
+        defer { release() }
+        cancelRequested = false
+        let live = try await ensureConnection()
+        let myEpoch = epoch
+        try await applyDatabaseIfNeeded(database, on: live)
+        do {
+            let result = try await live.runSelect(statement)
+            if cancelRequested, myEpoch == epoch {
+                cancelRequested = false
+                throw DatabaseError.cancelled
+            }
+            return result
+        } catch {
+            if cancelRequested, myEpoch == epoch {
+                cancelRequested = false
+                throw DatabaseError.cancelled
+            }
+            throw error
+        }
+    }
+
     func cancelInFlight() async {
         cancelRequested = true
         // Giữ session sống: MySQL KILL QUERY dừng query trên server, connection tái dùng được.

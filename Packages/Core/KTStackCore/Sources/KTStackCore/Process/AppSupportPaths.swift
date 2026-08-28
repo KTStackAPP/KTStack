@@ -229,6 +229,10 @@ public struct AppSupportPaths: Sendable {
         config.appendingPathComponent("query-history.json")
     }
 
+    public var queryFavoritesFile: URL {
+        config.appendingPathComponent("query-favorites.json")
+    }
+
     public func backupSetDir(_ id: UUID) -> URL {
         backups.appendingPathComponent(id.uuidString, isDirectory: true)
     }

@@ -21,8 +21,7 @@ public enum DestructiveGuard {
     }
 
     private static func statements(in sql: String) -> [String] {
-        sql.split(separator: ";").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
+        SQLStatementSplitter.statements(sql)
     }
 
     private static func reason(for statement: String) -> String? {
