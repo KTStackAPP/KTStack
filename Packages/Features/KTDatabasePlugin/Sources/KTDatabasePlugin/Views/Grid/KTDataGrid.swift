@@ -95,6 +95,7 @@ struct KTDataGrid: NSViewRepresentable {
         var onPaste: (([PastedCell]) -> Void)?
         var onSetEdit: ((Int, Int, CellEdit) -> Void)?
         var columnEditors: [String: CellEditorKind] = [:]
+        var datePickerPopover: NSPopover?
         private var nearEndRequested = false
         private weak var editingField: NSTextField?
         private var editingRow = -1

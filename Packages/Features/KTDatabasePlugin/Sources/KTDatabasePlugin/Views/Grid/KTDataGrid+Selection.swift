@@ -71,6 +71,8 @@ extension KTDataGrid.Coordinator: KTGridInput {
             presentValuePicker(row: row, viewColumn: viewColumn, dataColumn: dataColumn, choices: ["1", "0"], isBool: true)
         case let .setMembership(members) where !members.isEmpty:
             presentSetPicker(row: row, viewColumn: viewColumn, dataColumn: dataColumn, members: members)
+        case .date, .datetime, .time:
+            presentDatePicker(row: row, viewColumn: viewColumn, dataColumn: dataColumn, kind: kind)
         default:
             beginInlineEdit(row: row, viewColumn: viewColumn, dataColumn: dataColumn)
         }
