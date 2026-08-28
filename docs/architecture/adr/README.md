@@ -10,6 +10,6 @@ copying it.
 
 - [0001](0001-plugin-architecture-v1.md): Plugin architecture v1 (5 tier, contracts, compile-time registry).
 - [0002](0002-sites-provisioning-stays-platform.md): Sites install/import/restore orchestration stays on the platform.
-- [0003](0003-mysql-editor-mit-provenance.md): MySQL/MariaDB editor built independently under MIT (no the AGPL editor AGPL material).
+- [0003](0003-mysql-editor-mit-provenance.md): MySQL/MariaDB editor built independently under MIT (no AGPL-derived third-party material).
 
 Boundary detail lives in [dependency-rules.md](../dependency-rules.md).

@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
-# Two jobs:
+# Three jobs:
 # 1. Audit app-linked SPM dependencies. KTStack root is MIT, so every dependency
 #    linked into an app target must be permissive. Copyleft (AGPL/GPL/LGPL/SSPL)
 #    or unknown app-linked code fails the audit. Bundled engines (mysqld, dnsmasq,
 #    redis, ...) are separately distributed executables, not app-linked; they keep
 #    their own licenses via the NOTICES table + source offer below.
-# 2. Generate NOTICES.txt: attribution + license identifiers for every
+# 2. Provenance scan (ADR 0003): reject AGPL and forbidden editor-fork markers
+#    and stray license files in KTStack-owned Swift source. One signal, not proof
+#    of authorship.
+# 3. Generate NOTICES.txt: attribution + license identifiers for every
 #    redistributed component, plus a written offer of source for the copyleft ones.
 #
 # Usage:
-#   license-audit.sh [OUT]        # audit SPM deps, then write NOTICES.txt (default OUT: ROOT/NOTICES.txt)
-#   license-audit.sh --audit-only # audit SPM deps only, no NOTICES
-#   license-audit.sh --self-test  # prove the audit accepts current deps and rejects an AGPL/unknown fixture
+#   license-audit.sh [OUT]           # audit SPM deps + provenance scan, then write NOTICES.txt
+#   license-audit.sh --audit-only    # audit SPM deps + provenance scan, no NOTICES
+#   license-audit.sh --provenance-scan # provenance scan only
+#   license-audit.sh --self-test     # prove audit + scan accept current tree and reject fixtures
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
@@ -125,6 +129,81 @@ self_test() {
     echo "self-test FAILED: unknown fixture was accepted" >&2; exit 1
   fi
   echo "self-test passed: current deps accepted, AGPL and unknown fixtures rejected."
+
+  echo "self-test: current source tree must pass provenance scan"
+  if ! run_provenance_scan >/dev/null; then
+    echo "self-test FAILED: current source tree was rejected by provenance scan" >&2; exit 1
+  fi
+  echo "self-test: an AGPL marker fixture must be detected"
+  if ! scan_text_for_markers 'licensed under the GNU Affero General Public License'; then
+    echo "self-test FAILED: AGPL marker fixture was not detected" >&2; exit 1
+  fi
+  echo "self-test: a forbidden editor-fork identifier fixture must be detected"
+  if ! scan_text_for_markers 'import CodeEditSourceEditor'; then
+    echo "self-test FAILED: editor-fork identifier fixture was not detected" >&2; exit 1
+  fi
+  echo "self-test passed: source tree clean, AGPL and editor-fork fixtures detected."
+}
+
+# ---- provenance scan ----
+# Prove the MIT boundary in ADR 0003: no AGPL-derived material and no copied
+# third-party editor identifiers in KTStack-owned source. A text scan is one
+# signal, not proof of independent authorship; the independent review is primary.
+#
+# Product source only: git-tracked Swift under Packages/ and the app/tool targets.
+#
+# Base markers stay in-tree: generic copyleft (AGPL/Affero/SSPL) plus known
+# editor-fork type names. Any brand-specific markers load from a gitignored
+# local file so they never enter git. Word-bounded so identifiers like
+# NSSplitView (SSPL) do not false-positive.
+PROVENANCE_MARKERS='\b(AGPL|Affero General Public|SSPL|CodeEditSourceEditor|CodeEditTextView)\b'
+
+EXTRA_MARKERS_FILE="${PROVENANCE_EXTRA_MARKERS_FILE:-$ROOT/.provenance-markers.local}"
+if [ -f "$EXTRA_MARKERS_FILE" ]; then
+  extra="$(grep -vE '^[[:space:]]*(#|$)' "$EXTRA_MARKERS_FILE" | paste -sd'|' -)"
+  [ -n "$extra" ] && PROVENANCE_MARKERS="${PROVENANCE_MARKERS}|\\b(${extra})\\b"
+fi
+
+provenance_source_files() {
+  git -C "$ROOT" ls-files \
+    'Packages/**/*.swift' \
+    'KTStack/**/*.swift' \
+    'KTStackHelper/**/*.swift' \
+    'ktstack-resolve/**/*.swift' 2>/dev/null
+}
+
+# stdin/arg text -> non-zero when a marker is present (used by scan + self-test).
+scan_text_for_markers() {
+  local text="$1"
+  printf '%s' "$text" | grep -Eiq "$PROVENANCE_MARKERS"
+}
+
+run_provenance_scan() {
+  local fail=0 hits license_files
+  echo "Provenance scan: KTStack-owned Swift source for AGPL/editor-fork markers..."
+  hits="$(provenance_source_files | tr '\n' '\0' \
+    | xargs -0 grep -EinH "$PROVENANCE_MARKERS" 2>/dev/null || true)"
+  if [ -n "$hits" ]; then
+    echo "FAIL: provenance markers found in KTStack-owned source:" >&2
+    echo "$hits" >&2
+    fail=1
+  fi
+
+  # A committed LICENSE/COPYING inside product source would mean vendored code
+  # of unknown provenance; only the root LICENSE (MIT) is expected.
+  license_files="$(git -C "$ROOT" ls-files \
+    'Packages/**/LICENSE*' 'Packages/**/COPYING*' 'Packages/**/*.license' \
+    'KTStack/**/LICENSE*' 'KTStack/**/COPYING*' 2>/dev/null || true)"
+  if [ -n "$license_files" ]; then
+    echo "FAIL: unexpected license file(s) under product source (possible vendored code):" >&2
+    echo "$license_files" >&2
+    fail=1
+  fi
+
+  if [ "$fail" -eq 0 ]; then
+    echo "Provenance scan passed: no AGPL/editor-fork markers, no stray license files."
+  fi
+  return $fail
 }
 
 # ---- arg parsing ----
@@ -132,8 +211,9 @@ MODE="generate"
 OUT=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --audit-only) MODE="audit" ;;
-    --self-test)  MODE="selftest" ;;
+    --audit-only)      MODE="audit" ;;
+    --provenance-scan) MODE="provenance" ;;
+    --self-test)       MODE="selftest" ;;
     -*) echo "unknown flag: $1" >&2; exit 2 ;;
     *) OUT="$1" ;;
   esac
@@ -142,9 +222,10 @@ done
 OUT="${OUT:-$ROOT/NOTICES.txt}"
 
 case "$MODE" in
-  selftest) self_test; exit 0 ;;
-  audit)    run_audit; exit 0 ;;
-  generate) run_audit ;;
+  selftest)   self_test; exit 0 ;;
+  provenance) run_provenance_scan; exit $? ;;
+  audit)      run_audit; run_provenance_scan; exit $? ;;
+  generate)   run_audit; run_provenance_scan || exit 1 ;;
 esac
 
 # ---- NOTICES.txt generation ----
