@@ -51,7 +51,7 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
             }
         )
         weakStore = store
-        return WorkspaceSession(store: store, shell: shell)
+        return WorkspaceSession(store: store, shell: shell, tools: tools, paths: paths)
     }
 
     @MainActor
@@ -61,7 +61,6 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
             historyStore: queryHistoryStore, favoriteStore: queryFavoriteStore
         )
     }
-    @MainActor lazy var backupSession = BackupSession.managed(tools: tools, paths: paths)
     @MainActor let feedback = KTFeedbackCenter()
     @MainActor let sectionState = DatabaseSectionState()
 
@@ -112,11 +111,11 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
             session: session,
             engines: engines,
             lastUsed: lastUsedDatabaseStore,
-            backupSession: backupSession,
-            feedback: feedback,
-            sectionState: sectionState,
+            backupSession: session.backupSession,
+            feedback: session.feedback,
+            sectionState: session.sectionState,
             connectionStore: connectionStore,
-            databaseVM: databaseVM,
+            databaseVM: session.databaseVM,
             engineInstalled: { [weak self] engine in self?.engineInstalled(engine) ?? false },
             openRuntimes: { [route] engine in route(.runtimes(engine)) },
             initialProfileID: initialProfileID

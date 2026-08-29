@@ -18,7 +18,7 @@ final class WorkspaceSessionTests: XCTestCase {
             objectLoader: { [weak shell] _ in shell?.tables ?? [] },
             makeViewModel: { DatabaseV2ViewModel(tools: FakeDatabaseTools()) }
         )
-        return WorkspaceSession(store: store, shell: shell)
+        return WorkspaceSession(store: store, shell: shell, tools: FakeDatabaseTools(), paths: AppSupportPaths())
     }
 
     private var profileID: UUID { ConnectionProfile.managedMySQL.id }
