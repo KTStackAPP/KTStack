@@ -20,6 +20,7 @@ struct KTServerRow: View {
     let onBackup: () -> Void
     let onRestore: () -> Void
     let onRemove: () -> Void
+    var onOpenWorkspace: (() -> Void)?
 
     @State private var hovering = false
 
@@ -62,6 +63,9 @@ struct KTServerRow: View {
                 .opacity(isOnline ? 1 : 0.4)
             Menu {
                 Button("Open in Editor", systemImage: "tablecells", action: onOpen).disabled(!isOnline)
+                if let onOpenWorkspace {
+                    Button("Open in Workspace (preview)", systemImage: "macwindow", action: onOpenWorkspace).disabled(!isOnline)
+                }
                 Button("Backup Now", systemImage: "tray.and.arrow.down", action: onBackup).disabled(!isOnline)
                 Button("Restore from Backups…", systemImage: "clock.arrow.circlepath", action: onRestore)
                 Divider()

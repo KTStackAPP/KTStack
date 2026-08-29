@@ -17,6 +17,13 @@ final class DatabaseWindows {
         minSize: NSSize(width: 720, height: 480),
         defaultSize: NSSize(width: 1000, height: 680)
     )
+    private let workspace = PluginWindowController(
+        title: "KTStack Database",
+        autosaveName: "KTStackDatabaseWorkspace",
+        minSize: NSSize(width: 960, height: 600),
+        defaultSize: NSSize(width: 1280, height: 800),
+        chrome: .native(tabbingIdentifier: "KTStackDatabase")
+    )
     #if DEBUG
         private let sqlDrafts = PluginWindowController(
             title: "SQL Editor Drafts",
@@ -40,10 +47,18 @@ final class DatabaseWindows {
             )
         case .documentBrowser:
             documentBrowser.present(plugin.makeDocumentBrowserView(), onClose: {})
+        case let .workspace(profileID):
+            workspace.present(
+                plugin.makeWorkspaceView(profileID: profileID),
+                onClose: { [plugin] in plugin.workspaceDidClose() },
+                shouldClose: { [plugin] in plugin.workspaceShouldClose() }
+            )
         case .closeSQLEditor:
             sqlEditor.close()
         case .closeDocumentBrowser:
             documentBrowser.close()
+        case .closeWorkspace:
+            workspace.close()
         #if DEBUG
             case .sqlDrafts:
                 sqlDrafts.present(plugin.makeSQLDraftsGallery(), onClose: {})

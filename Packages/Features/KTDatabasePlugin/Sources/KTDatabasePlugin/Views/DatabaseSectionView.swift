@@ -147,7 +147,8 @@ struct DatabaseSectionView: View {
                     onOpen: { open(profile) },
                     onBackup: { backupServer(profile) },
                     onRestore: { tab = .backups },
-                    onRemove: { remove(profile) }
+                    onRemove: { remove(profile) },
+                    onOpenWorkspace: { plugin.openWorkspace(profile) }
                 )
             }
         }

@@ -193,6 +193,7 @@ struct V2TableSidebar: View {
 struct DatabaseV2Root: View {
     @ObservedObject var vm: DatabaseV2ViewModel
     let onClose: () -> Void
+    var showsTitlebar: Bool = true
 
     @State private var activeTab: V2EditorTab = .data
     @State private var showInsertSheet = false
@@ -207,7 +208,7 @@ struct DatabaseV2Root: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            titlebar
+            if showsTitlebar { titlebar }
             objectTabs
             HStack(spacing: 0) {
                 V2TableSidebar(

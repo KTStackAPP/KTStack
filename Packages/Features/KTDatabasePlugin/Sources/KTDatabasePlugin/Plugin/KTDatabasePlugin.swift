@@ -74,6 +74,12 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
         AnyView(DocumentSectionContent(engines: engines).environmentObject(documentVM))
     }
 
+    // Cửa sổ "KTStack Database"; phase 1 dùng chung v2VM với SQL Editor, phase 3 tách per-tab.
+    @MainActor
+    public func makeWorkspaceView(profileID _: UUID?) -> AnyView {
+        AnyView(DatabaseWorkspaceRoot(vm: v2VM, onClose: { [route] in route(.closeWorkspace) }))
+    }
+
     #if DEBUG
         @MainActor
         public func makeSQLDraftsGallery() -> AnyView {
@@ -90,6 +96,23 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
     @MainActor
     func openDocumentBrowser(_: ConnectionProfile) {
         route(.documentBrowser)
+    }
+
+    // Nút tạm phase 1 để test cửa sổ workspace; gỡ ở phase 6.
+    @MainActor
+    func openWorkspace(_ profile: ConnectionProfile) {
+        route(.workspace(profileID: profile.id))
+        Task { await v2VM.connect(profile: profile) }
+    }
+
+    @MainActor
+    public func workspaceDidClose() {
+        Task { await v2VM.disconnect() }
+    }
+
+    @MainActor
+    public func workspaceShouldClose() -> Bool {
+        sqlEditorShouldClose()
     }
 
     @MainActor func closeSQLEditor() { route(.closeSQLEditor) }
