@@ -283,6 +283,8 @@ struct KTDataGrid: NSViewRepresentable {
         func apply(_ newResult: QueryResult) {
             let columnsChanged = newResult.columns != result.columns
             let rowCountChanged = newResult.rows.count != result.rows.count
+            // View cha re-render nhiều lần với cùng data; chỉ reload khi nội dung khác để bỏ reloadData thừa (gốc lag).
+            let contentChanged = columnsChanged || rowCountChanged || newResult.rows != result.rows
             let offsetDelta = rowNumberOffset - lastRowNumberOffset
             result = newResult
             if columnsChanged { rebuildColumns(for: newResult) }
@@ -290,7 +292,7 @@ struct KTDataGrid: NSViewRepresentable {
                 nearEndRequested = false
                 nearTopRequested = false
             }
-            table?.reloadData()
+            if contentChanged { table?.reloadData() }
             // Cắt/thêm đầu cửa sổ trượt làm hàng đang xem dịch; bù origin để giữ nguyên vị trí thị giác.
             if offsetDelta != 0, let scroll = scrollView, let table {
                 suppressScrollCallbacks = true
