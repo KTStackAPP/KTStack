@@ -1,3 +1,4 @@
+import AppKit
 import KTDatabasePlugin
 import KTDoctorPlugin
 import KTServicesPlugin
@@ -7,6 +8,13 @@ import KTSitesPlugin
 extension AppDelegate {
     // Method chứ không tham chiếu lazy var trong route closure, tránh vòng lazy-init với databaseWindows.
     @MainActor func routeDatabase(_ route: DatabaseRoute) {
+        // "Cài trong Runtimes ›" từ trang kết nối: về Dashboard, chọn tab Runtimes.
+        if case .runtimes = route {
+            navigation.selection = "runtimes"
+            AppActivationPolicy.activateRegular()
+            AppActivationPolicy.focusExistingWindow(titled: "KTStack Dashboard")
+            return
+        }
         databaseWindows.handle(route)
     }
 

@@ -1,8 +1,6 @@
 import Foundation
 
 public enum SidebarNodeKind: Equatable, Hashable, Sendable {
-    case connectionsHeader
-    case connection(UUID)
     case tablesHeader
     case viewsHeader
     case queriesHeader
@@ -50,12 +48,9 @@ public extension SidebarNode {
         }
     }
 
-    /// Dựng cây: nhóm Connections luôn có; Tables/Views/Queries chỉ khi đã chọn 1 kết nối + database.
-    /// filter (không phân biệt hoa thường) lọc con của mọi nhóm; header giữ nguyên.
+    /// Dựng cây object của kết nối trong tab: ba nhóm Tables/Views/Queries, subtitle = số lượng con.
+    /// filter (không phân biệt hoa thường) chỉ lọc con; header luôn hiện.
     static func build(
-        profiles: [ConnectionProfile],
-        selectedProfileID: UUID?,
-        database: String?,
         objects: [TableInfo],
         favorites: [QueryFavorite],
         filter: String
@@ -65,32 +60,10 @@ public extension SidebarNode {
             needle.isEmpty || text.lowercased().contains(needle)
         }
 
-        let connections = profiles.filter { profile in
-            matches(profile.name) || matches(connectionSubtitle(profile))
-        }.map { profile in
-            SidebarNode(
-                id: "conn.\(profile.id.uuidString)",
-                kind: .connection(profile.id),
-                title: profile.name,
-                subtitle: connectionSubtitle(profile),
-                systemImage: icon(for: profile.kind),
-                isGroup: false
-            )
-        }
-        var roots = [group(
-            id: "grp.connections",
-            kind: .connectionsHeader,
-            title: "Connections",
-            icon: "server.rack",
-            children: connections
-        )]
-
-        guard selectedProfileID != nil, let database, !database.isEmpty else { return roots }
-
         let tables = objects.filter { !$0.isView && matches($0.name) }
-            .map { objectNode(prefix: "tbl", kind: .table($0.name), name: $0.name, database: database, icon: "tablecells") }
+            .map { objectNode(prefix: "tbl", kind: .table($0.name), name: $0.name, icon: "tablecells") }
         let views = objects.filter { $0.isView && matches($0.name) }
-            .map { objectNode(prefix: "vw", kind: .view($0.name), name: $0.name, database: database, icon: "eye") }
+            .map { objectNode(prefix: "vw", kind: .view($0.name), name: $0.name, icon: "eye") }
         let queries = favorites.filter { matches($0.name) }.map { favorite in
             SidebarNode(
                 id: "qry.\(favorite.id.uuidString)",
@@ -101,50 +74,25 @@ public extension SidebarNode {
             )
         }
 
-        roots.append(group(
-            id: "grp.tables.\(database)",
-            kind: .tablesHeader,
-            title: "\(database) · Tables",
-            icon: "cylinder",
-            children: tables
-        ))
-        roots.append(group(
-            id: "grp.views.\(database)",
-            kind: .viewsHeader,
-            title: "Views",
-            icon: "eye",
-            children: views
-        ))
-        roots.append(group(
-            id: "grp.queries",
-            kind: .queriesHeader,
-            title: "Queries",
-            icon: "star",
-            children: queries
-        ))
-        return roots
-    }
-
-    /// Dòng phụ phân biệt các kết nối trùng tên (thường là "127.0.0.1"): user@host:port · database.
-    private static func connectionSubtitle(_ profile: ConnectionProfile) -> String {
-        if profile.kind == .sqlite, let path = profile.filePath, !path.isEmpty {
-            return (path as NSString).lastPathComponent
-        }
-        let origin = profile.user.isEmpty
-            ? "\(profile.host):\(profile.port)"
-            : "\(profile.user)@\(profile.host):\(profile.port)"
-        return profile.database.isEmpty ? origin : "\(origin) · \(profile.database)"
+        return [
+            group(id: "grp.tables", kind: .tablesHeader, title: "Tables", icon: "cylinder", children: tables),
+            group(id: "grp.views", kind: .viewsHeader, title: "Views", icon: "eye", children: views),
+            group(id: "grp.queries", kind: .queriesHeader, title: "Queries", icon: "star", children: queries),
+        ]
     }
 
     private static func group(
         id: String, kind: SidebarNodeKind, title: String, icon: String, children: [SidebarNode]
     ) -> SidebarNode {
-        SidebarNode(id: id, kind: kind, title: title, systemImage: icon, isGroup: true, children: children)
+        SidebarNode(
+            id: id, kind: kind, title: title, subtitle: "\(children.count)",
+            systemImage: icon, isGroup: true, children: children
+        )
     }
 
     private static func objectNode(
-        prefix: String, kind: SidebarNodeKind, name: String, database: String, icon: String
+        prefix: String, kind: SidebarNodeKind, name: String, icon: String
     ) -> SidebarNode {
-        SidebarNode(id: "\(prefix).\(database).\(name)", kind: kind, title: name, systemImage: icon, isGroup: false)
+        SidebarNode(id: "\(prefix).\(name)", kind: kind, title: name, systemImage: icon, isGroup: false)
     }
 }

@@ -18,7 +18,11 @@ public final class WorkspaceStore: ObservableObject {
     @Published public private(set) var tabs: [WorkspaceTabSession] = []
     @Published public var activeTabID: UUID?
 
-    // Ý định UI dùng chung giữa toolbar (NSToolbar host) và nội dung: inspector, focus filter.
+    // Ý định UI dùng chung giữa toolbar (NSToolbar host) và nội dung: sidebar/inspector, focus filter.
+    // Split controller quan sát hai cờ này để collapse/expand pane; key đóng băng.
+    @Published public var sidebarVisible: Bool {
+        didSet { UserDefaults.standard.set(sidebarVisible, forKey: Self.sidebarKey) }
+    }
     @Published public var inspectorVisible: Bool {
         didSet { UserDefaults.standard.set(inspectorVisible, forKey: Self.inspectorKey) }
     }
@@ -26,6 +30,13 @@ public final class WorkspaceStore: ObservableObject {
     // Ý định từ toolbar window-level: mở sheet Backups / modal New Database (root nối v1 rồi mở).
     @Published public var backupsRequest = 0
     @Published public var newDatabaseRequest = 0
+    // Từ menu pill: ngắt kết nối tab hiện tại / mở kết nối khác ở tab cửa sổ mới.
+    @Published public var disconnectRequest = 0
+    @Published public var openConnectionRequest = 0
+    // Yêu cầu nối một profile vào cửa sổ đang mở (DatabaseWindows đẩy vào tab chưa nối).
+    @Published public private(set) var activationToken = 0
+    public private(set) var activationProfileID: UUID?
+    private static let sidebarKey = "KTStack.databaseSidebarVisible"
     private static let inspectorKey = "KTStack.databaseInspectorVisible"
 
     public let recentStore: RecentObjectStore
@@ -49,6 +60,8 @@ public final class WorkspaceStore: ObservableObject {
         self.objectLoader = objectLoader
         self.makeViewModel = makeViewModel
         self.tabIdleInterval = tabIdleInterval
+        // Sidebar mặc định hiện khi chưa có key; inspector mặc định ẩn.
+        sidebarVisible = UserDefaults.standard.object(forKey: Self.sidebarKey) as? Bool ?? true
         inspectorVisible = UserDefaults.standard.bool(forKey: Self.inspectorKey)
 
         connectionStore.$profiles
@@ -115,6 +128,16 @@ public final class WorkspaceStore: ObservableObject {
     public func requestBackups() { backupsRequest += 1 }
 
     public func requestNewDatabase() { newDatabaseRequest += 1 }
+
+    public func requestDisconnect() { disconnectRequest += 1 }
+
+    public func requestOpenConnection() { openConnectionRequest += 1 }
+
+    /// DatabaseWindows đẩy profile vào cửa sổ đang mở; root quan sát token rồi nối.
+    public func requestActivation(_ profileID: UUID) {
+        activationProfileID = profileID
+        activationToken += 1
+    }
 
     /// ＋ Query từ toolbar: mở tab query cùng (profile, database) với tab đang mở.
     public func openQueryForActive() {

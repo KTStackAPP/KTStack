@@ -15,6 +15,7 @@ struct WorkspaceToolbar: View {
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
                 WorkspaceWindowButtons(workspace: workspace)
+                WorkspaceConnectionMenu(workspace: workspace)
             }
             .padding(.horizontal, 12)
             .frame(height: 30)
@@ -65,11 +66,31 @@ private struct WorkspaceToolbarBar: View {
                 workspace.openQueryForActive()
             }
             WorkspaceWindowButtons(workspace: workspace)
+            WorkspaceConnectionMenu(workspace: workspace)
             V2IconButton(
                 systemImage: "sidebar.right",
                 tint: workspace.inspectorVisible ? KTEditorTheme.accent : KTEditorTheme.label2
             ) { workspace.inspectorVisible.toggle() }
         }
+    }
+}
+
+/// Menu kết nối: Ngắt kết nối tab hiện tại, Mở kết nối khác ở tab cửa sổ mới. Mờ khi chưa nối.
+private struct WorkspaceConnectionMenu: View {
+    @ObservedObject var workspace: WorkspaceStore
+
+    var body: some View {
+        Menu {
+            Button("Ngắt kết nối") { workspace.requestDisconnect() }
+                .disabled(workspace.selectedProfileID == nil)
+            Button("Mở kết nối khác…") { workspace.requestOpenConnection() }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .foregroundStyle(KTEditorTheme.label2)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
     }
 }
 

@@ -6,9 +6,9 @@ import SwiftUI
 struct WorkspaceTablePane: View {
     @ObservedObject var vm: DatabaseV2ViewModel
     @ObservedObject var workspace: WorkspaceStore
+    @Binding var selectedRow: Int?
 
     @State private var mode: TablePaneMode = .data
-    @State private var selectedRowIndex: Int?
     @State private var pendingDeleteRow: Int?
 
     var body: some View {
@@ -32,8 +32,8 @@ struct WorkspaceTablePane: View {
     }
 
     private var deleteAction: (() -> Void)? {
-        guard vm.canEdit, selectedRowIndex != nil else { return nil }
-        return { pendingDeleteRow = selectedRowIndex }
+        guard vm.canEdit, selectedRow != nil else { return nil }
+        return { pendingDeleteRow = selectedRow }
     }
 
     @ViewBuilder
@@ -67,29 +67,24 @@ struct WorkspaceTablePane: View {
         if vm.isLoadingRows, vm.rows == nil {
             placeholder { ProgressView() }
         } else if let result = vm.displayRows {
-            HStack(spacing: 0) {
-                KTDataGrid(
-                    result: result,
-                    selectedRow: $selectedRowIndex,
-                    onActivate: nil,
-                    onNearEnd: { Task { await vm.fetchMore() } },
-                    onNearTop: { Task { await vm.fetchPrevious() } },
-                    rowNumberOffset: vm.windowStart,
-                    editableColumns: vm.canEdit ? vm.editableColumns : [],
-                    onCommitEdit: { row, column, value in
-                        vm.stageOrDraftEdit(row: row, column: column, value: value)
-                    },
-                    foreignKeyColumns: foreignKeyColumnNames,
-                    onNavigateFK: { row, column in vm.navigateForeignKey(row: row, column: column) },
-                    onPaste: vm.canEdit ? { cells in vm.stagePaste(cells) } : nil,
-                    onSetEdit: vm.canEdit ? { row, column, edit in vm.stageOrDraftEdit(row: row, column: column, edit: edit) } : nil,
-                    onOpenEditor: { row, column in vm.openCellEditor(row: row, column: column) },
-                    columnEditors: vm.canEdit ? columnEditorKinds : [:]
-                )
-                if workspace.inspectorVisible {
-                    WorkspaceInspector(vm: vm, selectedRow: $selectedRowIndex)
-                }
-            }
+            KTDataGrid(
+                result: result,
+                selectedRow: $selectedRow,
+                onActivate: nil,
+                onNearEnd: { Task { await vm.fetchMore() } },
+                onNearTop: { Task { await vm.fetchPrevious() } },
+                rowNumberOffset: vm.windowStart,
+                editableColumns: vm.canEdit ? vm.editableColumns : [],
+                onCommitEdit: { row, column, value in
+                    vm.stageOrDraftEdit(row: row, column: column, value: value)
+                },
+                foreignKeyColumns: foreignKeyColumnNames,
+                onNavigateFK: { row, column in vm.navigateForeignKey(row: row, column: column) },
+                onPaste: vm.canEdit ? { cells in vm.stagePaste(cells) } : nil,
+                onSetEdit: vm.canEdit ? { row, column, edit in vm.stageOrDraftEdit(row: row, column: column, edit: edit) } : nil,
+                onOpenEditor: { row, column in vm.openCellEditor(row: row, column: column) },
+                columnEditors: vm.canEdit ? columnEditorKinds : [:]
+            )
         } else if let errorMessage = vm.loadError {
             placeholder {
                 Text(errorMessage)

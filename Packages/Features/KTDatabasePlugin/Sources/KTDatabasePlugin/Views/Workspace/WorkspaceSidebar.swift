@@ -13,8 +13,6 @@ struct SidebarAction {
 struct WorkspaceSidebar: NSViewRepresentable {
     let nodes: [SidebarNode]
     let selectedNodeID: String?
-    let statusFor: (UUID) -> ServerStatus
-    var onActivateConnection: (UUID) -> Void
     var onSelectObject: (SidebarNode) -> Void
     var onOpenInNewTab: (SidebarNode) -> Void
     var contextActions: (SidebarNode) -> [SidebarAction]
@@ -62,7 +60,6 @@ struct WorkspaceSidebar: NSViewRepresentable {
     func updateNSView(_: NSScrollView, context: Context) {
         context.coordinator.parent = self
         context.coordinator.rebuild(nodes: nodes)
-        context.coordinator.refreshConnectionStatuses(statusFor)
         context.coordinator.applySelection(selectedNodeID)
     }
 
@@ -107,19 +104,6 @@ struct WorkspaceSidebar: NSViewRepresentable {
             outlineView?.reloadData()
             for item in roots where !collapsedIDs.contains(item.node.id) {
                 outlineView?.expandItem(item)
-            }
-        }
-
-        /// Cập nhật chấm trạng thái trên hàng connection đang hiển thị, không reload cây.
-        func refreshConnectionStatuses(_ statusFor: (UUID) -> ServerStatus) {
-            guard let outlineView else { return }
-            for (id, item) in itemsByID {
-                guard case let .connection(profileID) = item.node.kind, id.hasPrefix("conn.") else { continue }
-                let row = outlineView.row(forItem: item)
-                guard row >= 0,
-                      let cell = outlineView.view(atColumn: 0, row: row, makeIfNecessary: false) as? SidebarCellView
-                else { continue }
-                cell.updateStatus(statusFor(profileID))
             }
         }
 
@@ -173,9 +157,7 @@ struct WorkspaceSidebar: NSViewRepresentable {
         }
 
         func outlineView(_: NSOutlineView, heightOfRowByItem item: Any) -> CGFloat {
-            guard let node = (item as? SidebarItem)?.node else { return 26 }
-            if let subtitle = node.subtitle, !subtitle.isEmpty { return 38 }
-            return node.isGroup ? 24 : 26
+            ((item as? SidebarItem)?.node.isGroup ?? false) ? 24 : 26
         }
 
         func outlineView(_: NSOutlineView, shouldSelectItem item: Any) -> Bool {
@@ -188,8 +170,7 @@ struct WorkspaceSidebar: NSViewRepresentable {
             let cell = (outlineView?.makeView(withIdentifier: .init("cell"), owner: self) as? SidebarCellView)
                 ?? SidebarCellView()
             cell.identifier = .init("cell")
-            let status: ServerStatus? = if case let .connection(id) = node.kind { parent.statusFor(id) } else { nil }
-            cell.configure(node: node, status: status)
+            cell.configure(node: node)
             return cell
         }
 
@@ -198,7 +179,6 @@ struct WorkspaceSidebar: NSViewRepresentable {
             guard outline.selectedRow >= 0,
                   let item = outline.item(atRow: outline.selectedRow) as? SidebarItem else { return }
             switch item.node.kind {
-            case let .connection(id): parent.onActivateConnection(id)
             case .table, .view, .query: parent.onSelectObject(item.node)
             default: break
             }
@@ -245,13 +225,11 @@ struct WorkspaceSidebar: NSViewRepresentable {
     }
 }
 
-// Cell: icon + tên (+ dòng phụ host/db) + chấm trạng thái (chỉ hàng connection).
+// Cell: icon + tên object, hoặc header nhóm với số lượng ở phải.
 final class SidebarCellView: NSTableCellView {
     private let icon = NSImageView()
     private let label = NSTextField(labelWithString: "")
-    private let subLabel = NSTextField(labelWithString: "")
-    private let textStack = NSStackView()
-    private let dot = NSView()
+    private let count = NSTextField(labelWithString: "")
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -270,22 +248,14 @@ final class SidebarCellView: NSTableCellView {
         label.font = .systemFont(ofSize: 13)
         label.lineBreakMode = .byTruncatingTail
         label.textColor = NSColor(KTEditorTheme.label)
-        subLabel.translatesAutoresizingMaskIntoConstraints = false
-        subLabel.font = .systemFont(ofSize: 10)
-        subLabel.lineBreakMode = .byTruncatingMiddle
-        subLabel.textColor = NSColor(KTEditorTheme.label3)
-        textStack.translatesAutoresizingMaskIntoConstraints = false
-        textStack.orientation = .vertical
-        textStack.alignment = .leading
-        textStack.spacing = 1
-        textStack.setViews([label, subLabel], in: .leading)
-        dot.translatesAutoresizingMaskIntoConstraints = false
-        dot.wantsLayer = true
-        dot.layer?.cornerRadius = 4
+        count.translatesAutoresizingMaskIntoConstraints = false
+        count.font = .monospacedDigitSystemFont(ofSize: 10.5, weight: .regular)
+        count.textColor = NSColor(KTEditorTheme.label3)
+        count.alignment = .right
 
         addSubview(icon)
-        addSubview(textStack)
-        addSubview(dot)
+        addSubview(label)
+        addSubview(count)
         textField = label
         imageView = icon
 
@@ -294,48 +264,28 @@ final class SidebarCellView: NSTableCellView {
             icon.centerYAnchor.constraint(equalTo: centerYAnchor),
             icon.widthAnchor.constraint(equalToConstant: 16),
             icon.heightAnchor.constraint(equalToConstant: 16),
-            textStack.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 6),
-            textStack.centerYAnchor.constraint(equalTo: centerYAnchor),
-            dot.leadingAnchor.constraint(greaterThanOrEqualTo: textStack.trailingAnchor, constant: 6),
-            dot.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-            dot.centerYAnchor.constraint(equalTo: centerYAnchor),
-            dot.widthAnchor.constraint(equalToConstant: 8),
-            dot.heightAnchor.constraint(equalToConstant: 8),
+            label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 6),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+            count.leadingAnchor.constraint(greaterThanOrEqualTo: label.trailingAnchor, constant: 6),
+            count.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
+            count.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
     }
 
-    func configure(node: SidebarNode, status: ServerStatus?) {
+    func configure(node: SidebarNode) {
         label.stringValue = node.title
         let weight: NSFont.Weight = node.isGroup ? .semibold : .regular
         let size: CGFloat = node.isGroup ? 11 : 13
         label.font = .systemFont(ofSize: size, weight: weight)
         label.textColor = NSColor(node.isGroup ? KTEditorTheme.label2 : KTEditorTheme.label)
-        if let subtitle = node.subtitle, !subtitle.isEmpty {
-            subLabel.stringValue = subtitle
-            subLabel.isHidden = false
-        } else {
-            subLabel.stringValue = ""
-            subLabel.isHidden = true
-        }
         icon.image = NSImage(systemSymbolName: node.systemImage, accessibilityDescription: nil)
         icon.isHidden = node.isGroup
-        if let status {
-            updateStatus(status)
+        if node.isGroup, let subtitle = node.subtitle, !subtitle.isEmpty {
+            count.stringValue = subtitle
+            count.isHidden = false
         } else {
-            dot.isHidden = true
-        }
-    }
-
-    func updateStatus(_ status: ServerStatus) {
-        dot.isHidden = false
-        dot.layer?.backgroundColor = NSColor(color(for: status)).cgColor
-    }
-
-    private func color(for status: ServerStatus) -> Color {
-        switch status {
-        case .online: KTEditorTheme.Status.running
-        case .offline: KTEditorTheme.Status.stopped
-        case .connecting: KTEditorTheme.Status.info
+            count.stringValue = ""
+            count.isHidden = true
         }
     }
 }

@@ -1,5 +1,7 @@
 import AppKit
+import Combine
 import KTDatabasePlugin
+import SwiftUI
 
 @MainActor
 final class DatabaseWindows {
@@ -27,6 +29,9 @@ final class DatabaseWindows {
         )
     #endif
 
+    // Tiêu đề tab theo tên kết nối của session.
+    private var titleBindings: [ObjectIdentifier: AnyCancellable] = [:]
+
     init(plugin: KTDatabasePlugin) {
         self.plugin = plugin
     }
@@ -36,20 +41,80 @@ final class DatabaseWindows {
         case .documentBrowser:
             documentBrowser.present(plugin.makeDocumentBrowserView(), onClose: {})
         case let .workspace(profileID):
-            workspace.present(
-                plugin.makeWorkspaceView(profileID: profileID),
-                toolbar: plugin.makeWorkspaceToolbar(),
-                onClose: { [plugin] in plugin.workspaceDidClose() },
-                shouldClose: { [plugin] in plugin.workspaceShouldClose() }
-            )
+            openWorkspace(profileID: profileID)
         case .closeDocumentBrowser:
             documentBrowser.close()
         case .closeWorkspace:
-            workspace.close()
+            workspace.closeKeyWindow()
+        case .runtimes:
+            break // AppDelegate.routeDatabase chuyển sang Dashboard Runtimes; không mở cửa sổ DB.
         #if DEBUG
             case .sqlDrafts:
                 sqlDrafts.present(plugin.makeSQLDraftsGallery(), onClose: {})
         #endif
+        }
+    }
+
+    private func openWorkspace(profileID: UUID?) {
+        // Chưa có cửa sổ: mở lần đầu với một session.
+        if workspace.allWindows.isEmpty {
+            let session = plugin.makeWorkspaceSession()
+            workspace.present(
+                initial: makeTab(session: session, initialProfileID: profileID),
+                makeTab: { [weak self] in self?.makeNewTab() ?? TabContent(content: AnyView(EmptyView())) }
+            )
+            return
+        }
+
+        // Open Database Panel: chỉ đưa cửa sổ hiện có lên trước.
+        guard let profileID else {
+            workspace.allWindows.first.map { workspace.select($0) }
+            return
+        }
+
+        // Tab đã nối profile này: chọn nó, không nối trùng.
+        if let existing = workspace.window(where: { ($0.identity as? WorkspaceSession)?.connectedProfileID == profileID }) {
+            workspace.select(existing)
+            return
+        }
+
+        // Tab chưa nối: đẩy profile vào rồi chọn.
+        if let free = workspace.window(where: { ($0.identity as? WorkspaceSession)?.connectedProfileID == nil }),
+           let session = workspace.tabContent(for: free)?.identity as? WorkspaceSession
+        {
+            session.store.requestActivation(profileID)
+            workspace.select(free)
+            return
+        }
+
+        // Không còn tab trống: tab mới cho profile.
+        let session = plugin.makeWorkspaceSession()
+        workspace.addTab(makeTab(session: session, initialProfileID: profileID))
+    }
+
+    private func makeNewTab() -> TabContent {
+        makeTab(session: plugin.makeWorkspaceSession(), initialProfileID: nil)
+    }
+
+    private func makeTab(session: WorkspaceSession, initialProfileID: UUID?) -> TabContent {
+        let tc = TabContent(
+            viewController: plugin.makeWorkspaceSplitController(session: session, initialProfileID: initialProfileID),
+            toolbar: plugin.makeWorkspaceToolbar(session: session),
+            identity: session,
+            shouldClose: { [plugin] in plugin.workspaceShouldClose(session: session) },
+            onClose: { [weak self, plugin] in
+                plugin.workspaceDidClose(session: session)
+                self?.titleBindings[ObjectIdentifier(session)] = nil
+            }
+        )
+        DispatchQueue.main.async { [weak self] in self?.bindTitle(session: session) }
+        return tc
+    }
+
+    private func bindTitle(session: WorkspaceSession) {
+        guard let window = workspace.window(where: { ($0.identity as? WorkspaceSession) === session }) else { return }
+        titleBindings[ObjectIdentifier(session)] = session.$title.sink { [weak window] title in
+            window?.title = title
         }
     }
 }

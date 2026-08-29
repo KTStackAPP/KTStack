@@ -64,6 +64,33 @@ final class TabbingWindow: NSWindow {
     override func newWindowForTab(_: Any?) { onNewTab?() }
 }
 
+// Nội dung + vòng đời một cửa sổ/tab: mỗi tab một identity (session) riêng.
+// content là view SwiftUI (Document Browser, SQL Drafts) hoặc controller AppKit dựng sẵn (workspace split).
+struct TabContent {
+    let content: AnyView
+    let viewController: NSViewController?
+    let toolbar: AnyView?
+    let identity: AnyObject?
+    let shouldClose: () -> Bool
+    let onClose: () -> Void
+
+    init(
+        content: AnyView = AnyView(EmptyView()),
+        viewController: NSViewController? = nil,
+        toolbar: AnyView? = nil,
+        identity: AnyObject? = nil,
+        shouldClose: @escaping () -> Bool = { true },
+        onClose: @escaping () -> Void = {}
+    ) {
+        self.content = content
+        self.viewController = viewController
+        self.toolbar = toolbar
+        self.identity = identity
+        self.shouldClose = shouldClose
+        self.onClose = onClose
+    }
+}
+
 @MainActor
 final class PluginWindowController: NSObject, NSWindowDelegate {
     private let title: String
@@ -72,12 +99,11 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
     private let defaultSize: NSSize
     private let chrome: WindowChrome
 
+    // Anchor cho addTabbedWindow; cửa sổ tab khác giữ trong tabWindows.
     private var window: NSWindow?
     private var tabWindows: [NSWindow] = []
-    private var lastContent: AnyView?
-    private var toolbarContent: AnyView?
-    private var onClose: (() -> Void)?
-    private var shouldClose: (() -> Bool)?
+    private var perWindow: [ObjectIdentifier: TabContent] = [:]
+    private var makeTabContent: (() -> TabContent)?
 
     // Toolbar unified full-width: giữ delegate + ràng buộc chiều rộng theo từng cửa sổ để cập nhật khi resize.
     private var toolbarDelegates: [ObjectIdentifier: WorkspaceToolbarDelegate] = [:]
@@ -97,24 +123,35 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
         self.chrome = chrome
     }
 
+    // Cửa sổ đơn (Document Browser, SQL Drafts): không tabbing.
     func present(
         _ content: AnyView,
         toolbar: AnyView? = nil,
         onClose: @escaping () -> Void,
         shouldClose: (() -> Bool)? = nil
     ) {
+        present(
+            initial: TabContent(
+                content: content,
+                toolbar: toolbar,
+                shouldClose: { shouldClose?() ?? true },
+                onClose: onClose
+            ),
+            makeTab: nil
+        )
+    }
+
+    // Cửa sổ có window tabs: mỗi tab một TabContent riêng từ factory.
+    func present(initial: TabContent, makeTab: (() -> TabContent)?) {
         AppActivationPolicy.activateRegular()
-        self.onClose = onClose
-        self.shouldClose = shouldClose
-        lastContent = content
-        toolbarContent = toolbar
+        makeTabContent = makeTab
 
         if let window {
             window.makeKeyAndOrderFront(nil)
             return
         }
 
-        let window = makeWindow(content: content, primary: true)
+        let window = makeWindow(content: initial, primary: true)
         self.window = window
         window.makeKeyAndOrderFront(nil)
     }
@@ -123,11 +160,45 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
         window?.close()
     }
 
-    private func makeWindow(content: AnyView, primary: Bool) -> NSWindow {
+    // Đóng tab đang key (else anchor); dùng cho route .closeWorkspace.
+    func closeKeyWindow() {
+        (allWindows.first { $0.isKeyWindow } ?? window)?.performClose(nil)
+    }
+
+    var allWindows: [NSWindow] {
+        (window.map { [$0] } ?? []) + tabWindows
+    }
+
+    func select(_ window: NSWindow) {
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    // Tìm cửa sổ theo identity của TabContent (ví dụ session nối profile nào).
+    func window(where predicate: (TabContent) -> Bool) -> NSWindow? {
+        for w in allWindows {
+            if let tc = perWindow[ObjectIdentifier(w)], predicate(tc) { return w }
+        }
+        return nil
+    }
+
+    func tabContent(for window: NSWindow) -> TabContent? {
+        perWindow[ObjectIdentifier(window)]
+    }
+
+    // Thêm một tab cụ thể (DatabaseWindows dựng sẵn cho profile chỉ định).
+    func addTab(_ content: TabContent) {
+        guard let anchor = window else { return }
+        let tab = makeWindow(content: content, primary: false)
+        tabWindows.append(tab)
+        anchor.addTabbedWindow(tab, ordered: .above)
+        tab.makeKeyAndOrderFront(nil)
+    }
+
+    private func makeWindow(content tc: TabContent, primary: Bool) -> NSWindow {
         var styleMask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable]
         if chrome.fullSizeContentView { styleMask.insert(.fullSizeContentView) }
 
-        let hosting = NSHostingController(rootView: content)
+        let hosting: NSViewController = tc.viewController ?? NSHostingController(rootView: tc.content)
         let window: NSWindow = chrome.tabbingIdentifier != nil
             ? TabbingWindow(contentRect: NSRect(origin: .zero, size: defaultSize), styleMask: styleMask, backing: .buffered, defer: false)
             : NSWindow(contentRect: NSRect(origin: .zero, size: defaultSize), styleMask: styleMask, backing: .buffered, defer: false)
@@ -143,15 +214,17 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
         if let id = chrome.tabbingIdentifier { window.tabbingIdentifier = id }
 
         if let style = chrome.toolbarStyle {
-            installToolbar(on: window, style: style)
+            installToolbar(on: window, style: style, toolbar: tc.toolbar)
         }
 
         if let tabbing = window as? TabbingWindow {
             tabbing.onNewTab = { [weak self] in self?.openTab() }
         }
 
+        window.delegate = self
+        perWindow[ObjectIdentifier(window)] = tc
+
         if primary {
-            window.delegate = self
             window.setFrameAutosaveName(autosaveName)
             if window.frame.width < minSize.width || window.frame.height < minSize.height {
                 window.setContentSize(defaultSize)
@@ -163,13 +236,13 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
         return window
     }
 
-    private func installToolbar(on window: NSWindow, style: NSWindow.ToolbarStyle) {
+    private func installToolbar(on window: NSWindow, style: NSWindow.ToolbarStyle, toolbar content: AnyView?) {
         let toolbar = NSToolbar(identifier: chrome.tabbingIdentifier ?? autosaveName)
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = false
         window.toolbarStyle = style
 
-        guard let content = toolbarContent else {
+        guard let content else {
             window.toolbar = toolbar
             return
         }
@@ -194,14 +267,10 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
         constraint.constant = max(400, window.frame.width - 12)
     }
 
-    // Phase 1: tab mới dùng lại content (có thể trùng); phase 3 tách per-tab store.
+    // ⌘T / ＋ tab bar: tab mới từ factory.
     private func openTab() {
-        guard let content = lastContent, let anchor = window else { return }
-        let tab = makeWindow(content: content, primary: false)
-        tab.delegate = self
-        tabWindows.append(tab)
-        anchor.addTabbedWindow(tab, ordered: .above)
-        tab.makeKeyAndOrderFront(nil)
+        guard let make = makeTabContent, window != nil else { return }
+        addTab(make())
     }
 
     func windowDidResize(_ notification: Notification) {
@@ -210,28 +279,23 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard sender == window else { return true }
-        return shouldClose?() ?? true
+        perWindow[ObjectIdentifier(sender)]?.shouldClose() ?? true
     }
 
     func windowWillClose(_ notification: Notification) {
         guard let closed = notification.object as? NSWindow else { return }
+        let tc = perWindow.removeValue(forKey: ObjectIdentifier(closed))
         toolbarDelegates[ObjectIdentifier(closed)] = nil
         toolbarWidthConstraints[ObjectIdentifier(closed)] = nil
-        if closed != window {
-            tabWindows.removeAll { $0 == closed }
-            return
+        tabWindows.removeAll { $0 == closed }
+
+        // Anchor đóng nhưng còn tab: đề cử một tab khác làm anchor mới.
+        if closed == window {
+            window = tabWindows.first
+            tabWindows.removeAll { $0 == window }
+            if window == nil { makeTabContent = nil }
         }
-        window = nil
-        shouldClose = nil
-        lastContent = nil
-        toolbarContent = nil
-        tabWindows.forEach { $0.close() }
-        tabWindows.removeAll()
-        toolbarDelegates.removeAll()
-        toolbarWidthConstraints.removeAll()
-        let callback = onClose
-        onClose = nil
-        callback?()
+
+        tc?.onClose()
     }
 }

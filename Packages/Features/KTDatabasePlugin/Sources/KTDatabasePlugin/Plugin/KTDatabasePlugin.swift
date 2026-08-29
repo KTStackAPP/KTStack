@@ -26,31 +26,40 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
     )
     @MainActor lazy var queryHistoryStore = QueryHistoryStore(paths: paths)
     @MainActor lazy var queryFavoriteStore = QueryFavoriteStore(paths: paths)
-    @MainActor lazy var v2VM = DatabaseV2ViewModel(
-        tools: tools, presetStore: filterPresetStore,
-        historyStore: queryHistoryStore, favoriteStore: queryFavoriteStore
-    )
     @MainActor lazy var recentObjectStore = RecentObjectStore(paths: paths)
     @MainActor lazy var lastUsedDatabaseStore = LastUsedDatabaseStore()
-    @MainActor lazy var workspaceStore = WorkspaceStore(
-        connectionStore: connectionStore,
-        reachability: reachability,
-        recentStore: recentObjectStore,
-        objectLoader: { [weak self] _ in self?.v2VM.tables ?? [] },
-        makeViewModel: { [weak self, tools] in self?.makeTabViewModel() ?? DatabaseV2ViewModel(tools: tools) }
-    )
 
-    /// Mỗi tab một VM riêng nhưng dùng chung preset/history/favorite store (ghi file qua store serial).
+    /// Mỗi cửa sổ/tab một session: shell nối riêng + store tab object riêng, dùng chung preset/history/favorite.
     @MainActor
-    func makeTabViewModel() -> DatabaseV2ViewModel {
-        let vm = DatabaseV2ViewModel(
+    public func makeWorkspaceSession() -> WorkspaceSession {
+        let shell = makeShellViewModel()
+        weak var weakStore: WorkspaceStore?
+        let store = WorkspaceStore(
+            connectionStore: connectionStore,
+            reachability: reachability,
+            recentStore: recentObjectStore,
+            objectLoader: { [weak shell] _ in shell?.tables ?? [] },
+            makeViewModel: { [tools, filterPresetStore, queryHistoryStore, queryFavoriteStore] in
+                let vm = DatabaseV2ViewModel(
+                    tools: tools, presetStore: filterPresetStore,
+                    historyStore: queryHistoryStore, favoriteStore: queryFavoriteStore
+                )
+                vm.onSchemaChanged = { profileID, database in
+                    weakStore?.refreshSchema(profileID: profileID, database: database)
+                }
+                return vm
+            }
+        )
+        weakStore = store
+        return WorkspaceSession(store: store, shell: shell)
+    }
+
+    @MainActor
+    private func makeShellViewModel() -> DatabaseV2ViewModel {
+        DatabaseV2ViewModel(
             tools: tools, presetStore: filterPresetStore,
             historyStore: queryHistoryStore, favoriteStore: queryFavoriteStore
         )
-        vm.onSchemaChanged = { [weak self] profileID, database in
-            self?.workspaceStore.refreshSchema(profileID: profileID, database: database)
-        }
-        return vm
     }
     @MainActor lazy var backupSession = BackupSession.managed(tools: tools, paths: paths)
     @MainActor let feedback = KTFeedbackCenter()
@@ -96,32 +105,29 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
         AnyView(DocumentSectionContent(engines: engines).environmentObject(documentVM))
     }
 
-    /// Cửa sổ "KTStack Database": v2VM là connection shell (sidebar/landing/đổi DB), mỗi tab một VM riêng.
+    /// Cửa sổ "KTStack Database": khung NSSplitViewController ba pane, mỗi cửa sổ/tab một session.
     @MainActor
-    public func makeWorkspaceView(profileID: UUID?) -> AnyView {
-        AnyView(
-            DatabaseWorkspaceRoot(
-                vm: v2VM,
-                workspace: workspaceStore,
-                sectionState: sectionState,
-                engines: engines,
-                lastUsed: lastUsedDatabaseStore,
-                backupSession: backupSession,
-                feedback: feedback,
-                initialProfileID: profileID,
-                onClose: { [route] in route(.closeWorkspace) }
-            )
-            .environmentObject(connectionStore)
-            .environmentObject(databaseVM)
-            .environmentObject(documentVM)
-            .ktFeedbackHost(feedback)
+    public func makeWorkspaceSplitController(session: WorkspaceSession, initialProfileID: UUID?) -> NSViewController {
+        let model = WorkspaceRootModel(
+            session: session,
+            engines: engines,
+            lastUsed: lastUsedDatabaseStore,
+            backupSession: backupSession,
+            feedback: feedback,
+            sectionState: sectionState,
+            connectionStore: connectionStore,
+            databaseVM: databaseVM,
+            engineInstalled: { [weak self] engine in self?.engineInstalled(engine) ?? false },
+            openRuntimes: { [route] engine in route(.runtimes(engine)) },
+            initialProfileID: initialProfileID
         )
+        return WorkspaceSplitController(model: model)
     }
 
-    /// Nội dung NSToolbar unified của cửa sổ workspace, đọc tab đang mở từ workspaceStore.
+    /// Nội dung NSToolbar unified của cửa sổ workspace, đọc tab đang mở từ store của session.
     @MainActor
-    public func makeWorkspaceToolbar() -> AnyView {
-        AnyView(WorkspaceToolbar(workspace: workspaceStore))
+    public func makeWorkspaceToolbar(session: WorkspaceSession) -> AnyView {
+        AnyView(WorkspaceToolbar(workspace: session.store))
     }
 
     #if DEBUG
@@ -154,15 +160,14 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
     }
 
     @MainActor
-    public func workspaceDidClose() {
-        workspaceStore.closeAll()
-        Task { await v2VM.disconnect() }
+    public func workspaceDidClose(session: WorkspaceSession) {
+        Task { await session.closeAll() }
     }
 
-    /// Đóng cửa sổ workspace: gom pending mọi tab, hỏi một lần với tổng số.
+    /// Đóng tab cửa sổ: gom pending mọi tab object của session, hỏi một lần với tổng số.
     @MainActor
-    public func workspaceShouldClose() -> Bool {
-        let pending = workspaceStore.pendingChangeTotal
+    public func workspaceShouldClose(session: WorkspaceSession) -> Bool {
+        let pending = session.pendingChangeTotal
         guard pending > 0 else { return true }
         let alert = NSAlert()
         alert.messageText = "Discard pending changes?"

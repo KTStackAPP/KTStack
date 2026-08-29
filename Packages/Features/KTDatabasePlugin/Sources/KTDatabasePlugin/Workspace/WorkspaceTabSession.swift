@@ -6,6 +6,8 @@ import Foundation
 public final class WorkspaceTabSession: Identifiable, ObservableObject {
     public let id = UUID()
     @Published public private(set) var kind: WorkspaceTab
+    // Dòng đang chọn của grid tab này; inspector pane cấp cửa sổ đọc theo tab đang active.
+    @Published public var selectedRowIndex: Int?
     public let vm: DatabaseV2ViewModel
 
     private let idleInterval: TimeInterval

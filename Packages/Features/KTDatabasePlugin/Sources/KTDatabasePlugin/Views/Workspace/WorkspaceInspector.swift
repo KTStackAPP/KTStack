@@ -15,9 +15,8 @@ struct WorkspaceInspector: View {
                 placeholder
             }
         }
-        .frame(width: 300)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(KTEditorTheme.content2)
-        .overlay(alignment: .leading) { Divider().overlay(KTEditorTheme.separator) }
     }
 
     private var header: some View {
