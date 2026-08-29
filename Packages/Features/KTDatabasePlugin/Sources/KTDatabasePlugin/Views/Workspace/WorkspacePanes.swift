@@ -146,15 +146,8 @@ struct WorkspaceContentPane: View {
             if session.kind.isQuery {
                 WorkspaceQueryPane(vm: session.vm).id(session.id)
             } else {
-                WorkspaceTablePane(
-                    vm: session.vm,
-                    workspace: workspace,
-                    selectedRow: Binding(
-                        get: { session.selectedRowIndex },
-                        set: { session.selectedRowIndex = $0 }
-                    )
-                )
-                .id(session.id)
+                WorkspaceTablePane(vm: session.vm, workspace: workspace, session: session)
+                    .id(session.id)
             }
         } else {
             noTabPlaceholder
@@ -215,13 +208,12 @@ struct WorkspaceContentPane: View {
 
 /// Pane phải: chi tiết dòng đang chọn của tab bảng đang active; rỗng nếu là tab query hoặc không có tab.
 struct WorkspaceInspectorPane: View {
-    @ObservedObject var model: WorkspaceRootModel
     @ObservedObject var workspace: WorkspaceStore
 
     var body: some View {
         Group {
             if let session = workspace.activeSession, !session.kind.isQuery {
-                WorkspaceInspector(vm: session.vm, selectedRow: model.activeSelectedRow)
+                ActiveInspector(session: session, vm: session.vm)
             } else {
                 VStack(spacing: 8) {
                     Image(systemName: "sidebar.right").font(.system(size: 22)).foregroundStyle(KTEditorTheme.faint)
@@ -233,5 +225,15 @@ struct WorkspaceInspectorPane: View {
                 .background(KTEditorTheme.content2)
             }
         }
+    }
+}
+
+/// Quan sát session để inspector đổi theo dòng đang chọn của tab đang active.
+private struct ActiveInspector: View {
+    @ObservedObject var session: WorkspaceTabSession
+    @ObservedObject var vm: DatabaseV2ViewModel
+
+    var body: some View {
+        WorkspaceInspector(vm: vm, selectedRow: $session.selectedRowIndex)
     }
 }

@@ -93,14 +93,6 @@ final class WorkspaceRootModel: ObservableObject {
         return (table.isView ? "vw." : "tbl.") + table.name
     }
 
-    /// Binding tới selectedRowIndex của tab đang active, cho inspector pane.
-    var activeSelectedRow: Binding<Int?> {
-        Binding(
-            get: { [weak self] in self?.workspace.activeSession?.selectedRowIndex },
-            set: { [weak self] in self?.workspace.activeSession?.selectedRowIndex = $0 }
-        )
-    }
-
     // MARK: Actions
 
     func activate(profileID: UUID) {

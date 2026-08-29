@@ -32,7 +32,7 @@ final class WorkspaceSplitController: NSSplitViewController {
         contentPane.minimumThickness = 480
 
         let inspector = NSHostingController(
-            rootView: WorkspaceInspectorPane(model: model, workspace: workspace)
+            rootView: WorkspaceInspectorPane(workspace: workspace)
         )
         inspectorPane = NSSplitViewItem(inspectorWithViewController: inspector)
         inspectorPane.minimumThickness = 250

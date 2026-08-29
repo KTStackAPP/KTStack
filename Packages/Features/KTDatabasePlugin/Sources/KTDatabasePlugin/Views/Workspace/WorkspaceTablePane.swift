@@ -6,7 +6,8 @@ import SwiftUI
 struct WorkspaceTablePane: View {
     @ObservedObject var vm: DatabaseV2ViewModel
     @ObservedObject var workspace: WorkspaceStore
-    @Binding var selectedRow: Int?
+    // Quan sát session để chọn dòng (từ grid) cập nhật lại objbar Delete và inspector pane.
+    @ObservedObject var session: WorkspaceTabSession
 
     @State private var mode: TablePaneMode = .data
     @State private var pendingDeleteRow: Int?
@@ -32,8 +33,8 @@ struct WorkspaceTablePane: View {
     }
 
     private var deleteAction: (() -> Void)? {
-        guard vm.canEdit, selectedRow != nil else { return nil }
-        return { pendingDeleteRow = selectedRow }
+        guard vm.canEdit, session.selectedRowIndex != nil else { return nil }
+        return { pendingDeleteRow = session.selectedRowIndex }
     }
 
     @ViewBuilder
@@ -69,7 +70,7 @@ struct WorkspaceTablePane: View {
         } else if let result = vm.displayRows {
             KTDataGrid(
                 result: result,
-                selectedRow: $selectedRow,
+                selectedRow: $session.selectedRowIndex,
                 onActivate: nil,
                 onNearEnd: { Task { await vm.fetchMore() } },
                 onNearTop: { Task { await vm.fetchPrevious() } },
