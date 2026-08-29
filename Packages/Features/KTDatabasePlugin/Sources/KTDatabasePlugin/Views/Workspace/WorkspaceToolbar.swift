@@ -1,8 +1,9 @@
 import KTPluginKit
 import SwiftUI
 
-/// Nội dung NSToolbar unified: trái ‹ › refresh, giữa pill trạng thái, phải Tìm/＋Query/inspector.
+/// Nội dung NSToolbar unified: trái ‹ › refresh, giữa pill trạng thái, phải Tìm/＋Query/Backups/New DB/inspector.
 /// Gắn full-width trong một NSToolbarItem (PluginWindowController), đọc tab đang mở từ WorkspaceStore.
+/// Backups/New DB là window-level: hiện cả khi chưa mở tab nào.
 struct WorkspaceToolbar: View {
     @ObservedObject var workspace: WorkspaceStore
 
@@ -11,7 +12,12 @@ struct WorkspaceToolbar: View {
             WorkspaceToolbarBar(workspace: workspace, vm: session.vm)
                 .id(session.id)
         } else {
-            Color.clear.frame(height: 28)
+            HStack(spacing: 8) {
+                Spacer(minLength: 0)
+                WorkspaceWindowButtons(workspace: workspace)
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 30)
         }
     }
 }
@@ -58,10 +64,29 @@ private struct WorkspaceToolbarBar: View {
             V2Button(title: "Query", systemImage: "plus") {
                 workspace.openQueryForActive()
             }
+            WorkspaceWindowButtons(workspace: workspace)
             V2IconButton(
                 systemImage: "sidebar.right",
                 tint: workspace.inspectorVisible ? KTEditorTheme.accent : KTEditorTheme.label2
             ) { workspace.inspectorVisible.toggle() }
+        }
+    }
+}
+
+/// Window-level: Backups + New Database, gated theo connection đang chọn.
+private struct WorkspaceWindowButtons: View {
+    @ObservedObject var workspace: WorkspaceStore
+
+    var body: some View {
+        HStack(spacing: 4) {
+            V2Button(title: "Backups", systemImage: "archivebox") {
+                workspace.requestBackups()
+            }
+            .disabled(workspace.selectedProfileID == nil)
+            V2Button(title: "New DB", systemImage: "plus.rectangle.on.folder") {
+                workspace.requestNewDatabase()
+            }
+            .disabled(workspace.selectedProfileID == nil)
         }
     }
 }

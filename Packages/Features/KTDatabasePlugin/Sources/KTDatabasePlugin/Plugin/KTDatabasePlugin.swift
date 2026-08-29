@@ -92,16 +92,11 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
     }
 
     @MainActor
-    public func makeSQLEditorView() -> AnyView {
-        AnyView(DatabaseV2Root(vm: v2VM, onClose: { [route] in route(.closeSQLEditor) }))
-    }
-
-    @MainActor
     public func makeDocumentBrowserView() -> AnyView {
         AnyView(DocumentSectionContent(engines: engines).environmentObject(documentVM))
     }
 
-    /// Cửa sổ "KTStack Database"; phase 1 dùng chung v2VM với SQL Editor, phase 3 tách per-tab.
+    /// Cửa sổ "KTStack Database": v2VM là connection shell (sidebar/landing/đổi DB), mỗi tab một VM riêng.
     @MainActor
     public func makeWorkspaceView(profileID: UUID?) -> AnyView {
         AnyView(
@@ -111,6 +106,8 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
                 sectionState: sectionState,
                 engines: engines,
                 lastUsed: lastUsedDatabaseStore,
+                backupSession: backupSession,
+                feedback: feedback,
                 initialProfileID: profileID,
                 onClose: { [route] in route(.closeWorkspace) }
             )
@@ -134,10 +131,16 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
         }
     #endif
 
+    /// Overview "Open Database Panel": mở workspace không chọn sẵn profile.
     @MainActor
-    func openSQLEditor(_ profile: ConnectionProfile) {
-        route(.sqlEditor)
-        Task { await v2VM.connect(profile: profile) }
+    func openDatabasePanel() {
+        route(.workspace(profileID: nil))
+    }
+
+    /// Overview engine row Open: mở workspace và chọn sẵn engine tương ứng.
+    @MainActor
+    func openWorkspace(_ profile: ConnectionProfile) {
+        route(.workspace(profileID: profile.id))
     }
 
     @MainActor
@@ -145,11 +148,9 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
         route(.documentBrowser)
     }
 
-    /// Nút tạm phase 1 để test cửa sổ workspace; gỡ ở phase 6.
     @MainActor
-    func openWorkspace(_ profile: ConnectionProfile) {
-        route(.workspace(profileID: profile.id))
-        Task { await v2VM.connect(profile: profile) }
+    func engineInstalled(_ engine: DatabaseEngine) -> Bool {
+        tools.isInstalled(engine)
     }
 
     @MainActor
@@ -173,32 +174,8 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
     }
 
     @MainActor
-    func closeSQLEditor() {
-        route(.closeSQLEditor)
-    }
-
-    @MainActor
     func closeDocumentBrowser() {
         route(.closeDocumentBrowser)
-    }
-
-    @MainActor
-    public func sqlEditorDidClose() {
-        Task { await v2VM.disconnect() }
-    }
-
-    /// Chặn đóng cửa sổ khi còn thay đổi chưa commit; xác nhận trước khi mất dữ liệu.
-    @MainActor
-    public func sqlEditorShouldClose() -> Bool {
-        let pending = v2VM.pendingChangeCount
-        guard pending > 0 else { return true }
-        let alert = NSAlert()
-        alert.messageText = "Discard pending changes?"
-        alert.informativeText =
-            "\(pending) pending change\(pending == 1 ? "" : "s") will be discarded if you close. Commit or undo first to keep them."
-        alert.addButton(withTitle: "Discard & Close")
-        alert.addButton(withTitle: "Cancel")
-        return alert.runModal() == .alertFirstButtonReturn
     }
 
     // SectionActivationObserving: keep-alive shell ẩn view nên onDisappear không fire khi đổi tab.
@@ -227,7 +204,7 @@ struct DatabaseSectionContainer: View {
     @ObservedObject var state: DatabaseSectionState
 
     var body: some View {
-        DatabaseSectionView(plugin: plugin)
+        DatabaseOverviewView(plugin: plugin)
             .overlay { modalLayer }
     }
 
@@ -243,18 +220,7 @@ struct DatabaseSectionContainer: View {
                 )
                 .transition(.opacity)
             }
-            if state.newDatabasePresented {
-                KTNewDatabaseModal(
-                    onClose: { state.newDatabasePresented = false },
-                    onCreated: { name in
-                        state.newDatabasePresented = false
-                        plugin.feedback.toast("Database “\(name)” created")
-                    }
-                )
-                .transition(.opacity)
-            }
         }
         .animation(.easeOut(duration: 0.15), value: state.connectPresented)
-        .animation(.easeOut(duration: 0.15), value: state.newDatabasePresented)
     }
 }

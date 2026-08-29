@@ -23,6 +23,9 @@ public final class WorkspaceStore: ObservableObject {
         didSet { UserDefaults.standard.set(inspectorVisible, forKey: Self.inspectorKey) }
     }
     @Published public var filterFocusToken = 0
+    // Ý định từ toolbar window-level: mở sheet Backups / modal New Database (root nối v1 rồi mở).
+    @Published public var backupsRequest = 0
+    @Published public var newDatabaseRequest = 0
     private static let inspectorKey = "KTStack.databaseInspectorVisible"
 
     public let recentStore: RecentObjectStore
@@ -108,6 +111,10 @@ public final class WorkspaceStore: ObservableObject {
     public var activeVM: DatabaseV2ViewModel? { activeSession?.vm }
 
     public func focusFilter() { filterFocusToken += 1 }
+
+    public func requestBackups() { backupsRequest += 1 }
+
+    public func requestNewDatabase() { newDatabaseRequest += 1 }
 
     /// ＋ Query từ toolbar: mở tab query cùng (profile, database) với tab đang mở.
     public func openQueryForActive() {

@@ -2,23 +2,27 @@ import KTPlatformContracts
 import KTPluginKit
 import SwiftUI
 
-/// Cửa sổ "KTStack Database": sidebar kết nối + cây object (phase 2), content là landing khi chưa
-/// nối, DatabaseV2Root khi đã nối (tab theo object hoàn thiện ở phase 3).
+/// Cửa sổ "KTStack Database": sidebar kết nối + cây object, content là landing khi chưa nối,
+/// tab theo object khi đã nối. Backup/New Database chạy trên databaseVM (v1) nối riêng.
 struct DatabaseWorkspaceRoot: View {
     @ObservedObject var vm: DatabaseV2ViewModel
     @ObservedObject var workspace: WorkspaceStore
     @ObservedObject var sectionState: DatabaseSectionState
     let engines: any DatabaseEngineManaging
     let lastUsed: LastUsedDatabaseStore
+    let backupSession: BackupSession
+    let feedback: KTFeedbackCenter
     let initialProfileID: UUID?
     let onClose: () -> Void
 
     @EnvironmentObject private var store: ConnectionStore
+    @EnvironmentObject private var databaseVM: DatabaseViewModel
     @AppStorage("KTStack.databaseSidebarVisible") private var sidebarVisible = true
     @State private var filter = ""
     @State private var isConnecting = false
     @State private var editSheet: ConnectionProfile?
     @State private var pendingCloseTab: PendingCloseTab?
+    @State private var showBackups = false
 
     private struct PendingCloseTab: Identifiable {
         let id: UUID
@@ -29,7 +33,7 @@ struct DatabaseWorkspaceRoot: View {
         HSplitView {
             if sidebarVisible {
                 sidebarColumn
-                    .frame(minWidth: 232, idealWidth: 240, maxWidth: 340, maxHeight: .infinity)
+                    .frame(minWidth: 248, idealWidth: 272, maxWidth: 380, maxHeight: .infinity)
                     .background(KTEditorTheme.sidebar)
             }
             content
@@ -42,6 +46,11 @@ struct DatabaseWorkspaceRoot: View {
         .sheet(item: $editSheet) { profile in
             AddConnectionSheet(editing: profile)
         }
+        .sheet(isPresented: $showBackups) {
+            WorkspaceBackupsSheet(vm: databaseVM, session: backupSession, feedback: feedback)
+        }
+        .onChange(of: workspace.backupsRequest) { _ in presentBackups() }
+        .onChange(of: workspace.newDatabaseRequest) { _ in presentNewDatabase() }
         .alert(item: $pendingCloseTab) { pending in
             Alert(
                 title: Text("Discard pending changes?"),
@@ -354,6 +363,37 @@ struct DatabaseWorkspaceRoot: View {
         )
     }
 
+    // Backup/New Database chạy trên databaseVM (v1), nối riêng với tab editor (v2).
+    private func presentBackups() {
+        guard let profile = selectedProfile else { return }
+        Task { if await ensureBackupConnection(profile) { showBackups = true } }
+    }
+
+    private func presentNewDatabase() {
+        guard let profile = selectedProfile else { return }
+        Task { if await ensureBackupConnection(profile) { sectionState.newDatabasePresented = true } }
+    }
+
+    private func backupProfile(_ profile: ConnectionProfile) {
+        Task {
+            guard await ensureBackupConnection(profile) else { return }
+            let set = await databaseVM.backupAllDatabases(session: backupSession)
+            if set != nil { feedback.toast("Backed up “\(profile.name)”") }
+        }
+    }
+
+    private func restoreProfile(_ profile: ConnectionProfile) {
+        Task { if await ensureBackupConnection(profile) { showBackups = true } }
+    }
+
+    private func ensureBackupConnection(_ profile: ConnectionProfile) async -> Bool {
+        if databaseVM.selectedProfile?.id == profile.id, databaseVM.connection == .connected { return true }
+        await databaseVM.select(profile: profile)
+        if databaseVM.connection == .connected { return true }
+        if case let .failed(error) = databaseVM.connection { feedback.toast(error.message) }
+        return false
+    }
+
     private func duplicate(_ profile: ConnectionProfile) {
         let copy = ConnectionProfile(
             name: "\(profile.name) copy",
@@ -374,6 +414,8 @@ struct DatabaseWorkspaceRoot: View {
         case let .connection(id):
             guard let profile = workspace.profiles.first(where: { $0.id == id }) else { return [] }
             var actions = [SidebarAction(title: "Kết nối") { activate(profileID: id) }]
+            actions.append(SidebarAction(title: "Backup…") { backupProfile(profile) })
+            actions.append(SidebarAction(title: "Restore…") { restoreProfile(profile) })
             if !profile.isManaged {
                 actions.append(SidebarAction(title: "Sửa…") { editSheet = profile })
                 actions.append(SidebarAction(title: "Nhân bản") { duplicate(profile) })

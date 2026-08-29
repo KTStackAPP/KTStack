@@ -5,12 +5,6 @@ import KTDatabasePlugin
 final class DatabaseWindows {
     private let plugin: KTDatabasePlugin
 
-    private let sqlEditor = PluginWindowController(
-        title: "SQL Editor",
-        autosaveName: "KTStackSQLEditorV2",
-        minSize: NSSize(width: 900, height: 560),
-        defaultSize: NSSize(width: 1200, height: 760)
-    )
     private let documentBrowser = PluginWindowController(
         title: "Document Browser",
         autosaveName: "KTStackDocumentEditor",
@@ -20,8 +14,8 @@ final class DatabaseWindows {
     private let workspace = PluginWindowController(
         title: "KTStack Database",
         autosaveName: "KTStackDatabaseWorkspace",
-        minSize: NSSize(width: 960, height: 600),
-        defaultSize: NSSize(width: 1280, height: 800),
+        minSize: NSSize(width: 1000, height: 640),
+        defaultSize: NSSize(width: 1360, height: 860),
         chrome: .native(tabbingIdentifier: "KTStackDatabase")
     )
     #if DEBUG
@@ -39,12 +33,6 @@ final class DatabaseWindows {
 
     func handle(_ route: DatabaseRoute) {
         switch route {
-        case .sqlEditor:
-            sqlEditor.present(
-                plugin.makeSQLEditorView(),
-                onClose: { [plugin] in plugin.sqlEditorDidClose() },
-                shouldClose: { [plugin] in plugin.sqlEditorShouldClose() }
-            )
         case .documentBrowser:
             documentBrowser.present(plugin.makeDocumentBrowserView(), onClose: {})
         case let .workspace(profileID):
@@ -54,8 +42,6 @@ final class DatabaseWindows {
                 onClose: { [plugin] in plugin.workspaceDidClose() },
                 shouldClose: { [plugin] in plugin.workspaceShouldClose() }
             )
-        case .closeSQLEditor:
-            sqlEditor.close()
         case .closeDocumentBrowser:
             documentBrowser.close()
         case .closeWorkspace:

@@ -1,7 +1,7 @@
 import Foundation
 
-/// Bản dựng UI cho một điều kiện lọc: value là chuỗi, chuyển sang Cell khi Apply. Dùng chung cho
-/// thanh filter inline (WorkspaceFilterBar) và sheet cũ (V2FilterSheet) tới khi sheet bị gỡ.
+/// Bản dựng UI cho một điều kiện lọc: value là chuỗi, chuyển sang Cell khi Apply. Dùng cho
+/// thanh filter inline (WorkspaceFilterBar).
 struct EditableCondition: Identifiable {
     let id = UUID()
     var column: String

@@ -26,18 +26,25 @@ final class KTDatabasePluginTests: XCTestCase {
         XCTAssertEqual(plugin.descriptor.title, "Database")
     }
 
-    func testOpenSQLEditorRoutesToSQLEditor() {
+    func testOpenDatabasePanelRoutesToWorkspace() {
         var routed: [DatabaseRoute] = []
         let plugin = makePlugin(route: { routed.append($0) })
-        plugin.openSQLEditor(.init(name: "t", kind: .mysql, host: "127.0.0.1", port: 3306, user: "root", database: "db"))
-        XCTAssertEqual(routed.first, .sqlEditor)
+        plugin.openDatabasePanel()
+        XCTAssertEqual(routed.first, .workspace(profileID: nil))
     }
 
-    func testCloseRoutesEmitCloseEvents() {
+    func testOpenWorkspaceCarriesProfileID() {
         var routed: [DatabaseRoute] = []
         let plugin = makePlugin(route: { routed.append($0) })
-        plugin.closeSQLEditor()
+        let profile = ConnectionProfile(name: "t", kind: .mysql, host: "127.0.0.1", port: 3306, user: "root", database: "db")
+        plugin.openWorkspace(profile)
+        XCTAssertEqual(routed.first, .workspace(profileID: profile.id))
+    }
+
+    func testCloseDocumentBrowserEmitsCloseEvent() {
+        var routed: [DatabaseRoute] = []
+        let plugin = makePlugin(route: { routed.append($0) })
         plugin.closeDocumentBrowser()
-        XCTAssertEqual(routed, [.closeSQLEditor, .closeDocumentBrowser])
+        XCTAssertEqual(routed, [.closeDocumentBrowser])
     }
 }

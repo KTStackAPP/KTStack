@@ -1,7 +1,7 @@
 import XCTest
 @testable import KTDatabasePlugin
 
-/// Bộ dựng WHERE tách từ V2FilterSheet: điều kiện hợp lệ + preview cho cả 3 dialect.
+/// Bộ dựng WHERE của thanh lọc inline (WorkspaceFilterBar): điều kiện hợp lệ + preview cho cả 3 dialect.
 final class GridFilterModelSQLTests: XCTestCase {
     func testConditionsDropEmptyColumn() {
         let drafts = [
