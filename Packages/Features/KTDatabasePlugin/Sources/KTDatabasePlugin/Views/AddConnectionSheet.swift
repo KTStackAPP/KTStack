@@ -193,10 +193,16 @@ struct AddConnectionSheet: View {
         guard let portNum = Int(port) else { return nil }
         return ConnectionProfile(
             id: editing?.id ?? UUID(),
-            name: name.isEmpty ? trimmedHost : name,
+            name: name.isEmpty ? defaultName(host: trimmedHost, database: database) : name,
             kind: kind, host: trimmedHost, port: portNum, user: user, database: database,
             tlsMode: tlsMode, readOnly: readOnly
         )
+    }
+
+    // Tên trống: dùng host/database để không sinh loạt "127.0.0.1" trùng nhau.
+    private func defaultName(host: String, database: String) -> String {
+        let db = database.trimmingCharacters(in: .whitespaces)
+        return db.isEmpty ? host : "\(host)/\(db)"
     }
 
     private var effectivePassword: String? {

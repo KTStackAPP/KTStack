@@ -172,6 +172,12 @@ struct WorkspaceSidebar: NSViewRepresentable {
             (item as? SidebarItem)?.node.isGroup ?? false
         }
 
+        func outlineView(_: NSOutlineView, heightOfRowByItem item: Any) -> CGFloat {
+            guard let node = (item as? SidebarItem)?.node else { return 26 }
+            if let subtitle = node.subtitle, !subtitle.isEmpty { return 38 }
+            return node.isGroup ? 24 : 26
+        }
+
         func outlineView(_: NSOutlineView, shouldSelectItem item: Any) -> Bool {
             !((item as? SidebarItem)?.node.isGroup ?? true)
         }
@@ -239,10 +245,12 @@ struct WorkspaceSidebar: NSViewRepresentable {
     }
 }
 
-// Cell: icon + tên + chấm trạng thái (chỉ hàng connection).
+// Cell: icon + tên (+ dòng phụ host/db) + chấm trạng thái (chỉ hàng connection).
 final class SidebarCellView: NSTableCellView {
     private let icon = NSImageView()
     private let label = NSTextField(labelWithString: "")
+    private let subLabel = NSTextField(labelWithString: "")
+    private let textStack = NSStackView()
     private let dot = NSView()
 
     override init(frame frameRect: NSRect) {
@@ -262,12 +270,21 @@ final class SidebarCellView: NSTableCellView {
         label.font = .systemFont(ofSize: 13)
         label.lineBreakMode = .byTruncatingTail
         label.textColor = NSColor(KTEditorTheme.label)
+        subLabel.translatesAutoresizingMaskIntoConstraints = false
+        subLabel.font = .systemFont(ofSize: 10)
+        subLabel.lineBreakMode = .byTruncatingMiddle
+        subLabel.textColor = NSColor(KTEditorTheme.label3)
+        textStack.translatesAutoresizingMaskIntoConstraints = false
+        textStack.orientation = .vertical
+        textStack.alignment = .leading
+        textStack.spacing = 1
+        textStack.setViews([label, subLabel], in: .leading)
         dot.translatesAutoresizingMaskIntoConstraints = false
         dot.wantsLayer = true
         dot.layer?.cornerRadius = 4
 
         addSubview(icon)
-        addSubview(label)
+        addSubview(textStack)
         addSubview(dot)
         textField = label
         imageView = icon
@@ -277,9 +294,9 @@ final class SidebarCellView: NSTableCellView {
             icon.centerYAnchor.constraint(equalTo: centerYAnchor),
             icon.widthAnchor.constraint(equalToConstant: 16),
             icon.heightAnchor.constraint(equalToConstant: 16),
-            label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 6),
-            label.centerYAnchor.constraint(equalTo: centerYAnchor),
-            dot.leadingAnchor.constraint(greaterThanOrEqualTo: label.trailingAnchor, constant: 6),
+            textStack.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 6),
+            textStack.centerYAnchor.constraint(equalTo: centerYAnchor),
+            dot.leadingAnchor.constraint(greaterThanOrEqualTo: textStack.trailingAnchor, constant: 6),
             dot.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
             dot.centerYAnchor.constraint(equalTo: centerYAnchor),
             dot.widthAnchor.constraint(equalToConstant: 8),
@@ -293,6 +310,13 @@ final class SidebarCellView: NSTableCellView {
         let size: CGFloat = node.isGroup ? 11 : 13
         label.font = .systemFont(ofSize: size, weight: weight)
         label.textColor = NSColor(node.isGroup ? KTEditorTheme.label2 : KTEditorTheme.label)
+        if let subtitle = node.subtitle, !subtitle.isEmpty {
+            subLabel.stringValue = subtitle
+            subLabel.isHidden = false
+        } else {
+            subLabel.stringValue = ""
+            subLabel.isHidden = true
+        }
         icon.image = NSImage(systemSymbolName: node.systemImage, accessibilityDescription: nil)
         icon.isHidden = node.isGroup
         if let status {

@@ -17,6 +17,7 @@ public struct SidebarNode: Identifiable, Equatable, Sendable {
     public let id: String
     public let kind: SidebarNodeKind
     public let title: String
+    public let subtitle: String?
     public let systemImage: String
     public let isGroup: Bool
     public var children: [SidebarNode]
@@ -25,6 +26,7 @@ public struct SidebarNode: Identifiable, Equatable, Sendable {
         id: String,
         kind: SidebarNodeKind,
         title: String,
+        subtitle: String? = nil,
         systemImage: String,
         isGroup: Bool,
         children: [SidebarNode] = []
@@ -32,6 +34,7 @@ public struct SidebarNode: Identifiable, Equatable, Sendable {
         self.id = id
         self.kind = kind
         self.title = title
+        self.subtitle = subtitle
         self.systemImage = systemImage
         self.isGroup = isGroup
         self.children = children
@@ -62,11 +65,14 @@ public extension SidebarNode {
             needle.isEmpty || text.lowercased().contains(needle)
         }
 
-        let connections = profiles.filter { matches($0.name) }.map { profile in
+        let connections = profiles.filter { profile in
+            matches(profile.name) || matches(connectionSubtitle(profile))
+        }.map { profile in
             SidebarNode(
                 id: "conn.\(profile.id.uuidString)",
                 kind: .connection(profile.id),
                 title: profile.name,
+                subtitle: connectionSubtitle(profile),
                 systemImage: icon(for: profile.kind),
                 isGroup: false
             )
@@ -117,6 +123,17 @@ public extension SidebarNode {
             children: queries
         ))
         return roots
+    }
+
+    /// Dòng phụ phân biệt các kết nối trùng tên (thường là "127.0.0.1"): user@host:port · database.
+    private static func connectionSubtitle(_ profile: ConnectionProfile) -> String {
+        if profile.kind == .sqlite, let path = profile.filePath, !path.isEmpty {
+            return (path as NSString).lastPathComponent
+        }
+        let origin = profile.user.isEmpty
+            ? "\(profile.host):\(profile.port)"
+            : "\(profile.user)@\(profile.host):\(profile.port)"
+        return profile.database.isEmpty ? origin : "\(origin) · \(profile.database)"
     }
 
     private static func group(

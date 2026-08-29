@@ -43,7 +43,7 @@ struct WorkspaceStatusPill: View {
 
     private var engineText: some View {
         Text(engineLabel)
-            .font(.jbMono(12))
+            .font(.jbMono(12.5, .medium))
             .foregroundStyle(KTEditorTheme.label)
     }
 
@@ -70,10 +70,10 @@ struct WorkspaceStatusPill: View {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "cylinder.split.1x2").font(.system(size: 10))
-                Text(vm.selectedDatabase ?? "—").font(.jbMono(12))
-                Image(systemName: "chevron.down").font(.system(size: 8))
+                Text(vm.selectedDatabase ?? "—").font(.jbMono(12.5, .medium))
+                Image(systemName: "chevron.down").font(.system(size: 8)).foregroundStyle(KTEditorTheme.label3)
             }
-            .foregroundStyle(KTEditorTheme.label2)
+            .foregroundStyle(KTEditorTheme.label)
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
