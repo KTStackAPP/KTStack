@@ -179,14 +179,20 @@ extension KTDataGrid.Coordinator: KTGridInput {
         guard let rowRange = selection.rowRange, let columnRange = selection.columnRange else {
             overlay.selectionRect = nil
             overlay.focusRect = nil
-            selectedRow?.wrappedValue = nil
+            setSelectedRow(nil)
             return
         }
         overlay.selectionRect = cellRect(rows: rowRange, columns: columnRange)
         if let focus = selection.focus {
             overlay.focusRect = cellRect(rows: focus.row...focus.row, columns: focus.column...focus.column)
         }
-        selectedRow?.wrappedValue = rowRange.count == 1 ? rowRange.lowerBound : nil
+        setSelectedRow(rowRange.count == 1 ? rowRange.lowerBound : nil)
+    }
+
+    // Chỉ ghi khi khác giá trị: binding trỏ @Published không tự dedupe, ghi trùng gây vòng lặp render vô hạn.
+    private func setSelectedRow(_ value: Int?) {
+        guard selectedRow?.wrappedValue != value else { return }
+        selectedRow?.wrappedValue = value
     }
 
     func clampSelection() {
