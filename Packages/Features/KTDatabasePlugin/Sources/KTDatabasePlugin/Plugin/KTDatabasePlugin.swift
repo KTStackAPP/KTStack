@@ -25,6 +25,14 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
             .appendingPathComponent("filter-presets.json")
     )
     @MainActor lazy var v2VM = DatabaseV2ViewModel(tools: tools, presetStore: filterPresetStore)
+    @MainActor lazy var recentObjectStore = RecentObjectStore(paths: paths)
+    @MainActor lazy var lastUsedDatabaseStore = LastUsedDatabaseStore()
+    @MainActor lazy var workspaceStore = WorkspaceStore(
+        connectionStore: connectionStore,
+        reachability: reachability,
+        recentStore: recentObjectStore,
+        objectLoader: { [weak self] _ in self?.v2VM.tables ?? [] }
+    )
     @MainActor lazy var backupSession = BackupSession.managed(tools: tools, paths: paths)
     @MainActor let feedback = KTFeedbackCenter()
     @MainActor let sectionState = DatabaseSectionState()
@@ -35,7 +43,7 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
             profiles: { [weak self] in self?.connectionStore.profiles ?? [] },
             managedRunning: { [weak self] kind in
                 guard let self, let engine = kind.engine else { return false }
-                return self.engines.isRunning(engine)
+                return engines.isRunning(engine)
             }
         )
         return service
@@ -74,10 +82,24 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
         AnyView(DocumentSectionContent(engines: engines).environmentObject(documentVM))
     }
 
-    // Cửa sổ "KTStack Database"; phase 1 dùng chung v2VM với SQL Editor, phase 3 tách per-tab.
+    /// Cửa sổ "KTStack Database"; phase 1 dùng chung v2VM với SQL Editor, phase 3 tách per-tab.
     @MainActor
-    public func makeWorkspaceView(profileID _: UUID?) -> AnyView {
-        AnyView(DatabaseWorkspaceRoot(vm: v2VM, onClose: { [route] in route(.closeWorkspace) }))
+    public func makeWorkspaceView(profileID: UUID?) -> AnyView {
+        AnyView(
+            DatabaseWorkspaceRoot(
+                vm: v2VM,
+                workspace: workspaceStore,
+                sectionState: sectionState,
+                engines: engines,
+                lastUsed: lastUsedDatabaseStore,
+                initialProfileID: profileID,
+                onClose: { [route] in route(.closeWorkspace) }
+            )
+            .environmentObject(connectionStore)
+            .environmentObject(databaseVM)
+            .environmentObject(documentVM)
+            .ktFeedbackHost(feedback)
+        )
     }
 
     #if DEBUG
@@ -98,7 +120,7 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
         route(.documentBrowser)
     }
 
-    // Nút tạm phase 1 để test cửa sổ workspace; gỡ ở phase 6.
+    /// Nút tạm phase 1 để test cửa sổ workspace; gỡ ở phase 6.
     @MainActor
     func openWorkspace(_ profile: ConnectionProfile) {
         route(.workspace(profileID: profile.id))
@@ -115,15 +137,22 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
         sqlEditorShouldClose()
     }
 
-    @MainActor func closeSQLEditor() { route(.closeSQLEditor) }
-    @MainActor func closeDocumentBrowser() { route(.closeDocumentBrowser) }
+    @MainActor
+    func closeSQLEditor() {
+        route(.closeSQLEditor)
+    }
+
+    @MainActor
+    func closeDocumentBrowser() {
+        route(.closeDocumentBrowser)
+    }
 
     @MainActor
     public func sqlEditorDidClose() {
         Task { await v2VM.disconnect() }
     }
 
-    // Chặn đóng cửa sổ khi còn thay đổi chưa commit; xác nhận trước khi mất dữ liệu.
+    /// Chặn đóng cửa sổ khi còn thay đổi chưa commit; xác nhận trước khi mất dữ liệu.
     @MainActor
     public func sqlEditorShouldClose() -> Bool {
         let pending = v2VM.pendingChangeCount
@@ -138,13 +167,20 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
     }
 
     // SectionActivationObserving: keep-alive shell ẩn view nên onDisappear không fire khi đổi tab.
-    @MainActor public func sectionDidActivate() { reachability.start() }
-    @MainActor public func sectionDidDeactivate() { reachability.stop() }
+    @MainActor
+    public func sectionDidActivate() {
+        reachability.start(owner: "section")
+    }
 
-    // PluginLifecycle
+    @MainActor
+    public func sectionDidDeactivate() {
+        reachability.stop(owner: "section")
+    }
+
+    /// PluginLifecycle
     public func start() async {}
 
-    // Chạy trong quit khi coordinator block main; chỉ hạ NIO loop, không hop @MainActor.
+    /// Chạy trong quit khi coordinator block main; chỉ hạ NIO loop, không hop @MainActor.
     public func shutdown() async {
         try? await EventLoopProvider.shared.shutdown()
     }
@@ -160,7 +196,6 @@ struct DatabaseSectionContainer: View {
             .overlay { modalLayer }
     }
 
-    @ViewBuilder
     private var modalLayer: some View {
         ZStack {
             if state.connectPresented {

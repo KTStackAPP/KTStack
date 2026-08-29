@@ -16,6 +16,9 @@ public final class ServerReachabilityService: ObservableObject {
     private var profilesProvider: () -> [ConnectionProfile] = { [] }
     private var managedRunningProvider: (DatabaseKind) -> Bool = { _ in false }
     private var pollTask: Task<Void, Never>?
+    /// Owner token: tab Dashboard và cửa sổ workspace cùng dùng; poll chạy khi có ít nhất 1 owner.
+    /// Set (không phải refcount) nên start/stop lặp của cùng owner không lệch số đếm.
+    private var owners: Set<String> = []
 
     public init(probeInterval: TimeInterval = 5, probeTimeout: TimeInterval = 1.2) {
         self.probeInterval = probeInterval
@@ -30,7 +33,8 @@ public final class ServerReachabilityService: ObservableObject {
         managedRunningProvider = managedRunning
     }
 
-    public func start() {
+    public func start(owner: String = "default") {
+        owners.insert(owner)
         guard pollTask == nil else { return }
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -41,7 +45,9 @@ public final class ServerReachabilityService: ObservableObject {
         }
     }
 
-    public func stop() {
+    public func stop(owner: String = "default") {
+        owners.remove(owner)
+        guard owners.isEmpty else { return }
         pollTask?.cancel()
         pollTask = nil
     }

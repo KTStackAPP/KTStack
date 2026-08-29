@@ -18,7 +18,7 @@ public final class ConnectionStore: ObservableObject {
     }
 
     public var allProfiles: [ConnectionProfile] {
-        [.managedMySQL, .managedPostgres, .managedMongo] + profiles
+        ConnectionProfile.managedProfiles + profiles
     }
 
     public func add(_ profile: ConnectionProfile, password: String? = nil) {
