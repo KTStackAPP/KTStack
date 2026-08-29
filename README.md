@@ -127,16 +127,6 @@ scripts/integration-test.sh
 
 Issues and pull requests are welcome. KTStack is an active project exploring Swift, SwiftUI, macOS development and developer-experience tooling.
 
-## Star History
-
-<a href="https://www.star-history.com/?repos=KTStackAPP%2FKTStack&type=date&legend=bottom-right">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=KTStackAPP/KTStack&type=date&theme=dark&legend=bottom-right&sealed_token=Zk0MEreSY7GweBOzk2LpdXrnUccgx9vWPMt46jtBC0e_9xyhgLDwvsYqeIgkLGz_QvvLSCZTE8dSLu7QIgoMVAQoaeUhh0TwNsQaMYcTLM0v39-xZm1eyQ" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=KTStackAPP/KTStack&type=date&legend=bottom-right&sealed_token=Zk0MEreSY7GweBOzk2LpdXrnUccgx9vWPMt46jtBC0e_9xyhgLDwvsYqeIgkLGz_QvvLSCZTE8dSLu7QIgoMVAQoaeUhh0TwNsQaMYcTLM0v39-xZm1eyQ" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=KTStackAPP/KTStack&type=date&legend=bottom-right&sealed_token=Zk0MEreSY7GweBOzk2LpdXrnUccgx9vWPMt46jtBC0e_9xyhgLDwvsYqeIgkLGz_QvvLSCZTE8dSLu7QIgoMVAQoaeUhh0TwNsQaMYcTLM0v39-xZm1eyQ" />
- </picture>
-</a>
-
 ## Contributors
 
 Thanks to everyone who contributes to KTStack.
