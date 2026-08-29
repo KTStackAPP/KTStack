@@ -18,6 +18,12 @@ struct DatabaseWorkspaceRoot: View {
     @State private var filter = ""
     @State private var isConnecting = false
     @State private var editSheet: ConnectionProfile?
+    @State private var pendingCloseTab: PendingCloseTab?
+
+    private struct PendingCloseTab: Identifiable {
+        let id: UUID
+        let count: Int
+    }
 
     var body: some View {
         HSplitView {
@@ -31,15 +37,42 @@ struct DatabaseWorkspaceRoot: View {
         }
         .background(KTEditorTheme.window)
         .background(sidebarToggle)
+        .background(tabShortcuts)
         .overlay { modalLayer }
         .sheet(item: $editSheet) { profile in
             AddConnectionSheet(editing: profile)
+        }
+        .alert(item: $pendingCloseTab) { pending in
+            Alert(
+                title: Text("Discard pending changes?"),
+                message: Text("\(pending.count) pending change\(pending.count == 1 ? "" : "s") in this tab will be discarded if you close it."),
+                primaryButton: .destructive(Text("Discard & Close")) {
+                    workspace.closeTab(pending.id, force: true)
+                },
+                secondaryButton: .cancel()
+            )
         }
         .onAppear {
             workspace.startPolling()
             if let id = initialProfileID, !isConnected { activate(profileID: id) }
         }
         .onDisappear { workspace.stopPolling() }
+    }
+
+    private var tabShortcuts: some View {
+        ZStack {
+            Button("") { openQueryTab() }
+                .keyboardShortcut("t", modifiers: .command)
+            Button("") { requestCloseActiveTab() }
+                .keyboardShortcut("w", modifiers: .command)
+            Button("") { workspace.focusFilter() }
+                .keyboardShortcut("f", modifiers: .command)
+            Button("") { workspace.inspectorVisible.toggle() }
+                .keyboardShortcut("i", modifiers: [.command, .option])
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
     }
 
     // MARK: Sidebar
@@ -53,8 +86,8 @@ struct DatabaseWorkspaceRoot: View {
                 selectedNodeID: selectedNodeID,
                 statusFor: { workspace.status(for: $0) },
                 onActivateConnection: { activate(profileID: $0) },
-                onSelectObject: { selectObject($0) },
-                onOpenInNewTab: { selectObject($0) },
+                onSelectObject: { selectObject($0, forceNewTab: false) },
+                onOpenInNewTab: { selectObject($0, forceNewTab: true) },
                 contextActions: { contextActions(for: $0) }
             )
             Divider().overlay(KTEditorTheme.separator)
@@ -114,7 +147,15 @@ struct DatabaseWorkspaceRoot: View {
     @ViewBuilder
     private var content: some View {
         if isConnected {
-            DatabaseV2Root(vm: vm, onClose: onClose, showsTitlebar: false)
+            VStack(spacing: 0) {
+                WorkspaceTabBar(
+                    workspace: workspace,
+                    onNewQuery: { openQueryTab() },
+                    onClose: { requestCloseTab($0) }
+                )
+                activePane
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         } else {
             ConnectionLandingView(
                 selectedProfile: selectedProfile,
@@ -123,6 +164,34 @@ struct DatabaseWorkspaceRoot: View {
                 onNewConnection: { sectionState.connectPresented = true }
             )
         }
+    }
+
+    @ViewBuilder
+    private var activePane: some View {
+        if let session = workspace.activeSession {
+            if session.kind.isQuery {
+                WorkspaceQueryPane(vm: session.vm)
+                    .id(session.id)
+            } else {
+                WorkspaceTablePane(vm: session.vm, workspace: workspace)
+                    .id(session.id)
+            }
+        } else {
+            noTabPlaceholder
+        }
+    }
+
+    private var noTabPlaceholder: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "tablecells")
+                .font(.system(size: 28))
+                .foregroundStyle(KTEditorTheme.faint)
+            Text("Chọn một bảng ở sidebar để mở tab")
+                .font(.system(size: 13))
+                .foregroundStyle(KTEditorTheme.label3)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(KTEditorTheme.content)
     }
 
     private var modalLayer: some View {
@@ -180,7 +249,8 @@ struct DatabaseWorkspaceRoot: View {
     }
 
     private var selectedNodeID: String? {
-        guard let table = vm.selectedTable, let db = workspace.activeDatabase else { return nil }
+        guard let session = workspace.activeSession,
+              case let .table(_, db, table) = session.kind else { return nil }
         return (table.isView ? "vw." : "tbl.") + db + "." + table.name
     }
 
@@ -248,15 +318,33 @@ struct DatabaseWorkspaceRoot: View {
         }
     }
 
-    private func selectObject(_ node: SidebarNode) {
+    private func selectObject(_ node: SidebarNode, forceNewTab: Bool) {
         switch node.kind {
         case let .table(name), let .view(name):
-            guard let table = currentObjects.first(where: { $0.name == name }) else { return }
-            vm.select(table: table)
+            guard let table = currentObjects.first(where: { $0.name == name }),
+                  let pid = workspace.selectedProfileID, let db = workspace.activeDatabase
+            else { return }
+            workspace.openTable(table, profileID: pid, database: db, forceNewTab: forceNewTab)
             recordRecent(table)
         default:
             break
         }
+    }
+
+    private func openQueryTab() {
+        guard let pid = workspace.selectedProfileID, let db = workspace.activeDatabase else { return }
+        workspace.openQuery(profileID: pid, database: db)
+    }
+
+    private func requestCloseTab(_ id: UUID) {
+        if case let .needsConfirmation(count) = workspace.closeTab(id) {
+            pendingCloseTab = PendingCloseTab(id: id, count: count)
+        }
+    }
+
+    private func requestCloseActiveTab() {
+        guard let id = workspace.activeTabID else { return }
+        requestCloseTab(id)
     }
 
     private func recordRecent(_ table: TableInfo) {

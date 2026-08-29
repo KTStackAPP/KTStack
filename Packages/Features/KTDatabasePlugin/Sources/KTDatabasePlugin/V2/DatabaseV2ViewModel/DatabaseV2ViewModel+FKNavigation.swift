@@ -30,9 +30,10 @@ public extension DatabaseV2ViewModel {
     func fetchRows(
         driver: RelationalDriver, database: String, table: String, limit: Int, offset: Int
     ) async throws -> QueryResult {
-        if !activeFilters.isEmpty {
+        if !activeFilters.isEmpty || browseSort != nil {
             let statement = try SQLDialect.forKind(connectionKind ?? .mysql).browseSelect(
-                schema: database, table: table, filters: activeFilters, sort: nil, limit: limit, offset: offset
+                schema: database, table: table, filters: activeFilters,
+                sort: browseSort, limit: limit, offset: offset
             )
             return try await driver.runSelect(statement, database: database)
         }
@@ -43,6 +44,12 @@ public extension DatabaseV2ViewModel {
     func applyFilters(_ conditions: [FilterCondition]) {
         guard navStack.indices.contains(navIndex) else { return }
         navStack[navIndex].filters = conditions
+        loadNavEntry()
+    }
+
+    // Đặt ORDER BY cho browse rồi tải lại từ đầu cửa sổ.
+    func setBrowseSort(_ sort: SortSpec?) {
+        browseSort = sort
         loadNavEntry()
     }
 

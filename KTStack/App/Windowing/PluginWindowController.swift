@@ -34,6 +34,30 @@ struct WindowChrome {
     }
 }
 
+// Toolbar unified một item full-width chứa NSHostingView của WorkspaceToolbar.
+final class WorkspaceToolbarDelegate: NSObject, NSToolbarDelegate {
+    static let itemID = NSToolbarItem.Identifier("com.ktstack.workspaceToolbar")
+    private let view: NSView
+
+    init(view: NSView) {
+        self.view = view
+    }
+
+    func toolbar(
+        _: NSToolbar,
+        itemForItemIdentifier identifier: NSToolbarItem.Identifier,
+        willBeInsertedIntoToolbar _: Bool
+    ) -> NSToolbarItem? {
+        guard identifier == Self.itemID else { return nil }
+        let item = NSToolbarItem(itemIdentifier: identifier)
+        item.view = view
+        return item
+    }
+
+    func toolbarDefaultItemIdentifiers(_: NSToolbar) -> [NSToolbarItem.Identifier] { [Self.itemID] }
+    func toolbarAllowedItemIdentifiers(_: NSToolbar) -> [NSToolbarItem.Identifier] { [Self.itemID] }
+}
+
 // Cửa sổ workspace: ⌘T (newWindowForTab) đi lên responder chain tới đây rồi gọi closure.
 final class TabbingWindow: NSWindow {
     var onNewTab: (() -> Void)?
@@ -51,8 +75,13 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private var tabWindows: [NSWindow] = []
     private var lastContent: AnyView?
+    private var toolbarContent: AnyView?
     private var onClose: (() -> Void)?
     private var shouldClose: (() -> Bool)?
+
+    // Toolbar unified full-width: giữ delegate + ràng buộc chiều rộng theo từng cửa sổ để cập nhật khi resize.
+    private var toolbarDelegates: [ObjectIdentifier: WorkspaceToolbarDelegate] = [:]
+    private var toolbarWidthConstraints: [ObjectIdentifier: NSLayoutConstraint] = [:]
 
     init(
         title: String,
@@ -68,11 +97,17 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
         self.chrome = chrome
     }
 
-    func present(_ content: AnyView, onClose: @escaping () -> Void, shouldClose: (() -> Bool)? = nil) {
+    func present(
+        _ content: AnyView,
+        toolbar: AnyView? = nil,
+        onClose: @escaping () -> Void,
+        shouldClose: (() -> Bool)? = nil
+    ) {
         AppActivationPolicy.activateRegular()
         self.onClose = onClose
         self.shouldClose = shouldClose
         lastContent = content
+        toolbarContent = toolbar
 
         if let window {
             window.makeKeyAndOrderFront(nil)
@@ -108,10 +143,7 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
         if let id = chrome.tabbingIdentifier { window.tabbingIdentifier = id }
 
         if let style = chrome.toolbarStyle {
-            // .unified cần một NSToolbar để titlebar cao đúng; phase 4 thay bằng toolbar thật.
-            let toolbar = NSToolbar(identifier: chrome.tabbingIdentifier ?? autosaveName)
-            window.toolbar = toolbar
-            window.toolbarStyle = style
+            installToolbar(on: window, style: style)
         }
 
         if let tabbing = window as? TabbingWindow {
@@ -131,6 +163,37 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
         return window
     }
 
+    private func installToolbar(on window: NSWindow, style: NSWindow.ToolbarStyle) {
+        let toolbar = NSToolbar(identifier: chrome.tabbingIdentifier ?? autosaveName)
+        toolbar.displayMode = .iconOnly
+        toolbar.allowsUserCustomization = false
+        window.toolbarStyle = style
+
+        guard let content = toolbarContent else {
+            window.toolbar = toolbar
+            return
+        }
+
+        let hosting = NSHostingView(rootView: content)
+        hosting.translatesAutoresizingMaskIntoConstraints = false
+        let width = hosting.widthAnchor.constraint(equalToConstant: max(defaultSize.width, 400))
+        width.isActive = true
+        hosting.heightAnchor.constraint(equalToConstant: 44).isActive = true
+
+        let delegate = WorkspaceToolbarDelegate(view: hosting)
+        toolbar.delegate = delegate
+        window.toolbar = toolbar
+
+        toolbarDelegates[ObjectIdentifier(window)] = delegate
+        toolbarWidthConstraints[ObjectIdentifier(window)] = width
+        DispatchQueue.main.async { [weak self] in self?.updateToolbarWidth(for: window) }
+    }
+
+    private func updateToolbarWidth(for window: NSWindow) {
+        guard let constraint = toolbarWidthConstraints[ObjectIdentifier(window)] else { return }
+        constraint.constant = max(400, window.frame.width - 12)
+    }
+
     // Phase 1: tab mới dùng lại content (có thể trùng); phase 3 tách per-tab store.
     private func openTab() {
         guard let content = lastContent, let anchor = window else { return }
@@ -141,6 +204,11 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
         tab.makeKeyAndOrderFront(nil)
     }
 
+    func windowDidResize(_ notification: Notification) {
+        guard let resized = notification.object as? NSWindow else { return }
+        updateToolbarWidth(for: resized)
+    }
+
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard sender == window else { return true }
         return shouldClose?() ?? true
@@ -148,6 +216,8 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         guard let closed = notification.object as? NSWindow else { return }
+        toolbarDelegates[ObjectIdentifier(closed)] = nil
+        toolbarWidthConstraints[ObjectIdentifier(closed)] = nil
         if closed != window {
             tabWindows.removeAll { $0 == closed }
             return
@@ -155,8 +225,11 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
         window = nil
         shouldClose = nil
         lastContent = nil
+        toolbarContent = nil
         tabWindows.forEach { $0.close() }
         tabWindows.removeAll()
+        toolbarDelegates.removeAll()
+        toolbarWidthConstraints.removeAll()
         let callback = onClose
         onClose = nil
         callback?()

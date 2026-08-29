@@ -1,5 +1,8 @@
 import Combine
 import Foundation
+import os
+
+private let workspaceSignposter = OSSignposter(subsystem: "com.ktstack.database", category: "workspace")
 
 /// Gom trạng thái cửa sổ workspace: danh sách profile (đồng bộ ConnectionStore), chấm engine
 /// (mirror ServerReachabilityService), cache schema theo (profile, database), profile/db đang chọn.
@@ -11,7 +14,20 @@ public final class WorkspaceStore: ObservableObject {
     @Published public var selectedProfileID: UUID?
     @Published public var activeDatabase: String?
 
+    // Pool tab theo object: mỗi tab một VM + connection riêng (quyết định user 2026-08-29).
+    @Published public private(set) var tabs: [WorkspaceTabSession] = []
+    @Published public var activeTabID: UUID?
+
+    // Ý định UI dùng chung giữa toolbar (NSToolbar host) và nội dung: inspector, focus filter.
+    @Published public var inspectorVisible: Bool {
+        didSet { UserDefaults.standard.set(inspectorVisible, forKey: Self.inspectorKey) }
+    }
+    @Published public var filterFocusToken = 0
+    private static let inspectorKey = "KTStack.databaseInspectorVisible"
+
     public let recentStore: RecentObjectStore
+    let makeViewModel: (@MainActor () -> DatabaseV2ViewModel)?
+    let tabIdleInterval: TimeInterval
 
     private let reachability: ServerReachabilityService
     private let objectLoader: (SchemaKey) async throws -> [TableInfo]
@@ -21,11 +37,16 @@ public final class WorkspaceStore: ObservableObject {
         connectionStore: ConnectionStore,
         reachability: ServerReachabilityService,
         recentStore: RecentObjectStore,
-        objectLoader: @escaping (SchemaKey) async throws -> [TableInfo]
+        objectLoader: @escaping (SchemaKey) async throws -> [TableInfo],
+        makeViewModel: (@MainActor () -> DatabaseV2ViewModel)? = nil,
+        tabIdleInterval: TimeInterval = 300
     ) {
         self.reachability = reachability
         self.recentStore = recentStore
         self.objectLoader = objectLoader
+        self.makeViewModel = makeViewModel
+        self.tabIdleInterval = tabIdleInterval
+        inspectorVisible = UserDefaults.standard.bool(forKey: Self.inspectorKey)
 
         connectionStore.$profiles
             .sink { [weak self] userProfiles in
@@ -73,4 +94,139 @@ public final class WorkspaceStore: ObservableObject {
     public func stopPolling() {
         reachability.stop(owner: "workspace")
     }
+
+    // MARK: Tabs
+
+    public var activeSession: WorkspaceTabSession? {
+        tabs.first { $0.id == activeTabID }
+    }
+
+    public var pendingChangeTotal: Int {
+        tabs.reduce(0) { $0 + $1.vm.pendingChangeCount }
+    }
+
+    public var activeVM: DatabaseV2ViewModel? { activeSession?.vm }
+
+    public func focusFilter() { filterFocusToken += 1 }
+
+    /// ＋ Query từ toolbar: mở tab query cùng (profile, database) với tab đang mở.
+    public func openQueryForActive() {
+        guard let session = activeSession else { return }
+        openQuery(profileID: session.kind.profileID, database: session.kind.database)
+    }
+
+    /// DB dropdown ở status pill: đổi database của tab đang mở.
+    public func selectDatabaseForActive(_ name: String) {
+        guard let vm = activeVM, vm.selectedDatabase != name else { return }
+        Task { await vm.select(database: name) }
+    }
+
+    /// Refresh từ toolbar: nạp lại cửa sổ dòng hiện tại và bỏ cache schema của tab đang mở.
+    public func refreshActive() {
+        guard let session = activeSession else { return }
+        let kind = session.kind
+        session.touch()
+        Task { await session.vm.reloadLoaded() }
+        if !kind.isQuery {
+            invalidate(SchemaKey(profileID: kind.profileID, database: kind.database))
+        }
+    }
+
+    /// Single-click: nếu đã có tab đúng object thì kích hoạt; nếu tab hiện tại chưa staged và cùng
+    /// (profile, database) thì preview vào đó; ngược lại (hoặc double-click) mở tab mới.
+    public func openTable(_ table: TableInfo, profileID: UUID, database: String, forceNewTab: Bool) {
+        guard let profile = profiles.first(where: { $0.id == profileID }) else { return }
+        let target = WorkspaceTab.table(profileID: profileID, database: database, table: table)
+        if let existing = tabs.first(where: { $0.kind == target }) {
+            activate(existing.id)
+            return
+        }
+        if !forceNewTab, let active = activeSession, active.vm.pendingChangeCount == 0,
+           !active.kind.isQuery, active.kind.profileID == profileID, active.kind.database == database
+        {
+            active.retarget(target)
+            active.vm.select(table: table)
+            active.touch()
+            return
+        }
+        guard let make = makeViewModel else { return }
+        let session = WorkspaceTabSession(kind: target, vm: make(), idleInterval: tabIdleInterval)
+        tabs.append(session)
+        activeTabID = session.id
+        session.touch()
+        Task { await connect(session, profile: profile, database: database, table: table) }
+    }
+
+    public func openQuery(profileID: UUID, database: String) {
+        guard let profile = profiles.first(where: { $0.id == profileID }), let make = makeViewModel else { return }
+        let target = WorkspaceTab.query(profileID: profileID, database: database, id: UUID())
+        let session = WorkspaceTabSession(kind: target, vm: make(), idleInterval: tabIdleInterval)
+        tabs.append(session)
+        activeTabID = session.id
+        session.touch()
+        Task { await connect(session, profile: profile, database: database, table: nil) }
+    }
+
+    public func activate(_ id: UUID) {
+        activeTabID = id
+        guard let session = tabs.first(where: { $0.id == id }) else { return }
+        session.touch()
+        if session.vm.isSuspended { Task { await session.resume() } }
+    }
+
+    @discardableResult
+    public func closeTab(_ id: UUID, force: Bool = false) -> TabCloseOutcome {
+        guard let idx = tabs.firstIndex(where: { $0.id == id }) else { return .closed }
+        let session = tabs[idx]
+        if !force, session.vm.pendingChangeCount > 0 {
+            return .needsConfirmation(session.vm.pendingChangeCount)
+        }
+        session.cancelIdle()
+        let vm = session.vm
+        Task { await vm.disconnect() }
+        tabs.remove(at: idx)
+        if activeTabID == id {
+            activeTabID = tabs.indices.contains(idx) ? tabs[idx].id : tabs.last?.id
+        }
+        return .closed
+    }
+
+    /// Đóng cửa sổ: ngắt và bỏ mọi tab.
+    public func closeAll() {
+        for session in tabs {
+            session.cancelIdle()
+            let vm = session.vm
+            Task { await vm.disconnect() }
+        }
+        tabs = []
+        activeTabID = nil
+    }
+
+    /// Sau DDL apply thành công: bỏ cache schema rồi nạp lại cho sidebar.
+    public func refreshSchema(profileID: UUID, database: String) {
+        let key = SchemaKey(profileID: profileID, database: database)
+        invalidate(key)
+        Task { _ = try? await schema(for: key) }
+    }
+
+    private func connect(
+        _ session: WorkspaceTabSession, profile: ConnectionProfile, database: String, table: TableInfo?
+    ) async {
+        let interval = workspaceSignposter.beginInterval("open-tab")
+        defer { workspaceSignposter.endInterval("open-tab", interval) }
+        await session.vm.connect(profile: profile)
+        guard case .connected = session.vm.connectionState else { return }
+        if session.vm.selectedDatabase != database,
+           session.vm.databases.contains(where: { $0.name == database })
+        {
+            await session.vm.select(database: database)
+        }
+        if let table { session.vm.select(table: table) }
+        session.touch()
+    }
+}
+
+public enum TabCloseOutcome: Equatable {
+    case closed
+    case needsConfirmation(Int)
 }

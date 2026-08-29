@@ -24,15 +24,34 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
             .appendingPathComponent("database", isDirectory: true)
             .appendingPathComponent("filter-presets.json")
     )
-    @MainActor lazy var v2VM = DatabaseV2ViewModel(tools: tools, presetStore: filterPresetStore)
+    @MainActor lazy var queryHistoryStore = QueryHistoryStore(paths: paths)
+    @MainActor lazy var queryFavoriteStore = QueryFavoriteStore(paths: paths)
+    @MainActor lazy var v2VM = DatabaseV2ViewModel(
+        tools: tools, presetStore: filterPresetStore,
+        historyStore: queryHistoryStore, favoriteStore: queryFavoriteStore
+    )
     @MainActor lazy var recentObjectStore = RecentObjectStore(paths: paths)
     @MainActor lazy var lastUsedDatabaseStore = LastUsedDatabaseStore()
     @MainActor lazy var workspaceStore = WorkspaceStore(
         connectionStore: connectionStore,
         reachability: reachability,
         recentStore: recentObjectStore,
-        objectLoader: { [weak self] _ in self?.v2VM.tables ?? [] }
+        objectLoader: { [weak self] _ in self?.v2VM.tables ?? [] },
+        makeViewModel: { [weak self, tools] in self?.makeTabViewModel() ?? DatabaseV2ViewModel(tools: tools) }
     )
+
+    /// Mỗi tab một VM riêng nhưng dùng chung preset/history/favorite store (ghi file qua store serial).
+    @MainActor
+    func makeTabViewModel() -> DatabaseV2ViewModel {
+        let vm = DatabaseV2ViewModel(
+            tools: tools, presetStore: filterPresetStore,
+            historyStore: queryHistoryStore, favoriteStore: queryFavoriteStore
+        )
+        vm.onSchemaChanged = { [weak self] profileID, database in
+            self?.workspaceStore.refreshSchema(profileID: profileID, database: database)
+        }
+        return vm
+    }
     @MainActor lazy var backupSession = BackupSession.managed(tools: tools, paths: paths)
     @MainActor let feedback = KTFeedbackCenter()
     @MainActor let sectionState = DatabaseSectionState()
@@ -102,6 +121,12 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
         )
     }
 
+    /// Nội dung NSToolbar unified của cửa sổ workspace, đọc tab đang mở từ workspaceStore.
+    @MainActor
+    public func makeWorkspaceToolbar() -> AnyView {
+        AnyView(WorkspaceToolbar(workspace: workspaceStore))
+    }
+
     #if DEBUG
         @MainActor
         public func makeSQLDraftsGallery() -> AnyView {
@@ -129,12 +154,22 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
 
     @MainActor
     public func workspaceDidClose() {
+        workspaceStore.closeAll()
         Task { await v2VM.disconnect() }
     }
 
+    /// Đóng cửa sổ workspace: gom pending mọi tab, hỏi một lần với tổng số.
     @MainActor
     public func workspaceShouldClose() -> Bool {
-        sqlEditorShouldClose()
+        let pending = workspaceStore.pendingChangeTotal
+        guard pending > 0 else { return true }
+        let alert = NSAlert()
+        alert.messageText = "Discard pending changes?"
+        alert.informativeText =
+            "\(pending) pending change\(pending == 1 ? "" : "s") across open tabs will be discarded if you close. Commit or undo first to keep them."
+        alert.addButton(withTitle: "Discard & Close")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     @MainActor

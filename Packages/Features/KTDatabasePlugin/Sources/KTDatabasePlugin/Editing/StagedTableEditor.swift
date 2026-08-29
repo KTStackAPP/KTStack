@@ -10,7 +10,7 @@ public final class StagedTableEditor {
 
     private let resolver: RowIdentityResolver
     private let planner: RelationalWritePlanner
-    private let executor: RelationalWriteExecutor
+    private var executor: RelationalWriteExecutor
     private let buffer = GridEditBuffer()
     private let columnByName: [String: ColumnInfo]
 
@@ -157,6 +157,11 @@ public final class StagedTableEditor {
 
     public func sqlPreview() throws -> SQLPreview {
         try planner.preview(buffer.operations())
+    }
+
+    /// Trỏ commit sang driver/connection mới sau khi tab resume; giữ nguyên buffer staged.
+    public func rebind(driver: any RelationalDriver, database: String) {
+        executor = RelationalWriteExecutor(driver: driver, database: database)
     }
 
     public func commit() async throws {

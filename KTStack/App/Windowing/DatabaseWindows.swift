@@ -50,6 +50,7 @@ final class DatabaseWindows {
         case let .workspace(profileID):
             workspace.present(
                 plugin.makeWorkspaceView(profileID: profileID),
+                toolbar: plugin.makeWorkspaceToolbar(),
                 onClose: { [plugin] in plugin.workspaceDidClose() },
                 shouldClose: { [plugin] in plugin.workspaceShouldClose() }
             )

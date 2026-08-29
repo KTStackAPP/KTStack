@@ -28,6 +28,8 @@ struct V2DataTabView: View {
                         selectedRow: $selectedRowIndex,
                         onActivate: nil,
                         onNearEnd: { Task { await vm.fetchMore() } },
+                        onNearTop: { Task { await vm.fetchPrevious() } },
+                        rowNumberOffset: vm.windowStart,
                         editableColumns: vm.canEdit ? vm.editableColumns : [],
                         onCommitEdit: { row, column, value in
                             vm.stageCellEdit(row: row, column: column, newValue: value)

@@ -126,6 +126,8 @@ final class DatabaseV2ViewModelTests: XCTestCase {
             return QueryResult(columns: [ColumnMeta(name: "id")], rows: [[.int(1)]])
         }
 
+        func serverVersion() async throws -> String { "8.0" }
+
         func paginatedRows(database: String, table: String, limit: Int, offset: Int) async throws -> QueryResult {
             if shouldPaginateFail { throw TestError.paginateFailed }
             lock.withLock { _paginateCalls.append((database, table, limit, offset)) }

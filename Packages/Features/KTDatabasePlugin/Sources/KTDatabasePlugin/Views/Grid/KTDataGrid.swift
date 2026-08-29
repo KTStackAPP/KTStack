@@ -6,6 +6,8 @@ struct KTDataGrid: NSViewRepresentable {
     var selectedRow: Binding<Int?>?
     var onActivate: ((Int) -> Void)?
     var onNearEnd: (() -> Void)?
+    var onNearTop: (() -> Void)?
+    var rowNumberOffset: Int = 0
     var sort: SortSpec?
     var onSortColumn: ((String) -> Void)?
     var editableColumns: Set<String> = []
@@ -62,6 +64,8 @@ struct KTDataGrid: NSViewRepresentable {
         context.coordinator.selectedRow = selectedRow
         context.coordinator.onActivate = onActivate
         context.coordinator.onNearEnd = onNearEnd
+        context.coordinator.onNearTop = onNearTop
+        context.coordinator.rowNumberOffset = rowNumberOffset
         context.coordinator.sort = sort
         context.coordinator.onSortColumn = onSortColumn
         context.coordinator.editableColumns = editableColumns
@@ -88,6 +92,8 @@ struct KTDataGrid: NSViewRepresentable {
         var selectedRow: Binding<Int?>?
         var onActivate: ((Int) -> Void)?
         var onNearEnd: (() -> Void)?
+        var onNearTop: (() -> Void)?
+        var rowNumberOffset: Int = 0
         var sort: SortSpec?
         var onSortColumn: ((String) -> Void)?
         var editableColumns: Set<String> = []
@@ -100,6 +106,9 @@ struct KTDataGrid: NSViewRepresentable {
         var columnEditors: [String: CellEditorKind] = [:]
         var datePickerPopover: NSPopover?
         private var nearEndRequested = false
+        private var nearTopRequested = false
+        private var lastRowNumberOffset = 0
+        private var suppressScrollCallbacks = false
         private weak var editingField: NSTextField?
         private var editingRow = -1
         private var editingColumn = -1
@@ -167,12 +176,19 @@ struct KTDataGrid: NSViewRepresentable {
 
         @objc
         private func boundsDidChange() {
-            guard let scroll = scrollView, let table, !result.rows.isEmpty else { return }
+            guard !suppressScrollCallbacks, let scroll = scrollView, let table, !result.rows.isEmpty else { return }
             if editingField != nil { table.window?.makeFirstResponder(table) }
             let documentHeight = table.bounds.height
             let viewportHeight = scroll.contentView.bounds.height
             guard documentHeight > viewportHeight else { return }
-            let fraction = scroll.contentView.documentVisibleRect.maxY / documentHeight
+            let visible = scroll.contentView.documentVisibleRect
+            let topFraction = visible.minY / documentHeight
+            if topFraction < 0.1, onNearTop != nil {
+                if !nearTopRequested { nearTopRequested = true; onNearTop?() }
+            } else {
+                nearTopRequested = false
+            }
+            let fraction = visible.maxY / documentHeight
             if fraction <= 0.8 {
                 nearEndRequested = false
                 return
@@ -267,10 +283,24 @@ struct KTDataGrid: NSViewRepresentable {
         func apply(_ newResult: QueryResult) {
             let columnsChanged = newResult.columns != result.columns
             let rowCountChanged = newResult.rows.count != result.rows.count
+            let offsetDelta = rowNumberOffset - lastRowNumberOffset
             result = newResult
             if columnsChanged { rebuildColumns(for: newResult) }
-            if rowCountChanged { nearEndRequested = false }
+            if rowCountChanged || offsetDelta != 0 {
+                nearEndRequested = false
+                nearTopRequested = false
+            }
             table?.reloadData()
+            // Cắt/thêm đầu cửa sổ trượt làm hàng đang xem dịch; bù origin để giữ nguyên vị trí thị giác.
+            if offsetDelta != 0, let scroll = scrollView, let table {
+                suppressScrollCallbacks = true
+                var origin = scroll.contentView.bounds.origin
+                origin.y = max(0, origin.y - CGFloat(offsetDelta) * table.rowHeight)
+                scroll.contentView.scroll(to: origin)
+                scroll.reflectScrolledClipView(scroll.contentView)
+                suppressScrollCallbacks = false
+            }
+            lastRowNumberOffset = rowNumberOffset
             updateSortIndicators()
             clampSelection()
         }
@@ -348,7 +378,7 @@ struct KTDataGrid: NSViewRepresentable {
                     ?? Self.makeCell(identifier: rownumID)
                 cell.delegate = nil
                 cell.isEditable = false
-                cell.stringValue = "\(row + 1)"
+                cell.stringValue = "\(row + 1 + rowNumberOffset)"
                 cell.textColor = Self.rownumText
                 cell.alignment = .right
                 cell.drawsBackground = true

@@ -152,32 +152,6 @@ struct V2FilterSheet: View {
     }
 
     private var builtConditions: [FilterCondition] {
-        conditions.compactMap { $0.toCondition() }
-    }
-}
-
-// Bản dựng UI cho một điều kiện lọc: value là chuỗi, chuyển sang Cell khi Apply.
-struct EditableCondition: Identifiable {
-    let id = UUID()
-    var column: String
-    var op: FilterOperator
-    var value: String
-
-    init(column: String, op: FilterOperator, value: String) {
-        self.column = column
-        self.op = op
-        self.value = value
-    }
-
-    init(_ condition: FilterCondition) {
-        self.column = condition.column
-        self.op = condition.op
-        self.value = condition.value.displayText ?? ""
-    }
-
-    func toCondition() -> FilterCondition? {
-        guard !column.isEmpty else { return nil }
-        let cell: Cell = op.bindsValue ? (value.isEmpty ? .text("") : .text(value)) : .null
-        return FilterCondition(column: column, op: op, value: cell)
+        FilterDraft.conditions(conditions)
     }
 }
