@@ -176,6 +176,13 @@ targets:
         link: false
         copy:
           destination: executables
+      # Spotlight launcher stub: lands in Contents/Applications so LaunchServices/Spotlight index
+      # "KTStack Database". Build-order + copy only (no linking); it opens ktstack://database and exits.
+      - target: KTStackDatabaseLauncher
+        link: false
+        copy:
+          destination: wrapper
+          subpath: Contents/Applications
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ktstack.app
@@ -231,6 +238,25 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ktstack.resolve
         CODE_SIGN_ENTITLEMENTS: entitlements/helper.entitlements
+        ENABLE_HARDENED_RUNTIME: "YES"
+
+  # Spotlight launcher stub. LSUIElement app that opens ktstack://database then exits, copied into
+  # KTStack.app/Contents/Applications. Deliberately links no KTStackKit/Core (see CLAUDE.md Invariants).
+  KTStackDatabaseLauncher:
+    type: application
+    platform: macOS
+    sources:
+      - path: KTStackDatabaseLauncher
+        excludes:
+          - "Info.plist"
+    settings:
+      base:
+        PRODUCT_NAME: "KTStack Database"
+        PRODUCT_BUNDLE_IDENTIFIER: com.ktstack.database-launcher
+        INFOPLIST_FILE: KTStackDatabaseLauncher/Info.plist
+        GENERATE_INFOPLIST_FILE: "NO"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_ENTITLEMENTS: entitlements/app.entitlements
         ENABLE_HARDENED_RUNTIME: "YES"
 
   # Logic tests for the framework (config writers, paths, pool/preflight). Runs without an

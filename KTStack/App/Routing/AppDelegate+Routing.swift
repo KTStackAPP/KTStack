@@ -10,6 +10,10 @@ extension AppDelegate {
         databaseWindows.handle(route)
     }
 
+    @MainActor func openDatabasePanel() {
+        routeDatabase(.workspace(profileID: nil))
+    }
+
     @MainActor func routeServices(_ route: ServicesRoute) {
         switch route {
         case .runtimes: navigation.selection = "runtimes"

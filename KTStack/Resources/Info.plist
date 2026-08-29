@@ -26,6 +26,21 @@
 	<true/>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.ktstack.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>ktstack</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>com.ktstack.open-database</string>
+	</array>
 	<key>ATSApplicationFontsPath</key>
 	<string>fonts</string>
 	<key>NSHumanReadableCopyright</key>

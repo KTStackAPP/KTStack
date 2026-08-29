@@ -56,9 +56,16 @@ struct KTStackApp: App {
 
     private var menuBarContent: MenuBarContentView {
         #if DEBUG
-            MenuBarContentView(plugins: appDelegate.plugins, openSQLDrafts: { appDelegate.openSQLDrafts() })
+            MenuBarContentView(
+                plugins: appDelegate.plugins,
+                openDatabase: { appDelegate.openDatabasePanel() },
+                openSQLDrafts: { appDelegate.openSQLDrafts() }
+            )
         #else
-            MenuBarContentView(plugins: appDelegate.plugins)
+            MenuBarContentView(
+                plugins: appDelegate.plugins,
+                openDatabase: { appDelegate.openDatabasePanel() }
+            )
         #endif
     }
 

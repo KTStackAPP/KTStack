@@ -94,6 +94,18 @@ echo "=== 3. privileged helper ==="
 HELPER="$APP/Contents/MacOS/KTStackHelper"
 [[ -f "$HELPER" ]] && sign_helper "$HELPER"
 
+echo "=== 3.5 nested launcher apps (Contents/Applications): inner Mach-O first, then seal ==="
+if [[ -d "$APP/Contents/Applications" ]]; then
+    for nested in "$APP"/Contents/Applications/*.app; do
+        [[ -d "$nested" ]] || continue
+        while IFS= read -r -d '' f; do
+            is_macho "$f" || continue
+            echo "  base ${f#"$APP/"}"; sign_by_kind "$f"
+        done < <(find "$nested" -type f \( -perm -111 -o -name "*.dylib" \) -print0)
+        echo "  app  $(basename "$nested")"; sign "$BASE_ENT" "$nested"
+    done
+fi
+
 echo "=== 4. the app bundle (last) ==="
 sign "$BASE_ENT" "$APP"
 

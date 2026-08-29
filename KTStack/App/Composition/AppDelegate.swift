@@ -16,6 +16,10 @@ import ServiceManagement
 import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    // Deep link (ktstack://) tới trước khi plugin sẵn sàng → giữ lại, xử lý cuối applicationDidFinishLaunching.
+    @MainActor var pendingURLs: [URL] = []
+    @MainActor var isReadyForURLs = false
+
     @MainActor lazy var preferences = AppPreferences()
 
     @MainActor lazy var server: LocalServerController = .init(
@@ -204,6 +208,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         navigation.openLogsHandler = { [weak self] in self?.logsPlugin.show(sourceID: $0) }
         applyStartupPreferences()
         pluginLifecycle.startAll()
+
+        indexDatabaseSpotlightItem()
+        isReadyForURLs = true
+        let queued = pendingURLs
+        pendingURLs.removeAll()
+        queued.forEach(handle(url:))
     }
 
     @MainActor
