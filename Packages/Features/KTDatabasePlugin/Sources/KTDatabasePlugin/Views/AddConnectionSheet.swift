@@ -10,6 +10,7 @@ struct AddConnectionSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let editing: ConnectionProfile?
+    var draft: ConnectionDraft?
 
     @State private var kind: DatabaseKind = .mysql
     @State private var name = ""
@@ -163,19 +164,22 @@ struct AddConnectionSheet: View {
     }
 
     private static func defaultPort(_ kind: DatabaseKind) -> String {
-        switch kind {
-        case .postgres: "5432"
-        case .mysql: "3306"
-        case .mongodb: "27017"
-        case .sqlite: ""
-        }
+        kind == .sqlite ? "" : String(kind.defaultPort)
     }
 
     private func hydrate() {
-        guard let e = editing else { return }
-        kind = e.kind; name = e.name; host = e.host; port = String(e.port)
-        user = e.user; database = e.database; filePath = e.filePath ?? ""
-        tlsMode = e.tlsMode; readOnly = e.readOnly // password intentionally left blank
+        if let e = editing {
+            apply(e) // password intentionally left blank
+        } else if let draft {
+            apply(draft.profile)
+            password = draft.password ?? ""
+        }
+    }
+
+    private func apply(_ profile: ConnectionProfile) {
+        kind = profile.kind; name = profile.name; host = profile.host; port = String(profile.port)
+        user = profile.user; database = profile.database; filePath = profile.filePath ?? ""
+        tlsMode = profile.tlsMode; readOnly = profile.readOnly
     }
 
     private func buildProfile() -> ConnectionProfile? {

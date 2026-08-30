@@ -11,10 +11,27 @@ final class KTDatabasePluginTests: XCTestCase {
         func toggle(_: DatabaseEngine) {}
     }
 
+    private final class FakeSites: SiteCatalogManaging {
+        var catalog = SiteCatalogState(sites: [], tld: "test")
+        func catalogStream() -> AsyncStream<SiteCatalogState> { AsyncStream { $0.finish() } }
+        func setPHPVersion(_: UUID, _: String) {}
+        func editDomain(_: UUID, _: String) throws {}
+        func validateDomain(_: String, excluding _: UUID?) throws {}
+        func setSecure(_: UUID, _: Bool) {}
+        func setNodePort(_: UUID, _: Int?) {}
+        func setEngine(_: UUID, _: SiteServerEngine) {}
+        func setProxyTarget(_: UUID, _: String) throws {}
+        func setAliases(_: UUID, _: [String]) throws {}
+        func validateAliases(_: [String], for _: UUID) throws {}
+        func setEnvVars(_: UUID, _: [String: String]) throws {}
+        func saveFrontDirectives(_: UUID, _: String) async throws {}
+    }
+
     private func makePlugin(route: @escaping @MainActor (DatabaseRoute) -> Void) -> KTDatabasePlugin {
         KTDatabasePlugin(
             tools: FakeDatabaseTools(),
             engines: FakeEngines(),
+            sites: FakeSites(),
             paths: AppSupportPaths(),
             route: route
         )

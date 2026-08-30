@@ -65,6 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor lazy var databasePlugin = KTDatabasePlugin(
         tools: DatabaseToolsService(paths: AppSupportPaths()),
         engines: services,
+        sites: server,
         route: { [weak self] route in self?.routeDatabase(route) }
     )
 

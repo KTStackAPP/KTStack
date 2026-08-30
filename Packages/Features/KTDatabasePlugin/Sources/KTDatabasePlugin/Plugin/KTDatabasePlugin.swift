@@ -9,6 +9,7 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
 
     private let tools: any DatabaseToolsProviding
     let engines: any DatabaseEngineManaging
+    let sites: any SiteCatalogManaging
     private let paths: AppSupportPaths
     private let route: @MainActor (DatabaseRoute) -> Void
 
@@ -79,11 +80,13 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
     public init(
         tools: any DatabaseToolsProviding,
         engines: any DatabaseEngineManaging,
+        sites: any SiteCatalogManaging,
         paths: AppSupportPaths = AppSupportPaths(),
         route: @escaping @MainActor (DatabaseRoute) -> Void
     ) {
         self.tools = tools
         self.engines = engines
+        self.sites = sites
         self.paths = paths
         self.route = route
     }
