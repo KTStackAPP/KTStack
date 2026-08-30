@@ -63,7 +63,6 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
         )
     }
     @MainActor let feedback = KTFeedbackCenter()
-    @MainActor let sectionState = DatabaseSectionState()
 
     @MainActor lazy var reachability: ServerReachabilityService = {
         let service = ServerReachabilityService()
@@ -94,7 +93,7 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
     @MainActor
     public func makeContentView() -> AnyView {
         AnyView(
-            DatabaseSectionContainer(plugin: self, state: sectionState)
+            DatabaseSectionContainer(plugin: self)
                 .environmentObject(connectionStore)
                 .environmentObject(databaseVM)
                 .environmentObject(documentVM)
@@ -139,13 +138,13 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
         }
     #endif
 
-    /// Overview "Open Database Panel": mở workspace không chọn sẵn profile.
+    /// "Open Database Panel": mở workspace không chọn sẵn profile.
     @MainActor
     func openDatabasePanel() {
         route(.workspace(profileID: nil))
     }
 
-    /// Overview engine row Open: mở workspace và chọn sẵn engine tương ứng.
+    /// Open trên một hàng kết nối: mở workspace và chọn sẵn profile đó.
     @MainActor
     func openWorkspace(_ profile: ConnectionProfile) {
         route(.workspace(profileID: profile.id))
@@ -208,26 +207,8 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
 @MainActor
 struct DatabaseSectionContainer: View {
     let plugin: KTDatabasePlugin
-    @ObservedObject var state: DatabaseSectionState
 
     var body: some View {
-        DatabaseOverviewView(plugin: plugin)
-            .overlay { modalLayer }
-    }
-
-    private var modalLayer: some View {
-        ZStack {
-            if state.connectPresented {
-                KTConnectModal(
-                    onClose: { state.connectPresented = false },
-                    onConnected: { name in
-                        state.connectPresented = false
-                        plugin.feedback.toast("Connected to \(name)")
-                    }
-                )
-                .transition(.opacity)
-            }
-        }
-        .animation(.easeOut(duration: 0.15), value: state.connectPresented)
+        DatabaseConnectionsPage(plugin: plugin)
     }
 }
