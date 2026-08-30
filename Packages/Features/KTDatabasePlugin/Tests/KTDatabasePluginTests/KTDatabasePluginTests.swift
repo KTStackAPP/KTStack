@@ -1,4 +1,5 @@
 import KTPlatformContracts
+import KTPluginKit
 import KTStackCore
 import XCTest
 @testable import KTDatabasePlugin
@@ -32,6 +33,7 @@ final class KTDatabasePluginTests: XCTestCase {
             tools: FakeDatabaseTools(),
             engines: FakeEngines(),
             sites: FakeSites(),
+            modals: KTModalPresenter(),
             paths: AppSupportPaths(),
             route: route
         )

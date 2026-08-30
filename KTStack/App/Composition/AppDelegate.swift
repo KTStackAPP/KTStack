@@ -66,6 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tools: DatabaseToolsService(paths: AppSupportPaths()),
         engines: services,
         sites: server,
+        modals: modals,
         route: { [weak self] route in self?.routeDatabase(route) }
     )
 

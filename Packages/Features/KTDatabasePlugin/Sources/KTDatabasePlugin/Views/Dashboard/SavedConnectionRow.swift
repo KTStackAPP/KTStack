@@ -1,7 +1,7 @@
 import KTPluginKit
 import SwiftUI
 
-/// Hàng kết nối người dùng lưu: badge LOCAL/REMOTE, host mono, nút Open.
+/// Hàng kết nối đã lưu: badge LOCAL/REMOTE, dòng phụ, nút Open.
 struct SavedConnectionRow: View {
     let profile: ConnectionProfile
     let status: ServerStatus
@@ -10,7 +10,9 @@ struct SavedConnectionRow: View {
 
     var body: some View {
         HStack(spacing: KTSpacing.md) {
-            ConnectionRowStatus.tile(profile.kind)
+            KTIconTile(tint: KTEngineTint.of(profile.kind.rawValue), size: 34, radius: 9) {
+                Image(systemName: "cylinder.split.1x2").font(.system(size: 14))
+            }
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: KTSpacing.sm) {
                     Text(profile.name).font(KTType.rowName).foregroundStyle(KTColor.ink).lineLimit(1)
@@ -20,7 +22,7 @@ struct SavedConnectionRow: View {
                     )
                 }
                 HStack(spacing: 6) {
-                    KTDot(color: ConnectionRowStatus.color(status), size: 7)
+                    KTDot(color: statusColor, size: 7)
                     Text(profile.subtitle)
                         .font(KTType.monoSmall)
                         .foregroundStyle(KTColor.muted)
@@ -37,5 +39,13 @@ struct SavedConnectionRow: View {
 
     private var isLocal: Bool {
         profile.kind == .sqlite || ConnectionProfile.isLoopback(profile.host)
+    }
+
+    private var statusColor: Color {
+        switch status {
+        case .online: KTColor.online
+        case .connecting: KTColor.accent
+        case .offline: KTColor.muted
+        }
     }
 }

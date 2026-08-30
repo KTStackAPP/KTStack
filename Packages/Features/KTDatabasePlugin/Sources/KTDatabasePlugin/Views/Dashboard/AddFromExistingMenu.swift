@@ -1,11 +1,7 @@
-import KTPluginKit
 import SwiftUI
 
-/// Menu "Add from Existing", dùng chung cho panel trái (có chữ) và toolbar phải (chỉ icon).
+/// Menu "Add from Existing" trên toolbar modal kết nối.
 struct AddFromExistingMenu: View {
-    enum Style { case titled, icon }
-
-    let style: Style
     let onImportURL: () -> Void
     let onImportSite: () -> Void
 
@@ -14,13 +10,7 @@ struct AddFromExistingMenu: View {
             Button("From URL…", action: onImportURL)
             Button("From Site…", action: onImportSite)
         } label: {
-            switch style {
-            case .titled:
-                Label("Add from Existing", systemImage: "square.and.arrow.down")
-                    .font(KTType.control)
-            case .icon:
-                Image(systemName: "square.and.arrow.down")
-            }
+            Image(systemName: "square.and.arrow.down")
         }
         .menuStyle(.borderlessButton)
         .fixedSize()

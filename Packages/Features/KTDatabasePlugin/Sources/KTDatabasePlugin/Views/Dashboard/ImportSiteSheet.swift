@@ -7,6 +7,7 @@ struct ImportSiteSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let sites: [SiteSummary]
+    var onClose: (() -> Void)?
 
     @State private var selection: UUID?
     @State private var error: String?
@@ -14,7 +15,7 @@ struct ImportSiteSheet: View {
 
     var body: some View {
         if let draft {
-            AddConnectionSheet(editing: nil, draft: draft)
+            AddConnectionSheet(editing: nil, draft: draft, onClose: onClose)
         } else {
             picker
         }
@@ -43,7 +44,8 @@ struct ImportSiteSheet: View {
             Divider()
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Cancel") { if let onClose { onClose() } else { dismiss() } }
+                    .keyboardShortcut(.cancelAction)
                 Button("Continue", action: read)
                     .keyboardShortcut(.defaultAction)
                     .disabled(selection == nil)

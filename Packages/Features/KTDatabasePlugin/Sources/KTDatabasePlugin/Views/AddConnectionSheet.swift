@@ -11,6 +11,8 @@ struct AddConnectionSheet: View {
 
     let editing: ConnectionProfile?
     var draft: ConnectionDraft?
+    /// Ngoài `.sheet` (modal cửa sổ con) `dismiss` không có gì để đóng, nên chủ gọi tự xử lý.
+    var onClose: (() -> Void)?
 
     @State private var kind: DatabaseKind = .mysql
     @State private var name = ""
@@ -138,10 +140,14 @@ struct AddConnectionSheet: View {
     private var footer: some View {
         HStack {
             Spacer()
-            Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+            Button("Cancel", action: close).keyboardShortcut(.cancelAction)
             Button(editing == nil ? "Add" : "Save", action: save)
                 .keyboardShortcut(.defaultAction).disabled(!isValid)
         }
+    }
+
+    private func close() {
+        if let onClose { onClose() } else { dismiss() }
     }
 
     private var isValid: Bool {
@@ -245,6 +251,6 @@ struct AddConnectionSheet: View {
         } else {
             store.update(profile, password: pwd) // nil pwd keeps the existing secret
         }
-        dismiss()
+        close()
     }
 }

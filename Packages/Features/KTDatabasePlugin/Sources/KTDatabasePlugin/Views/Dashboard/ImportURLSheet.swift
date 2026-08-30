@@ -5,13 +5,15 @@ import SwiftUI
 struct ImportURLSheet: View {
     @Environment(\.dismiss) private var dismiss
 
+    var onClose: (() -> Void)?
+
     @State private var text = ""
     @State private var error: String?
     @State private var draft: ConnectionDraft?
 
     var body: some View {
         if let draft {
-            AddConnectionSheet(editing: nil, draft: draft)
+            AddConnectionSheet(editing: nil, draft: draft, onClose: onClose)
         } else {
             form
         }
@@ -32,7 +34,8 @@ struct ImportURLSheet: View {
             Divider()
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Cancel") { if let onClose { onClose() } else { dismiss() } }
+                    .keyboardShortcut(.cancelAction)
                 Button("Continue", action: parse)
                     .keyboardShortcut(.defaultAction)
                     .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)

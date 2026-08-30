@@ -12,6 +12,7 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
     let sites: any SiteCatalogManaging
     private let paths: AppSupportPaths
     private let route: @MainActor (DatabaseRoute) -> Void
+    private let modals: KTModalPresenter
 
     @MainActor public lazy var connectionStore = ConnectionStore(
         storeURL: paths.config
@@ -63,6 +64,8 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
         )
     }
     @MainActor let feedback = KTFeedbackCenter()
+    /// Modal chạy trong cửa sổ con riêng nên cần host feedback riêng, không dùng chung với tab.
+    @MainActor let modalFeedback = KTFeedbackCenter()
 
     @MainActor lazy var reachability: ServerReachabilityService = {
         let service = ServerReachabilityService()
@@ -80,12 +83,14 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
         tools: any DatabaseToolsProviding,
         engines: any DatabaseEngineManaging,
         sites: any SiteCatalogManaging,
+        modals: KTModalPresenter,
         paths: AppSupportPaths = AppSupportPaths(),
         route: @escaping @MainActor (DatabaseRoute) -> Void
     ) {
         self.tools = tools
         self.engines = engines
         self.sites = sites
+        self.modals = modals
         self.paths = paths
         self.route = route
     }
@@ -138,6 +143,27 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
         }
     #endif
 
+    /// Trang kết nối sống trong cửa sổ con của shell, nên phải tự bơm lại environment của tab.
+    @MainActor
+    func presentConnections(mode: ConnectionsModal.Mode = .list) {
+        modals.present(id: "database.connections") { [self] in
+            ConnectionsModal(plugin: self, mode: mode)
+                .environmentObject(connectionStore)
+                .environmentObject(databaseVM)
+                .environmentObject(documentVM)
+        }
+    }
+
+    @MainActor
+    func dismissConnections() {
+        modals.dismiss()
+    }
+
+    @MainActor
+    var importableSites: [SiteSummary] {
+        sites.catalog.sites.filter { !$0.path.isEmpty }
+    }
+
     /// "Open Database Panel": mở workspace không chọn sẵn profile.
     @MainActor
     func openDatabasePanel() {
@@ -188,11 +214,13 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
     @MainActor
     public func sectionDidActivate() {
         reachability.start(owner: "section")
+        presentConnections()
     }
 
     @MainActor
     public func sectionDidDeactivate() {
         reachability.stop(owner: "section")
+        dismissConnections()
     }
 
     /// PluginLifecycle
@@ -209,6 +237,10 @@ struct DatabaseSectionContainer: View {
     let plugin: KTDatabasePlugin
 
     var body: some View {
-        DatabaseConnectionsPage(plugin: plugin)
+        DatabaseBrandPage(
+            onConnections: { plugin.presentConnections() },
+            onCreate: { plugin.presentConnections(mode: .create) },
+            onOpenPanel: { plugin.openDatabasePanel() }
+        )
     }
 }
