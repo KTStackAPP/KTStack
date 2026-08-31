@@ -11,6 +11,7 @@ struct SiteActionsMenu: View {
     var onConfigureVSCode: () -> Void = {}
     var onRestore: () -> Void = {}
     var onSettings: () -> Void = {}
+    var onRecheckType: () -> Void = {}
 
     @State private var open = false
     @State private var pickingEditor = false
@@ -61,6 +62,9 @@ struct SiteActionsMenu: View {
                 sectionLabel("Develop")
                 row("Site Settings…", "slider.horizontal.3", "", action: onSettings)
                 row("Logs", "text.alignleft", "⌘L", action: onOpenLogs)
+                if !site.path.isEmpty {
+                    row("Re-detect Site Type", "arrow.triangle.2.circlepath", "", action: onRecheckType)
+                }
                 if site.kind == .php {
                     row("Configure VS Code Debug", "curlybraces", "", action: onConfigureVSCode)
                     row("Restore from Backup…", "arrow.uturn.backward.circle", "", action: onRestore)

@@ -26,6 +26,7 @@ struct SiteListRow: View, Equatable {
     var onConfigureVSCode: () -> Void = {}
     var onRestore: () -> Void = {}
     var onSettings: () -> Void = {}
+    var onRecheckType: () -> Void = {}
     var onError: (String) -> Void = { _ in }
 
     // Held as plain value props (not @ObservedObject) so one site's toggle doesn't re-lay-out the
@@ -59,6 +60,7 @@ struct SiteListRow: View, Equatable {
         onConfigureVSCode: @escaping () -> Void = {},
         onRestore: @escaping () -> Void = {},
         onSettings: @escaping () -> Void = {},
+        onRecheckType: @escaping () -> Void = {},
         onError: @escaping (String) -> Void = { _ in }
     ) {
         self.site = site
@@ -83,6 +85,7 @@ struct SiteListRow: View, Equatable {
         self.onConfigureVSCode = onConfigureVSCode
         self.onRestore = onRestore
         self.onSettings = onSettings
+        self.onRecheckType = onRecheckType
         self.onError = onError
         _domainDraft = State(initialValue: site.domain)
         _nodePortDraft = State(initialValue: site.nodePort.map(String.init) ?? "")
@@ -198,7 +201,8 @@ struct SiteListRow: View, Equatable {
                 onRemove: onRemove,
                 onConfigureVSCode: onConfigureVSCode,
                 onRestore: onRestore,
-                onSettings: onSettings
+                onSettings: onSettings,
+                onRecheckType: onRecheckType
             )
         }
         .padding(.vertical, 13)

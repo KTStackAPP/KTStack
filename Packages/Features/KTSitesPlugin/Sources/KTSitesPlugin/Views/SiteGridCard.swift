@@ -25,6 +25,7 @@ struct SiteGridCard: View {
     var onConfigureVSCode: () -> Void = {}
     var onRestore: () -> Void = {}
     var onSettings: () -> Void = {}
+    var onRecheckType: () -> Void = {}
 
     private var proxyDisplay: String? {
         guard let raw = site.proxyTarget else { return nil }
@@ -99,7 +100,8 @@ struct SiteGridCard: View {
                     onRemove: onRemove,
                     onConfigureVSCode: onConfigureVSCode,
                     onRestore: onRestore,
-                    onSettings: onSettings
+                    onSettings: onSettings,
+                    onRecheckType: onRecheckType
                 )
             }
             .padding(.top, 14)

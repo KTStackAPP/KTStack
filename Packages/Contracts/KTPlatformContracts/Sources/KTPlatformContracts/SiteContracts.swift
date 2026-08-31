@@ -95,6 +95,9 @@ public protocol SiteCatalogManaging: AnyObject {
     @MainActor func setEnvVars(_ id: UUID, _ env: [String: String]) throws
     // Fail-closed: nginx -t trước khi persist; tái dùng NginxIncludeSaveError.
     @MainActor func saveFrontDirectives(_ id: UUID, _ text: String) async throws
+    // Parse lại folder để nhận diện type; nil khi site không tồn tại hoặc không có folder.
+    @discardableResult
+    @MainActor func recheckKind(_ id: UUID) -> SiteKind?
 }
 
 public struct SiteServerState: Sendable, Equatable {

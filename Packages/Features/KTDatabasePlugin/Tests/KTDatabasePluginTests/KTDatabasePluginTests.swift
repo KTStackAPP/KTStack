@@ -26,6 +26,7 @@ final class KTDatabasePluginTests: XCTestCase {
         func validateAliases(_: [String], for _: UUID) throws {}
         func setEnvVars(_: UUID, _: [String: String]) throws {}
         func saveFrontDirectives(_: UUID, _: String) async throws {}
+        func recheckKind(_: UUID) -> SiteKind? { nil }
     }
 
     private func makePlugin(route: @escaping @MainActor (DatabaseRoute) -> Void) -> KTDatabasePlugin {

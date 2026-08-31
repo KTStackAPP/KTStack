@@ -29,6 +29,7 @@ extension SitesScreen {
                     onConfigureVSCode: { configureVSCode(site) },
                     onRestore: { restoreSite = site },
                     onSettings: { settingsSite = site },
+                    onRecheckType: { recheckType(site) },
                     onError: { actionError = $0 }
                 )
                 .equatable()
@@ -63,9 +64,19 @@ extension SitesScreen {
                     onRemove: { confirmRemove(site) },
                     onConfigureVSCode: { configureVSCode(site) },
                     onRestore: { restoreSite = site },
-                    onSettings: { settingsSite = site }
+                    onSettings: { settingsSite = site },
+                    onRecheckType: { recheckType(site) }
                 )
             }
+        }
+    }
+
+    func recheckType(_ site: SiteSummary) {
+        guard let kind = vm.recheckKind(site.id) else { return }
+        if kind == site.kind {
+            feedback.toast("\(site.domain) is still a \(SiteVisuals.label(for: kind)) site")
+        } else {
+            feedback.toast("\(site.domain) is now a \(SiteVisuals.label(for: kind)) site")
         }
     }
 

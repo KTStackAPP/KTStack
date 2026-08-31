@@ -85,4 +85,37 @@ final class SiteCatalogConformanceTests: XCTestCase {
         let next = await iterator.next()
         XCTAssertEqual(next?.sites.first?.domain, "renamed.test")
     }
+
+    func testRecheckKindReclassifiesStaticSiteAsPHP() throws {
+        let (server, paths) = try makeServer()
+        defer { try? fm.removeItem(at: paths.config.deletingLastPathComponent()) }
+        let sitesRoot = paths.config.appendingPathComponent("scratch", isDirectory: true)
+        try fm.createDirectory(at: sitesRoot, withIntermediateDirectories: true)
+        let folder = sitesRoot.appendingPathComponent("docs", isDirectory: true)
+        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        let site = try server.registry.add(folder: folder)
+        XCTAssertEqual(site.type, .staticSite)
+
+        try "<?php".write(to: folder.appendingPathComponent("index.php"), atomically: true, encoding: .utf8)
+        let kind = (server as any SiteCatalogManaging).recheckKind(site.id)
+
+        XCTAssertEqual(kind, .php)
+        XCTAssertEqual(server.catalog.sites.first?.kind, .php)
+    }
+
+    func testRecheckKindReturnsNilForUnknownSite() throws {
+        let (server, paths) = try makeServer()
+        defer { try? fm.removeItem(at: paths.config.deletingLastPathComponent()) }
+        XCTAssertNil((server as any SiteCatalogManaging).recheckKind(UUID()))
+    }
+
+    func testRecheckKindReturnsNilForProxySite() throws {
+        let (server, paths) = try makeServer()
+        defer { try? fm.removeItem(at: paths.config.deletingLastPathComponent()) }
+        guard case let .success(target) = ProxyTarget.parse("http://127.0.0.1:9000") else {
+            return XCTFail("proxy target should parse")
+        }
+        let site = try server.registry.addProxy(name: "api", domain: "api.test", target: target)
+        XCTAssertNil((server as any SiteCatalogManaging).recheckKind(site.id))
+    }
 }
