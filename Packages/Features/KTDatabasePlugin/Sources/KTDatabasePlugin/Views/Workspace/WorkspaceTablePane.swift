@@ -75,6 +75,11 @@ struct WorkspaceTablePane: View {
                 onNearEnd: { Task { await vm.fetchMore() } },
                 onNearTop: { Task { await vm.fetchPrevious() } },
                 rowNumberOffset: vm.windowStart,
+                sort: vm.browseSort,
+                onSortColumn: { col in
+                    let nextAsc = (vm.browseSort?.column == col) ? !vm.browseSort!.ascending : true
+                    vm.setBrowseSort(SortSpec(column: col, ascending: nextAsc))
+                },
                 editableColumns: vm.canEdit ? vm.editableColumns : [],
                 onCommitEdit: { row, column, value in
                     vm.stageOrDraftEdit(row: row, column: column, value: value)
@@ -84,7 +89,14 @@ struct WorkspaceTablePane: View {
                 onPaste: vm.canEdit ? { cells in vm.stagePaste(cells) } : nil,
                 onSetEdit: vm.canEdit ? { row, column, edit in vm.stageOrDraftEdit(row: row, column: column, edit: edit) } : nil,
                 onOpenEditor: { row, column in vm.openCellEditor(row: row, column: column) },
-                columnEditors: vm.canEdit ? columnEditorKinds : [:]
+                columnEditors: vm.canEdit ? columnEditorKinds : [:],
+                deletedRowIndices: vm.stagedDeleteRowIndices,
+                draftRowIndex: vm.insertDraftRowIndex,
+                modifiedCells: vm.modifiedCellCoords,
+                onStageNewRecord: { vm.beginInsertDraft() },
+                onStageDeleteRow: { row in vm.deleteRowOrCancelDraft(row: row) },
+                onUndoStaged: { vm.undoOrCancelDraft() },
+                onCommitStaged: { Task { await vm.commitAllStagedAndDraft() } }
             )
         } else if let errorMessage = vm.loadError {
             placeholder {

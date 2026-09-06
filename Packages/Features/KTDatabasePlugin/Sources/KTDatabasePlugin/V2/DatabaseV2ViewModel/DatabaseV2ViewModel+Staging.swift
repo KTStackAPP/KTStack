@@ -133,6 +133,48 @@ public extension DatabaseV2ViewModel {
         staged?.redo()
         refreshStagedState()
     }
+    func deleteRowOrCancelDraft(row: Int) {
+        if let draftIndex = insertDraftRowIndex, row == draftIndex {
+            cancelInsertDraft()
+            return
+        }
+        stageDelete(row: row)
+    }
+
+    func undoOrCancelDraft() {
+        if isDraftingInsert {
+            cancelInsertDraft()
+            return
+        }
+        undoStaged()
+    }
+
+    func commitAllStagedAndDraft() async {
+        if isDraftingInsert {
+            commitInsertDraft()
+        }
+        await commitStaged()
+    }
+
+    var modifiedCellCoords: Set<CellCoord> {
+        guard let base = rows, let display = displayRows else { return [] }
+        var result: Set<CellCoord> = []
+        let rowCount = min(base.rows.count, display.rows.count)
+        for row in 0..<rowCount {
+            let colCount = min(base.rows[row].count, display.rows[row].count)
+            for col in 0..<colCount {
+                if base.rows[row][col] != display.rows[row][col] {
+                    result.insert(CellCoord(row: row, column: col))
+                }
+            }
+        }
+        return result
+    }
+
+    var stagedDeleteRowIndices: Set<Int> {
+        guard let staged, let base = rows else { return [] }
+        return staged.stagedDeleteRows(in: base)
+    }
 
     func refreshStagedState() {
         pendingChangeCount = staged?.pendingCount ?? 0
