@@ -427,3 +427,17 @@ final class SiteConfigGeneratorTLSTests: XCTestCase {
         XCTAssertTrue(v.contains("listen 0.0.0.0:80;"))
     }
 }
+
+final class CATrustServiceTests: XCTestCase {
+    func testIsTrustedInSystemKeychainReturnsFalseForNonexistentFile() {
+        let fake = URL(fileURLWithPath: "/nonexistent/rootCA.pem")
+        XCTAssertFalse(CATrustService.isTrustedInSystemKeychain(caCert: fake))
+    }
+
+    func testIsTrustedInSystemKeychainReturnsFalseForInvalidData() throws {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try "invalid pem data".write(to: tmp, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        XCTAssertFalse(CATrustService.isTrustedInSystemKeychain(caCert: tmp))
+    }
+}

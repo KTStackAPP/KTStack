@@ -4,8 +4,6 @@ import KTStackCore
 final class HelperCAManager {
     private static let systemKeychain = "/Library/Keychains/System.keychain"
 
-    // Runs as root into the System Keychain, so reject any PEM that is not KTStack's own
-    // self-signed CA. Accepting an arbitrary cert would plant a trusted MITM root.
     func installRootCA(pemData: Data) -> (Bool, String?) {
         if let rejection = RootCAConstraint.validateKTStackRootCA(pemData: pemData) {
             return (false, rejection.message)
@@ -26,7 +24,7 @@ final class HelperCAManager {
         }
         let r = run(
             "/usr/bin/security",
-            ["add-trusted-cert", "-d", "-r", "trustRoot", "-k", Self.systemKeychain, tmp.path]
+            ["add-trusted-cert", "-d", "-r", "trustRoot", "-p", "ssl", "-p", "basic", "-k", Self.systemKeychain, tmp.path]
         )
         return r.status == 0 ? (true, nil) : (false, "security add-trusted-cert failed: \(r.output)")
     }
