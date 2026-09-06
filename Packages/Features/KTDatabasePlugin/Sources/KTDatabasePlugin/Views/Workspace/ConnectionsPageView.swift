@@ -19,11 +19,11 @@ struct ConnectionsPageView: View {
 
     @State private var search = ""
 
-    private let columns = [GridItem(.adaptive(minimum: 260), spacing: 14)]
+    private let columns = [GridItem(.adaptive(minimum: 250), spacing: 10)]
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 26) {
+            VStack(alignment: .leading, spacing: 20) {
                 header
                 managedSection
                 userSection
@@ -31,7 +31,7 @@ struct ConnectionsPageView: View {
                 Spacer(minLength: 0)
                 footer
             }
-            .padding(28)
+            .padding(24)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(KTEditorTheme.content)

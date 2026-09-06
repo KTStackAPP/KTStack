@@ -32,7 +32,7 @@ struct KTDataGrid: NSViewRepresentable {
         table.gridColor = Coordinator.gridLineColor
         table.allowsColumnResizing = true
         table.allowsColumnReordering = false
-        table.columnAutoresizingStyle = .noColumnAutoresizing
+        table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
         table.rowHeight = 22
         table.intercellSpacing = NSSize(width: 0, height: 0)
         table.allowsEmptySelection = true
@@ -361,6 +361,7 @@ struct KTDataGrid: NSViewRepresentable {
                 column.headerCell.backgroundColor = Self.headerBackground
                 table.addTableColumn(column)
             }
+            table.sizeLastColumnToFit()
         }
 
         func numberOfRows(in _: NSTableView) -> Int {
