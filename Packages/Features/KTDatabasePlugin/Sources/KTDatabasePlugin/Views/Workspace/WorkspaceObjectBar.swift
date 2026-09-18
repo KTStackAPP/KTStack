@@ -25,17 +25,17 @@ struct WorkspaceObjectBar: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "tablecells")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(KTEditorTheme.switcherIcon)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(Color.accentColor)
                 .frame(width: 22, height: 22)
-                .background(KTEditorTheme.switcherIcon.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
+                .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             Text(vm.selectedTable?.name ?? "—")
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                .foregroundStyle(KTEditorTheme.label)
+                .font(.subheadline.bold().monospaced())
+                .foregroundStyle(.primary)
             if let meta = metaLabel {
                 Text(meta)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(KTEditorTheme.label3)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.tertiary)
             }
             Spacer()
             if mode == .data, vm.selectedTable != nil {
@@ -45,8 +45,8 @@ struct WorkspaceObjectBar: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(KTEditorTheme.window)
-        .overlay(alignment: .bottom) { Divider().overlay(KTEditorTheme.separator) }
+        .background(Color(nsColor: .windowBackgroundColor))
+        .overlay(alignment: .bottom) { Divider().overlay(Color(nsColor: .separatorColor)) }
     }
 
     private var metaLabel: String? {

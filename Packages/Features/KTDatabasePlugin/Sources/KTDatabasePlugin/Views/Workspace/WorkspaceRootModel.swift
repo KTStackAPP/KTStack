@@ -88,9 +88,12 @@ final class WorkspaceRootModel: ObservableObject {
         return (table.isView ? "vw." : "tbl.") + table.name
     }
 
-    func activate(profileID: UUID) {
+    func activate(profileID: UUID, database: String? = nil) {
         guard let profile = workspace.profiles.first(where: { $0.id == profileID }) else { return }
         workspace.selectedProfileID = profileID
+        if let database, !database.isEmpty {
+            lastUsed.setLastDatabase(database, for: profileID)
+        }
         Task { await connectStartingEngine(profile) }
     }
 

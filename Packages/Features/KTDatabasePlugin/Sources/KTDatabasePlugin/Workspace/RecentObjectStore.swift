@@ -21,7 +21,6 @@ public struct RecentObject: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-/// Object mở gần đây, tối đa 20, ghi atomic vào config/database/workspace-recent.json.
 public final class RecentObjectStore: @unchecked Sendable {
     public let limit: Int
 
@@ -47,6 +46,19 @@ public final class RecentObjectStore: @unchecked Sendable {
     public func recent() -> [RecentObject] {
         lock.lock(); defer { lock.unlock() }
         return cache
+    }
+
+    public func recentDatabases(for profileID: UUID) -> [String] {
+        lock.lock(); defer { lock.unlock() }
+        var seen = Set<String>()
+        var result: [String] = []
+        for item in cache where item.profileID == profileID {
+            let db = item.database.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !db.isEmpty && seen.insert(db).inserted {
+                result.append(db)
+            }
+        }
+        return result
     }
 
     public func record(_ object: RecentObject) {

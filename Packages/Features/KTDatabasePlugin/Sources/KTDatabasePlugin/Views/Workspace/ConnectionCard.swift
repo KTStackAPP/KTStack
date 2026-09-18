@@ -8,46 +8,79 @@ struct ConnectionCard: View {
     let isSelected: Bool
     let engineInstalled: Bool
     let engineRunning: Bool
+    var lastUsedDatabase: String? = nil
+    var recentDatabases: [String] = []
     let onSelect: () -> Void
     let onOpen: () -> Void
+    var onOpenDatabase: ((String) -> Void)? = nil
     let onInstallEngine: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: SidebarNode.icon(for: profile.kind))
-                .font(.system(size: 14))
-                .foregroundStyle(KTEditorTheme.accent)
-                .frame(width: 30, height: 30)
-                .background(KTEditorTheme.accentSoft, in: RoundedRectangle(cornerRadius: 7))
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Text(profile.name)
-                        .font(.system(size: 12.5, weight: .semibold))
-                        .foregroundStyle(KTEditorTheme.label)
-                        .lineLimit(1)
-                    tag
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                Image(systemName: SidebarNode.icon(for: profile.kind))
+                    .font(.title3)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 34, height: 34)
+                    .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(profile.displayTitle(lastUsedDatabase: lastUsedDatabase))
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        tag
+                    }
+                    HStack(spacing: 5) {
+                        Circle().fill(statusColor).frame(width: 6, height: 6)
+                        Text(profile.displaySubtitle(lastUsedDatabase: lastUsedDatabase))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
                 }
-                HStack(spacing: 5) {
-                    Circle().fill(statusColor).frame(width: 5, height: 5)
-                    Text(profile.subtitle)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(KTEditorTheme.label2)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
+                Spacer(minLength: 6)
+                actionButton
             }
-            Spacer(minLength: 6)
-            actionButton
+            if !recentDatabases.isEmpty {
+                HStack(spacing: 5) {
+                    ForEach(recentDatabases.prefix(3), id: \.self) { db in
+                        Button {
+                            onOpenDatabase?(db)
+                        } label: {
+                            HStack(spacing: 3) {
+                                Image(systemName: "cylinder")
+                                    .font(.caption2)
+                                Text(db)
+                                    .font(.caption)
+                                    .lineLimit(1)
+                            }
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color(nsColor: .controlColor), in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Mở database \(db)")
+                    }
+                }
+                .padding(.leading, 46)
+            }
         }
-        .padding(.horizontal, 11)
-        .padding(.vertical, 9)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(isSelected ? Color.accentColor : Color(nsColor: .separatorColor).opacity(0.5), lineWidth: isSelected ? 1.5 : 0.5)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor))
         )
-        .contentShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(isSelected ? Color.accentColor : Color(nsColor: .separatorColor).opacity(0.4), lineWidth: isSelected ? 1.5 : 0.5)
+        )
+        .shadow(color: isSelected ? Color.accentColor.opacity(0.12) : Color.black.opacity(0.03), radius: isSelected ? 4 : 2, y: 1)
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .onTapGesture(count: 2, perform: onOpen)
         .onTapGesture(perform: onSelect)
     }
@@ -55,13 +88,13 @@ struct ConnectionCard: View {
     private var tag: some View {
         let local = profile.isManaged || ConnectionProfile.isLoopback(profile.host)
         return Text(local ? "LOCAL" : "REMOTE")
-            .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-            .foregroundStyle(local ? Color.green : KTEditorTheme.label2)
+            .font(.caption2.bold())
+            .foregroundStyle(local ? Color.green : .secondary)
             .padding(.horizontal, 5)
             .padding(.vertical, 1.5)
             .background(
-                (local ? Color.green : KTEditorTheme.label2).opacity(0.14),
-                in: RoundedRectangle(cornerRadius: 4)
+                (local ? Color.green : Color.secondary).opacity(0.12),
+                in: RoundedRectangle(cornerRadius: 4, style: .continuous)
             )
     }
 
@@ -69,10 +102,11 @@ struct ConnectionCard: View {
     private var actionButton: some View {
         if needsInstall {
             Button(action: onInstallEngine) {
-                Text("Cài trong Runtimes ›").font(.system(size: 11, weight: .medium))
+                Text("Cài đặt ›")
+                    .font(.footnote.weight(.medium))
             }
             .buttonStyle(.plain)
-            .foregroundStyle(KTEditorTheme.accent)
+            .foregroundStyle(Color.accentColor)
         } else {
             Button(engineNeedsStart ? "Bật & mở" : "Mở", action: onOpen)
                 .buttonStyle(.borderedProminent)
@@ -86,34 +120,11 @@ struct ConnectionCard: View {
     private var engineNeedsStart: Bool { engine != nil && engineInstalled && !engineRunning }
 
     private var statusColor: Color {
-        if needsInstall { return KTEditorTheme.Status.stopped }
+        if needsInstall { return .secondary }
         switch status {
-        case .online: return KTEditorTheme.Status.running
-        case .offline: return KTEditorTheme.Status.stopped
-        case .connecting: return KTEditorTheme.Status.warning
+        case .online: return .green
+        case .offline: return .secondary
+        case .connecting: return .orange
         }
-    }
-}
-
-struct NewConnectionCard: View {
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: "plus")
-                    .font(.system(size: 14, weight: .medium))
-                Text("Kết nối mới")
-                    .font(.system(size: 12.5, weight: .medium))
-            }
-            .foregroundStyle(KTEditorTheme.label2)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 15)
-        }
-        .buttonStyle(.plain)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(Color(nsColor: .separatorColor), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
-        )
     }
 }

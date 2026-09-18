@@ -8,8 +8,11 @@ struct ConnectionsPageView: View {
     let engineInstalled: (DatabaseEngine) -> Bool
     let engineRunning: (DatabaseEngine) -> Bool
     let recents: [RecentObject]
+    var lastDatabaseFor: (UUID) -> String? = { _ in nil }
+    var recentDatabasesFor: (UUID) -> [String] = { _ in [] }
     @Binding var selectedID: UUID?
     let onOpen: (ConnectionProfile) -> Void
+    var onOpenDatabase: ((ConnectionProfile, String) -> Void)? = nil
     let onOpenRecent: (RecentObject) -> Void
     let onNewConnection: () -> Void
     let onInstallEngine: (DatabaseEngine) -> Void
@@ -17,111 +20,56 @@ struct ConnectionsPageView: View {
 
     @State private var search = ""
 
-    private let columns = [GridItem(.adaptive(minimum: 250), spacing: 10)]
+    private let columns = [GridItem(.adaptive(minimum: 270), spacing: 12)]
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                header
-                managedSection
-                userSection
-                if !filteredRecents.isEmpty { recentSection }
+            VStack(alignment: .leading, spacing: 24) {
+                ConnectionsPageHeader(search: $search, onNewConnection: onNewConnection)
+                if !managed.isEmpty {
+                    sectionView(title: "Engine trong KTStack") {
+                        LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+                            ForEach(managed) { card($0) }
+                        }
+                    }
+                }
+                sectionView(title: "Kết nối của bạn") {
+                    LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+                        ForEach(userProfiles) { card($0) }
+                        NewConnectionCard(action: onNewConnection)
+                    }
+                }
+                if !filteredRecents.isEmpty {
+                    RecentDatabasesSectionView(
+                        recents: filteredRecents,
+                        profiles: profiles,
+                        onOpenRecent: onOpenRecent
+                    )
+                }
                 Spacer(minLength: 0)
-                footer
+                ConnectionsPageFooter()
             }
             .padding(24)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(KTEditorTheme.content)
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Kết nối cơ sở dữ liệu")
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(KTEditorTheme.label)
-                Text("Chọn một kết nối để duyệt bảng và chạy truy vấn, hoặc tạo kết nối mới.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            HStack(spacing: 10) {
-                searchField
-                Button(action: onNewConnection) {
-                    Label("Kết nối mới", systemImage: "plus")
-                        .font(.system(size: 12, weight: .medium))
-                }
-                .buttonStyle(.borderedProminent)
-            }
-        }
-    }
-
-    private var searchField: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 12))
-                .foregroundStyle(KTEditorTheme.label3)
-            TextField("Tìm theo tên, host, database…", text: $search)
-                .textFieldStyle(.plain)
-                .font(.system(size: 12))
-            if !search.isEmpty {
-                Button { search = "" } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundStyle(KTEditorTheme.label3)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .frame(maxWidth: 320)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 7))
-        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5))
-    }
-
-    @ViewBuilder
-    private var managedSection: some View {
-        if !managed.isEmpty {
-            section("Engine trong KTStack") {
-                LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
-                    ForEach(managed) { card($0) }
-                }
-            }
-        }
-    }
-
-    private var userSection: some View {
-        section("Kết nối của bạn") {
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
-                ForEach(userProfiles) { card($0) }
-                NewConnectionCard(action: onNewConnection)
-            }
-        }
-    }
-
-    private var recentSection: some View {
-        section("Mở gần đây") {
-            VStack(spacing: 4) {
-                ForEach(filteredRecents) { object in
-                    RecentObjectRow(
-                        object: object,
-                        profileName: profiles.first { $0.id == object.profileID }?.name ?? object.database,
-                        onOpen: { onOpenRecent(object) }
-                    )
-                }
-            }
-        }
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     private func card(_ profile: ConnectionProfile) -> some View {
         let engine = profile.kind.engine
+        let lastDB = lastDatabaseFor(profile.id)
+        let recents = recentDatabasesFor(profile.id)
         return ConnectionCard(
             profile: profile,
             status: statusFor(profile.id),
             isSelected: selectedID == profile.id,
             engineInstalled: engine == nil ? false : engineInstalled(engine!),
             engineRunning: engine == nil ? false : engineRunning(engine!),
+            lastUsedDatabase: lastDB,
+            recentDatabases: recents,
             onSelect: { selectedID = profile.id },
             onOpen: { onOpen(profile) },
+            onOpenDatabase: { db in onOpenDatabase?(profile, db) },
             onInstallEngine: { if let engine { onInstallEngine(engine) } }
         )
         .contextMenu { menu(for: profile) }
@@ -136,29 +84,14 @@ struct ConnectionsPageView: View {
         }
     }
 
-    private func section(_ title: String, @ViewBuilder _ content: () -> some View) -> some View {
+    private func sectionView<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title.uppercased())
-                .font(.system(size: 11, weight: .semibold))
+                .font(.footnote.weight(.semibold))
                 .tracking(0.6)
                 .foregroundStyle(.secondary)
             content()
         }
-    }
-
-    private var footer: some View {
-        HStack(spacing: 10) {
-            Text("⏎ Mở · ⌘0 Ẩn/hiện thanh bên · ⌘T Tab mới")
-                .font(.system(size: 11))
-                .foregroundStyle(KTEditorTheme.label3)
-            Spacer(minLength: 0)
-            if let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String {
-                Text("KTStack \(version)")
-                    .font(.system(size: 11))
-                    .foregroundStyle(KTEditorTheme.label3)
-            }
-        }
-        .padding(.top, 4)
     }
 
     private var managed: [ConnectionProfile] { filteredProfiles.filter(\.isManaged) }
@@ -167,8 +100,16 @@ struct ConnectionsPageView: View {
     private var filteredProfiles: [ConnectionProfile] {
         let needle = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !needle.isEmpty else { return profiles }
-        return profiles.filter {
-            $0.name.lowercased().contains(needle) || $0.subtitle.lowercased().contains(needle)
+        return profiles.filter { profile in
+            let last = lastDatabaseFor(profile.id)
+            let title = profile.displayTitle(lastUsedDatabase: last).lowercased()
+            let sub = profile.displaySubtitle(lastUsedDatabase: last).lowercased()
+            let recents = recentDatabasesFor(profile.id).map { $0.lowercased() }
+            return profile.name.lowercased().contains(needle)
+                || title.contains(needle)
+                || sub.contains(needle)
+                || profile.database.lowercased().contains(needle)
+                || recents.contains(where: { $0.contains(needle) })
         }
     }
 
@@ -176,6 +117,6 @@ struct ConnectionsPageView: View {
         let alive = recents.filter { object in profiles.contains { $0.id == object.profileID } }
         let needle = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !needle.isEmpty else { return alive }
-        return alive.filter { $0.name.lowercased().contains(needle) }
+        return alive.filter { $0.name.lowercased().contains(needle) || $0.database.lowercased().contains(needle) }
     }
 }

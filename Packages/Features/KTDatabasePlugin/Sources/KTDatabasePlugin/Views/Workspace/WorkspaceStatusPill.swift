@@ -29,21 +29,22 @@ struct WorkspaceStatusPill: View {
     private var isManaged: Bool { vm.activeProfile?.isManaged ?? false }
 
     private var tag: some View {
-        Text(isManaged ? "LOCAL" : "REMOTE")
-            .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-            .foregroundStyle(isManaged ? Color.green : KTEditorTheme.label2)
+        let local = isManaged
+        return Text(local ? "LOCAL" : "REMOTE")
+            .font(.caption2.bold().monospaced())
+            .foregroundStyle(local ? Color.green : .secondary)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(
-                (isManaged ? KTEditorTheme.Status.running : KTEditorTheme.label2).opacity(0.14),
-                in: RoundedRectangle(cornerRadius: 4)
+                (local ? Color.green : Color.secondary).opacity(0.12),
+                in: RoundedRectangle(cornerRadius: 4, style: .continuous)
             )
     }
 
     private var engineText: some View {
         Text(engineLabel)
-            .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(KTEditorTheme.label)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.primary)
     }
 
     private var engineLabel: String {
@@ -68,11 +69,11 @@ struct WorkspaceStatusPill: View {
             }
         } label: {
             HStack(spacing: 4) {
-                Image(systemName: "cylinder.split.1x2").font(.system(size: 10))
-                Text(vm.selectedDatabase ?? "—").font(.system(size: 12, weight: .medium))
-                Image(systemName: "chevron.down").font(.system(size: 8)).foregroundStyle(KTEditorTheme.label3)
+                Image(systemName: "cylinder.split.1x2").font(.caption2)
+                Text(vm.selectedDatabase ?? "—").font(.subheadline.weight(.medium))
+                Image(systemName: "chevron.down").font(.caption2).foregroundStyle(.tertiary)
             }
-            .foregroundStyle(KTEditorTheme.label)
+            .foregroundStyle(.primary)
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
@@ -80,20 +81,24 @@ struct WorkspaceStatusPill: View {
 
     private var lock: some View {
         Image(systemName: vm.connectionIsReadOnly ? "lock.fill" : "lock.open")
-            .font(.system(size: 11))
-            .foregroundStyle(vm.connectionIsReadOnly ? KTEditorTheme.Status.warning : KTEditorTheme.label3)
+            .font(.caption)
+            .foregroundStyle(lockColor)
+    }
+
+    private var lockColor: Color {
+        vm.connectionIsReadOnly ? .orange : Color(nsColor: .tertiaryLabelColor)
     }
 
     private func pingText(_ ms: Int) -> some View {
         HStack(spacing: 3) {
             Circle().fill(Color.green).frame(width: 5, height: 5)
             Text(ms <= 0 ? "<1ms" : "\(ms)ms")
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(KTEditorTheme.label2)
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
         }
     }
 
     private var separator: some View {
-        Rectangle().fill(KTEditorTheme.separator).frame(width: 1, height: 14)
+        Rectangle().fill(Color(nsColor: .separatorColor)).frame(width: 1, height: 14)
     }
 }

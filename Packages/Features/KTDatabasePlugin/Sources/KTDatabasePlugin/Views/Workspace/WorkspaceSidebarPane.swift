@@ -9,8 +9,13 @@ struct WorkspaceSidebarPane: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            WorkspaceDatabaseHeader(
+                vm: vm,
+                onSelectDatabase: workspace.selectDatabaseForActive
+            )
+            Divider().overlay(Color(nsColor: .separatorColor))
             searchField
-            Divider().overlay(KTEditorTheme.separator)
+            Divider().overlay(Color(nsColor: .separatorColor))
             WorkspaceSidebar(
                 nodes: model.nodes,
                 selectedNodeID: model.selectedNodeID,
@@ -18,23 +23,22 @@ struct WorkspaceSidebarPane: View {
                 onOpenInNewTab: { model.selectObject($0, forceNewTab: true) },
                 contextActions: { _ in [] }
             )
-            Divider().overlay(KTEditorTheme.separator)
+            Divider().overlay(Color(nsColor: .separatorColor))
             footer
         }
     }
-
     private var searchField: some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 11, weight: .medium))
+                .font(.footnote)
                 .foregroundStyle(.secondary)
             TextField("Lọc bảng…", text: $model.filter)
                 .textFieldStyle(.plain)
-                .font(.system(size: 12))
+                .font(.subheadline)
             if !model.filter.isEmpty {
                 Button { model.filter = "" } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 11))
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
@@ -43,8 +47,8 @@ struct WorkspaceSidebarPane: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(nsColor: .separatorColor), lineWidth: 0.5))
+        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(Color(nsColor: .separatorColor), lineWidth: 0.5))
         .padding(8)
     }
 
@@ -53,7 +57,7 @@ struct WorkspaceSidebarPane: View {
         let views = model.currentObjects.filter(\.isView).count
         return HStack(spacing: 6) {
             Text("\(tables) bảng · \(views) view")
-                .font(.system(size: 11))
+                .font(.footnote)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)
         }
