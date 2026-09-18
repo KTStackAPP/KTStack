@@ -32,7 +32,7 @@ struct WorkspaceSidebarPane: View {
             Image(systemName: "magnifyingglass")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            TextField("Lọc bảng…", text: $model.filter)
+            TextField("Filter tables…", text: $model.filter)
                 .textFieldStyle(.plain)
                 .font(.subheadline)
             if !model.filter.isEmpty {
@@ -42,7 +42,7 @@ struct WorkspaceSidebarPane: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Xoá bộ lọc")
+                .accessibilityLabel("Clear filter")
             }
         }
         .padding(.horizontal, 8)
@@ -56,7 +56,7 @@ struct WorkspaceSidebarPane: View {
         let tables = model.currentObjects.filter { !$0.isView }.count
         let views = model.currentObjects.filter(\.isView).count
         return HStack(spacing: 6) {
-            Text("\(tables) bảng · \(views) view")
+            Text("\(tables) tables · \(views) views")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)

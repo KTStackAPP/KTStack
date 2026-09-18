@@ -45,10 +45,12 @@ final class WorkspaceSplitController: NSSplitViewController {
         addSplitViewItem(contentPane)
         addSplitViewItem(inspectorPane)
 
-        sidebarPane.isCollapsed = !workspace.sidebarVisible
+        let isConnected: Bool
+        if case .connected = vm.connectionState { isConnected = true } else { isConnected = false }
+        sidebarPane.isCollapsed = !isConnected || !workspace.sidebarVisible
         inspectorPane.isCollapsed = !workspace.inspectorVisible
 
-        bindStoreToPanes()
+        bindStoreToPanes(vm: vm)
     }
 
     @available(*, unavailable)
@@ -61,16 +63,27 @@ final class WorkspaceSplitController: NSSplitViewController {
         splitView.autosaveName = "KTStackDatabaseSplit"
     }
 
-    // Store → pane: ⌘0/⌘⌥I và toolbar lật cờ, pane collapse bằng animation hệ thống.
-    private func bindStoreToPanes() {
+    private func bindStoreToPanes(vm: DatabaseV2ViewModel) {
         workspace.$sidebarVisible
             .sink { [weak self] visible in self?.setCollapsed(self?.sidebarPane, collapsed: !visible) }
             .store(in: &cancellables)
         workspace.$inspectorVisible
             .sink { [weak self] visible in self?.setCollapsed(self?.inspectorPane, collapsed: !visible) }
             .store(in: &cancellables)
+        vm.$connectionState
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in
+                guard let self else { return }
+                let isConnected: Bool
+                if case .connected = state { isConnected = true } else { isConnected = false }
+                if !isConnected {
+                    self.setCollapsed(self.sidebarPane, collapsed: true)
+                } else if self.workspace.sidebarVisible {
+                    self.setCollapsed(self.sidebarPane, collapsed: false)
+                }
+            }
+            .store(in: &cancellables)
     }
-
     private func setCollapsed(_ item: NSSplitViewItem?, collapsed: Bool) {
         guard let item, item.isCollapsed != collapsed else { return }
         item.animator().isCollapsed = collapsed

@@ -8,12 +8,12 @@ struct RecentDatabasesSectionView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("MỞ GẦN ĐÂY")
+            Text("RECENT OBJECTS")
                 .font(.footnote.weight(.semibold))
                 .tracking(0.6)
                 .foregroundStyle(.secondary)
             VStack(spacing: 4) {
-                ForEach(recents) { object in
+                ForEach(Array(recents.prefix(5))) { object in
                     RecentObjectRow(
                         object: object,
                         profileName: profileDisplayName(for: object),

@@ -6,7 +6,7 @@ struct NewConnectionCard: View {
 
     var body: some View {
         Button(action: action) {
-            Label("Kết nối mới", systemImage: "plus")
+            Label("New Connection", systemImage: "plus")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)

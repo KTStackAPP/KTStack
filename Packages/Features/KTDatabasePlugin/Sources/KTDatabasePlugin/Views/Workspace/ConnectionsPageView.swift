@@ -27,13 +27,13 @@ struct ConnectionsPageView: View {
             VStack(alignment: .leading, spacing: 24) {
                 ConnectionsPageHeader(search: $search, onNewConnection: onNewConnection)
                 if !managed.isEmpty {
-                    sectionView(title: "Engine trong KTStack") {
+                    sectionView(title: "Managed Engines") {
                         LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
                             ForEach(managed) { card($0) }
                         }
                     }
                 }
-                sectionView(title: "Kết nối của bạn") {
+                sectionView(title: "Your Connections") {
                     LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
                         ForEach(userProfiles) { card($0) }
                         NewConnectionCard(action: onNewConnection)

@@ -102,13 +102,13 @@ struct ConnectionCard: View {
     private var actionButton: some View {
         if needsInstall {
             Button(action: onInstallEngine) {
-                Text("Cài đặt ›")
+                Text("Install ›")
                     .font(.footnote.weight(.medium))
             }
             .buttonStyle(.plain)
             .foregroundStyle(Color.accentColor)
         } else {
-            Button(engineNeedsStart ? "Bật & mở" : "Mở", action: onOpen)
+            Button(engineNeedsStart ? "Start & Open" : "Open", action: onOpen)
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
                 .keyboardShortcut(isSelected ? .defaultAction : nil)

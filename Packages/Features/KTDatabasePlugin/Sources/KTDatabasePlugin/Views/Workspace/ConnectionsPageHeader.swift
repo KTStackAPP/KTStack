@@ -8,17 +8,17 @@ struct ConnectionsPageHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Kết nối cơ sở dữ liệu")
+                Text("Database Connections")
                     .font(.title2.bold())
                     .foregroundStyle(.primary)
-                Text("Chọn một kết nối để duyệt bảng và chạy truy vấn, hoặc tạo kết nối mới.")
+                Text("Select a connection to browse tables and run queries, or create a new one.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
             HStack(spacing: 10) {
                 searchField
                 Button(action: onNewConnection) {
-                    Label("Kết nối mới", systemImage: "plus")
+                    Label("New Connection", systemImage: "plus")
                         .font(.subheadline.weight(.medium))
                 }
                 .buttonStyle(.borderedProminent)
@@ -31,7 +31,7 @@ struct ConnectionsPageHeader: View {
             Image(systemName: "magnifyingglass")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            TextField("Tìm theo tên, host, database…", text: $search)
+            TextField("Filter connections…", text: $search)
                 .textFieldStyle(.plain)
                 .font(.subheadline)
             if !search.isEmpty {

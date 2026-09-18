@@ -3,7 +3,7 @@ import SwiftUI
 struct ConnectionsPageFooter: View {
     var body: some View {
         HStack(spacing: 10) {
-            Text("⏎ Mở · ⌘0 Ẩn/hiện thanh bên · ⌘T Tab mới")
+            Text("⏎ Open · ⌘0 Toggle Sidebar · ⌘T New Tab")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
             Spacer(minLength: 0)

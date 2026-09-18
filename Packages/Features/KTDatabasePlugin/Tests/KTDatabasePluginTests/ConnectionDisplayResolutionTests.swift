@@ -28,7 +28,7 @@ final class ConnectionDisplayResolutionTests: XCTestCase {
         XCTAssertEqual(profile.displaySubtitle(), "MySQL · 127.0.0.1:3306")
     }
 
-    func testHostNameFallbackToLastUsedDatabase() {
+    func testHostNameFallbackToLocalEngineName() {
         let profile = ConnectionProfile(
             name: "127.0.0.1",
             kind: .mysql,
@@ -37,8 +37,8 @@ final class ConnectionDisplayResolutionTests: XCTestCase {
             user: "root",
             database: ""
         )
-        XCTAssertEqual(profile.displayTitle(lastUsedDatabase: "shop_wp"), "shop_wp")
-        XCTAssertEqual(profile.displaySubtitle(lastUsedDatabase: "shop_wp"), "MySQL · 127.0.0.1:3306")
+        XCTAssertEqual(profile.displayTitle(lastUsedDatabase: "shop_wp"), "Local MySQL")
+        XCTAssertEqual(profile.displaySubtitle(lastUsedDatabase: "shop_wp"), "MySQL · 127.0.0.1:3306 · Last: shop_wp")
     }
 
     func testEmptyDatabaseFallbackToEngineName() {
@@ -50,7 +50,7 @@ final class ConnectionDisplayResolutionTests: XCTestCase {
             user: "root",
             database: ""
         )
-        XCTAssertEqual(profile.displayTitle(), "MySQL")
+        XCTAssertEqual(profile.displayTitle(), "Local MySQL")
         XCTAssertEqual(profile.displaySubtitle(), "MySQL · 127.0.0.1:3306")
     }
 

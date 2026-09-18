@@ -10,25 +10,31 @@ public extension ConnectionProfile {
         if kind == .sqlite, let path = filePath, !path.isEmpty {
             return (path as NSString).lastPathComponent
         }
-        if let targetDB = resolvedDatabase(lastUsedDatabase: lastUsedDatabase) {
-            return targetDB
+        let trimmedDB = database.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedDB.isEmpty {
+            return trimmedDB
         }
-        return defaultEngineName
+        if Self.isLoopback(host) {
+            return "Local \(kindDisplay)"
+        }
+        return !trimmedHost.isEmpty ? trimmedHost : defaultEngineName
     }
 
     func displaySubtitle(lastUsedDatabase: String? = nil) -> String {
         if kind == .sqlite, let path = filePath, !path.isEmpty {
             return path
         }
-        let targetDB = resolvedDatabase(lastUsedDatabase: lastUsedDatabase)
-        let titleIsDB = targetDB != nil && displayTitle(lastUsedDatabase: lastUsedDatabase) == targetDB
         let engine = kindDisplay
         let endpoint = "\(host):\(port)"
-        if titleIsDB {
-            return "\(engine) · \(endpoint)"
+        let trimmedDB = database.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedDB.isEmpty {
+            if displayTitle(lastUsedDatabase: lastUsedDatabase) == trimmedDB {
+                return "\(engine) · \(endpoint)"
+            }
+            return "\(engine) · \(trimmedDB) · \(endpoint)"
         }
-        if let targetDB, !targetDB.isEmpty {
-            return "\(engine) · \(targetDB) · \(endpoint)"
+        if let last = lastUsedDatabase?.trimmingCharacters(in: .whitespacesAndNewlines), !last.isEmpty {
+            return "\(engine) · \(endpoint) · Last: \(last)"
         }
         return "\(engine) · \(endpoint)"
     }
