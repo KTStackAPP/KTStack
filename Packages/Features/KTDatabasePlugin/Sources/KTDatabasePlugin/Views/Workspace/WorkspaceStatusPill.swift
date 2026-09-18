@@ -1,7 +1,6 @@
 import KTPluginKit
 import SwiftUI
 
-/// Pill trạng thái ở giữa toolbar: tag LOCAL/REMOTE, engine + version, DB switcher, khoá đọc/ghi, ping.
 struct WorkspaceStatusPill: View {
     @ObservedObject var vm: DatabaseV2ViewModel
     let onSelectDatabase: (String) -> Void
@@ -23,16 +22,16 @@ struct WorkspaceStatusPill: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 5)
-        .background(KTEditorTheme.pillBg, in: Capsule())
-        .overlay(Capsule().stroke(KTEditorTheme.separator, lineWidth: 1))
+        .background(Color(nsColor: .controlBackgroundColor), in: Capsule())
+        .overlay(Capsule().stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5))
     }
 
     private var isManaged: Bool { vm.activeProfile?.isManaged ?? false }
 
     private var tag: some View {
         Text(isManaged ? "LOCAL" : "REMOTE")
-            .font(.jbMono(9.5, .bold))
-            .foregroundStyle(isManaged ? KTEditorTheme.Status.running : KTEditorTheme.label2)
+            .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+            .foregroundStyle(isManaged ? Color.green : KTEditorTheme.label2)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(
@@ -43,7 +42,7 @@ struct WorkspaceStatusPill: View {
 
     private var engineText: some View {
         Text(engineLabel)
-            .font(.jbMono(12.5, .medium))
+            .font(.system(size: 12, weight: .medium))
             .foregroundStyle(KTEditorTheme.label)
     }
 
@@ -70,7 +69,7 @@ struct WorkspaceStatusPill: View {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "cylinder.split.1x2").font(.system(size: 10))
-                Text(vm.selectedDatabase ?? "—").font(.jbMono(12.5, .medium))
+                Text(vm.selectedDatabase ?? "—").font(.system(size: 12, weight: .medium))
                 Image(systemName: "chevron.down").font(.system(size: 8)).foregroundStyle(KTEditorTheme.label3)
             }
             .foregroundStyle(KTEditorTheme.label)
@@ -87,9 +86,9 @@ struct WorkspaceStatusPill: View {
 
     private func pingText(_ ms: Int) -> some View {
         HStack(spacing: 3) {
-            Circle().fill(KTEditorTheme.Status.running).frame(width: 5, height: 5)
+            Circle().fill(Color.green).frame(width: 5, height: 5)
             Text(ms <= 0 ? "<1ms" : "\(ms)ms")
-                .font(.jbMono(11))
+                .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(KTEditorTheme.label2)
         }
     }

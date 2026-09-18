@@ -30,11 +30,11 @@ struct WorkspaceObjectBar: View {
                 .frame(width: 22, height: 22)
                 .background(KTEditorTheme.switcherIcon.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
             Text(vm.selectedTable?.name ?? "—")
-                .font(.jbMono(14))
+                .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 .foregroundStyle(KTEditorTheme.label)
             if let meta = metaLabel {
                 Text(meta)
-                    .font(.jbMono(11.5))
+                    .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(KTEditorTheme.label3)
             }
             Spacer()

@@ -1,12 +1,9 @@
 import KTPluginKit
 import SwiftUI
 
-/// Nội dung một tab bảng: objbar + filter inline + (grid | inspector) + status bar, trên VM riêng của tab.
-/// Insert dùng dòng nháp inline (không sheet); filter/inspector thay các sheet cũ trong workspace.
 struct WorkspaceTablePane: View {
     @ObservedObject var vm: DatabaseV2ViewModel
     @ObservedObject var workspace: WorkspaceStore
-    // Quan sát session để chọn dòng (từ grid) cập nhật lại objbar Delete và inspector pane.
     @ObservedObject var session: WorkspaceTabSession
 
     @State private var mode: TablePaneMode = .data
@@ -66,7 +63,9 @@ struct WorkspaceTablePane: View {
     @ViewBuilder
     private var gridBody: some View {
         if vm.isLoadingRows, vm.rows == nil {
-            placeholder { ProgressView() }
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(KTEditorTheme.content)
         } else if let result = vm.displayRows {
             KTDataGrid(
                 result: result,
@@ -99,26 +98,24 @@ struct WorkspaceTablePane: View {
                 onCommitStaged: { Task { await vm.commitAllStagedAndDraft() } }
             )
         } else if let errorMessage = vm.loadError {
-            placeholder {
-                Text(errorMessage)
-                    .font(.jbMono(12))
-                    .foregroundStyle(KTEditorTheme.Status.error)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 16)
-            }
+            EmptyStateView(
+                symbol: "exclamationmark.triangle",
+                title: "Lỗi tải dữ liệu",
+                message: errorMessage
+            )
         } else {
-            placeholder {
-                Text(vm.selectedTable == nil ? "Chọn một bảng" : "Không có dữ liệu")
-                    .font(.jbMono(13))
-                    .foregroundStyle(KTEditorTheme.label3)
-            }
+            EmptyStateView(
+                symbol: vm.selectedTable == nil ? "tablecells" : "tray",
+                title: vm.selectedTable == nil ? "Chọn một bảng" : "Không có dữ liệu",
+                message: vm.selectedTable == nil ? "Chọn một bảng từ thanh bên để duyệt dữ liệu" : "Bảng hiện tại chưa có dữ liệu."
+            )
         }
     }
 
     private var draftBanner: some View {
         HStack(spacing: 8) {
             Image(systemName: "plus.circle").font(.system(size: 11)).foregroundStyle(KTEditorTheme.accent)
-            Text("Đang thêm dòng — điền ô ở cuối bảng rồi Stage").font(.jbMono(12)).foregroundStyle(KTEditorTheme.label)
+            Text("Đang thêm dòng — điền ô ở cuối bảng rồi Stage").font(.system(size: 12)).foregroundStyle(KTEditorTheme.label)
             Spacer()
             V2Button(title: "Huỷ", kind: .danger) { vm.cancelInsertDraft() }
             V2Button(title: "Stage dòng", kind: .primary) { vm.commitInsertDraft() }
@@ -132,23 +129,13 @@ struct WorkspaceTablePane: View {
     private func errorBanner(_ message: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.circle").font(.system(size: 12)).foregroundStyle(KTEditorTheme.Status.error)
-            Text(message).font(.jbMono(12)).foregroundStyle(KTEditorTheme.Status.error)
+            Text(message).font(.system(size: 12)).foregroundStyle(KTEditorTheme.Status.error)
             Spacer()
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 7)
         .background(KTEditorTheme.Status.error.opacity(0.08))
         .overlay(alignment: .bottom) { Divider().overlay(KTEditorTheme.separator) }
-    }
-
-    private func placeholder<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        VStack {
-            Spacer()
-            content()
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(KTEditorTheme.content)
     }
 
     private var foreignKeyColumnNames: Set<String> {

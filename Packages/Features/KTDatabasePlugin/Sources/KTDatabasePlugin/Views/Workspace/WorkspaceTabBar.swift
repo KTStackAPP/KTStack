@@ -1,7 +1,6 @@
 import KTPluginKit
 import SwiftUI
 
-/// Dải tab theo object (Xcode-style): chấm cam khi tab còn staged, nút đóng, nút + mở tab query.
 struct WorkspaceTabBar: View {
     @ObservedObject var workspace: WorkspaceStore
     let onNewQuery: () -> Void
@@ -25,13 +24,14 @@ struct WorkspaceTabBar: View {
             }
             Button(action: onNewQuery) {
                 Image(systemName: "plus")
-                    .font(.system(size: 12))
-                    .foregroundStyle(KTEditorTheme.label2)
-                    .frame(width: 30, height: 30)
-                    .contentShape(Rectangle())
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24, height: 24)
+                    .background(Color(nsColor: .controlBackgroundColor).opacity(0.6), in: RoundedRectangle(cornerRadius: 5))
             }
             .buttonStyle(.plain)
             .help("New query tab")
+            .padding(.trailing, 8)
         }
         .frame(height: 34)
         .background(KTEditorTheme.content2)
@@ -47,7 +47,7 @@ private struct WorkspaceTabItem: View {
     let onClose: () -> Void
 
     @State private var hovering = false
-
+    @State private var closeHovering = false
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: session.kind.isQuery ? "terminal" : "tablecells")
@@ -70,13 +70,17 @@ private struct WorkspaceTabItem: View {
                 .help("Close tab")
             }
         }
-        .padding(.horizontal, 11)
-        .frame(height: 34)
-        .background(isActive ? KTEditorTheme.content : .clear)
-        .overlay(alignment: .bottom) {
-            if isActive { Rectangle().fill(KTEditorTheme.accent).frame(height: 1.5) }
-        }
-        .contentShape(Rectangle())
+        .padding(.horizontal, 10)
+        .frame(height: 26)
+        .background(
+            isActive ? Color(nsColor: .controlBackgroundColor) : (hovering ? Color(nsColor: .quaternaryLabelColor).opacity(0.4) : .clear),
+            in: RoundedRectangle(cornerRadius: 6)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(isActive ? Color(nsColor: .separatorColor).opacity(0.6) : .clear, lineWidth: 0.5)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 6))
         .onTapGesture(perform: onSelect)
         .onHover { hovering = $0 }
     }

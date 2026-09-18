@@ -21,12 +21,12 @@ struct WorkspaceInspector: View {
     private var header: some View {
         HStack {
             Text("Chi tiết dòng")
-                .font(.jbMono(12.5, .bold))
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(KTEditorTheme.label)
             Spacer()
             if let row = selectedRow {
                 Text("#\(vm.windowStart + row + 1)")
-                    .font(.jbMono(11))
+                    .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(KTEditorTheme.faint)
             }
         }
@@ -36,14 +36,11 @@ struct WorkspaceInspector: View {
     }
 
     private var placeholder: some View {
-        VStack {
-            Spacer()
-            Text("Chưa chọn dòng nào")
-                .font(.jbMono(12))
-                .foregroundStyle(KTEditorTheme.faint)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
+        EmptyStateView(
+            symbol: "sidebar.right",
+            title: "Chưa chọn dòng",
+            message: "Chọn một dòng trong bảng để xem và sửa chi tiết các trường."
+        )
     }
 
     private func fields(columns: [ColumnMeta], cells: [Cell], rowIndex: Int) -> some View {

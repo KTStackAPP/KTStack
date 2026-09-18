@@ -44,28 +44,26 @@ struct InspectorField: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Text(columnName)
-                    .font(.jbMono(11, .semibold))
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
                     .foregroundStyle(KTEditorTheme.label2)
                 if isPrimaryKey {
                     Text("PK")
-                        .font(.jbMono(8.5, .bold))
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
-                        .background(KTEditorTheme.accent.opacity(0.15))
-                        .foregroundStyle(KTEditorTheme.accent)
-                        .cornerRadius(3)
+                        .background(Color.accentColor.opacity(0.15), in: RoundedRectangle(cornerRadius: 3))
+                        .foregroundStyle(Color.accentColor)
                 }
                 if isForeignKey {
                     Text("FK")
-                        .font(.jbMono(8.5, .bold))
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
-                        .background(Color.blue.opacity(0.15))
+                        .background(Color.blue.opacity(0.15), in: RoundedRectangle(cornerRadius: 3))
                         .foregroundStyle(Color.blue)
-                        .cornerRadius(3)
                 }
                 Text(dataType)
-                    .font(.jbMono(9.5))
+                    .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(KTEditorTheme.faint)
                 Spacer()
                 if isModified {
@@ -76,7 +74,7 @@ struct InspectorField: View {
                 if editable {
                     Button("NULL") { text = ""; onSetNull() }
                         .buttonStyle(.plain)
-                        .font(.jbMono(9.5))
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
                         .foregroundStyle(KTEditorTheme.label3)
                 }
             }
@@ -101,8 +99,14 @@ struct InspectorField: View {
     private var editor: some View {
         if isMultiline {
             TextEditor(text: $text)
-                .font(.jbMono(11.5))
+                .font(.system(size: 11.5, design: .monospaced))
                 .frame(height: 70)
+                .padding(4)
+                .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(focused ? Color.accentColor : Color(nsColor: .separatorColor).opacity(0.6), lineWidth: focused ? 1.5 : 0.5)
+                )
                 .focused($focused)
                 .onChange(of: focused) { isFocused in
                     if !isFocused && text != (cell.displayText ?? "") { onCommit(text) }
@@ -110,7 +114,14 @@ struct InspectorField: View {
         } else {
             TextField("", text: $text)
                 .textFieldStyle(.plain)
-                .font(.jbMono(12))
+                .font(.system(size: 12, design: .monospaced))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(focused ? Color.accentColor : Color(nsColor: .separatorColor).opacity(0.6), lineWidth: focused ? 1.5 : 0.5)
+                )
                 .focused($focused)
                 .onSubmit { onCommit(text) }
                 .onChange(of: focused) { isFocused in
@@ -123,17 +134,17 @@ struct InspectorField: View {
     private var staticValue: some View {
         switch cell {
         case .null:
-            Text("NULL").font(.jbMono(12)).italic().foregroundStyle(KTEditorTheme.faint)
+            Text("NULL").font(.system(size: 12, design: .monospaced)).italic().foregroundStyle(KTEditorTheme.faint)
         case let .int(intValue):
-            Text(String(intValue)).font(.jbMono(12)).foregroundStyle(KTEditorTheme.Grid.number)
+            Text(String(intValue)).font(.system(size: 12, design: .monospaced)).foregroundStyle(KTEditorTheme.Grid.number)
         case let .double(doubleValue):
-            Text(String(doubleValue)).font(.jbMono(12)).foregroundStyle(KTEditorTheme.Grid.number)
+            Text(String(doubleValue)).font(.system(size: 12, design: .monospaced)).foregroundStyle(KTEditorTheme.Grid.number)
         case let .bool(boolValue):
-            Text(boolValue ? "true" : "false").font(.jbMono(12)).foregroundStyle(KTEditorTheme.label)
+            Text(boolValue ? "true" : "false").font(.system(size: 12, design: .monospaced)).foregroundStyle(KTEditorTheme.label)
         case let .text(stringValue):
-            Text(stringValue).font(.jbMono(12)).foregroundStyle(KTEditorTheme.label)
+            Text(stringValue).font(.system(size: 12, design: .monospaced)).foregroundStyle(KTEditorTheme.label)
         case let .blob(dataValue):
-            Text("[\(dataValue.count) bytes]").font(.jbMono(12)).italic().foregroundStyle(KTEditorTheme.faint)
+            Text("[\(dataValue.count) bytes]").font(.system(size: 12, design: .monospaced)).italic().foregroundStyle(KTEditorTheme.faint)
         }
     }
 }

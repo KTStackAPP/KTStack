@@ -1,7 +1,6 @@
 import KTPluginKit
 import SwiftUI
 
-/// Thanh lọc inline thay V2FilterSheet: chip điều kiện, ORDER BY, preset, xem WHERE thô, Áp dụng ⏎.
 struct WorkspaceFilterBar: View {
     @ObservedObject var vm: DatabaseV2ViewModel
     @ObservedObject var workspace: WorkspaceStore
@@ -69,7 +68,7 @@ struct WorkspaceFilterBar: View {
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
-            .font(.jbMono(11))
+            .font(.system(size: 11, design: .monospaced))
 
             Menu(condition.wrappedValue.op.symbol) {
                 ForEach(FilterOperator.allCases, id: \.self) { op in
@@ -78,25 +77,25 @@ struct WorkspaceFilterBar: View {
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
-            .font(.jbMono(11))
+            .font(.system(size: 11, weight: .semibold, design: .monospaced))
 
             if condition.wrappedValue.op.bindsValue {
                 TextField("giá trị", text: condition.value)
                     .textFieldStyle(.plain)
-                    .font(.jbMono(11))
+                    .font(.system(size: 11, design: .monospaced))
                     .frame(width: 90)
             }
             Button {
                 conditions.removeAll { $0.id == condition.wrappedValue.id }
             } label: {
-                Image(systemName: "xmark").font(.system(size: 8)).foregroundStyle(KTEditorTheme.label3)
+                Image(systemName: "xmark").font(.system(size: 8, weight: .semibold)).foregroundStyle(KTEditorTheme.label3)
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(KTEditorTheme.fieldBg, in: Capsule())
-        .overlay(Capsule().stroke(KTEditorTheme.fieldBorder, lineWidth: 1))
+        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(nsColor: .separatorColor).opacity(0.6), lineWidth: 0.5))
     }
 
     private var addButton: some View {
@@ -105,7 +104,7 @@ struct WorkspaceFilterBar: View {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "plus").font(.system(size: 9))
-                Text("Điều kiện").font(.jbMono(11))
+                Text("Điều kiện").font(.system(size: 11, weight: .medium))
             }
             .foregroundStyle(KTEditorTheme.label2)
         }
@@ -124,7 +123,7 @@ struct WorkspaceFilterBar: View {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "arrow.up.arrow.down").font(.system(size: 10))
-                Text(sortLabel).font(.jbMono(11))
+                Text(sortLabel).font(.system(size: 11, design: .monospaced))
             }
             .foregroundStyle(sortColumn == nil ? KTEditorTheme.label2 : KTEditorTheme.accent)
         }
@@ -139,9 +138,7 @@ struct WorkspaceFilterBar: View {
 
     private var presetMenu: some View {
         Menu {
-            if vm.savedPresets.isEmpty {
-                Text("Chưa có preset")
-            }
+            if vm.savedPresets.isEmpty { Text("Chưa có preset") }
             ForEach(vm.savedPresets, id: \.name) { preset in
                 Button("\(preset.name) (\(preset.conditions.count))") {
                     conditions = preset.conditions.map(EditableCondition.init)
@@ -161,10 +158,10 @@ struct WorkspaceFilterBar: View {
     private var sqlPreview: some View {
         HStack(spacing: 6) {
             Text("WHERE")
-                .font(.jbMono(10, .semibold))
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
                 .foregroundStyle(KTEditorTheme.label3)
             Text(FilterDraft.previewWhere(conditions, kind: vm.connectionKind ?? .mysql) ?? "(toàn bảng)")
-                .font(.jbMono(11))
+                .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(KTEditorTheme.label2)
                 .textSelection(.enabled)
             Spacer()
@@ -175,9 +172,7 @@ struct WorkspaceFilterBar: View {
         .overlay(alignment: .top) { Divider().overlay(KTEditorTheme.separator) }
     }
 
-    private var builtConditions: [FilterCondition] {
-        FilterDraft.conditions(conditions)
-    }
+    private var builtConditions: [FilterCondition] { FilterDraft.conditions(conditions) }
 
     private func apply() {
         vm.applyFilters(builtConditions)
@@ -192,17 +187,12 @@ struct WorkspaceFilterBar: View {
     }
 
     private func savePreset() {
-        let name = "Preset \(vm.savedPresets.count + 1)"
-        vm.savePreset(name: name, conditions: builtConditions)
+        vm.savePreset(name: "Preset \(vm.savedPresets.count + 1)", conditions: builtConditions)
     }
 
     private func syncFromVM() {
         conditions = vm.activeFilters.map(EditableCondition.init)
-        if let sort = vm.browseSort {
-            sortColumn = sort.column
-            sortAscending = sort.ascending
-        } else {
-            sortColumn = nil
-        }
+        sortColumn = vm.browseSort?.column
+        sortAscending = vm.browseSort?.ascending ?? true
     }
 }
