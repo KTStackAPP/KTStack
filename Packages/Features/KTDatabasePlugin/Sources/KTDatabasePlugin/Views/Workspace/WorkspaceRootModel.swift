@@ -3,9 +3,6 @@ import KTPlatformContracts
 import KTPluginKit
 import SwiftUI
 
-/// State + hành động của cửa sổ workspace, dùng chung cho ba pane (sidebar/content/inspector) của
-/// NSSplitViewController. Trước đây nằm trong DatabaseWorkspaceRoot; tách ra để ba hosting controller
-/// cùng quan sát một nguồn.
 @MainActor
 final class WorkspaceRootModel: ObservableObject {
     let session: WorkspaceSession
@@ -61,8 +58,6 @@ final class WorkspaceRootModel: ObservableObject {
         self.initialProfileID = initialProfileID
     }
 
-    // MARK: Derived
-
     var isConnected: Bool {
         if case .connected = vm.connectionState { return true }
         return false
@@ -93,15 +88,12 @@ final class WorkspaceRootModel: ObservableObject {
         return (table.isView ? "vw." : "tbl.") + table.name
     }
 
-    // MARK: Actions
-
     func activate(profileID: UUID) {
         guard let profile = workspace.profiles.first(where: { $0.id == profileID }) else { return }
         workspace.selectedProfileID = profileID
         Task { await connectStartingEngine(profile) }
     }
 
-    /// Managed engine chưa chạy thì bật rồi chờ, sau đó mới nối.
     func connectStartingEngine(_ profile: ConnectionProfile) async {
         if profile.isManaged, let engine = profile.kind.engine, !engines.isRunning(engine) {
             engines.toggle(engine)
@@ -116,8 +108,7 @@ final class WorkspaceRootModel: ObservableObject {
         await vm.connect(profile: profile)
         guard case .connected = vm.connectionState else { return }
         if let last = lastUsed.lastDatabase(for: profile.id),
-           vm.databases.contains(where: { $0.name == last }), last != vm.selectedDatabase
-        {
+           vm.databases.contains(where: { $0.name == last }), last != vm.selectedDatabase {
             await vm.select(database: last)
         }
         await refreshSchema(profileID: profile.id)
@@ -131,7 +122,7 @@ final class WorkspaceRootModel: ObservableObject {
         }
     }
 
-    private func refreshSchema(profileID: UUID) async {
+    func refreshSchema(profileID: UUID) async {
         guard let db = vm.selectedDatabase, !db.isEmpty else {
             workspace.activeDatabase = nil
             return
@@ -172,7 +163,6 @@ final class WorkspaceRootModel: ObservableObject {
         requestCloseTab(id)
     }
 
-    /// Ngắt kết nối tab hiện tại: hỏi discard nếu còn pending, rồi đóng shell + tab và về trang kết nối.
     func requestDisconnect() {
         if workspace.pendingChangeTotal > 0 { confirmDisconnect = true } else { performDisconnect() }
     }
@@ -183,92 +173,5 @@ final class WorkspaceRootModel: ObservableObject {
             workspace.selectedProfileID = nil
             workspace.activeDatabase = nil
         }
-    }
-
-    private func recordRecent(_ table: TableInfo) {
-        guard let pid = workspace.selectedProfileID, let db = workspace.activeDatabase else { return }
-        workspace.recentStore.record(
-            RecentObject(profileID: pid, database: db, name: table.name, isView: table.isView)
-        )
-    }
-
-    /// Trang kết nối: nối profile, chọn đúng database rồi mở lại bảng gần đây.
-    func openRecent(_ object: RecentObject) {
-        guard let profile = workspace.profiles.first(where: { $0.id == object.profileID }) else { return }
-        workspace.selectedProfileID = profile.id
-        Task {
-            await connectStartingEngine(profile)
-            guard isConnected else { return }
-            if vm.selectedDatabase != object.database,
-               vm.databases.contains(where: { $0.name == object.database })
-            {
-                await vm.select(database: object.database)
-                await refreshSchema(profileID: profile.id)
-            }
-            if let table = currentObjects.first(where: { $0.name == object.name }) {
-                workspace.openTable(table, profileID: profile.id, database: object.database, forceNewTab: false)
-            }
-        }
-    }
-
-    func profileContextActions(_ profile: ConnectionProfile) -> [SidebarAction] {
-        var actions = [
-            SidebarAction(title: "Backup…") { [weak self] in self?.backupProfile(profile) },
-            SidebarAction(title: "Restore…") { [weak self] in self?.restoreProfile(profile) },
-        ]
-        if !profile.isManaged {
-            actions.append(SidebarAction(title: "Sửa…") { [weak self] in self?.editSheet = profile })
-            actions.append(SidebarAction(title: "Nhân bản") { [weak self] in self?.duplicate(profile) })
-            actions.append(SidebarAction(title: "Xóa", isDestructive: true) { [weak self] in
-                self?.connectionStore.remove(profile)
-            })
-        }
-        return actions
-    }
-
-    // Backup/New Database chạy trên databaseVM (v1), nối riêng với tab editor (v2).
-    func presentBackups() {
-        guard let profile = selectedProfile else { return }
-        Task { if await ensureBackupConnection(profile) { showBackups = true } }
-    }
-
-    func presentNewDatabase() {
-        guard let profile = selectedProfile else { return }
-        Task { if await ensureBackupConnection(profile) { sectionState.newDatabasePresented = true } }
-    }
-
-    private func backupProfile(_ profile: ConnectionProfile) {
-        Task {
-            guard await ensureBackupConnection(profile) else { return }
-            let set = await databaseVM.backupAllDatabases(session: backupSession)
-            if set != nil { feedback.toast("Backed up “\(profile.name)”") }
-        }
-    }
-
-    private func restoreProfile(_ profile: ConnectionProfile) {
-        Task { if await ensureBackupConnection(profile) { showBackups = true } }
-    }
-
-    private func ensureBackupConnection(_ profile: ConnectionProfile) async -> Bool {
-        if databaseVM.selectedProfile?.id == profile.id, databaseVM.connection == .connected { return true }
-        await databaseVM.select(profile: profile)
-        if databaseVM.connection == .connected { return true }
-        if case let .failed(error) = databaseVM.connection { feedback.toast(error.message) }
-        return false
-    }
-
-    private func duplicate(_ profile: ConnectionProfile) {
-        let copy = ConnectionProfile(
-            name: "\(profile.name) copy",
-            kind: profile.kind,
-            host: profile.host,
-            port: profile.port,
-            user: profile.user,
-            database: profile.database,
-            filePath: profile.filePath,
-            tlsMode: profile.tlsMode,
-            readOnly: profile.readOnly
-        )
-        connectionStore.add(copy)
     }
 }

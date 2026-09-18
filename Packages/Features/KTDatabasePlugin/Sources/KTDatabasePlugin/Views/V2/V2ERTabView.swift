@@ -43,13 +43,13 @@ struct V2ERTabView: View {
         GeometryReader { proxy in
             canvas
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(dottedBackground)
+                .background(V2ERDottedBackground())
                 .contentShape(Rectangle())
                 .clipped()
                 .gesture(dragGesture.simultaneously(with: magnifyGesture))
                 .onContinuousHover { updateHover($0) }
                 .onTapGesture { state.selectedTable = state.tableAt(viewPoint: $0) }
-                .overlay(alignment: .bottomTrailing) { toolbar }
+                .overlay(alignment: .bottomTrailing) { V2ERCanvasToolbar(state: state) }
                 .onAppear {
                     state.viewportSize = proxy.size
                     fitIfNeeded(size: proxy.size)
@@ -159,88 +159,21 @@ struct V2ERTabView: View {
         }
     }
 
-    private var dottedBackground: some View {
-        Canvas { ctx, size in
-            let spacing: CGFloat = 22
-            var y: CGFloat = 0
-            while y < size.height {
-                var x: CGFloat = 0
-                while x < size.width {
-                    ctx.fill(
-                        Path(ellipseIn: CGRect(x: x, y: y, width: 1.4, height: 1.4)),
-                        with: .color(KTEditorTheme.separator)
-                    )
-                    x += spacing
-                }
-                y += spacing
-            }
-        }
-        .drawingGroup()
-        .background(KTEditorTheme.content)
-    }
-
     private var placeholder: some View {
         VStack(spacing: 6) {
             Image(systemName: "rectangle.connected.to.line.below")
                 .font(.system(size: 42, weight: .light))
                 .foregroundStyle(KTEditorTheme.label3)
             Text("No tables")
-                .font(.jbMono(16, .regular))
-                .foregroundStyle(KTEditorTheme.label2)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Color(nsColor: .secondaryLabelColor))
             Text("Select a database with tables to see its ER diagram.")
-                .font(.jbMono(13))
-                .foregroundStyle(KTEditorTheme.label2)
+                .font(.system(size: 12))
+                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(KTEditorTheme.content)
     }
-
-    private var toolbar: some View {
-        HStack(spacing: 8) {
-            iconButton("arrow.up.left.and.arrow.down.right") { state.fitToWindow() }
-            divider
-            iconButton("minus") { state.zoom(to: state.magnification - 0.2) }
-            Button { state.zoom(to: 1) } label: {
-                Text("\(Int((state.magnification * 100).rounded()))%")
-                    .font(.jbMono(12, .medium).monospacedDigit())
-                    .foregroundStyle(KTEditorTheme.label)
-                    .frame(minWidth: 44, minHeight: 26)
-            }
-            .buttonStyle(.plain)
-            iconButton("plus") { state.zoom(to: state.magnification + 0.2) }
-            divider
-            iconButton(
-                state.isCompact ? "rectangle.expand.vertical" : "rectangle.compress.vertical",
-                active: state.isCompact
-            ) { state.setCompact(!state.isCompact) }
-            iconButton("arrow.counterclockwise") { state.resetLayout() }
-        }
-        .padding(.horizontal, 6)
-        .background(Capsule().fill(KTEditorTheme.content2))
-        .overlay(Capsule().stroke(KTEditorTheme.separator, lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.35), radius: 4, y: 2)
-        .padding(16)
-    }
-
-    private var divider: some View {
-        Rectangle().fill(KTEditorTheme.separator).frame(width: 0.5, height: 18)
-    }
-
-    private func iconButton(
-        _ symbol: String,
-        active: Bool = false,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 12, weight: .regular))
-                .foregroundStyle(active ? KTEditorTheme.accent : KTEditorTheme.label2)
-                .frame(width: 26, height: 26)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
     private func centeredView(@ViewBuilder content: () -> some View) -> some View {
         VStack {
             Spacer()
