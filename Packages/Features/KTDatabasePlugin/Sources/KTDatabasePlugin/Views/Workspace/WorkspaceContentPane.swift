@@ -100,7 +100,7 @@ struct WorkspaceContentPane: View {
             Image(systemName: "tablecells")
                 .font(.system(size: 28))
                 .foregroundStyle(KTEditorTheme.faint)
-            Text("Chọn một bảng ở sidebar để mở tab")
+            Text("Select a table in the sidebar to open")
                 .font(.system(size: 13))
                 .foregroundStyle(KTEditorTheme.label3)
         }

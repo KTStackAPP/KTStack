@@ -2,8 +2,6 @@ import AppKit
 import Combine
 import SwiftUI
 
-/// Khung cửa sổ workspace: NSSplitViewController ba pane (sidebar material / content / inspector).
-/// Collapse đồng bộ hai chiều với hai cờ frozen của WorkspaceStore; divider tự lưu qua autosave.
 @MainActor
 final class WorkspaceSplitController: NSSplitViewController {
     private let workspace: WorkspaceStore
@@ -21,7 +19,8 @@ final class WorkspaceSplitController: NSSplitViewController {
         sidebarPane = NSSplitViewItem(sidebarWithViewController: sidebar)
         sidebarPane.minimumThickness = 248
         sidebarPane.maximumThickness = 380
-        sidebarPane.canCollapse = true
+        sidebarPane.canCollapse = false
+        sidebarPane.holdingPriority = .defaultLow + 1
 
         let content = NSHostingController(
             rootView: WorkspaceContentPane(
@@ -30,6 +29,7 @@ final class WorkspaceSplitController: NSSplitViewController {
         )
         let contentPane = NSSplitViewItem(viewController: content)
         contentPane.minimumThickness = 480
+        contentPane.holdingPriority = .defaultLow
 
         let inspector = NSHostingController(
             rootView: WorkspaceInspectorPane(workspace: workspace)
@@ -37,7 +37,8 @@ final class WorkspaceSplitController: NSSplitViewController {
         inspectorPane = NSSplitViewItem(inspectorWithViewController: inspector)
         inspectorPane.minimumThickness = 250
         inspectorPane.maximumThickness = 460
-        inspectorPane.canCollapse = true
+        inspectorPane.canCollapse = false
+        inspectorPane.holdingPriority = .defaultLow + 1
 
         super.init(nibName: nil, bundle: nil)
 
@@ -56,30 +57,25 @@ final class WorkspaceSplitController: NSSplitViewController {
         fatalError()
     }
 
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        splitView.autosaveName = "KTStackDatabaseSplit"
+    override func viewWillAppear() {
+        super.viewWillAppear()
+        sidebarPane.isCollapsed = !workspace.sidebarVisible
+        inspectorPane.isCollapsed = !workspace.inspectorVisible
     }
 
     private func bindStoreToPanes() {
         workspace.$sidebarVisible
+            .receive(on: RunLoop.main)
             .sink { [weak self] visible in self?.setCollapsed(self?.sidebarPane, collapsed: !visible) }
             .store(in: &cancellables)
         workspace.$inspectorVisible
+            .receive(on: RunLoop.main)
             .sink { [weak self] visible in self?.setCollapsed(self?.inspectorPane, collapsed: !visible) }
             .store(in: &cancellables)
     }
+
     private func setCollapsed(_ item: NSSplitViewItem?, collapsed: Bool) {
         guard let item, item.isCollapsed != collapsed else { return }
         item.animator().isCollapsed = collapsed
-    }
-
-    // Pane → store: kéo divider để collapse ghi lại vào hai key frozen.
-    override func splitViewDidResizeSubviews(_ notification: Notification) {
-        super.splitViewDidResizeSubviews(notification)
-        let sidebarVisible = !sidebarPane.isCollapsed
-        let inspectorVisible = !inspectorPane.isCollapsed
-        if workspace.sidebarVisible != sidebarVisible { workspace.sidebarVisible = sidebarVisible }
-        if workspace.inspectorVisible != inspectorVisible { workspace.inspectorVisible = inspectorVisible }
     }
 }

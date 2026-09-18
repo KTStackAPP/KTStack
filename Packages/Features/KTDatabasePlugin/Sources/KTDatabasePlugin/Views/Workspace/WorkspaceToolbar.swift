@@ -10,6 +10,14 @@ struct WorkspaceToolbar: View {
                 .id(session.id)
         } else {
             HStack(spacing: 8) {
+                Button("Sidebar", systemImage: "sidebar.left") {
+                    workspace.sidebarVisible.toggle()
+                }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .foregroundStyle(workspace.sidebarVisible ? KTEditorTheme.accent : KTEditorTheme.label2)
+                .help("Toggle Sidebar (⌘0)")
+
                 Spacer(minLength: 0)
                 WorkspaceWindowButtons(workspace: workspace)
                 WorkspaceConnectionMenu(workspace: workspace)
@@ -38,46 +46,54 @@ private struct WorkspaceToolbarBar: View {
 
     private var leftCluster: some View {
         HStack(spacing: 4) {
-            Button("Quay lại", systemImage: "chevron.left") {
+            Button("Sidebar", systemImage: "sidebar.left") {
+                workspace.sidebarVisible.toggle()
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .foregroundStyle(workspace.sidebarVisible ? KTEditorTheme.accent : KTEditorTheme.label2)
+            .help("Toggle Sidebar (⌘0)")
+
+            Button("Back", systemImage: "chevron.left") {
                 vm.goBack()
             }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .disabled(!vm.canGoBack)
-            .help("Quay lại bảng trước")
+            .help("Back")
 
-            Button("Tiếp theo", systemImage: "chevron.right") {
+            Button("Forward", systemImage: "chevron.right") {
                 vm.goForward()
             }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .disabled(!vm.canGoForward)
-            .help("Đi tới bảng tiếp theo")
+            .help("Forward")
 
-            Button("Tải lại", systemImage: "arrow.clockwise") {
+            Button("Reload", systemImage: "arrow.clockwise") {
                 workspace.refreshActive()
             }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
-            .help("Tải lại dữ liệu (⌘R)")
+            .help("Reload (⌘R)")
         }
     }
 
     private var rightCluster: some View {
         HStack(spacing: 6) {
-            Button("Tìm", systemImage: "magnifyingglass") {
+            Button("Filter", systemImage: "magnifyingglass") {
                 workspace.focusFilter()
             }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
-            .help("Lọc bảng (⌘F)")
+            .help("Filter Tables (⌘F)")
 
             Button("Query", systemImage: "plus") {
                 workspace.openQueryForActive()
             }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
-            .help("Mở tab Query mới (⌘T)")
+            .help("New Query Tab (⌘T)")
 
             WorkspaceWindowButtons(workspace: workspace)
             WorkspaceConnectionMenu(workspace: workspace)
@@ -88,7 +104,7 @@ private struct WorkspaceToolbarBar: View {
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .foregroundStyle(workspace.inspectorVisible ? KTEditorTheme.accent : KTEditorTheme.label2)
-            .help("Bật/tắt Inspector (⌘⌥I)")
+            .help("Toggle Inspector (⌘⌥I)")
         }
     }
 }
@@ -98,11 +114,11 @@ private struct WorkspaceConnectionMenu: View {
 
     var body: some View {
         Menu {
-            Button("Ngắt kết nối") { workspace.requestDisconnect() }
+            Button("Disconnect") { workspace.requestDisconnect() }
                 .disabled(workspace.selectedProfileID == nil)
-            Button("Mở kết nối khác…") { workspace.requestOpenConnection() }
+            Button("Open Another Connection…") { workspace.requestOpenConnection() }
         } label: {
-            Label("Tuỳ chọn kết nối", systemImage: "ellipsis.circle")
+            Label("Connection Options", systemImage: "ellipsis.circle")
                 .labelStyle(.iconOnly)
                 .foregroundStyle(KTEditorTheme.label2)
         }
@@ -123,15 +139,15 @@ private struct WorkspaceWindowButtons: View {
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .disabled(workspace.selectedProfileID == nil)
-            .help("Quản lý bản sao lưu")
+            .help("Manage Backups")
 
-            Button("New DB", systemImage: "plus.rectangle.on.folder") {
+            Button("New Database", systemImage: "plus.rectangle.on.folder") {
                 workspace.requestNewDatabase()
             }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .disabled(workspace.selectedProfileID == nil)
-            .help("Tạo cơ sở dữ liệu mới")
+            .help("Create Database")
         }
     }
 }

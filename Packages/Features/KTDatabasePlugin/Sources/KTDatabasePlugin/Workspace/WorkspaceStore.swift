@@ -60,7 +60,6 @@ public final class WorkspaceStore: ObservableObject {
         self.objectLoader = objectLoader
         self.makeViewModel = makeViewModel
         self.tabIdleInterval = tabIdleInterval
-        // Sidebar mặc định hiện khi chưa có key; inspector mặc định ẩn.
         sidebarVisible = UserDefaults.standard.object(forKey: Self.sidebarKey) as? Bool ?? true
         inspectorVisible = UserDefaults.standard.bool(forKey: Self.inspectorKey)
 
