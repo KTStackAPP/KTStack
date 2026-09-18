@@ -147,15 +147,21 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
         makeTabContent = makeTab
 
         if let window {
-            window.makeKeyAndOrderFront(nil)
-            window.orderFrontRegardless()
+            DispatchQueue.main.async {
+                window.makeKeyAndOrderFront(nil)
+                window.orderFrontRegardless()
+                NSApp.activate(ignoringOtherApps: true)
+            }
             return
         }
 
         let window = makeWindow(content: initial, primary: true)
         self.window = window
-        window.makeKeyAndOrderFront(nil)
-        window.orderFrontRegardless()
+        DispatchQueue.main.async {
+            window.makeKeyAndOrderFront(nil)
+            window.orderFrontRegardless()
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
     func close() {
         window?.close()
@@ -172,8 +178,11 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
 
     func select(_ window: NSWindow) {
         AppActivationPolicy.activateRegular()
-        window.makeKeyAndOrderFront(nil)
-        window.orderFrontRegardless()
+        DispatchQueue.main.async {
+            window.makeKeyAndOrderFront(nil)
+            window.orderFrontRegardless()
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 
     // Tìm cửa sổ theo identity của TabContent (ví dụ session nối profile nào).
@@ -195,8 +204,11 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
         let tab = makeWindow(content: content, primary: false)
         tabWindows.append(tab)
         anchor.addTabbedWindow(tab, ordered: .above)
-        tab.makeKeyAndOrderFront(nil)
-        tab.orderFrontRegardless()
+        DispatchQueue.main.async {
+            tab.makeKeyAndOrderFront(nil)
+            tab.orderFrontRegardless()
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
     private func makeWindow(content tc: TabContent, primary: Bool) -> NSWindow {
         var styleMask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable]
