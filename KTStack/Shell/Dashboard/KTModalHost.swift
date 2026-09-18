@@ -50,7 +50,8 @@ final class KTModalHostController {
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = false
-        window.level = .floating
+        window.level = parent.level
+        window.hidesOnDeactivate = true
         window.contentView = NSHostingView(rootView: AnyView(KTWindowModals().environmentObject(modals)))
 
         observe()
@@ -85,11 +86,10 @@ final class KTModalHostController {
         guard let parentWindow else { return }
         isShown = true
         syncFrame()
-        window.level = .floating
+        window.level = parentWindow.level
         if window.parent == nil { parentWindow.addChildWindow(window, ordered: .above) }
         syncFrame()
         window.makeKeyAndOrderFront(nil)
-        window.orderFrontRegardless()
     }
 
     private func hide() {
@@ -103,5 +103,10 @@ final class KTModalHostController {
                 parent.makeKey()
             }
         }
+    }
+
+    deinit {
+        parentWindow?.removeChildWindow(window)
+        window.orderOut(nil)
     }
 }
