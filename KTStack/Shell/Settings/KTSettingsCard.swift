@@ -10,12 +10,10 @@ struct KTSettingsGroup<Content: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title.uppercased())
                 .font(.jbMono(12, .bold)).tracking(0.5)
-                .foregroundStyle(KTColor.muted)
+                .foregroundStyle(KTColor.ink2)
                 .padding(.bottom, 9)
             VStack(spacing: 0) { content() }
-                .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(Color.white))
-                .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(KTColor.sep, lineWidth: 0.5))
-                .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                .ktLiquidGlassCard(cornerRadius: 13)
         }
         .padding(.bottom, 22)
     }
@@ -32,7 +30,7 @@ struct KTSettingsRow<Trailing: View>: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.jbMono(14, .regular)).foregroundStyle(KTColor.ink)
                 if let subtitle {
-                    Text(subtitle).font(.jbMono(12.5)).foregroundStyle(KTColor.muted)
+                    Text(subtitle).font(.jbMono(12.5)).foregroundStyle(KTColor.ink2)
                 }
             }
             Spacer(minLength: 12)
@@ -54,7 +52,7 @@ struct KTSettingsMenuValue: View {
             Text(text)
                 .font(.jbMono(13, mono ? .regular : .medium))
                 .foregroundStyle(mono ? KTColor.ink2 : KTColor.ink)
-            Image(systemName: "chevron.down").font(.system(size: 10, weight: .regular)).foregroundStyle(KTColor.muted)
+            Image(systemName: "chevron.down").font(.system(size: 10, weight: .regular)).foregroundStyle(KTColor.ink2)
         }
         .padding(.horizontal, 12).padding(.vertical, 7)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(KTColor.fieldBg))

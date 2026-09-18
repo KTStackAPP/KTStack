@@ -23,12 +23,12 @@ struct RuntimesScreen: View {
 
     var body: some View {
         GeometryReader { geo in
-            let compact = geo.size.width > 0 && (geo.size.width - 180) < 700
+            let compact = geo.size.width > 0 && (geo.size.width - 220) < 680
             HStack(spacing: 0) {
                 KTCategoryRail(sections: railSections, selection: $category, compact: compact)
-                    .frame(width: compact ? 44 : 180)
+                    .frame(width: compact ? 44 : 220)
                     .frame(maxHeight: .infinity)
-                    .background(KTColor.sidebarBackground)
+                    .background(railBackground)
                     .overlay(alignment: .trailing) {
                         Rectangle().fill(KTColor.sep).frame(width: 0.5)
                     }
@@ -48,12 +48,23 @@ struct RuntimesScreen: View {
         VStack(alignment: .leading, spacing: 0) {
             paneHeader
             ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    categoryPane(category)
+                if #available(macOS 27, *) {
+                    GlassEffectContainer(spacing: 22) {
+                        VStack(alignment: .leading, spacing: 22) {
+                            categoryPane(category)
+                        }
+                    }
+                    .padding(.horizontal, KTSpacing.screenGutter)
+                    .padding(.top, 16)
+                    .padding(.bottom, 24)
+                } else {
+                    VStack(alignment: .leading, spacing: 22) {
+                        categoryPane(category)
+                    }
+                    .padding(.horizontal, KTSpacing.screenGutter)
+                    .padding(.top, 16)
+                    .padding(.bottom, 24)
                 }
-                .padding(.horizontal, KTSpacing.screenGutter)
-                .padding(.top, 16)
-                .padding(.bottom, 24)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -65,7 +76,7 @@ struct RuntimesScreen: View {
                 Text(category.title)
                     .font(KTType.screenTitle).tracking(KTType.screenTitleTracking).foregroundStyle(KTColor.ink)
                 Text(category.description)
-                    .font(KTType.sub).foregroundStyle(KTColor.muted)
+                    .font(KTType.sub).foregroundStyle(KTColor.ink2)
                 Spacer(minLength: 8)
             }
             KTSearchField(text: $filter, placeholder: "Filter versions…")
@@ -73,6 +84,14 @@ struct RuntimesScreen: View {
         .padding(.horizontal, KTSpacing.screenGutter)
         .padding(.top, 18)
         .padding(.bottom, 4)
+    }
+    @ViewBuilder
+    private var railBackground: some View {
+        if #available(macOS 27, *) {
+            Color.clear.glassEffect(.regular, in: .rect(cornerRadius: 0))
+        } else {
+            KTColor.sidebarBackground
+        }
     }
 
     func editIni(_ version: String) {

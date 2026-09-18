@@ -25,9 +25,10 @@ public enum KTColor {
 
     public static let ink = Color(nsColor: .labelColor)
     public static let ink2 = Color(nsColor: .secondaryLabelColor)
-    public static let ink3 = Color(nsColor: .tertiaryLabelColor)
-    public static let muted = Color(nsColor: .quaternaryLabelColor)
-    public static let faint = Color(nsColor: .separatorColor)
+    public static let ink3 = Color(nsColor: .secondaryLabelColor)
+    public static let muted = Color(nsColor: .secondaryLabelColor)
+    public static let faint = Color(nsColor: .secondaryLabelColor).opacity(0.85)
+    public static let cardBg = Color(nsColor: .controlBackgroundColor)
 
     public static let contentBg = Color(nsColor: .windowBackgroundColor)
     public static let sidebarBg = Color(nsColor: .controlBackgroundColor)

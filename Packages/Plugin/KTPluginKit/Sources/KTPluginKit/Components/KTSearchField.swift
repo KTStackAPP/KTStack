@@ -13,7 +13,7 @@ public struct KTSearchField: View {
         HStack(spacing: 9) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(KTColor.muted)
+                .foregroundStyle(KTColor.ink2)
             TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
                 .font(.jbMono(14))
@@ -21,7 +21,7 @@ public struct KTSearchField: View {
             if !text.isEmpty {
                 Button { text = "" } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(KTColor.muted)
+                        .foregroundStyle(KTColor.ink2)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear search")
@@ -29,7 +29,6 @@ public struct KTSearchField: View {
         }
         .padding(.vertical, 9)
         .padding(.horizontal, 14)
-        .background(RoundedRectangle(cornerRadius: KTRadius.field, style: .continuous).fill(KTColor.fieldBg))
-        .overlay(RoundedRectangle(cornerRadius: KTRadius.field, style: .continuous).strokeBorder(KTColor.fieldBorder, lineWidth: 0.5))
+        .ktLiquidGlassInteractive(cornerRadius: KTRadius.field)
     }
 }

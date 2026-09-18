@@ -6,7 +6,6 @@ struct KTSidebarFooterCard: View {
     let status: ServiceStatus
     let version: String
 
-    // Observed only for the rare "update found" event (set by Sparkle's existing checks); no polling.
     @EnvironmentObject private var updater: UpdaterController
 
     var body: some View {
@@ -27,14 +26,13 @@ struct KTSidebarFooterCard: View {
                 } else {
                     Text("v\(version)")
                         .font(.jbMono(11.5))
-                        .foregroundStyle(KTColor.muted)
+                        .foregroundStyle(KTColor.ink2)
                 }
             }
             Spacer(minLength: 0)
         }
         .padding(11)
-        .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(Color.white.opacity(0.7)))
-        .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(Color(hex: 0xE8E8EE), lineWidth: 0.5))
+        .ktLiquidGlassCard(cornerRadius: 11)
     }
 
     private var dotColor: Color {

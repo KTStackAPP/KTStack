@@ -31,11 +31,11 @@ public struct KTEngineCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .fill(active ? KTColor.accentSoft : (hovering ? KTColor.btnHover : Color.white))
+                    .fill(active ? KTColor.accentSoft : (hovering ? KTColor.btnHover : KTColor.cardBg))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .stroke(active ? KTColor.accent : Color(hex: 0xE6E6EC), lineWidth: active ? 1.5 : 0.5)
+                    .stroke(active ? KTColor.accent : KTColor.sep, lineWidth: active ? 1.5 : 0.5)
             )
             .contentShape(Rectangle())
         }

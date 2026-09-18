@@ -114,11 +114,10 @@ final class DashboardSplitViewController: NSSplitViewController {
         super.viewDidLoad()
 
         let sidebarController = NSHostingController(rootView: env.inject(DashboardSidebarHost(nav: nav, sections: sections)))
-        let sidebarItem = NSSplitViewItem(viewController: sidebarController)
+        let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarController)
         sidebarItem.canCollapse = false
         sidebarItem.minimumThickness = KTMetric.sidebarWidth
         sidebarItem.maximumThickness = KTMetric.sidebarWidth
-
         let detailItem = NSSplitViewItem(viewController: detailContainer)
         detailItem.canCollapse = false
 
