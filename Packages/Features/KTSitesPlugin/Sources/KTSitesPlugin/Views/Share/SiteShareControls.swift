@@ -23,11 +23,11 @@ struct SiteShareControls: View {
                 if let shareExpiresAt {
                     Text("Expires \(Self.expiryFormatter.string(from: shareExpiresAt))")
                         .font(.jbMono(11))
-                        .foregroundStyle(KTColor.muted)
+                        .foregroundStyle(KTColor.ink2)
                         .ktTip("Tunnel closes automatically at this time")
                         .padding(.trailing, 4)
                 }
-                iconButton("doc.on.doc", help: "Copy tunnel URL", tint: KTColor.ink3) {
+                iconButton("doc.on.doc", help: "Copy tunnel URL", tint: KTColor.ink2) {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(shareURL.absoluteString, forType: .string)
                 }
@@ -41,7 +41,7 @@ struct SiteShareControls: View {
                 iconButton(
                     "antenna.radiowaves.left.and.right.slash",
                     help: "Share via tunnel",
-                    tint: KTColor.ink3
+                    tint: KTColor.ink2
                 ) { onToggleShare(true) }
             }
         }

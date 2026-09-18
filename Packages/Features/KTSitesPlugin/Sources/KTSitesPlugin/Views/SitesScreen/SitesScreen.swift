@@ -90,7 +90,7 @@ struct SitesScreen: View {
                 KTDot(color: vm.server.isRunning ? KTColor.runDot : KTColor.stopDot)
                 Text("Server: \(vm.server.isRunning ? "Running" : "Stopped")")
                     .font(.jbMono(13, .medium))
-                    .foregroundStyle(vm.server.isRunning ? KTColor.online : KTColor.muted)
+                    .foregroundStyle(vm.server.isRunning ? KTColor.online : KTColor.ink2)
             }
             .padding(.vertical, 6)
             .padding(.horizontal, 12)
@@ -122,7 +122,7 @@ struct SitesScreen: View {
                 .frame(width: 30, height: 26)
                 .background(
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(active ? Color.white : Color.clear)
+                        .fill(active ? KTColor.cardBg : Color.clear)
                         .shadow(color: active ? .black.opacity(0.10) : .clear, radius: 1.5, y: 1)
                 )
         }

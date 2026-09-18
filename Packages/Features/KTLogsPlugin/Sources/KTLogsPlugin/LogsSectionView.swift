@@ -32,14 +32,7 @@ struct LogsSectionView: View {
             Text("Logs").font(KTType.screenTitle).tracking(KTType.screenTitleTracking).foregroundStyle(KTColor.ink)
             Spacer()
             sourceMenu
-            Button(action: { store.tail.clear() }) {
-                Text("Clear").font(.jbMono(13, .medium)).foregroundStyle(KTColor.ink)
-                    .padding(.horizontal, 14).padding(.vertical, 7)
-                    .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.white))
-                    .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(KTColor.btnBorder, lineWidth: 0.5))
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
+            KTButton(title: "Clear", kind: .secondary) { store.tail.clear() }
             followToggle
         }
     }
@@ -66,7 +59,7 @@ struct LogsSectionView: View {
             .padding(.horizontal, 14).padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(store.tail.isLive ? KTColor.onlineBg : Color.white)
+                    .fill(store.tail.isLive ? KTColor.onlineBg : KTColor.cardBg)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
@@ -92,7 +85,15 @@ struct LogsSectionView: View {
                     }
                 }
                 .padding(14)
-                .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(KTColor.editorBg))
+                .background(
+                    RoundedRectangle(cornerRadius: 13, style: .continuous)
+                        .fill(Color(hex: 0x18181D))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 13, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
                 .onChange(of: store.tail.lines.count) { _ in
                     guard store.tail.isLive else { return }
                     if reduceMotion { proxy.scrollTo(bottomID, anchor: .bottom) }
@@ -111,7 +112,7 @@ struct LogsSectionView: View {
                 .frame(width: 42, alignment: .leading)
             Text(line.text)
                 .font(.jbMono(12.5))
-                .foregroundStyle(Color(hex: 0xD4D4DA))
+                .foregroundStyle(Color(hex: 0xEDEDF0))
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -128,18 +129,28 @@ struct LogsSectionView: View {
 
     private func severityColor(_ severity: LogSeverity) -> Color {
         switch severity {
-        case .info: Color(hex: 0x7FD4A0)
-        case .warning: Color(hex: 0xFFD479)
-        case .error: Color(hex: 0xFF8FB0)
+        case .info: Color(hex: 0x34D399)
+        case .warning: Color(hex: 0xFBBF24)
+        case .error: Color(hex: 0xF87171)
         }
     }
 
     private func emptyPanel(_ title: String, _ message: String) -> some View {
-        VStack(spacing: 6) {
-            Image(systemName: "text.alignleft").font(.system(size: 42, weight: .light)).foregroundStyle(KTColor.faint)
-            Text(title).font(.jbMono(16, .regular)).foregroundStyle(KTColor.ink3)
-            Text(message).font(.jbMono(13)).foregroundStyle(KTColor.muted).multilineTextAlignment(.center)
+        VStack(spacing: 8) {
+            Image(systemName: "text.alignleft").font(.system(size: 42, weight: .light)).foregroundStyle(Color(hex: 0x6B7280))
+            Text(title).font(.jbMono(16, .regular)).foregroundStyle(Color(hex: 0xD1D5DB))
+            Text(message).font(.jbMono(13)).foregroundStyle(Color(hex: 0x9CA3AF)).multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
+        .background(
+            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .fill(Color(hex: 0x18181D))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
     }
 }

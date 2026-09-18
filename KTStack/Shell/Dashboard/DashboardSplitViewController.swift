@@ -244,9 +244,8 @@ final class DetailContainerViewController: NSViewController {
                 uninstaller: env.uninstaller,
                 pluginPanes: settingsPanes
             )
-            .navigationTitle("Settings")
         } else if id == "about" {
-            AboutSettingsView().navigationTitle("About")
+            AboutSettingsView()
         }
     }
 }

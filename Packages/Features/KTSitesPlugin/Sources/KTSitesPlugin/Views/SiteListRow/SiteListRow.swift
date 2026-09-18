@@ -134,7 +134,7 @@ struct SiteListRow: View, Equatable {
                     TextField("domain", text: $domainDraft)
                         .textFieldStyle(.plain)
                         .font(.jbMono(12.5))
-                        .foregroundStyle(domainError ? KTColor.danger : KTColor.muted)
+                        .foregroundStyle(domainError ? KTColor.danger : KTColor.ink2)
                         .lineLimit(1)
                         .onSubmit(commitDomain)
                     if !site.aliases.isEmpty {

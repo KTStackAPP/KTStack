@@ -21,7 +21,7 @@ struct SiteActionsMenu: View {
         Button { open.toggle() } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 16, weight: .regular))
-                .foregroundStyle(KTColor.muted)
+                .foregroundStyle(KTColor.ink2)
                 .frame(width: 32, height: 30)
                 .contentShape(Rectangle())
         }
@@ -37,7 +37,7 @@ struct SiteActionsMenu: View {
             }
             .padding(.top, 8)
             .frame(width: 268)
-            .background(Color.white)
+            .background(KTColor.cardBg)
             .onAppear {
                 editors = CodeEditorCatalog(locate: {
                     NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0)
@@ -142,7 +142,7 @@ struct SiteActionsMenu: View {
         Text(title.uppercased())
             .font(KTType.sectionLabel)
             .tracking(KTType.sectionLabelTracking)
-            .foregroundStyle(KTColor.faint)
+            .foregroundStyle(KTColor.ink2)
             .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 3)
     }
 
@@ -187,7 +187,7 @@ private struct SiteActionRow: View {
                     .foregroundStyle(danger ? KTColor.danger : KTColor.ink)
                 Spacer(minLength: 12)
                 if !shortcut.isEmpty {
-                    Text(shortcut).font(.jbMono(12.5)).foregroundStyle(KTColor.faint)
+                    Text(shortcut).font(.jbMono(12.5)).foregroundStyle(KTColor.ink2)
                 }
             }
             .padding(.horizontal, 10).padding(.vertical, 7)

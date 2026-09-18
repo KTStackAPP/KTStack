@@ -106,10 +106,9 @@ public struct KTDropdownChevronLabel: View {
             Text(text)
                 .font(.jbMono(13, mono ? .regular : .medium))
                 .foregroundStyle(mono ? KTColor.ink2 : KTColor.ink)
-            Image(systemName: "chevron.down").font(.system(size: 10, weight: .regular)).foregroundStyle(KTColor.muted)
+            Image(systemName: "chevron.down").font(.system(size: 10, weight: .regular)).foregroundStyle(KTColor.ink2)
         }
         .padding(.horizontal, 12).padding(.vertical, 7)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(KTColor.fieldBg))
-        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(KTColor.fieldBorder, lineWidth: 0.5))
+        .ktLiquidGlassInteractive(cornerRadius: 8)
     }
 }

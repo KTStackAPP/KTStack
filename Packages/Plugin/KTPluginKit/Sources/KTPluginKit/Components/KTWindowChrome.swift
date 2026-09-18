@@ -16,6 +16,7 @@ public struct KTWindowChrome: NSViewRepresentable {
 
     private static func configure(_ window: NSWindow?) {
         guard let window else { return }
+        window.title = ""
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.styleMask.insert(.fullSizeContentView)

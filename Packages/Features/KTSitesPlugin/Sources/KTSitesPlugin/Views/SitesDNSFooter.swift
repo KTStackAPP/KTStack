@@ -18,7 +18,7 @@ struct SitesDNSFooter: View {
             }
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(.jbMono(13, .regular)).foregroundStyle(KTColor.ink)
-                Text(subtitle).font(.jbMono(12)).foregroundStyle(KTColor.muted)
+                Text(subtitle).font(.jbMono(12)).foregroundStyle(KTColor.ink2)
             }
             Spacer()
             if dns.isBusy {
