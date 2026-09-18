@@ -78,6 +78,15 @@ final class WorkspaceSessionTests: XCTestCase {
         let hostOnlyTitle = WorkspaceSession.windowTitle(for: hostOnlyProfile.id, in: [hostOnlyProfile], database: "test")
         XCTAssertEqual(hostOnlyTitle, "test")
     }
+
+    func testSelectDatabaseSwitchesDatabaseAndUpdatesStore() async {
+        let session = makeSession()
+        session.store.selectedProfileID = profileID
+        session.selectDatabase("wordpress")
+        await waitFor { session.store.activeDatabase == "wordpress" }
+        XCTAssertEqual(session.store.activeDatabase, "wordpress")
+        XCTAssertEqual(session.shell.selectedDatabase, "wordpress")
+    }
 }
 
 private extension DatabaseV2ViewModel.ConnectionState {

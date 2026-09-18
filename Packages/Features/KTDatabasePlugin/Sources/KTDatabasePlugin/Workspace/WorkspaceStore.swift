@@ -144,10 +144,14 @@ public final class WorkspaceStore: ObservableObject {
         openQuery(profileID: session.kind.profileID, database: session.kind.database)
     }
 
-    /// DB dropdown ở status pill: đổi database của tab đang mở.
+    public var onSelectDatabase: ((String) -> Void)?
+
     public func selectDatabaseForActive(_ name: String) {
-        guard let vm = activeVM, vm.selectedDatabase != name else { return }
-        Task { await vm.select(database: name) }
+        if let onSelectDatabase {
+            onSelectDatabase(name)
+        } else if let vm = activeVM, vm.selectedDatabase != name {
+            Task { await vm.select(database: name) }
+        }
     }
 
     /// Refresh từ toolbar: nạp lại cửa sổ dòng hiện tại và bỏ cache schema của tab đang mở.

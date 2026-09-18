@@ -4,7 +4,7 @@ import KTPlatformContracts
 
 @MainActor
 public final class DatabaseV2ViewModel: ObservableObject {
-    public enum ConnectionState {
+    public enum ConnectionState: Equatable {
         case idle
         case connecting
         case connected
@@ -12,6 +12,10 @@ public final class DatabaseV2ViewModel: ObservableObject {
     }
 
     @Published public internal(set) var connectionState: ConnectionState = .idle
+    public var isConnected: Bool {
+        if case .connected = connectionState { return true }
+        return false
+    }
     @Published public private(set) var databases: [DatabaseInfo] = []
     @Published public private(set) var tables: [TableInfo] = []
     @Published public private(set) var selectedDatabase: String?
@@ -209,7 +213,6 @@ public final class DatabaseV2ViewModel: ObservableObject {
 
     public func select(database: String) async {
         await ensureConnected()
-        guard let driver else { return }
         generation += 1
         let token = generation
         selectedDatabase = database
@@ -220,6 +223,7 @@ public final class DatabaseV2ViewModel: ObservableObject {
         diagramColumns = [:]
         diagramLoaded = false
         loadError = nil
+        guard let driver else { return }
         do {
             let result = try await driver.listTables(database: database)
             guard token == generation else { return }

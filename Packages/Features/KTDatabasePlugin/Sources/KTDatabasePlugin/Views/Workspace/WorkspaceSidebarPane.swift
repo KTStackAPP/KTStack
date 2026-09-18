@@ -17,11 +17,6 @@ struct WorkspaceSidebarPane: View {
 
     private var connectedSidebar: some View {
         VStack(spacing: 0) {
-            WorkspaceDatabaseHeader(
-                vm: vm,
-                onSelectDatabase: workspace.selectDatabaseForActive
-            )
-            Divider().overlay(Color(nsColor: .separatorColor))
             searchField
             Divider().overlay(Color(nsColor: .separatorColor))
             WorkspaceSidebar(

@@ -130,10 +130,9 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
         return WorkspaceSplitController(model: model)
     }
 
-    /// Nội dung NSToolbar unified của cửa sổ workspace, đọc tab đang mở từ store của session.
     @MainActor
     public func makeWorkspaceToolbar(session: WorkspaceSession) -> AnyView {
-        AnyView(WorkspaceToolbar(workspace: session.store))
+        AnyView(WorkspaceToolbar(session: session))
     }
 
     #if DEBUG

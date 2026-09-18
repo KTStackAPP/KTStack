@@ -4,15 +4,11 @@ import KTPlatformContracts
 import KTPluginKit
 import KTStackCore
 
-/// Một cửa sổ/tab workspace = một session độc lập: shell nối kết nối (sidebar/landing/đổi DB) +
-/// store gom tab object riêng, cùng modal-state/feedback/backup riêng để đa cửa sổ không dẫm nhau.
-/// Sống theo cửa sổ, giải phóng khi tab đóng.
 @MainActor
 public final class WorkspaceSession: ObservableObject, Identifiable {
     public let id = UUID()
     public let store: WorkspaceStore
     public let shell: DatabaseV2ViewModel
-    // Riêng theo cửa sổ: Connect/New DB modal, toast, và backup v1 không lan sang cửa sổ khác.
     let sectionState = DatabaseSectionState()
     let feedback = KTFeedbackCenter()
     let databaseVM: DatabaseViewModel
@@ -36,6 +32,9 @@ public final class WorkspaceSession: ObservableObject, Identifiable {
                 self?.title = Self.windowTitle(for: id, in: profiles, database: database)
             }
             .store(in: &cancellables)
+        store.onSelectDatabase = { [weak self] name in
+            self?.selectDatabase(name)
+        }
     }
 
     public var connectedProfileID: UUID? { store.selectedProfileID }
@@ -50,9 +49,22 @@ public final class WorkspaceSession: ObservableObject, Identifiable {
         return profile.name
     }
 
-    /// Đóng cửa sổ: bỏ mọi tab object rồi ngắt shell.
     public func closeAll() async {
         store.closeAll()
         await shell.disconnect()
+    }
+
+    public func selectDatabase(_ name: String) {
+        guard let profileID = store.selectedProfileID ?? shell.activeProfile?.id else { return }
+        LastUsedDatabaseStore().setLastDatabase(name, for: profileID)
+        Task {
+            await shell.select(database: name)
+            store.activeDatabase = name
+            let key = SchemaKey(profileID: profileID, database: name)
+            store.cache(objects: shell.tables, for: key)
+            if let activeVM = store.activeVM, activeVM.selectedDatabase != name {
+                await activeVM.select(database: name)
+            }
+        }
     }
 }

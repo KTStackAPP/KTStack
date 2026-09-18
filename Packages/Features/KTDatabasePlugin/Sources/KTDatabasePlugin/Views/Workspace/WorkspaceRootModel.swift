@@ -137,6 +137,10 @@ final class WorkspaceRootModel: ObservableObject {
         _ = try? await workspace.schema(for: key)
     }
 
+    func selectDatabase(_ name: String) {
+        session.selectDatabase(name)
+    }
+
     func selectObject(_ node: SidebarNode, forceNewTab: Bool) {
         switch node.kind {
         case let .table(name), let .view(name):
