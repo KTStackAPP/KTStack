@@ -45,12 +45,20 @@ public final class CATrustService: ObservableObject {
 
     public func install() {
         let runner = runner, helper = helper, usesHelper = usesHelper, caCert = paths.caRootCert
-        run { try CATrustInstaller.trust(caCert: caCert, runner: runner, helper: helper, usesHelper: usesHelper) }
+        run({
+            try CATrustInstaller.trust(caCert: caCert, runner: runner, helper: helper, usesHelper: usesHelper)
+        }, completion: { [weak self] ok in
+            if ok { self?.status = .trusted }
+        })
     }
 
     public func untrust() {
         let runner = runner, helper = helper, usesHelper = usesHelper, caCert = paths.caRootCert
-        run { try CATrustInstaller.untrust(caCert: caCert, runner: runner, helper: helper, usesHelper: usesHelper) }
+        run({
+            try CATrustInstaller.untrust(caCert: caCert, runner: runner, helper: helper, usesHelper: usesHelper)
+        }, completion: { [weak self] ok in
+            if ok { self?.status = .untrusted }
+        })
     }
 
     public func ensureTrusted() throws {
@@ -58,7 +66,7 @@ public final class CATrustService: ObservableObject {
         try CATrustInstaller.trust(caCert: paths.caRootCert, runner: runner, helper: helper, usesHelper: usesHelper)
     }
 
-    private func run(_ work: @escaping @Sendable () throws -> Void) {
+    private func run(_ work: @escaping @Sendable () throws -> Void, completion: (@Sendable @MainActor (Bool) -> Void)? = nil) {
         guard !isBusy else { return }
         isBusy = true; lastError = nil
         Task.detached(priority: .userInitiated) {
@@ -68,6 +76,7 @@ public final class CATrustService: ObservableObject {
                 self.isBusy = false
                 if let failure { self.lastError = failure }
                 self.refresh()
+                completion?(failure == nil)
             }
         }
     }
@@ -78,19 +87,17 @@ public final class CATrustService: ObservableObject {
               let cert = SecCertificateCreateWithData(nil, der as CFData) else {
             return false
         }
+        var settings: CFArray?
+        let hasAdminSettings = SecTrustSettingsCopyTrustSettings(cert, .admin, &settings) == errSecSuccess
+        let hasUserSettings = SecTrustSettingsCopyTrustSettings(cert, .user, &settings) == errSecSuccess
+        guard hasAdminSettings || hasUserSettings else {
+            return false
+        }
         var trust: SecTrust?
         if SecTrustCreateWithCertificates(cert, SecPolicyCreateBasicX509(), &trust) == errSecSuccess,
-           let trust,
-           SecTrustEvaluateWithError(trust, nil) {
-            return true
+           let trust {
+            return SecTrustEvaluateWithError(trust, nil)
         }
-        var settings: CFArray?
-        if SecTrustSettingsCopyTrustSettings(cert, .admin, &settings) == errSecSuccess {
-            return true
-        }
-        if SecTrustSettingsCopyTrustSettings(cert, .user, &settings) == errSecSuccess {
-            return true
-        }
-        return false
+        return true
     }
 }
