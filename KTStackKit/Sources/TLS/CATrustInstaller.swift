@@ -1,6 +1,8 @@
 import CryptoKit
 import Foundation
 import KTStackCore
+import Security
+
 public enum CATrustInstaller {
     public static func trust(
         caCert: URL,
@@ -30,14 +32,22 @@ public enum CATrustInstaller {
         usesHelper: Bool
     ) throws {
         guard runner.caExists else { return }
+        removeUserTrust(caCert: caCert)
         guard usesHelper else {
-            try runner.uninstall()
-            removeUserTrust(caCert: caCert)
+            do {
+                try runner.uninstall()
+            } catch {
+                if !isItemNotFoundError(error) { throw error }
+            }
             return
         }
         guard let pem = try? Data(contentsOf: caCert),
               let der = CertMinter.pemToDER(pem) else {
-            try runner.uninstall()
+            do {
+                try runner.uninstall()
+            } catch {
+                if !isItemNotFoundError(error) { throw error }
+            }
             return
         }
         let sha1 = Insecure.SHA1.hash(data: der).map { String(format: "%02X", $0) }.joined()
@@ -111,13 +121,25 @@ public enum CATrustInstaller {
     }
 
     private static func removeUserTrust(caCert: URL) {
+        if let pem = try? Data(contentsOf: caCert),
+           let der = CertMinter.pemToDER(pem),
+           let cert = SecCertificateCreateWithData(nil, der as CFData) {
+            SecTrustSettingsRemoveTrustSettings(cert, .user)
+        }
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/security")
         proc.arguments = ["remove-trusted-cert", caCert.path]
+        let pipe = Pipe()
+        proc.standardOutput = pipe
+        proc.standardError = pipe
         try? proc.run()
         proc.waitUntilExit()
     }
 
+    private static func isItemNotFoundError(_ error: Error) -> Bool {
+        let message = error.localizedDescription.lowercased()
+        return message.contains("not be found") || message.contains("not found") || message.contains("-25300")
+    }
     private static func error(_ message: String) -> NSError {
         NSError(domain: "KTStack.catrust", code: -1, userInfo: [NSLocalizedDescriptionKey: message])
     }

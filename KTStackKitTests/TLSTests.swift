@@ -440,4 +440,32 @@ final class CATrustServiceTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: tmp) }
         XCTAssertFalse(CATrustService.isTrustedInSystemKeychain(caCert: tmp))
     }
+
+    func testUntrustToleratesCertificateNotFoundInKeychain() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let rootCA = dir.appendingPathComponent("rootCA.pem")
+        try "dummy cert".write(to: rootCA, atomically: true, encoding: .utf8)
+        let script = dir.appendingPathComponent("fake-mkcert")
+        let scriptContent = "#!/bin/sh\necho 'ERROR: failed to execute \"security remove-trusted-cert\": exit status 1' >&2\necho 'SecTrustSettingsRemoveTrustSettings: The specified item could not be found in the keychain.' >&2\nexit 1\n"
+        try scriptContent.write(to: script, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        let runner = MkcertRunner(mkcert: script, caroot: dir)
+        XCTAssertNoThrow(try CATrustInstaller.untrust(caCert: rootCA, runner: runner, helper: HelperConnection(), usesHelper: false))
+    }
+
+    func testUntrustRethrowsUnexpectedErrors() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let rootCA = dir.appendingPathComponent("rootCA.pem")
+        try "dummy cert".write(to: rootCA, atomically: true, encoding: .utf8)
+        let script = dir.appendingPathComponent("fake-mkcert")
+        let scriptContent = "#!/bin/sh\necho 'FATAL: disk corrupted' >&2\nexit 2\n"
+        try scriptContent.write(to: script, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        let runner = MkcertRunner(mkcert: script, caroot: dir)
+        XCTAssertThrowsError(try CATrustInstaller.untrust(caCert: rootCA, runner: runner, helper: HelperConnection(), usesHelper: false))
+    }
 }
