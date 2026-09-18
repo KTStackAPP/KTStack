@@ -61,7 +61,7 @@ final class DatabaseWindows {
             let session = plugin.makeWorkspaceSession()
             workspace.present(
                 initial: makeTab(session: session, initialProfileID: profileID),
-                makeTab: { [weak self] in self?.makeNewTab() ?? TabContent(content: AnyView(EmptyView())) }
+                makeTab: { [weak self] in self?.makeNewTab() ?? PluginTabContent(content: AnyView(EmptyView())) }
             )
             return
         }
@@ -92,12 +92,12 @@ final class DatabaseWindows {
         workspace.addTab(makeTab(session: session, initialProfileID: profileID))
     }
 
-    private func makeNewTab() -> TabContent {
+    private func makeNewTab() -> PluginTabContent {
         makeTab(session: plugin.makeWorkspaceSession(), initialProfileID: nil)
     }
 
-    private func makeTab(session: WorkspaceSession, initialProfileID: UUID?) -> TabContent {
-        let tc = TabContent(
+    private func makeTab(session: WorkspaceSession, initialProfileID: UUID?) -> PluginTabContent {
+        let tc = PluginTabContent(
             viewController: plugin.makeWorkspaceSplitController(session: session, initialProfileID: initialProfileID),
             toolbar: plugin.makeWorkspaceToolbar(session: session),
             identity: session,

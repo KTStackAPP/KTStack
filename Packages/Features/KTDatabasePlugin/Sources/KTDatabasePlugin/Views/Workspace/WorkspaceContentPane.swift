@@ -112,6 +112,7 @@ struct WorkspaceContentPane: View {
     private var shortcuts: some View {
         ZStack {
             Button("") { model.openQueryTab() }.keyboardShortcut("t", modifiers: .command)
+            Button("") { openConnectionInNewTab() }.keyboardShortcut("t", modifiers: [.command, .shift])
             Button("") { model.requestCloseActiveTab() }.keyboardShortcut("w", modifiers: .command)
             Button("") { workspace.focusFilter() }.keyboardShortcut("f", modifiers: .command)
             Button("") { workspace.sidebarVisible.toggle() }.keyboardShortcut("0", modifiers: .command)
