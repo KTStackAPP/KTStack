@@ -36,6 +36,7 @@ extension KTDataGrid.Coordinator {
         rownum.width = 50
         rownum.minWidth = 40
         rownum.maxWidth = 72
+        rownum.headerCell.textColor = Self.rownumColor
         rownum.headerCell.drawsBackground = true
         rownum.headerCell.backgroundColor = Self.headerBackground
         table.addTableColumn(rownum)
@@ -45,6 +46,7 @@ extension KTDataGrid.Coordinator {
             column.minWidth = 60
             column.width = 150
             column.headerCell.font = Self.headerFont
+            column.headerCell.textColor = Self.defaultTextColor
             column.headerCell.drawsBackground = true
             column.headerCell.backgroundColor = Self.headerBackground
             table.addTableColumn(column)

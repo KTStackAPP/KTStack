@@ -2,68 +2,6 @@ import AppKit
 import KTPluginKit
 import SwiftUI
 
-// MARK: Sidebar pane
-
-/// Pane trái: ô lọc + cây object (Tables/Views/Queries) + footer đếm. Không còn nhóm Connections.
-struct WorkspaceSidebarPane: View {
-    @ObservedObject var model: WorkspaceRootModel
-    @ObservedObject var vm: DatabaseV2ViewModel
-    @ObservedObject var workspace: WorkspaceStore
-
-    var body: some View {
-        VStack(spacing: 0) {
-            searchField
-            Divider().overlay(KTEditorTheme.separator)
-            WorkspaceSidebar(
-                nodes: model.nodes,
-                selectedNodeID: model.selectedNodeID,
-                onSelectObject: { model.selectObject($0, forceNewTab: false) },
-                onOpenInNewTab: { model.selectObject($0, forceNewTab: true) },
-                contextActions: { _ in [] }
-            )
-            Divider().overlay(KTEditorTheme.separator)
-            footer
-        }
-    }
-
-    private var searchField: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 12))
-                .foregroundStyle(KTEditorTheme.label3)
-            TextField("Lọc bảng…", text: $model.filter)
-                .textFieldStyle(.plain)
-                .font(.system(size: 12))
-            if !model.filter.isEmpty {
-                Button { model.filter = "" } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundStyle(KTEditorTheme.label3)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(KTEditorTheme.fieldBg, in: RoundedRectangle(cornerRadius: 7))
-        .padding(10)
-    }
-
-    private var footer: some View {
-        let tables = model.currentObjects.filter { !$0.isView }.count
-        let views = model.currentObjects.filter(\.isView).count
-        return HStack(spacing: 6) {
-            Text("\(tables) bảng · \(views) view")
-                .font(.system(size: 11))
-                .foregroundStyle(KTEditorTheme.label2)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-    }
-}
-
-// MARK: Content pane
-
-/// Pane giữa: tab bar + tab object khi đã nối, trang kết nối khi chưa nối; kèm modal/sheet/alert + phím tắt.
 struct WorkspaceContentPane: View {
     @ObservedObject var model: WorkspaceRootModel
     @ObservedObject var vm: DatabaseV2ViewModel
@@ -156,15 +94,17 @@ struct WorkspaceContentPane: View {
 
     private var noTabPlaceholder: some View {
         VStack(spacing: 8) {
-            Image(systemName: "tablecells").font(.system(size: 28)).foregroundStyle(KTEditorTheme.faint)
+            Image(systemName: "tablecells")
+                .font(.system(size: 28))
+                .foregroundStyle(KTEditorTheme.faint)
             Text("Chọn một bảng ở sidebar để mở tab")
-                .font(.system(size: 13)).foregroundStyle(KTEditorTheme.label3)
+                .font(.system(size: 13))
+                .foregroundStyle(KTEditorTheme.label3)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(KTEditorTheme.content)
     }
 
-    /// "Mở kết nối khác…": nhờ key window (TabbingWindow) mở tab mới với trang kết nối.
     private func openConnectionInNewTab() {
         NSApp.sendAction(#selector(NSWindow.newWindowForTab(_:)), to: nil, from: nil)
     }
@@ -201,39 +141,5 @@ struct WorkspaceContentPane: View {
         }
         .animation(.easeOut(duration: 0.15), value: sectionState.connectPresented)
         .animation(.easeOut(duration: 0.15), value: sectionState.newDatabasePresented)
-    }
-}
-
-// MARK: Inspector pane
-
-/// Pane phải: chi tiết dòng đang chọn của tab bảng đang active; rỗng nếu là tab query hoặc không có tab.
-struct WorkspaceInspectorPane: View {
-    @ObservedObject var workspace: WorkspaceStore
-
-    var body: some View {
-        Group {
-            if let session = workspace.activeSession, !session.kind.isQuery {
-                ActiveInspector(session: session, vm: session.vm)
-            } else {
-                VStack(spacing: 8) {
-                    Image(systemName: "sidebar.right").font(.system(size: 22)).foregroundStyle(KTEditorTheme.faint)
-                    Text("Chọn một dòng để xem chi tiết")
-                        .font(.system(size: 12)).foregroundStyle(KTEditorTheme.label3)
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(KTEditorTheme.content2)
-            }
-        }
-    }
-}
-
-/// Quan sát session để inspector đổi theo dòng đang chọn của tab đang active.
-private struct ActiveInspector: View {
-    @ObservedObject var session: WorkspaceTabSession
-    @ObservedObject var vm: DatabaseV2ViewModel
-
-    var body: some View {
-        WorkspaceInspector(vm: vm, selectedRow: $session.selectedRowIndex)
     }
 }

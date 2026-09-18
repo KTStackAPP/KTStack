@@ -56,7 +56,7 @@ final class DatabaseWindows {
     }
 
     private func openWorkspace(profileID: UUID?) {
-        // Chưa có cửa sổ: mở lần đầu với một session.
+        AppActivationPolicy.activateRegular()
         if workspace.allWindows.isEmpty {
             let session = plugin.makeWorkspaceSession()
             workspace.present(

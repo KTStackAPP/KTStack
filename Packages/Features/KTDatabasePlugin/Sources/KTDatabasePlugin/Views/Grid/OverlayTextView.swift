@@ -10,8 +10,8 @@ final class OverlayContainerView: NSView {
         wantsLayer = true
         layer?.backgroundColor = NSColor.textBackgroundColor.cgColor
         layer?.borderColor = NSColor.controlAccentColor.cgColor
-        layer?.borderWidth = 1.5
-        layer?.cornerRadius = 2
+        layer?.borderWidth = 2
+        layer?.cornerRadius = 3
         layer?.zPosition = 1000
     }
 
@@ -44,9 +44,9 @@ final class OverlayTextView: NSTextView {
         importsGraphics = false
         isContinuousSpellCheckingEnabled = false
         drawsBackground = false
-        font = .monospacedSystemFont(ofSize: 12.5, weight: .regular)
-        textColor = .textColor
-        insertionPointColor = .textColor
+        font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        textColor = .labelColor
+        insertionPointColor = .controlAccentColor
         textContainerInset = NSSize(width: 0, height: 2)
         textContainer?.lineFragmentPadding = 0
         isHorizontallyResizable = false

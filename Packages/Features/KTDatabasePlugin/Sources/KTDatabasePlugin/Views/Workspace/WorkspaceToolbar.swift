@@ -1,9 +1,6 @@
 import KTPluginKit
 import SwiftUI
 
-/// Nội dung NSToolbar unified: trái ‹ › refresh, giữa pill trạng thái, phải Tìm/＋Query/Backups/New DB/inspector.
-/// Gắn full-width trong một NSToolbarItem (PluginWindowController), đọc tab đang mở từ WorkspaceStore.
-/// Backups/New DB là window-level: hiện cả khi chưa mở tab nào.
 struct WorkspaceToolbar: View {
     @ObservedObject var workspace: WorkspaceStore
 
@@ -41,41 +38,59 @@ private struct WorkspaceToolbarBar: View {
 
     private var leftCluster: some View {
         HStack(spacing: 4) {
-            V2IconButton(
-                systemImage: "chevron.left",
-                tint: vm.canGoBack ? KTEditorTheme.label2 : KTEditorTheme.label3
-            ) { vm.goBack() }
-                .disabled(!vm.canGoBack)
-            V2IconButton(
-                systemImage: "chevron.right",
-                tint: vm.canGoForward ? KTEditorTheme.label2 : KTEditorTheme.label3
-            ) { vm.goForward() }
-                .disabled(!vm.canGoForward)
-            V2IconButton(systemImage: "arrow.clockwise", tint: KTEditorTheme.label2) {
+            Button("Quay lại", systemImage: "chevron.left") {
+                vm.goBack()
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .disabled(!vm.canGoBack)
+            .help("Quay lại bảng trước")
+
+            Button("Tiếp theo", systemImage: "chevron.right") {
+                vm.goForward()
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .disabled(!vm.canGoForward)
+            .help("Đi tới bảng tiếp theo")
+
+            Button("Tải lại", systemImage: "arrow.clockwise") {
                 workspace.refreshActive()
             }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .help("Tải lại dữ liệu (⌘R)")
         }
     }
 
     private var rightCluster: some View {
-        HStack(spacing: 4) {
-            V2Button(title: "Tìm", systemImage: "magnifyingglass") {
+        HStack(spacing: 6) {
+            Button("Tìm", systemImage: "magnifyingglass") {
                 workspace.focusFilter()
             }
-            V2Button(title: "Query", systemImage: "plus") {
+            .buttonStyle(.borderless)
+            .help("Lọc bảng (⌘F)")
+
+            Button("Query", systemImage: "plus") {
                 workspace.openQueryForActive()
             }
+            .buttonStyle(.borderless)
+            .help("Mở tab Query mới (⌘T)")
+
             WorkspaceWindowButtons(workspace: workspace)
             WorkspaceConnectionMenu(workspace: workspace)
-            V2IconButton(
-                systemImage: "sidebar.right",
-                tint: workspace.inspectorVisible ? KTEditorTheme.accent : KTEditorTheme.label2
-            ) { workspace.inspectorVisible.toggle() }
+
+            Button("Inspector", systemImage: "sidebar.right") {
+                workspace.inspectorVisible.toggle()
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .foregroundStyle(workspace.inspectorVisible ? KTEditorTheme.accent : KTEditorTheme.label2)
+            .help("Bật/tắt Inspector (⌘⌥I)")
         }
     }
 }
 
-/// Menu kết nối: Ngắt kết nối tab hiện tại, Mở kết nối khác ở tab cửa sổ mới. Mờ khi chưa nối.
 private struct WorkspaceConnectionMenu: View {
     @ObservedObject var workspace: WorkspaceStore
 
@@ -85,7 +100,8 @@ private struct WorkspaceConnectionMenu: View {
                 .disabled(workspace.selectedProfileID == nil)
             Button("Mở kết nối khác…") { workspace.requestOpenConnection() }
         } label: {
-            Image(systemName: "ellipsis.circle")
+            Label("Tuỳ chọn kết nối", systemImage: "ellipsis.circle")
+                .labelStyle(.iconOnly)
                 .foregroundStyle(KTEditorTheme.label2)
         }
         .menuStyle(.borderlessButton)
@@ -94,19 +110,21 @@ private struct WorkspaceConnectionMenu: View {
     }
 }
 
-/// Window-level: Backups + New Database, gated theo connection đang chọn.
 private struct WorkspaceWindowButtons: View {
     @ObservedObject var workspace: WorkspaceStore
 
     var body: some View {
-        HStack(spacing: 4) {
-            V2Button(title: "Backups", systemImage: "archivebox") {
+        HStack(spacing: 6) {
+            Button("Backups", systemImage: "archivebox") {
                 workspace.requestBackups()
             }
+            .buttonStyle(.borderless)
             .disabled(workspace.selectedProfileID == nil)
-            V2Button(title: "New DB", systemImage: "plus.rectangle.on.folder") {
+
+            Button("New DB", systemImage: "plus.rectangle.on.folder") {
                 workspace.requestNewDatabase()
             }
+            .buttonStyle(.borderless)
             .disabled(workspace.selectedProfileID == nil)
         }
     }

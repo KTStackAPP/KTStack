@@ -148,14 +148,15 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
 
         if let window {
             window.makeKeyAndOrderFront(nil)
+            window.orderFrontRegardless()
             return
         }
 
         let window = makeWindow(content: initial, primary: true)
         self.window = window
         window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
     }
-
     func close() {
         window?.close()
     }
@@ -170,7 +171,9 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
     }
 
     func select(_ window: NSWindow) {
+        AppActivationPolicy.activateRegular()
         window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
     }
 
     // Tìm cửa sổ theo identity của TabContent (ví dụ session nối profile nào).
@@ -188,12 +191,13 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
     // Thêm một tab cụ thể (DatabaseWindows dựng sẵn cho profile chỉ định).
     func addTab(_ content: TabContent) {
         guard let anchor = window else { return }
+        AppActivationPolicy.activateRegular()
         let tab = makeWindow(content: content, primary: false)
         tabWindows.append(tab)
         anchor.addTabbedWindow(tab, ordered: .above)
         tab.makeKeyAndOrderFront(nil)
+        tab.orderFrontRegardless()
     }
-
     private func makeWindow(content tc: TabContent, primary: Bool) -> NSWindow {
         var styleMask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable]
         if chrome.fullSizeContentView { styleMask.insert(.fullSizeContentView) }

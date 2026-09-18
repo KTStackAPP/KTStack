@@ -126,8 +126,14 @@ public final class KTCellOverlayEditor: NSObject {
             forName: NSView.boundsDidChangeNotification,
             object: clipView,
             queue: .main
-        ) { [weak self] _ in
-            self?.dismiss(commit: true)
+        ) { [weak self, weak tableView] _ in
+            guard let self, let tableView, self.isEditing else { return }
+            let cellRect = tableView.frameOfCell(atColumn: self.currentColumn, row: self.currentRow)
+            if clipView.documentVisibleRect.intersects(cellRect) {
+                self.containerView?.frame = cellRect.insetBy(dx: -1, dy: -1)
+            } else {
+                self.dismiss(commit: true)
+            }
         }
     }
 

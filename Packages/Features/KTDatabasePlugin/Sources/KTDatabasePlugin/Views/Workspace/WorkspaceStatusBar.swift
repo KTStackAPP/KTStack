@@ -1,7 +1,6 @@
 import KTPluginKit
 import SwiftUI
 
-/// Status bar gộp: trái range/trang/lọc, phải cụm staged (menu) + Commit ⌘⏎.
 struct WorkspaceStatusBar: View {
     @ObservedObject var vm: DatabaseV2ViewModel
 
@@ -10,24 +9,31 @@ struct WorkspaceStatusBar: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            if vm.isLoadingRows { ProgressView().scaleEffect(0.6) }
+            if vm.isLoadingRows {
+                ProgressView()
+                    .controlSize(.small)
+            }
             Text(rangeText)
-                .font(.jbMono(11.5))
+                .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(KTEditorTheme.label2)
             if let page = pageText {
                 dot
-                Text(page).font(.jbMono(11.5)).foregroundStyle(KTEditorTheme.label3)
+                Text(page)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(KTEditorTheme.label3)
             }
             if let filterCount = filterCount {
                 dot
                 Text("Đã lọc: \(filterCount) điều kiện")
-                    .font(.jbMono(11.5))
+                    .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(KTEditorTheme.accent)
             }
             Spacer()
             if vm.pendingChangeCount > 0 {
                 stagedMenu
-                V2Button(title: "Commit", kind: .primary) { Task { await vm.commitStaged() } }
+                Button("Commit", action: commitAction)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
                     .keyboardShortcut(.return, modifiers: .command)
                     .disabled(vm.isCommitting)
             }
@@ -83,18 +89,16 @@ struct WorkspaceStatusBar: View {
             Divider()
             Button("Bỏ hết", role: .destructive) { vm.discardStaged() }
         } label: {
-            HStack(spacing: 5) {
-                Image(systemName: "square.and.pencil").font(.system(size: 10))
-                Text("\(vm.pendingChangeCount) staged").font(.jbMono(11.5))
-            }
-            .foregroundStyle(KTEditorTheme.accent)
+            Label("\(vm.pendingChangeCount) staged", systemImage: "square.and.pencil")
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundStyle(KTEditorTheme.accent)
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
         .popover(isPresented: $showSQL) {
             ScrollView {
                 Text(sqlText)
-                    .font(.jbMono(11.5))
+                    .font(.system(size: 12, design: .monospaced))
                     .foregroundStyle(KTEditorTheme.label)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -102,6 +106,10 @@ struct WorkspaceStatusBar: View {
             }
             .frame(width: 460, height: 240)
         }
+    }
+
+    private func commitAction() {
+        Task { await vm.commitStaged() }
     }
 
     private func presentSQL() {

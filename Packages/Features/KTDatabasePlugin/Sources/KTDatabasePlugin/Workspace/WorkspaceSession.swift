@@ -31,9 +31,9 @@ public final class WorkspaceSession: ObservableObject, Identifiable {
         self.shell = shell
         databaseVM = DatabaseViewModel(tools: tools)
         backupSession = BackupSession.managed(tools: tools, paths: paths)
-        Publishers.CombineLatest(store.$selectedProfileID, store.$profiles)
-            .sink { [weak self] id, profiles in
-                self?.title = Self.windowTitle(for: id, in: profiles)
+        Publishers.CombineLatest3(store.$selectedProfileID, store.$profiles, shell.$selectedDatabase)
+            .sink { [weak self] id, profiles, database in
+                self?.title = Self.windowTitle(for: id, in: profiles, database: database)
             }
             .store(in: &cancellables)
     }
@@ -41,8 +41,12 @@ public final class WorkspaceSession: ObservableObject, Identifiable {
     public var connectedProfileID: UUID? { store.selectedProfileID }
     public var pendingChangeTotal: Int { store.pendingChangeTotal }
 
-    private static func windowTitle(for id: UUID?, in profiles: [ConnectionProfile]) -> String {
+    static func windowTitle(for id: UUID?, in profiles: [ConnectionProfile], database: String? = nil) -> String {
         guard let id, let profile = profiles.first(where: { $0.id == id }) else { return "KTStack Database" }
+        if let database, !database.isEmpty {
+            let isHostOnlyName = profile.name == profile.host || profile.name == "127.0.0.1" || profile.name == "localhost"
+            return isHostOnlyName ? database : "\(profile.name) — \(database)"
+        }
         return profile.name
     }
 

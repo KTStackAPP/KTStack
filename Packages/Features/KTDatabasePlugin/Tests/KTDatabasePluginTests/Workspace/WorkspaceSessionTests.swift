@@ -61,6 +61,23 @@ final class WorkspaceSessionTests: XCTestCase {
         await waitFor { session.title == "KTStack Database" }
         XCTAssertEqual(session.title, "KTStack Database")
     }
+    func testTitleReflectsSelectedDatabase() {
+        let mySQL = ConnectionProfile.managedMySQL
+        let profiles = [mySQL]
+
+        let titleWithDB = WorkspaceSession.windowTitle(for: mySQL.id, in: profiles, database: "wordpress")
+        XCTAssertEqual(titleWithDB, "\(mySQL.name) — wordpress")
+        let hostOnlyProfile = ConnectionProfile(
+            name: "127.0.0.1",
+            kind: .mysql,
+            host: "127.0.0.1",
+            port: 3306,
+            user: "root",
+            database: "test"
+        )
+        let hostOnlyTitle = WorkspaceSession.windowTitle(for: hostOnlyProfile.id, in: [hostOnlyProfile], database: "test")
+        XCTAssertEqual(hostOnlyTitle, "test")
+    }
 }
 
 private extension DatabaseV2ViewModel.ConnectionState {

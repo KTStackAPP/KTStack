@@ -41,12 +41,11 @@ extension KTDataGrid {
         static let rownumIdentifier = "rownum"
         static let rownumFont: NSFont = .monospacedSystemFont(ofSize: 11, weight: .regular)
         static let headerFont: NSFont = .monospacedSystemFont(ofSize: 11.5, weight: .bold)
-        static let headerBackground = NSColor(srgbRed: 0.10, green: 0.11, blue: 0.13, alpha: 1.0)
-        static let gridBackground = NSColor(srgbRed: 0.10, green: 0.11, blue: 0.13, alpha: 1.0)
-        static let gridLineColor = NSColor(srgbRed: 0.18, green: 0.20, blue: 0.24, alpha: 1.0)
-        static let rownumColor = NSColor(srgbRed: 0.43, green: 0.46, blue: 0.51, alpha: 1.0)
-        static let defaultTextColor = NSColor(srgbRed: 0.82, green: 0.84, blue: 0.86, alpha: 1.0)
-
+        static let headerBackground: NSColor = .windowBackgroundColor
+        static let gridBackground: NSColor = .controlBackgroundColor
+        static let gridLineColor: NSColor = .gridColor
+        static let rownumColor: NSColor = .secondaryLabelColor
+        static let defaultTextColor: NSColor = .labelColor
         init(result: QueryResult) {
             self.result = result
             super.init()

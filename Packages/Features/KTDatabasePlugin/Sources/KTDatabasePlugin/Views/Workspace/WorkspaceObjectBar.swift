@@ -16,7 +16,6 @@ enum TablePaneMode: String, CaseIterable, Identifiable {
     }
 }
 
-/// Thanh đối tượng: icon + tên bảng + khoá chính, và segmented Data/Structure/ER cho tab bảng.
 struct WorkspaceObjectBar: View {
     @ObservedObject var vm: DatabaseV2ViewModel
     @Binding var mode: TablePaneMode
@@ -25,14 +24,11 @@ struct WorkspaceObjectBar: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color(hex: 0xFFF1E0))
+            Image(systemName: "tablecells")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(KTEditorTheme.switcherIcon)
                 .frame(width: 22, height: 22)
-                .overlay(
-                    Image(systemName: "tablecells")
-                        .font(.system(size: 11))
-                        .foregroundStyle(KTEditorTheme.switcherIcon)
-                )
+                .background(KTEditorTheme.switcherIcon.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
             Text(vm.selectedTable?.name ?? "—")
                 .font(.jbMono(14))
                 .foregroundStyle(KTEditorTheme.label)
@@ -60,39 +56,35 @@ struct WorkspaceObjectBar: View {
     }
 
     private var rowActions: some View {
-        HStack(spacing: 2) {
-            V2IconButton(
-                systemImage: "plus",
-                tint: vm.canEdit ? KTEditorTheme.label2 : KTEditorTheme.label3
-            ) { onInsert() }
-                .disabled(!vm.canEdit)
-            V2IconButton(
-                systemImage: "trash",
-                tint: onDelete != nil ? KTEditorTheme.Status.error : KTEditorTheme.label3
-            ) { onDelete?() }
-                .disabled(onDelete == nil)
-            Rectangle().fill(KTEditorTheme.separator).frame(width: 1, height: 16).padding(.horizontal, 4)
+        HStack(spacing: 4) {
+            Button("Thêm dòng", systemImage: "plus") {
+                onInsert()
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .disabled(!vm.canEdit)
+            .help("Thêm dòng mới (⌘N)")
+
+            Button("Xoá dòng", systemImage: "trash") {
+                onDelete?()
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .disabled(onDelete == nil)
+            .help("Xoá dòng đang chọn")
+
+            Divider().frame(height: 14).padding(.horizontal, 4)
         }
     }
 
     private var segmented: some View {
-        HStack(spacing: 2) {
+        Picker("View Mode", selection: $mode) {
             ForEach(TablePaneMode.allCases) { tab in
-                let isActive = tab == mode
-                HStack(spacing: 6) {
-                    Image(systemName: tab.symbol).font(.system(size: 11)).opacity(0.8)
-                    Text(tab.rawValue).font(.system(size: 12))
-                }
-                .foregroundStyle(isActive ? KTEditorTheme.label : KTEditorTheme.label2)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 5)
-                .background(isActive ? KTEditorTheme.content2 : .clear, in: RoundedRectangle(cornerRadius: 7))
-                .overlay {
-                    if isActive { RoundedRectangle(cornerRadius: 7).stroke(KTEditorTheme.separator, lineWidth: 1) }
-                }
-                .contentShape(Rectangle())
-                .onTapGesture { mode = tab }
+                Label(tab.rawValue, systemImage: tab.symbol).tag(tab)
             }
         }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .fixedSize()
     }
 }

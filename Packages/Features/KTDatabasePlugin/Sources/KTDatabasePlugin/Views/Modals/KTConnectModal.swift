@@ -215,8 +215,10 @@ struct KTConnectModal: View {
         }
         let trimmedHost = host.trimmingCharacters(in: .whitespaces)
         guard let portNum = Int(port) else { return nil }
+        let db = database.trimmingCharacters(in: .whitespaces)
+        let defaultProfileName = db.isEmpty ? trimmedHost : db
         return ConnectionProfile(
-            name: name.isEmpty ? trimmedHost : name,
+            name: name.isEmpty ? defaultProfileName : name,
             kind: kind,
             host: trimmedHost,
             port: portNum,

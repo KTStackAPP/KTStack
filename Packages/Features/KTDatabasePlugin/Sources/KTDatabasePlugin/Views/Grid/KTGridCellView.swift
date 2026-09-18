@@ -16,12 +16,8 @@ open class KTGridCellView: NSTableCellView {
         }
     }
 
-    private static let cellFont: NSFont =
-        .init(name: "JetBrainsMono-Medium", size: 12.5)
-            ?? .monospacedSystemFont(ofSize: 12, weight: .regular)
-    private static let nullFont: NSFont =
-        .init(name: "JetBrainsMono-Italic", size: 11.5)
-            ?? .monospacedSystemFont(ofSize: 11, weight: .light)
+    private static let cellFont: NSFont = .monospacedSystemFont(ofSize: 12, weight: .regular)
+    private static let nullFont: NSFont = .monospacedSystemFont(ofSize: 11, weight: .light)
 
     public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -42,9 +38,13 @@ open class KTGridCellView: NSTableCellView {
         field.isSelectable = false
         field.lineBreakMode = .byTruncatingTail
         field.font = Self.cellFont
-        field.autoresizingMask = [.width, .height]
-        field.frame = bounds.insetBy(dx: 4, dy: 1)
+        field.translatesAutoresizingMaskIntoConstraints = false
         addSubview(field)
+        NSLayoutConstraint.activate([
+            field.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6),
+            field.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
+            field.centerYAnchor.constraint(equalTo: centerYAnchor)
+        ])
         self.textField = field
     }
 
@@ -82,22 +82,15 @@ open class KTGridCellView: NSTableCellView {
     }
 
     private func backgroundColor(for highlight: KTGridCellHighlight) -> NSColor? {
-        let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
         switch highlight {
         case .none:
             return nil
         case .modified:
-            return isDark
-                ? NSColor(srgbRed: 0.24, green: 0.18, blue: 0.08, alpha: 1.0)
-                : NSColor(srgbRed: 1.0, green: 0.95, blue: 0.80, alpha: 1.0)
+            return NSColor.systemOrange.withAlphaComponent(0.18)
         case .inserted:
-            return isDark
-                ? NSColor(srgbRed: 0.09, green: 0.20, blue: 0.12, alpha: 1.0)
-                : NSColor(srgbRed: 0.83, green: 0.93, blue: 0.85, alpha: 1.0)
+            return NSColor.systemGreen.withAlphaComponent(0.18)
         case .deleted:
-            return isDark
-                ? NSColor(srgbRed: 0.24, green: 0.08, blue: 0.09, alpha: 1.0)
-                : NSColor(srgbRed: 0.97, green: 0.84, blue: 0.85, alpha: 1.0)
+            return NSColor.systemRed.withAlphaComponent(0.18)
         }
     }
 }
