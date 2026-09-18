@@ -8,6 +8,14 @@ struct WorkspaceSidebarPane: View {
     @ObservedObject var workspace: WorkspaceStore
 
     var body: some View {
+        if model.isConnected {
+            connectedSidebar
+        } else {
+            disconnectedSidebar
+        }
+    }
+
+    private var connectedSidebar: some View {
         VStack(spacing: 0) {
             WorkspaceDatabaseHeader(
                 vm: vm,
@@ -27,6 +35,60 @@ struct WorkspaceSidebarPane: View {
             footer
         }
     }
+
+    private var disconnectedSidebar: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "server.rack")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.accentColor)
+                Text("Connections")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            Divider().overlay(Color(nsColor: .separatorColor))
+            List(selection: $workspace.selectedProfileID) {
+                let managed = workspace.profiles.filter(\.isManaged)
+                if !managed.isEmpty {
+                    Section("Managed") {
+                        ForEach(managed) { profile in
+                            connectionRow(profile)
+                        }
+                    }
+                }
+                let userProfiles = workspace.profiles.filter { !$0.isManaged }
+                if !userProfiles.isEmpty {
+                    Section("Saved") {
+                        ForEach(userProfiles) { profile in
+                            connectionRow(profile)
+                        }
+                    }
+                }
+            }
+            .listStyle(.sidebar)
+        }
+    }
+
+    private func connectionRow(_ profile: ConnectionProfile) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: SidebarNode.icon(for: profile.kind))
+                .font(.caption)
+                .foregroundStyle(Color.accentColor)
+            Text(profile.displayTitle())
+                .font(.subheadline)
+                .lineLimit(1)
+            Spacer()
+        }
+        .tag(profile.id)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) {
+            model.activate(profileID: profile.id)
+        }
+    }
+
     private var searchField: some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")

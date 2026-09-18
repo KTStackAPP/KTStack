@@ -45,12 +45,10 @@ final class WorkspaceSplitController: NSSplitViewController {
         addSplitViewItem(contentPane)
         addSplitViewItem(inspectorPane)
 
-        let isConnected: Bool
-        if case .connected = vm.connectionState { isConnected = true } else { isConnected = false }
-        sidebarPane.isCollapsed = !isConnected || !workspace.sidebarVisible
+        sidebarPane.isCollapsed = !workspace.sidebarVisible
         inspectorPane.isCollapsed = !workspace.inspectorVisible
 
-        bindStoreToPanes(vm: vm)
+        bindStoreToPanes()
     }
 
     @available(*, unavailable)
@@ -63,25 +61,12 @@ final class WorkspaceSplitController: NSSplitViewController {
         splitView.autosaveName = "KTStackDatabaseSplit"
     }
 
-    private func bindStoreToPanes(vm: DatabaseV2ViewModel) {
+    private func bindStoreToPanes() {
         workspace.$sidebarVisible
             .sink { [weak self] visible in self?.setCollapsed(self?.sidebarPane, collapsed: !visible) }
             .store(in: &cancellables)
         workspace.$inspectorVisible
             .sink { [weak self] visible in self?.setCollapsed(self?.inspectorPane, collapsed: !visible) }
-            .store(in: &cancellables)
-        vm.$connectionState
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] state in
-                guard let self else { return }
-                let isConnected: Bool
-                if case .connected = state { isConnected = true } else { isConnected = false }
-                if !isConnected {
-                    self.setCollapsed(self.sidebarPane, collapsed: true)
-                } else if self.workspace.sidebarVisible {
-                    self.setCollapsed(self.sidebarPane, collapsed: false)
-                }
-            }
             .store(in: &cancellables)
     }
     private func setCollapsed(_ item: NSSplitViewItem?, collapsed: Bool) {
