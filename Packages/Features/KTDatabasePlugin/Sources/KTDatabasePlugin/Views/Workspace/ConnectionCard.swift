@@ -2,8 +2,6 @@ import KTPlatformContracts
 import KTPluginKit
 import SwiftUI
 
-/// Card một kết nối trên trang kết nối: tile engine, tên + tag LOCAL/REMOTE, host mono, chân card
-/// (chấm trạng thái + nút mở). Managed engine đổi nút theo cài/chạy.
 struct ConnectionCard: View {
     let profile: ConnectionProfile
     let status: ServerStatus
@@ -32,7 +30,7 @@ struct ConnectionCard: View {
                 HStack(spacing: 5) {
                     Circle().fill(statusColor).frame(width: 5, height: 5)
                     Text(profile.subtitle)
-                        .font(.jbMono(10.5))
+                        .font(.system(size: 11, design: .monospaced))
                         .foregroundStyle(KTEditorTheme.label2)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -44,12 +42,12 @@ struct ConnectionCard: View {
         .padding(.horizontal, 11)
         .padding(.vertical, 9)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(KTEditorTheme.content2, in: RoundedRectangle(cornerRadius: 9))
+        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
         .overlay(
-            RoundedRectangle(cornerRadius: 9)
-                .stroke(isSelected ? KTEditorTheme.accent : KTEditorTheme.separator, lineWidth: isSelected ? 1.5 : 1)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isSelected ? Color.accentColor : Color(nsColor: .separatorColor).opacity(0.5), lineWidth: isSelected ? 1.5 : 0.5)
         )
-        .contentShape(RoundedRectangle(cornerRadius: 9))
+        .contentShape(RoundedRectangle(cornerRadius: 8))
         .onTapGesture(count: 2, perform: onOpen)
         .onTapGesture(perform: onSelect)
     }
@@ -57,12 +55,12 @@ struct ConnectionCard: View {
     private var tag: some View {
         let local = profile.isManaged || ConnectionProfile.isLoopback(profile.host)
         return Text(local ? "LOCAL" : "REMOTE")
-            .font(.jbMono(9, .bold))
-            .foregroundStyle(local ? KTEditorTheme.Status.running : KTEditorTheme.label2)
+            .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+            .foregroundStyle(local ? Color.green : KTEditorTheme.label2)
             .padding(.horizontal, 5)
             .padding(.vertical, 1.5)
             .background(
-                (local ? KTEditorTheme.Status.running : KTEditorTheme.label2).opacity(0.14),
+                (local ? Color.green : KTEditorTheme.label2).opacity(0.14),
                 in: RoundedRectangle(cornerRadius: 4)
             )
     }
@@ -76,16 +74,10 @@ struct ConnectionCard: View {
             .buttonStyle(.plain)
             .foregroundStyle(KTEditorTheme.accent)
         } else {
-            Button(action: onOpen) {
-                Text(engineNeedsStart ? "Bật & mở" : "Mở")
-                    .font(.system(size: 11, weight: .semibold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(KTEditorTheme.onAccent)
-            .background(KTEditorTheme.accent, in: Capsule())
-            .keyboardShortcut(isSelected ? .defaultAction : nil)
+            Button(engineNeedsStart ? "Bật & mở" : "Mở", action: onOpen)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .keyboardShortcut(isSelected ? .defaultAction : nil)
         }
     }
 
@@ -103,7 +95,6 @@ struct ConnectionCard: View {
     }
 }
 
-/// Card nét đứt "Kết nối mới".
 struct NewConnectionCard: View {
     let action: () -> Void
 
@@ -121,9 +112,8 @@ struct NewConnectionCard: View {
         }
         .buttonStyle(.plain)
         .background(
-            RoundedRectangle(cornerRadius: 9)
-                .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
-                .foregroundStyle(KTEditorTheme.separatorStrong)
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color(nsColor: .separatorColor), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
         )
     }
 }

@@ -1,7 +1,6 @@
 import KTPluginKit
 import SwiftUI
 
-/// Nội dung một tab query: chỉ hộp SQL + kết quả, không có Data/Structure/ER.
 struct WorkspaceQueryPane: View {
     @ObservedObject var vm: DatabaseV2ViewModel
 

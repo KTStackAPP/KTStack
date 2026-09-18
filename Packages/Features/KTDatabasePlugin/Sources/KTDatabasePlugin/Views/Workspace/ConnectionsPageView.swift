@@ -2,8 +2,6 @@ import KTPlatformContracts
 import KTPluginKit
 import SwiftUI
 
-/// Trang kết nối toàn khổ (chưa nối): header + tìm, section Engine trong KTStack / Kết nối của bạn /
-/// Mở gần đây. Chọn card = selectedID; ⏎ hoặc nút Mở = onOpen; double-click card = onOpen.
 struct ConnectionsPageView: View {
     let profiles: [ConnectionProfile]
     let statusFor: (UUID) -> ServerStatus
@@ -37,17 +35,15 @@ struct ConnectionsPageView: View {
         .background(KTEditorTheme.content)
     }
 
-    // MARK: Header
-
     private var header: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Kết nối cơ sở dữ liệu")
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.title2.weight(.bold))
                     .foregroundStyle(KTEditorTheme.label)
                 Text("Chọn một kết nối để duyệt bảng và chạy truy vấn, hoặc tạo kết nối mới.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(KTEditorTheme.label2)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
             HStack(spacing: 10) {
                 searchField
@@ -78,10 +74,9 @@ struct ConnectionsPageView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .frame(maxWidth: 320)
-        .background(KTEditorTheme.fieldBg, in: RoundedRectangle(cornerRadius: 7))
+        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5))
     }
-
-    // MARK: Sections
 
     @ViewBuilder
     private var managedSection: some View {
@@ -146,7 +141,7 @@ struct ConnectionsPageView: View {
             Text(title.uppercased())
                 .font(.system(size: 11, weight: .semibold))
                 .tracking(0.6)
-                .foregroundStyle(KTEditorTheme.label3)
+                .foregroundStyle(.secondary)
             content()
         }
     }
@@ -165,8 +160,6 @@ struct ConnectionsPageView: View {
         }
         .padding(.top, 4)
     }
-
-    // MARK: Derived
 
     private var managed: [ConnectionProfile] { filteredProfiles.filter(\.isManaged) }
     private var userProfiles: [ConnectionProfile] { filteredProfiles.filter { !$0.isManaged } }

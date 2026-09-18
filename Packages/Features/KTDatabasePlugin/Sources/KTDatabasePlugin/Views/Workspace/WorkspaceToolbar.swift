@@ -68,12 +68,14 @@ private struct WorkspaceToolbarBar: View {
             Button("Tìm", systemImage: "magnifyingglass") {
                 workspace.focusFilter()
             }
+            .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .help("Lọc bảng (⌘F)")
 
             Button("Query", systemImage: "plus") {
                 workspace.openQueryForActive()
             }
+            .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .help("Mở tab Query mới (⌘T)")
 
@@ -114,18 +116,22 @@ private struct WorkspaceWindowButtons: View {
     @ObservedObject var workspace: WorkspaceStore
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             Button("Backups", systemImage: "archivebox") {
                 workspace.requestBackups()
             }
+            .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .disabled(workspace.selectedProfileID == nil)
+            .help("Quản lý bản sao lưu")
 
             Button("New DB", systemImage: "plus.rectangle.on.folder") {
                 workspace.requestNewDatabase()
             }
+            .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .disabled(workspace.selectedProfileID == nil)
+            .help("Tạo cơ sở dữ liệu mới")
         }
     }
 }

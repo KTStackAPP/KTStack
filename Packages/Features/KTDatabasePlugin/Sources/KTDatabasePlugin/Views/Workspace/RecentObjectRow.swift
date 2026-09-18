@@ -1,16 +1,15 @@
 import KTPluginKit
 import SwiftUI
 
-/// Hàng "Mở gần đây": icon bảng/view, tên · profile/db, thời gian tương đối.
 struct RecentObjectRow: View {
     let object: RecentObject
     let profileName: String
     let onOpen: () -> Void
 
     private static let relativeFormatter: RelativeDateTimeFormatter = {
-        let f = RelativeDateTimeFormatter()
-        f.unitsStyle = .abbreviated
-        return f
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter
     }()
 
     var body: some View {

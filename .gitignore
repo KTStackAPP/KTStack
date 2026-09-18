@@ -166,3 +166,5 @@ NOTICES.txt
 
 
 /.provenance-markers.local
+
+.omp/
