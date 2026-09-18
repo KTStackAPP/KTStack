@@ -210,6 +210,12 @@ public final class DatabaseV2ViewModel: ObservableObject {
         diagramLoaded = false
         await oldDriver?.closeSession()
     }
+    public func reloadDatabases() async {
+        guard let driver else { return }
+        if let dbs = try? await driver.listDatabases() {
+            databases = dbs
+        }
+    }
 
     public func select(database: String) async {
         await ensureConnected()

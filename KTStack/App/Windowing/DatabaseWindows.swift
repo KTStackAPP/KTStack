@@ -57,39 +57,36 @@ final class DatabaseWindows {
 
     private func openWorkspace(profileID: UUID?) {
         AppActivationPolicy.activateRegular()
+        let resolvedID = profileID ?? plugin.defaultProfileID
         if workspace.allWindows.isEmpty {
             let session = plugin.makeWorkspaceSession()
             workspace.present(
-                initial: makeTab(session: session, initialProfileID: profileID),
+                initial: makeTab(session: session, initialProfileID: resolvedID),
                 makeTab: { [weak self] in self?.makeNewTab() ?? PluginTabContent(content: AnyView(EmptyView())) }
             )
             return
         }
 
-        // Open Database Panel: chỉ đưa cửa sổ hiện có lên trước.
-        guard let profileID else {
+        guard let resolvedID else {
             workspace.allWindows.first.map { workspace.select($0) }
             return
         }
 
-        // Tab đã nối profile này: chọn nó, không nối trùng.
-        if let existing = workspace.window(where: { ($0.identity as? WorkspaceSession)?.connectedProfileID == profileID }) {
+        if let existing = workspace.window(where: { ($0.identity as? WorkspaceSession)?.connectedProfileID == resolvedID }) {
             workspace.select(existing)
             return
         }
 
-        // Tab chưa nối: đẩy profile vào rồi chọn.
         if let free = workspace.window(where: { ($0.identity as? WorkspaceSession)?.connectedProfileID == nil }),
            let session = workspace.tabContent(for: free)?.identity as? WorkspaceSession
         {
-            session.store.requestActivation(profileID)
+            session.store.requestActivation(resolvedID)
             workspace.select(free)
             return
         }
 
-        // Không còn tab trống: tab mới cho profile.
         let session = plugin.makeWorkspaceSession()
-        workspace.addTab(makeTab(session: session, initialProfileID: profileID))
+        workspace.addTab(makeTab(session: session, initialProfileID: resolvedID))
     }
 
     private func makeNewTab() -> PluginTabContent {
@@ -100,6 +97,11 @@ final class DatabaseWindows {
         let tc = PluginTabContent(
             viewController: plugin.makeWorkspaceSplitController(session: session, initialProfileID: initialProfileID),
             toolbar: plugin.makeWorkspaceToolbar(session: session),
+            toolbarItems: PluginToolbarItems(
+                leading: plugin.makeWorkspaceToolbarLeading(session: session),
+                center: plugin.makeWorkspaceStatusPill(session: session),
+                trailing: plugin.makeWorkspaceToolbarTrailing(session: session)
+            ),
             identity: session,
             shouldClose: { [plugin] in plugin.workspaceShouldClose(session: session) },
             onClose: { [weak self, plugin] in

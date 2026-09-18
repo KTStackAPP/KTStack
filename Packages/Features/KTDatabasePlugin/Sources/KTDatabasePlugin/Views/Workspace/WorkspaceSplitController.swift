@@ -15,6 +15,9 @@ final class WorkspaceSplitController: NSSplitViewController {
 
         let sidebar = NSHostingController(
             rootView: WorkspaceSidebarPane(model: model, vm: vm, workspace: workspace)
+                .environmentObject(model.databaseVM)
+                .environmentObject(model.documentVM)
+                .environmentObject(model.connectionStore)
         )
         sidebarPane = NSSplitViewItem(sidebarWithViewController: sidebar)
         sidebarPane.minimumThickness = 248
@@ -26,6 +29,9 @@ final class WorkspaceSplitController: NSSplitViewController {
             rootView: WorkspaceContentPane(
                 model: model, vm: vm, workspace: workspace, sectionState: model.sectionState
             )
+            .environmentObject(model.databaseVM)
+            .environmentObject(model.documentVM)
+            .environmentObject(model.connectionStore)
         )
         let contentPane = NSSplitViewItem(viewController: content)
         contentPane.minimumThickness = 480

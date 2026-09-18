@@ -2,10 +2,7 @@ import AppKit
 import KTPluginKit
 import SwiftUI
 
-/// Nội dung tab Database sau khi modal kết nối đóng: nhận diện app + lối vào lại.
 struct DatabaseBrandPage: View {
-    let onConnections: () -> Void
-    let onCreate: () -> Void
     let onOpenPanel: () -> Void
 
     var body: some View {
@@ -41,11 +38,7 @@ struct DatabaseBrandPage: View {
     }
 
     private var actions: some View {
-        VStack(spacing: KTSpacing.sm) {
-            KTButton(title: "Connections…", systemImage: "cylinder.split.1x2", kind: .primary, action: onConnections)
-            KTButton(title: "Create Connection…", systemImage: "plus", action: onCreate)
-            KTButton(title: "Open Database Panel", systemImage: "macwindow", action: onOpenPanel)
-        }
+        KTButton(title: "Open Database Panel", systemImage: "macwindow", kind: .primary, action: onOpenPanel)
     }
 
     private func link(_ title: String, _ urlString: String) -> some View {

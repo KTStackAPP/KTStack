@@ -22,7 +22,7 @@ struct WindowChrome {
     static func native(tabbingIdentifier: String) -> WindowChrome {
         WindowChrome(
             appearance: nil,
-            titleVisibility: .visible,
+            titleVisibility: .hidden,
             titlebarAppearsTransparent: false,
             fullSizeContentView: false,
             toolbarStyle: .unified,

@@ -12,192 +12,146 @@ struct WorkspaceToolbar: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            leftCluster
+            WorkspaceToolbarLeading(session: session)
             Spacer(minLength: 12)
-            if session.shell.isConnected {
-                WorkspaceHeaderDatabaseScopeBar(session: session)
-            }
+            WorkspaceStatusPill(session: session)
             Spacer(minLength: 12)
-            rightCluster
+            WorkspaceToolbarTrailing(session: session)
         }
         .padding(.horizontal, 12)
         .frame(height: 32)
     }
-
-    private var leftCluster: some View {
-        HStack(spacing: 4) {
-            Button("Sidebar", systemImage: "sidebar.left") {
-                store.sidebarVisible.toggle()
-            }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
-            .foregroundStyle(store.sidebarVisible ? KTEditorTheme.accent : KTEditorTheme.label2)
-            .help("Toggle Sidebar (⌘0)")
-
-            if let active = store.activeSession {
-                Button("Back", systemImage: "chevron.left") {
-                    active.vm.goBack()
-                }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderless)
-                .disabled(!active.vm.canGoBack)
-                .help("Back")
-
-                Button("Forward", systemImage: "chevron.right") {
-                    active.vm.goForward()
-                }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderless)
-                .disabled(!active.vm.canGoForward)
-                .help("Forward")
-
-                Button("Reload", systemImage: "arrow.clockwise") {
-                    store.refreshActive()
-                }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderless)
-                .help("Reload (⌘R)")
-            }
-        }
-    }
-
-    private var rightCluster: some View {
-        HStack(spacing: 6) {
-            Button("Filter", systemImage: "magnifyingglass") {
-                store.focusFilter()
-            }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
-            .help("Filter Tables (⌘F)")
-
-            Button("Query", systemImage: "plus") {
-                store.openQueryForActive()
-            }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
-            .help("New Query Tab (⌘T)")
-
-            WorkspaceWindowButtons(workspace: store)
-            WorkspaceConnectionMenu(workspace: store)
-
-            Button("Inspector", systemImage: "sidebar.right") {
-                store.inspectorVisible.toggle()
-            }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
-            .foregroundStyle(store.inspectorVisible ? KTEditorTheme.accent : KTEditorTheme.label2)
-            .help("Toggle Inspector (⌘⌥I)")
-        }
-    }
 }
 
-struct WorkspaceHeaderDatabaseScopeBar: View {
+struct WorkspaceToolbarLeading: View {
     @ObservedObject var session: WorkspaceSession
-    @ObservedObject var shell: DatabaseV2ViewModel
     @ObservedObject var store: WorkspaceStore
 
     init(session: WorkspaceSession) {
         self.session = session
-        self._shell = ObservedObject(wrappedValue: session.shell)
         self._store = ObservedObject(wrappedValue: session.store)
     }
 
-    private var currentDatabase: String {
-        store.activeDatabase ?? shell.selectedDatabase ?? "—"
-    }
-
-    private var engineName: String {
-        switch shell.connectionKind {
-        case .mysql: return "MySQL"
-        case .postgres: return "PostgreSQL"
-        case .sqlite: return "SQLite"
-        case .mongodb: return "MongoDB"
-        case nil: return "Database"
-        }
-    }
-
-    private var isManaged: Bool {
-        shell.activeProfile?.isManaged ?? false
-    }
-
     var body: some View {
-        HStack(spacing: 8) {
-            HStack(spacing: 5) {
-                Circle()
-                    .fill(isManaged ? Color.green : Color.blue)
-                    .frame(width: 6, height: 6)
-                Text(engineName)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
+        HStack(spacing: 2) {
+            WorkspaceToolbarIconButton(
+                title: "Toggle Sidebar (⌘0)",
+                icon: "sidebar.left",
+                isActive: store.sidebarVisible
+            ) {
+                store.sidebarVisible.toggle()
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .background(Color(nsColor: .quaternaryLabelColor).opacity(0.35), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
 
-            Rectangle()
-                .fill(Color(nsColor: .separatorColor))
-                .frame(width: 1, height: 12)
+            if session.shell.isConnected {
+                let active = store.activeSession
+                WorkspaceToolbarIconButton(
+                    title: "Back",
+                    icon: "chevron.left",
+                    isDisabled: !(active?.vm.canGoBack ?? false)
+                ) {
+                    active?.vm.goBack()
+                }
 
-            Menu {
-                ForEach(shell.databases) { db in
-                    Button {
-                        session.selectDatabase(db.name)
-                    } label: {
-                        if db.name == currentDatabase {
-                            Label(db.name, systemImage: "checkmark")
-                        } else {
-                            Text(db.name)
-                        }
+                WorkspaceToolbarIconButton(
+                    title: "Forward",
+                    icon: "chevron.right",
+                    isDisabled: !(active?.vm.canGoForward ?? false)
+                ) {
+                    active?.vm.goForward()
+                }
+
+                WorkspaceToolbarIconButton(
+                    title: "Reload (⌘R)",
+                    icon: "arrow.clockwise"
+                ) {
+                    if store.activeSession != nil {
+                        store.refreshActive()
+                    } else if let db = session.shell.selectedDatabase {
+                        Task { await session.shell.select(database: db) }
                     }
                 }
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "cylinder.split.1x2")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Color.accentColor)
-                    Text(currentDatabase)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(.secondary)
-                }
-                .contentShape(Rectangle())
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-
-            if shell.connectionIsReadOnly {
-                Rectangle()
-                    .fill(Color(nsColor: .separatorColor))
-                    .frame(width: 1, height: 12)
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.orange)
-                    .help("Read-only connection")
-            }
-
-            if let ms = shell.latencyMs {
-                Rectangle()
-                    .fill(Color(nsColor: .separatorColor))
-                    .frame(width: 1, height: 12)
-                Text("\(ms) ms")
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(.tertiary)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .stroke(Color(nsColor: .separatorColor).opacity(0.55), lineWidth: 0.5)
-        )
     }
 }
 
-private struct WorkspaceConnectionMenu: View {
+struct WorkspaceToolbarTrailing: View {
+    @ObservedObject var session: WorkspaceSession
+    @ObservedObject var store: WorkspaceStore
+
+    init(session: WorkspaceSession) {
+        self.session = session
+        self._store = ObservedObject(wrappedValue: session.store)
+    }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            if session.shell.isConnected {
+                WorkspaceToolbarIconButton(
+                    title: "Filter Tables (⌘F)",
+                    icon: "magnifyingglass"
+                ) {
+                    store.focusFilter()
+                }
+
+                WorkspaceToolbarIconButton(
+                    title: "New Query Tab (⌘T)",
+                    icon: "plus"
+                ) {
+                    store.openQueryForActive()
+                }
+
+                toolbarDivider
+            }
+
+            WorkspaceWindowButtons(workspace: store)
+            WorkspaceConnectionMenu(workspace: store)
+
+            if session.shell.isConnected {
+                toolbarDivider
+
+                WorkspaceToolbarIconButton(
+                    title: "Toggle Inspector (⌘⌥I)",
+                    icon: "sidebar.right",
+                    isActive: store.inspectorVisible
+                ) {
+                    store.inspectorVisible.toggle()
+                }
+            }
+        }
+    }
+
+    private var toolbarDivider: some View {
+        Rectangle()
+            .fill(Color(nsColor: .separatorColor).opacity(0.45))
+            .frame(width: 1, height: 14)
+            .padding(.horizontal, 2)
+    }
+}
+
+struct WorkspaceToolbarIconButton: View {
+    let title: String
+    let icon: String
+    var isActive = false
+    var isDisabled = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(isActive ? KTEditorTheme.accent : KTEditorTheme.label2)
+                .frame(width: 28, height: 26)
+                .contentShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .opacity(isDisabled ? 0.35 : 1.0)
+        .help(title)
+    }
+}
+
+struct WorkspaceConnectionMenu: View {
     @ObservedObject var workspace: WorkspaceStore
 
     var body: some View {
@@ -206,36 +160,39 @@ private struct WorkspaceConnectionMenu: View {
                 .disabled(workspace.selectedProfileID == nil)
             Button("Open Another Connection…") { workspace.requestOpenConnection() }
         } label: {
-            Label("Connection Options", systemImage: "ellipsis.circle")
-                .labelStyle(.iconOnly)
+            Image(systemName: "ellipsis.circle")
+                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(KTEditorTheme.label2)
+                .frame(width: 28, height: 26)
+                .contentShape(RoundedRectangle(cornerRadius: 6))
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
+        .help("Connection Options")
     }
 }
 
-private struct WorkspaceWindowButtons: View {
+struct WorkspaceWindowButtons: View {
     @ObservedObject var workspace: WorkspaceStore
 
     var body: some View {
-        HStack(spacing: 4) {
-            Button("Backups", systemImage: "archivebox") {
+        HStack(spacing: 2) {
+            WorkspaceToolbarIconButton(
+                title: "Manage Backups",
+                icon: "archivebox",
+                isDisabled: workspace.selectedProfileID == nil
+            ) {
                 workspace.requestBackups()
             }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
-            .disabled(workspace.selectedProfileID == nil)
-            .help("Manage Backups")
 
-            Button("New Database", systemImage: "plus.rectangle.on.folder") {
+            WorkspaceToolbarIconButton(
+                title: "Create Database",
+                icon: "plus.rectangle.on.folder",
+                isDisabled: workspace.selectedProfileID == nil
+            ) {
                 workspace.requestNewDatabase()
             }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
-            .disabled(workspace.selectedProfileID == nil)
-            .help("Create Database")
         }
     }
 }

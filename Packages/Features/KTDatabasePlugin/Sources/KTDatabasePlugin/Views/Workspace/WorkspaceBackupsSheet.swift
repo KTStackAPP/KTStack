@@ -2,14 +2,11 @@ import AppKit
 import KTPluginKit
 import SwiftUI
 
-/// Backup library trong cửa sổ workspace. Chạy trên DatabaseViewModel (v1) qua CLI mysqldump,
-/// connect riêng với tab editor (v2). Root đã nối v1 tới đúng profile trước khi mở sheet.
 struct WorkspaceBackupsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var vm: DatabaseViewModel
     let session: BackupSession
-    let feedback: KTFeedbackCenter
-
+    @StateObject private var feedback = KTFeedbackCenter()
     @State private var backupSets: [BackupSet] = []
     @State private var restoringSet: BackupSet?
     @State private var backingUp = false
@@ -31,6 +28,7 @@ struct WorkspaceBackupsSheet: View {
                 await reloadBackups()
             }
         }
+        .ktFeedbackHost(feedback)
         .task { await reloadBackups() }
     }
 

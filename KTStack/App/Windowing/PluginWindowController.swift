@@ -143,7 +143,7 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
         if let id = chrome.tabbingIdentifier { window.tabbingIdentifier = id }
 
         if let style = chrome.toolbarStyle {
-            installToolbar(on: window, style: style, toolbar: tc.toolbar)
+            installToolbar(on: window, style: style, tabContent: tc)
         }
 
         if let tabbing = window as? TabbingWindow {
@@ -166,36 +166,32 @@ final class PluginWindowController: NSObject, NSWindowDelegate {
         return window
     }
 
-    private func installToolbar(on window: NSWindow, style: NSWindow.ToolbarStyle, toolbar content: AnyView?) {
-        let toolbar = NSToolbar(identifier: chrome.tabbingIdentifier ?? autosaveName)
+    private func installToolbar(on window: NSWindow, style: NSWindow.ToolbarStyle, tabContent tc: PluginTabContent) {
+        let toolbar = NSToolbar(identifier: UUID().uuidString)
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = false
         window.toolbarStyle = style
 
-        guard let content else {
+        let delegate: WorkspaceToolbarDelegate
+        if let items = tc.toolbarItems {
+            let leading = items.leading.map { NSHostingView(rootView: $0) }
+            let center = items.center.map { NSHostingView(rootView: $0) }
+            let trailing = items.trailing.map { NSHostingView(rootView: $0) }
+            delegate = WorkspaceToolbarDelegate(leadingView: leading, centerView: center, trailingView: trailing)
+        } else if let content = tc.toolbar {
+            let center = NSHostingView(rootView: content)
+            delegate = WorkspaceToolbarDelegate(centerView: center)
+        } else {
             window.toolbar = toolbar
             return
         }
 
-        let hosting = NSHostingView(rootView: content)
-        hosting.translatesAutoresizingMaskIntoConstraints = false
-        let width = hosting.widthAnchor.constraint(equalToConstant: max(defaultSize.width, 400))
-        width.isActive = true
-        hosting.heightAnchor.constraint(equalToConstant: 44).isActive = true
-
-        let delegate = WorkspaceToolbarDelegate(view: hosting)
         toolbar.delegate = delegate
         window.toolbar = toolbar
-
         toolbarDelegates[ObjectIdentifier(window)] = delegate
-        toolbarWidthConstraints[ObjectIdentifier(window)] = width
-        DispatchQueue.main.async { [weak self] in self?.updateToolbarWidth(for: window) }
     }
 
-    func updateToolbarWidth(for window: NSWindow) {
-        guard let constraint = toolbarWidthConstraints[ObjectIdentifier(window)] else { return }
-        constraint.constant = max(400, window.frame.width - 12)
-    }
+    func updateToolbarWidth(for _: NSWindow) {}
 
     private func openTab() {
         guard let make = makeTabContent, window != nil else { return }

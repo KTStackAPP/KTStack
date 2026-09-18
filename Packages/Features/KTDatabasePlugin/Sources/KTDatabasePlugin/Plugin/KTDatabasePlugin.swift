@@ -11,7 +11,7 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
     let engines: any DatabaseEngineManaging
     let sites: any SiteCatalogManaging
     private let paths: AppSupportPaths
-    private let route: @MainActor (DatabaseRoute) -> Void
+    let route: @MainActor (DatabaseRoute) -> Void
     private let modals: KTModalPresenter
 
     @MainActor public lazy var connectionStore = ConnectionStore(
@@ -64,8 +64,6 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
         )
     }
     @MainActor let feedback = KTFeedbackCenter()
-    /// Modal chạy trong cửa sổ con riêng nên cần host feedback riêng, không dùng chung với tab.
-    @MainActor let modalFeedback = KTFeedbackCenter()
 
     @MainActor lazy var reachability: ServerReachabilityService = {
         let service = ServerReachabilityService()
@@ -98,12 +96,23 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
     @MainActor
     public func makeContentView() -> AnyView {
         AnyView(
-            DatabaseSectionContainer(plugin: self)
-                .environmentObject(connectionStore)
-                .environmentObject(databaseVM)
-                .environmentObject(documentVM)
-                .ktFeedbackHost(feedback)
+            DatabaseBrandPage(
+                onOpenPanel: { [weak self] in self?.openDatabasePanel() }
+            )
+            .environmentObject(connectionStore)
+            .environmentObject(databaseVM)
+            .environmentObject(documentVM)
+            .ktFeedbackHost(feedback)
         )
+    }
+
+    @MainActor
+    public var defaultProfileID: UUID? {
+        if let last = lastUsedDatabaseStore.lastProfileID,
+           connectionStore.profiles.contains(where: { $0.id == last }) {
+            return last
+        }
+        return connectionStore.profiles.first?.id
     }
 
     @MainActor
@@ -111,18 +120,13 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
         AnyView(DocumentSectionContent(engines: engines).environmentObject(documentVM))
     }
 
-    /// Cửa sổ "KTStack Database": khung NSSplitViewController ba pane, mỗi cửa sổ/tab một session.
     @MainActor
     public func makeWorkspaceSplitController(session: WorkspaceSession, initialProfileID: UUID?) -> NSViewController {
         let model = WorkspaceRootModel(
             session: session,
             engines: engines,
             lastUsed: lastUsedDatabaseStore,
-            backupSession: session.backupSession,
-            feedback: session.feedback,
-            sectionState: session.sectionState,
             connectionStore: connectionStore,
-            databaseVM: session.databaseVM,
             engineInstalled: { [weak self] engine in self?.engineInstalled(engine) ?? false },
             openRuntimes: { [route] engine in route(.runtimes(engine)) },
             initialProfileID: initialProfileID
@@ -135,33 +139,27 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
         AnyView(WorkspaceToolbar(session: session))
     }
 
+    @MainActor
+    public func makeWorkspaceToolbarLeading(session: WorkspaceSession) -> AnyView {
+        AnyView(WorkspaceToolbarLeading(session: session))
+    }
+
+    @MainActor
+    public func makeWorkspaceStatusPill(session: WorkspaceSession) -> AnyView {
+        AnyView(WorkspaceStatusPill(session: session))
+    }
+
+    @MainActor
+    public func makeWorkspaceToolbarTrailing(session: WorkspaceSession) -> AnyView {
+        AnyView(WorkspaceToolbarTrailing(session: session))
+    }
+
     #if DEBUG
         @MainActor
         public func makeSQLDraftsGallery() -> AnyView {
             AnyView(SQLEditorDraftsGallery())
         }
     #endif
-
-    /// Trang kết nối sống trong cửa sổ con của shell, nên phải tự bơm lại environment của tab.
-    @MainActor
-    func presentConnections(mode: ConnectionsModal.Mode = .list) {
-        modals.present(id: "database.connections") { [self] in
-            ConnectionsModal(plugin: self, mode: mode)
-                .environmentObject(connectionStore)
-                .environmentObject(databaseVM)
-                .environmentObject(documentVM)
-        }
-    }
-
-    @MainActor
-    func dismissConnections() {
-        modals.dismiss()
-    }
-
-    @MainActor
-    var importableSites: [SiteSummary] {
-        sites.catalog.sites.filter { !$0.path.isEmpty }
-    }
 
     /// "Open Database Panel": mở workspace không chọn sẵn profile.
     @MainActor
@@ -213,13 +211,11 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
     @MainActor
     public func sectionDidActivate() {
         reachability.start(owner: "section")
-        presentConnections()
     }
 
     @MainActor
     public func sectionDidDeactivate() {
         reachability.stop(owner: "section")
-        dismissConnections()
     }
 
     /// PluginLifecycle
@@ -228,18 +224,5 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
     /// Chạy trong quit khi coordinator block main; chỉ hạ NIO loop, không hop @MainActor.
     public func shutdown() async {
         try? await EventLoopProvider.shared.shutdown()
-    }
-}
-
-@MainActor
-struct DatabaseSectionContainer: View {
-    let plugin: KTDatabasePlugin
-
-    var body: some View {
-        DatabaseBrandPage(
-            onConnections: { plugin.presentConnections() },
-            onCreate: { plugin.presentConnections(mode: .create) },
-            onOpenPanel: { plugin.openDatabasePanel() }
-        )
     }
 }

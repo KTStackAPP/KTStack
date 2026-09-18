@@ -16,7 +16,7 @@ struct WorkspaceContentPane: View {
             .overlay { modalLayer }
             .sheet(item: $model.editSheet) { profile in AddConnectionSheet(editing: profile) }
             .sheet(isPresented: $model.showBackups) {
-                WorkspaceBackupsSheet(vm: model.databaseVM, session: model.backupSession, feedback: model.feedback)
+                WorkspaceBackupsSheet(vm: model.databaseVM, session: model.backupSession)
             }
             .onChange(of: workspace.backupsRequest) { _ in model.presentBackups() }
             .onChange(of: workspace.newDatabaseRequest) { _ in model.presentNewDatabase() }
@@ -47,6 +47,9 @@ struct WorkspaceContentPane: View {
             }
             .onDisappear { workspace.stopPolling() }
             .ktFeedbackHost(model.feedback)
+            .environmentObject(model.databaseVM)
+            .environmentObject(model.documentVM)
+            .environmentObject(model.connectionStore)
     }
 
     @ViewBuilder
@@ -138,7 +141,13 @@ struct WorkspaceContentPane: View {
             if sectionState.newDatabasePresented {
                 KTNewDatabaseModal(
                     onClose: { sectionState.newDatabasePresented = false },
-                    onCreated: { _ in sectionState.newDatabasePresented = false }
+                    onCreated: { newName in
+                        sectionState.newDatabasePresented = false
+                        Task {
+                            await vm.reloadDatabases()
+                            model.selectDatabase(newName)
+                        }
+                    }
                 )
                 .transition(.opacity)
             }

@@ -11,11 +11,12 @@ final class WorkspaceRootModel: ObservableObject {
 
     let engines: any DatabaseEngineManaging
     let lastUsed: LastUsedDatabaseStore
-    let backupSession: BackupSession
-    let feedback: KTFeedbackCenter
-    let sectionState: DatabaseSectionState
+    var backupSession: BackupSession { session.backupSession }
+    var feedback: KTFeedbackCenter { session.feedback }
+    var sectionState: DatabaseSectionState { session.sectionState }
+    var databaseVM: DatabaseViewModel { session.databaseVM }
+    var documentVM: DocumentViewModel { session.documentVM }
     let connectionStore: ConnectionStore
-    let databaseVM: DatabaseViewModel
     let engineInstalled: (DatabaseEngine) -> Bool
     let openRuntimes: (DatabaseEngine) -> Void
     let initialProfileID: UUID?
@@ -26,7 +27,7 @@ final class WorkspaceRootModel: ObservableObject {
     @Published var showBackups = false
     @Published var pendingCloseTab: PendingCloseTab?
     @Published var confirmDisconnect = false
-
+    private var cancellables = Set<AnyCancellable>()
     struct PendingCloseTab: Identifiable {
         let id: UUID
         let count: Int
@@ -36,11 +37,7 @@ final class WorkspaceRootModel: ObservableObject {
         session: WorkspaceSession,
         engines: any DatabaseEngineManaging,
         lastUsed: LastUsedDatabaseStore,
-        backupSession: BackupSession,
-        feedback: KTFeedbackCenter,
-        sectionState: DatabaseSectionState,
         connectionStore: ConnectionStore,
-        databaseVM: DatabaseViewModel,
         engineInstalled: @escaping (DatabaseEngine) -> Bool,
         openRuntimes: @escaping (DatabaseEngine) -> Void,
         initialProfileID: UUID?
@@ -48,14 +45,12 @@ final class WorkspaceRootModel: ObservableObject {
         self.session = session
         self.engines = engines
         self.lastUsed = lastUsed
-        self.backupSession = backupSession
-        self.feedback = feedback
-        self.sectionState = sectionState
         self.connectionStore = connectionStore
-        self.databaseVM = databaseVM
         self.engineInstalled = engineInstalled
         self.openRuntimes = openRuntimes
         self.initialProfileID = initialProfileID
+        session.shell.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
+        session.store.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
     }
 
     var isConnected: Bool {
@@ -91,6 +86,7 @@ final class WorkspaceRootModel: ObservableObject {
     func activate(profileID: UUID, database: String? = nil) {
         guard let profile = workspace.profiles.first(where: { $0.id == profileID }) else { return }
         workspace.selectedProfileID = profileID
+        lastUsed.setLastProfileID(profileID)
         if let database, !database.isEmpty {
             lastUsed.setLastDatabase(database, for: profileID)
         }
@@ -98,7 +94,8 @@ final class WorkspaceRootModel: ObservableObject {
     }
 
     func connectStartingEngine(_ profile: ConnectionProfile) async {
-        if profile.isManaged, let engine = profile.kind.engine, !engines.isRunning(engine) {
+        let isLocalEngine = profile.isManaged || ConnectionProfile.isLoopback(profile.host)
+        if isLocalEngine, let engine = profile.kind.engine, !engines.isRunning(engine) {
             engines.toggle(engine)
             await waitForEngine(engine, timeout: 15)
         }
@@ -110,11 +107,23 @@ final class WorkspaceRootModel: ObservableObject {
         defer { isConnecting = false }
         await vm.connect(profile: profile)
         guard case .connected = vm.connectionState else { return }
+        Task { await databaseVM.select(profile: profile) }
         if let last = lastUsed.lastDatabase(for: profile.id),
            vm.databases.contains(where: { $0.name == last }), last != vm.selectedDatabase {
             await vm.select(database: last)
+        } else if vm.selectedDatabase == nil, let first = vm.databases.first?.name {
+            await vm.select(database: first)
         }
         await refreshSchema(profileID: profile.id)
+        if workspace.tabs.isEmpty, let firstTable = currentObjects.first {
+            openTableDirectly(firstTable)
+        }
+    }
+
+    private func openTableDirectly(_ table: TableInfo) {
+        guard let pid = workspace.selectedProfileID, let db = workspace.activeDatabase else { return }
+        workspace.openTable(table, profileID: pid, database: db, forceNewTab: false)
+        recordRecent(table)
     }
 
     private func waitForEngine(_ engine: DatabaseEngine, timeout: TimeInterval) async {
