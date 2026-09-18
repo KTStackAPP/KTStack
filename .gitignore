@@ -107,17 +107,8 @@ plans/
 
 plans/*
 
-docs/*
-# Boundary rules are versioned with the code they enforce.
-!docs/architecture/
-docs/architecture/*
-!docs/architecture/dependency-rules.md
-!docs/architecture/adr/
-!docs/architecture/adr/*.md
-# Legal/provenance controls ship with the code they govern.
-!docs/legal/
-docs/legal/*
-!docs/legal/*.md
+docs-old/
+docs-old/*
 
 .agents/
 
