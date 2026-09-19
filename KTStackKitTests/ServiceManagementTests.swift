@@ -403,7 +403,7 @@ final class ServiceManagementTests: XCTestCase {
         let release = catalog.availableRelease(.mysql)
         XCTAssertNotNil(release)
         XCTAssertEqual(release?.url.host, "github.com")
-        XCTAssertEqual(release?.url.lastPathComponent, "mysql-9.6.0-arm64.tar.gz")
+        XCTAssertEqual(release?.url.lastPathComponent, "mysql-9.6.0-\(ServiceBinaryCatalog.arch).tar.gz")
         XCTAssertNotNil(ServiceBinaryCatalog.marker(.mysql))
     }
 

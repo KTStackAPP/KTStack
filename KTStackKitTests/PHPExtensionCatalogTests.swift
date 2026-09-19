@@ -13,10 +13,11 @@ final class PHPExtensionCatalogTests: XCTestCase {
             XCTAssertEqual(r.url.scheme, "https", "\(r.id) must be https")
             XCTAssertEqual(r.url.host, "github.com")
             XCTAssertTrue(r.url.path.contains("/releases/download/"), "\(r.id) must resolve to a release asset")
-            XCTAssertEqual(r.sha256.count, 64, "\(r.id) sha256 must be 64 hex chars")
-            XCTAssertTrue(r.sha256.allSatisfy(\.isHexDigit), "\(r.id) sha256 must be hex")
-            // Filename + id follow the Phase-1 artifact convention php-ext-<ext>-<ver>-arm64.tar.gz.
-            XCTAssertEqual(r.url.lastPathComponent, "php-ext-\(r.extID)-\(r.phpVersion)-arm64.tar.gz")
+            if r.supportsCurrentArch {
+                XCTAssertEqual(r.sha256.count, 64, "\(r.id) sha256 must be 64 hex chars")
+                XCTAssertTrue(r.sha256.allSatisfy(\.isHexDigit), "\(r.id) sha256 must be hex")
+            }
+            XCTAssertEqual(r.url.lastPathComponent, "php-ext-\(r.extID)-\(r.phpVersion)-\(RuntimeCatalog.arch).tar.gz")
             XCTAssertEqual(r.id, "\(r.extID)-\(r.phpVersion)")
         }
     }
@@ -35,7 +36,7 @@ final class PHPExtensionCatalogTests: XCTestCase {
         let catalog = PHPExtensionCatalog(paths: AppSupportPaths())
         let r = catalog.release("imagick", phpVersion: "8.4")
         XCTAssertEqual(r?.sha256.count, 64)
-        XCTAssertEqual(r?.url.lastPathComponent, "php-ext-imagick-8.4-arm64.tar.gz")
+        XCTAssertEqual(r?.url.lastPathComponent, "php-ext-imagick-8.4-\(RuntimeCatalog.arch).tar.gz")
         // swoole has no 8.1 build (Swoole 6 is incompatible with PHP 8.1).
         XCTAssertNil(catalog.release("swoole", phpVersion: "8.1"))
         XCTAssertNil(catalog.release("nope", phpVersion: "8.4"))

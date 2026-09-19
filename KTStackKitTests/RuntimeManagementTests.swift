@@ -96,7 +96,7 @@ final class RuntimeManagementTests: XCTestCase {
             XCTAssertTrue(r.url.path.contains("/releases/download/"), "\(r.id) must resolve to a release asset")
             XCTAssertEqual(
                 r.url.lastPathComponent,
-                "php-\(r.version)-arm64.tar.gz",
+                "php-\(r.version)-\(RuntimeCatalog.arch).tar.gz",
                 "filename must follow <name>-<version>-<arch>.tar.gz"
             )
         }
