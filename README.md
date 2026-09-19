@@ -35,47 +35,28 @@ It comes with HTTPS, the right PHP version, databases, logs and mail testing alr
 
 The features other tools **lock behind a paid plan or a separate app** (the database editor, every database engine, mail testing, public sharing) are **built in and free** here.
 
-## KTStack vs the alternatives
-
-| | **KTStack** | Laravel Herd | ServBay | Valet |
-|---|:---:|:---:|:---:|:---:|
-| Price | **Free (MIT)** | Free + Pro **$99/yr** | Free + Pro **$59/yr** | Free |
-| Open source | ✅ **100% MIT** | ❌ Proprietary | ❌ Proprietary | ✅ |
-| Native UI | ✅ menu-bar (SwiftUI) | ✅ | ✅ | ❌ CLI only |
-| No Docker / Homebrew required | ✅ | ✅ | ✅ | ❌ (Homebrew) |
-| Trusted local HTTPS | ✅ Automatic | ✅ | ✅ | extra setup |
-| Multiple PHP versions | ✅ 7.4 → 8.5 | ✅ | ✅ | ✅ |
-| Database engines (MySQL/PG/Redis/Mongo) | ✅ **Built in** | Pro only | Pro only | ❌ |
-| **Database editor** (browse/edit/SQL/ER) | ✅ **Built in** | ❌ (TablePlus) | ❌ (Adminer/phpMyAdmin) | ❌ |
-| **AI Agent MCP Server** (`kt mcp`) | ✅ **Built in** | ❌ | Pro only | ❌ |
-| **Developer CLI** (`kt`) | ✅ **Built in** | Pro only | ❌ | ✅ |
-| **Database Backup & Restore** | ✅ **Built in** | Pro only | Pro only | ❌ |
-| **1-Click IDE Launch** (Cursor/VS Code) | ✅ **Built in** | Pro only | Pro only | ❌ |
-| Mail testing (Mailpit) | ✅ | Pro only | ✅ | ❌ |
-| Public sharing (Cloudflare Tunnel) | ✅ | Pro only | ❌ | ❌ |
-| Architecture support | ✅ arm64 + x86_64 | ✅ arm64 + x86_64 | ✅ arm64 + x86_64 | ✅ |
-| Configurable TLD (not only `.test`) | ✅ | ❌ `.test` only | ❌ `.test` only | ❌ |
-
-<sub>Comparison reflects publicly documented free/Pro tiers as of 2026. Corrections welcome via issue.</sub>
-
 ## Features
 
-- **Automatic `.test` domains** with trusted local HTTPS (per-site certificates from a local CA)
-- **Nginx + PHP-FPM** with per-site PHP version isolation; per-version editable `php.ini`, extensions, Xdebug and FPM pool tuning
-- **PHP 7.4 → 8.5** (seven versions, EOL versions clearly flagged) and **Node.js 20/22/24/26**, self-contained, no Homebrew required
-- **AI Coding Agent MCP Server (`kt mcp`)**: Built-in Model Context Protocol server over stdio for Cursor, Claude Code, and Windsurf to list sites, switch PHP versions, trigger backups, inspect DB schemas, and query live logs
-- **Unified Developer CLI (`kt`)**: Control sites, supervise daemons, perform database snapshots, and run diagnostics straight from your terminal
-- **1-Click IDE Quick Launch**: Instantly open projects from Site Cards into Cursor, VS Code, PhpStorm, Zed, or Sublime Text
-- **Built-in database editor**: Browse & edit rows, run SQL, inspect structure/DDL, foreign-key navigation, and explain plans for MySQL/MariaDB, PostgreSQL, SQLite, and MongoDB
-- **1-Click Database Backup & Restore**: Streamlined dump and restore pipelines for MySQL, PostgreSQL, and SQLite without third-party tools
-- **Proxy sites**: Point a `.test` domain at any local port, LAN host or remote HTTPS origin
-- **Per-site settings**: Alias domains (extra `.test` names on TLS cert), custom environment variables, and validated nginx directives
-- **Databases & cache**: MySQL 9.6, MariaDB 10.11/11.4, PostgreSQL 17, Redis 7.4, Memcached 1.6, MongoDB 7
-- **Mailpit** mail catcher and HTML email inspector
-- **`dd()` / `dump()` viewer**: Laravel and Symfony dumps stream straight into the app with zero code configuration
-- **Per-site & per-service log viewer**: Live multi-source log streaming with instant filtering
-- **Cloudflare Tunnel sharing**: Expose a local site over a temporary public HTTPS URL for client reviews or mobile testing
-- **Native macOS UI**: Built with native SwiftUI + Liquid Glass design tokens (with macOS 13+ fallback) and Sparkle auto-updates
+Everything in KTStack is built-in, 100% free, and open-source (MIT)—no Pro tiers, no subscriptions, no paywalls:
+
+- **Automatic `.test` Domains & Local HTTPS**: Trusted SSL certificates minted by a local CA with automatic DNS loopback resolution.
+- **Isolated PHP & Node.js Runtimes**: PHP 7.4 through 8.5 with independent `php.ini`, extensions, Xdebug, and Node.js 20/22/24/26.
+- **Zero Runtime Dependencies**: Lightweight native macOS app—no Docker or Homebrew required.
+- **Built-in Database Engines**: One-click supervision for MySQL 9.6, MariaDB 10.11/11.4, PostgreSQL 17, Redis 7.4, Memcached 1.6, and MongoDB 7.
+- **Full Database Management Workspace**: Browse and edit rows, execute SQL, inspect DDL/schemas, navigate foreign keys, and explain plans (MySQL, MariaDB, Postgres, SQLite, Mongo).
+- **1-Click Database Backup & Restore**: Snapshot dumps and restores for MySQL, PostgreSQL, and SQLite without external tools.
+- **AI Coding Agent MCP Server (`kt mcp`)**: Built-in Model Context Protocol server over stdio for Cursor, Claude Code, and Windsurf to manage sites, switch PHP versions, trigger backups, and query logs.
+- **Unified Developer CLI (`kt`)**: Fast terminal tool communicating via private Unix domain socket (`kt sites`, `kt services`, `kt db`, `kt doctor`).
+- **1-Click IDE Quick Launch**: Instantly open projects from Site Cards into Cursor, VS Code, PhpStorm, Zed, or Sublime Text.
+- **Mail Testing (Mailpit)**: Embedded SMTP server and HTML email inspector.
+- **Proxy Sites**: Point any `.test` domain to a local port, LAN host, or remote HTTPS origin.
+- **Per-Site Customization**: Custom alias domains, environment variables, and validated Nginx configuration directives.
+- **Live Multi-Source Log Viewer**: Stream Nginx access/error logs, PHP-FPM logs, and service output in real time.
+- **`dd()` / `dump()` Stream Viewer**: Laravel and Symfony dumps stream straight into the app with zero code setup.
+- **Cloudflare Tunnel Sharing**: Expose local sites over temporary public HTTPS URLs for client reviews and mobile testing.
+- **Configurable TLD**: Customize your local top-level domain beyond `.test`.
+- **Apple Silicon & Intel Mac Support**: Native universal builds for both `arm64` and `x86_64` on macOS 13+.
+- **Native macOS Liquid Glass UI**: Modern SwiftUI interface supporting macOS 27+ Liquid Glass with macOS 13+ material fallback, and Sparkle auto-updates.
 ## Screenshots
 
 | Sites | Services | Runtimes |
