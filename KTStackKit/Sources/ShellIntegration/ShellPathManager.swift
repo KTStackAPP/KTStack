@@ -96,6 +96,10 @@ public final class ShellPathManager: @unchecked Sendable {
         try ShellShimWriter(paths: paths).writeShims()
     }
     public func installCLI() throws {
+        guard isToolEnabled("kt") else {
+            uninstallCLI()
+            return
+        }
         let fm = FileManager.default
         let dir = paths.shimBinDir
         try fm.createDirectory(
@@ -113,13 +117,20 @@ public final class ShellPathManager: @unchecked Sendable {
         try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: cliDest.path)
 
         let usrLocalBin = URL(fileURLWithPath: "/usr/local/bin/kt")
-        if fm.isWritableFile(atPath: "/usr/local/bin") {
-            try? fm.removeItem(at: usrLocalBin)
-            try? fm.createSymbolicLink(at: usrLocalBin, withDestinationURL: cliSource)
-        }
+        try? fm.removeItem(at: usrLocalBin)
+        try? fm.createSymbolicLink(at: usrLocalBin, withDestinationURL: cliSource)
+    }
+
+    public func uninstallCLI() {
+        let fm = FileManager.default
+        let cliDest = paths.shimBinDir.appendingPathComponent("kt")
+        try? fm.removeItem(at: cliDest)
+        let usrLocalBin = URL(fileURLWithPath: "/usr/local/bin/kt")
+        try? fm.removeItem(at: usrLocalBin)
     }
 
     public func disable() throws {
+        uninstallCLI()
         let patcher = ShellRCPatcher(exportLine: exportLine)
         let fm = FileManager.default
         var firstError: Error?
@@ -149,11 +160,7 @@ public final class ShellPathManager: @unchecked Sendable {
             if enabled {
                 try? installCLI()
             } else {
-                let fm = FileManager.default
-                try? fm.removeItem(at: paths.shimBinDir.appendingPathComponent("kt"))
-                if fm.isWritableFile(atPath: "/usr/local/bin") {
-                    try? fm.removeItem(at: URL(fileURLWithPath: "/usr/local/bin/kt"))
-                }
+                uninstallCLI()
             }
         }
     }
@@ -164,11 +171,7 @@ public final class ShellPathManager: @unchecked Sendable {
             if enabled {
                 try? installCLI()
             } else {
-                let fm = FileManager.default
-                try? fm.removeItem(at: paths.shimBinDir.appendingPathComponent("kt"))
-                if fm.isWritableFile(atPath: "/usr/local/bin") {
-                    try? fm.removeItem(at: URL(fileURLWithPath: "/usr/local/bin/kt"))
-                }
+                uninstallCLI()
             }
         }
     }
@@ -222,18 +225,10 @@ public final class ShellPathManager: @unchecked Sendable {
         if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }
         try fm.copyItem(at: helperSource, to: dest)
         try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dest.path)
-        let cliSource = helperSource.deletingLastPathComponent().appendingPathComponent("kt")
-        if fm.isExecutableFile(atPath: cliSource.path) {
-            let cliDest = dir.appendingPathComponent("kt")
-            if fm.fileExists(atPath: cliDest.path) { try? fm.removeItem(at: cliDest) }
-            try? fm.copyItem(at: cliSource, to: cliDest)
-            try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: cliDest.path)
-
-            let usrLocalBin = URL(fileURLWithPath: "/usr/local/bin/kt")
-            if fm.isWritableFile(atPath: "/usr/local/bin") {
-                try? fm.removeItem(at: usrLocalBin)
-                try? fm.createSymbolicLink(at: usrLocalBin, withDestinationURL: cliSource)
-            }
+        if isToolEnabled("kt") {
+            try? installCLI()
+        } else {
+            uninstallCLI()
         }
     }
 

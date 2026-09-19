@@ -22,6 +22,12 @@ func printUsage() {
 
 let args = Array(CommandLine.arguments.dropFirst())
 let client = KTIPCClient()
+let resolver = ShellToolResolver()
+guard resolver.isToolEnabled("kt") else {
+    fputs("ktstack: kt is not enabled — open KTStack > Shell Integration to enable it\n", stderr)
+    exit(127)
+}
+
 
 guard let command = args.first else {
     printUsage()
