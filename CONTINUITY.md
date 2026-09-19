@@ -55,6 +55,12 @@ The following specialized SwiftUI and system skills are installed and verified i
 - Packages hierarchy: `KTStackCore` -> `KTPlatformContracts` -> `KTPluginKit` -> Feature Plugins (`KTDumpsPlugin`, `KTMailPlugin`, `KTLogsPlugin`, `KTTunnelPlugin`, `KTDoctorPlugin`, `KTDatabasePlugin`) -> App.
 - Feature plugins must **never** import `KTStackKit`.
 
+### 3.5 Native CLI (`kt`) & Stdio MCP Server (`KTCLI`)
+- **Native Mach-O CLI**: Built as `kt` via `project.yml`, copied into `KTStack.app/Contents/MacOS/kt`.
+- **Local Unix IPC Socket**: Listens at `AppSupportPaths().run.appendingPathComponent("ktstack.sock")` with POSIX `0600` permissions.
+- **MCP Server**: Subcommand `kt mcp` runs in persistent stdio mode adhering to Model Context Protocol (2024-11-05), exposing tools for AI Coding Agents (Cursor, Claude Code, Windsurf).
+- **Zero Network Egress**: All interactions operate 100% locally on device via stdio and Unix domain sockets.
+
 ---
 
 ## 4. Operational Invariants & Rules of Engagement

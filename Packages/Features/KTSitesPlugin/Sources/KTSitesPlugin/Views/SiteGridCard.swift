@@ -93,6 +93,7 @@ struct SiteGridCard: View {
                     shareExpiresAt: shareExpiresAt,
                     onToggleShare: onToggleShare
                 )
+                SiteQuickEditorButton(site: site)
                 SiteActionsMenu(
                     site: site,
                     canOpen: canOpen,

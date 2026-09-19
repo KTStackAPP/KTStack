@@ -178,6 +178,11 @@ targets:
           destination: executables
       # Spotlight launcher stub: lands in Contents/Applications so LaunchServices/Spotlight index
       # "KTStack Database". Build-order + copy only (no linking); it opens ktstack://database and exits.
+      # Native developer CLI and stdio MCP server for AI Coding Agents (Cursor, Claude Code).
+      - target: kt
+        link: false
+        copy:
+          destination: executables
       - target: KTStackDatabaseLauncher
         link: false
         copy:
@@ -237,6 +242,22 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ktstack.resolve
+        CODE_SIGN_ENTITLEMENTS: entitlements/helper.entitlements
+        ENABLE_HARDENED_RUNTIME: "YES"
+
+  # Standalone developer CLI and stdio MCP Server.
+  kt:
+    type: tool
+    platform: macOS
+    sources:
+      - path: KTCLI
+    dependencies:
+      - package: KTStackCore
+        product: KTStackCoreStatic
+    settings:
+      base:
+        PRODUCT_NAME: kt
+        PRODUCT_BUNDLE_IDENTIFIER: com.ktstack.cli
         CODE_SIGN_ENTITLEMENTS: entitlements/helper.entitlements
         ENABLE_HARDENED_RUNTIME: "YES"
 

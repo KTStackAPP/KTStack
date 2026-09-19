@@ -194,6 +194,7 @@ struct SiteListRow: View, Equatable {
                 .disabled(!openEnabled)
                 .ktTip("Open \(site.domain) in your browser")
 
+            SiteQuickEditorButton(site: site)
             SiteActionsMenu(
                 site: site,
                 canOpen: canOpen,

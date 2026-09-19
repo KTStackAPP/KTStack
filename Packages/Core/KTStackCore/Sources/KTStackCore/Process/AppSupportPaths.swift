@@ -32,6 +32,10 @@ public struct AppSupportPaths: Sendable {
         dir("config")
     }
 
+    public var shellToolsConfigFile: URL {
+        config.appendingPathComponent("shell-tools.json")
+    }
+
     public var nginxConfigDir: URL {
         config.appendingPathComponent("nginx", isDirectory: true)
     }
@@ -94,6 +98,10 @@ public struct AppSupportPaths: Sendable {
 
     public var run: URL {
         dir("run")
+    }
+
+    public var ipcSocket: URL {
+        run.appendingPathComponent("ktstack.sock")
     }
 
     public var logs: URL {
