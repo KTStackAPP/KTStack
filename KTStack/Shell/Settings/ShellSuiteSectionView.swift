@@ -34,6 +34,14 @@ struct ShellSuiteSectionView: View {
 
                 Text(suite.displayName)
                     .font(KDFont.headline)
+                let installedCount = tools.filter { isToolInstalled($0.id) }.count
+                Text("\(installedCount)/\(tools.count)")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(Color.secondary.opacity(0.12))
+                    .clipShape(Capsule())
 
                 Spacer()
 

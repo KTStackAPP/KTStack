@@ -16,14 +16,32 @@ struct ShellToolRowView: View {
                         .font(KDFont.body.monospaced())
                         .foregroundStyle(.primary)
 
-                    if !isInstalled {
-                        Text("Not Installed")
-                            .font(.caption2)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(Color.orange.opacity(0.15))
-                            .foregroundStyle(.orange)
-                            .clipShape(Capsule())
+                    if isInstalled {
+                        HStack(spacing: 3) {
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 6, height: 6)
+                            Text("Installed")
+                                .font(.caption2.weight(.medium))
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.green.opacity(0.12))
+                        .foregroundStyle(.green)
+                        .clipShape(Capsule())
+                    } else {
+                        HStack(spacing: 3) {
+                            Circle()
+                                .fill(Color.orange)
+                                .frame(width: 6, height: 6)
+                            Text("Not Installed")
+                                .font(.caption2.weight(.medium))
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.orange.opacity(0.12))
+                        .foregroundStyle(.orange)
+                        .clipShape(Capsule())
                     }
                 }
 

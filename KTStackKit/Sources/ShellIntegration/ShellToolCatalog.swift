@@ -3,6 +3,7 @@ import KTStackCore
 
 public struct ShellToolCatalog: Sendable {
     public static let tools: [ShellTool] = [
+        ShellTool(id: "kt", command: "kt", displayName: "Developer CLI & MCP Server", suite: .ktstack),
         ShellTool(id: "php", command: "php", displayName: "PHP CLI", suite: .php, isDynamic: true),
         ShellTool(id: "composer", command: "composer", displayName: "Composer", suite: .php, isDynamic: true),
         ShellTool(id: "wp", command: "wp", displayName: "WP-CLI", suite: .php, isDynamic: true),

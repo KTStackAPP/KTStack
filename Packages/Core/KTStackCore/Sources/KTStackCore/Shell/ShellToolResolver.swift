@@ -20,8 +20,16 @@ public struct ShellToolResolver: Sendable {
         guard isToolEnabled(tool) else { return nil }
 
         switch tool {
+        case "kt":
+            let shimKt = paths.shimBinDir.appendingPathComponent("kt")
+            if FileManager.default.isExecutableFile(atPath: shimKt.path) { return shimKt }
+            let appKt = URL(fileURLWithPath: "/Applications/KTStack.app/Contents/MacOS/kt")
+            if FileManager.default.isExecutableFile(atPath: appKt.path) { return appKt }
+            return nil
         case "php", "node":
             return resolveRuntime(tool, cwd: cwd)
+        case "npm", "npx":
+            return resolveNodeTool(tool, cwd: cwd)
         case "composer":
             guard FileManager.default.fileExists(atPath: paths.composerPhar.path) else { return nil }
             return resolveRuntime("php", cwd: cwd)
@@ -41,9 +49,16 @@ public struct ShellToolResolver: Sendable {
 
     public func isInstalled(_ tool: String) -> Bool {
         switch tool {
-        case "php", "node":
-            guard let lang = RuntimeLanguage(rawValue: tool) else { return false }
-            return !RuntimeCatalog(paths: paths).installedVersions(lang).isEmpty
+        case "kt":
+            let shimKt = paths.shimBinDir.appendingPathComponent("kt")
+            if FileManager.default.isExecutableFile(atPath: shimKt.path) { return true }
+            let appKt = URL(fileURLWithPath: "/Applications/KTStack.app/Contents/MacOS/kt")
+            if FileManager.default.isExecutableFile(atPath: appKt.path) { return true }
+            return FileManager.default.isExecutableFile(atPath: "/usr/local/bin/kt")
+        case "php":
+            return !RuntimeCatalog(paths: paths).installedVersions(.php).isEmpty
+        case "node", "npm", "npx":
+            return !RuntimeCatalog(paths: paths).installedVersions(.node).isEmpty
         case "composer":
             return FileManager.default.fileExists(atPath: paths.composerPhar.path)
         case "wp":
@@ -72,6 +87,13 @@ public struct ShellToolResolver: Sendable {
         }
         return bin
     }
+    private func resolveNodeTool(_ tool: String, cwd: URL) -> URL? {
+        guard let nodeBin = resolveRuntime("node", cwd: cwd) else { return nil }
+        let bin = nodeBin.deletingLastPathComponent().appendingPathComponent(tool)
+        guard FileManager.default.isExecutableFile(atPath: bin.path) else { return nil }
+        return bin
+    }
+
 
     private func resolveMySQLTool(_ tool: String) -> URL? {
         if let mysqlBin = resolveServiceTool(service: "mysql", binaryName: tool) {

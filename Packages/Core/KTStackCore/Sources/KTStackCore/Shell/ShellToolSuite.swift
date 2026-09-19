@@ -1,6 +1,7 @@
 import Foundation
 
 public enum ShellToolSuite: String, CaseIterable, Sendable, Identifiable, Hashable {
+    case ktstack
     case php
     case node
     case mysql
@@ -13,6 +14,8 @@ public enum ShellToolSuite: String, CaseIterable, Sendable, Identifiable, Hashab
 
     public var displayName: String {
         switch self {
+        case .ktstack:
+            "KTStack CLI & MCP"
         case .php:
             "PHP Suite"
         case .node:
@@ -28,6 +31,8 @@ public enum ShellToolSuite: String, CaseIterable, Sendable, Identifiable, Hashab
 
     public var iconName: String {
         switch self {
+        case .ktstack:
+            "terminal"
         case .php:
             "chevron.left.forwardslash.chevron.right"
         case .node:

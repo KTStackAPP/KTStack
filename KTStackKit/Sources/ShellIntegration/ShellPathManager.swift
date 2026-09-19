@@ -145,10 +145,32 @@ public final class ShellPathManager: @unchecked Sendable {
 
     public func setToolEnabled(_ toolId: String, enabled: Bool) throws {
         try toolStore.setEnabled(toolId, enabled: enabled)
+        if toolId == "kt" {
+            if enabled {
+                try? installCLI()
+            } else {
+                let fm = FileManager.default
+                try? fm.removeItem(at: paths.shimBinDir.appendingPathComponent("kt"))
+                if fm.isWritableFile(atPath: "/usr/local/bin") {
+                    try? fm.removeItem(at: URL(fileURLWithPath: "/usr/local/bin/kt"))
+                }
+            }
+        }
     }
 
     public func setSuiteEnabled(_ suite: ShellToolSuite, enabled: Bool) throws {
         try toolStore.setSuiteEnabled(suite, enabled: enabled)
+        if suite == .ktstack {
+            if enabled {
+                try? installCLI()
+            } else {
+                let fm = FileManager.default
+                try? fm.removeItem(at: paths.shimBinDir.appendingPathComponent("kt"))
+                if fm.isWritableFile(atPath: "/usr/local/bin") {
+                    try? fm.removeItem(at: URL(fileURLWithPath: "/usr/local/bin/kt"))
+                }
+            }
+        }
     }
 
     public func isToolInstalled(_ tool: ShellTool) -> Bool {

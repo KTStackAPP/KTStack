@@ -77,6 +77,12 @@ struct ShellShimWriter {
     func writeShims() throws {
         let fm = FileManager.default
         for (name, body) in shims {
+            if name == "kt" {
+                let ktDest = paths.shimBinDir.appendingPathComponent("kt")
+                if fm.isExecutableFile(atPath: ktDest.path) {
+                    continue
+                }
+            }
             let url = paths.shimBinDir.appendingPathComponent(name)
             try (body + "\n").data(using: .utf8)!.write(to: url, options: .atomic)
             try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)

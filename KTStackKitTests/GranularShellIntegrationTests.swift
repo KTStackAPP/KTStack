@@ -25,8 +25,10 @@ final class GranularShellIntegrationTests: XCTestCase {
 
     func testCatalogContainsAllRequiredSuitesAndTools() {
         let suites = ShellToolSuite.allCases
-        XCTAssertEqual(suites.count, 5)
+        XCTAssertEqual(suites.count, 6)
 
+        let ktTools = ShellToolCatalog.tools(for: .ktstack)
+        XCTAssertEqual(ktTools.map(\.command), ["kt"])
         let phpTools = ShellToolCatalog.tools(for: .php)
         XCTAssertEqual(phpTools.map(\.command), ["php", "composer", "wp"])
 
