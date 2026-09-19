@@ -95,6 +95,29 @@ public final class ShellPathManager: @unchecked Sendable {
         try prepareShimDir()
         try ShellShimWriter(paths: paths).writeShims()
     }
+    public func installCLI() throws {
+        let fm = FileManager.default
+        let dir = paths.shimBinDir
+        try fm.createDirectory(
+            at: dir,
+            withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o755]
+        )
+        guard let helperSource else { return }
+        let cliSource = helperSource.deletingLastPathComponent().appendingPathComponent("kt")
+        guard fm.isExecutableFile(atPath: cliSource.path) else { return }
+
+        let cliDest = dir.appendingPathComponent("kt")
+        if fm.fileExists(atPath: cliDest.path) { try? fm.removeItem(at: cliDest) }
+        try? fm.copyItem(at: cliSource, to: cliDest)
+        try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: cliDest.path)
+
+        let usrLocalBin = URL(fileURLWithPath: "/usr/local/bin/kt")
+        if fm.isWritableFile(atPath: "/usr/local/bin") {
+            try? fm.removeItem(at: usrLocalBin)
+            try? fm.createSymbolicLink(at: usrLocalBin, withDestinationURL: cliSource)
+        }
+    }
 
     public func disable() throws {
         let patcher = ShellRCPatcher(exportLine: exportLine)
@@ -177,6 +200,19 @@ public final class ShellPathManager: @unchecked Sendable {
         if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }
         try fm.copyItem(at: helperSource, to: dest)
         try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dest.path)
+        let cliSource = helperSource.deletingLastPathComponent().appendingPathComponent("kt")
+        if fm.isExecutableFile(atPath: cliSource.path) {
+            let cliDest = dir.appendingPathComponent("kt")
+            if fm.fileExists(atPath: cliDest.path) { try? fm.removeItem(at: cliDest) }
+            try? fm.copyItem(at: cliSource, to: cliDest)
+            try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: cliDest.path)
+
+            let usrLocalBin = URL(fileURLWithPath: "/usr/local/bin/kt")
+            if fm.isWritableFile(atPath: "/usr/local/bin") {
+                try? fm.removeItem(at: usrLocalBin)
+                try? fm.createSymbolicLink(at: usrLocalBin, withDestinationURL: cliSource)
+            }
+        }
     }
 
     private func patch(_ url: URL, with patcher: ShellRCPatcher) throws {

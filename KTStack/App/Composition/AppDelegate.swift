@@ -238,8 +238,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func refreshShellShim() {
         let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/ktstack-resolve")
         let manager = ShellPathManager(paths: AppSupportPaths(), helperSource: helper)
-        do { try manager.refreshStagedShimIfEnabled() }
-        catch { NSLog("KTStack: shell shim refresh skipped — \(error.localizedDescription)") }
+        do {
+            try manager.installCLI()
+            try manager.refreshStagedShimIfEnabled()
+        } catch {
+            NSLog("KTStack: shell shim refresh skipped — \(error.localizedDescription)")
+        }
     }
 
     private func registerHelperIfSigned() {

@@ -116,4 +116,9 @@ final class IPCSocketTests: XCTestCase {
         XCTAssertFalse(resp.success)
         XCTAssertNotNil(resp.error)
     }
+    func testClientPing() throws {
+        let client = KTIPCClient(socketPath: socketPath)
+        let result = try client.call(method: "ping")
+        XCTAssertEqual(result, "pong")
+    }
 }

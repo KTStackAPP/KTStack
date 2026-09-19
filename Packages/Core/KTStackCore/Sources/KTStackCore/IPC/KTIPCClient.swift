@@ -1,5 +1,4 @@
 import Foundation
-import KTStackCore
 
 public enum KTCLIError: LocalizedError, Sendable {
     case connectionFailed(String)
@@ -56,19 +55,39 @@ public struct KTIPCClient: Sendable {
 
         let req = KTIPCRequest(id: UUID().uuidString, method: method, params: params)
         let data = try JSONEncoder().encode(req)
-        let written = data.withUnsafeBytes { write(fd, $0.baseAddress, data.count) }
-        guard written == data.count else {
-            throw KTCLIError.connectionFailed("Failed to send full request payload.")
+        try data.withUnsafeBytes { rawBuffer in
+            guard let base = rawBuffer.baseAddress else { return }
+            var remaining = data.count
+            var offset = 0
+            while remaining > 0 {
+                let written = write(fd, base.advanced(by: offset), remaining)
+                if written <= 0 {
+                    if errno == EINTR { continue }
+                    throw KTCLIError.connectionFailed("Failed to send full request payload.")
+                }
+                offset += written
+                remaining -= written
+            }
+        }
+        _ = shutdown(fd, SHUT_WR)
+
+        var fullData = Data()
+        var buffer = [UInt8](repeating: 0, count: 16384)
+        while true {
+            let bytesRead = read(fd, &buffer, buffer.count)
+            if bytesRead < 0 {
+                if errno == EINTR { continue }
+                throw KTCLIError.malformedResponse
+            }
+            if bytesRead == 0 { break }
+            fullData.append(buffer, count: bytesRead)
         }
 
-        var buffer = [UInt8](repeating: 0, count: 65536)
-        let bytesRead = read(fd, &buffer, buffer.count)
-        guard bytesRead > 0 else {
+        guard !fullData.isEmpty else {
             throw KTCLIError.malformedResponse
         }
 
-        let respData = Data(buffer.prefix(bytesRead))
-        let resp = try JSONDecoder().decode(KTIPCResponse.self, from: respData)
+        let resp = try JSONDecoder().decode(KTIPCResponse.self, from: fullData)
         if resp.success {
             return resp.result ?? ""
         } else {

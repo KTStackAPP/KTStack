@@ -83,22 +83,50 @@ public final class KTLocalIPCSocketListener: @unchecked Sendable {
 
     private static func handleClient(_ fd: Int32, dispatcher: KTIPCCommandDispatcher) async {
         defer { close(fd) }
+        var reqData = Data()
         var buffer = [UInt8](repeating: 0, count: 4096)
-        let bytesRead = read(fd, &buffer, buffer.count)
-        guard bytesRead > 0 else { return }
+        while true {
+            let bytesRead = read(fd, &buffer, buffer.count)
+            if bytesRead < 0 {
+                if errno == EINTR { continue }
+                return
+            }
+            if bytesRead == 0 { break }
+            reqData.append(buffer, count: bytesRead)
+            if (try? JSONDecoder().decode(KTIPCRequest.self, from: reqData)) != nil {
+                break
+            }
+        }
+        guard !reqData.isEmpty else { return }
 
-        let data = Data(buffer.prefix(bytesRead))
-        guard let request = try? JSONDecoder().decode(KTIPCRequest.self, from: data) else {
+        guard let request = try? JSONDecoder().decode(KTIPCRequest.self, from: reqData) else {
             let errResponse = KTIPCResponse.fail("Malformed JSON request")
             if let errData = try? JSONEncoder().encode(errResponse) {
-                _ = errData.withUnsafeBytes { write(fd, $0.baseAddress, errData.count) }
+                writeAll(fd, data: errData)
             }
             return
         }
 
         let response = await dispatcher.dispatch(request)
         if let respData = try? JSONEncoder().encode(response) {
-            _ = respData.withUnsafeBytes { write(fd, $0.baseAddress, respData.count) }
+            writeAll(fd, data: respData)
+        }
+    }
+
+    private static func writeAll(_ fd: Int32, data: Data) {
+        data.withUnsafeBytes { rawBuffer in
+            guard let base = rawBuffer.baseAddress else { return }
+            var remaining = data.count
+            var offset = 0
+            while remaining > 0 {
+                let written = write(fd, base.advanced(by: offset), remaining)
+                if written <= 0 {
+                    if errno == EINTR { continue }
+                    break
+                }
+                offset += written
+                remaining -= written
+            }
         }
     }
 
