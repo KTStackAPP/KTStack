@@ -61,6 +61,39 @@ case "db":
     }
 
 case "mcp":
+    if args.contains("--help") || args.contains("-h") {
+        print("""
+        KTStack Model Context Protocol (MCP) Server
+
+        USAGE:
+          kt mcp
+
+        DESCRIPTION:
+          Runs a stdio-based MCP Server exposing KTStack capabilities to AI coding agents
+          (Claude Desktop, Cursor, Claude Code, Windsurf, etc.).
+
+        CONFIGURATION (Claude Desktop / Cursor):
+          Add to claude_desktop_config.json or .cursor/mcp.json:
+          {
+            "mcpServers": {
+              "ktstack": {
+                "command": "kt",
+                "args": ["mcp"]
+              }
+            }
+          }
+
+        AVAILABLE TOOLS:
+          • ktstack_list_sites: List all local development sites and ports
+          • ktstack_list_services: Inspect background service daemons
+          • ktstack_create_site: Register a new local development site
+          • ktstack_switch_php_version: Switch PHP version for a site
+          • ktstack_get_recent_logs: Fetch trailing error logs
+          • ktstack_inspect_db_schema: Inspect database schema and tables
+          • ktstack_backup_db: Trigger database backup
+        """)
+        exit(0)
+    }
     Task {
         let transport = KTMCPTransport()
         await transport.run()

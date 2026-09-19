@@ -8,7 +8,21 @@ public final class KTMCPTransport: Sendable {
     }
 
     public func run() async {
-        let input = FileHandle.standardInput
+        if isatty(STDIN_FILENO) != 0 {
+            fputs("""
+            KTStack MCP Server (Model Context Protocol)
+            Running on stdio (JSON-RPC 2.0).
+            Waiting for AI agent requests (Cursor, Claude Desktop, Claude Code)...
+
+            Configure in your MCP config (e.g. claude_desktop_config.json):
+              "ktstack": {
+                "command": "kt",
+                "args": ["mcp"]
+              }
+            Press Ctrl+C to exit.
+
+            """, stderr)
+        }
         let output = FileHandle.standardOutput
 
         while true {
