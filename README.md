@@ -4,9 +4,9 @@
 
 ### A native macOS local development environment for PHP & Node.js
 
-Run local sites at **`https://your-project.test`** with trusted HTTPS, automatic `.test` domains, databases, a built-in database editor, mail testing, logs, and public sharing, from a single native menu-bar app. No Docker.
+Run local sites at **`https://your-project.test`** with trusted HTTPS, automatic `.test` domains, databases, a built-in database editor, a unified developer CLI, an AI Agent MCP server, mail testing, logs, and public sharing, from a single native menu-bar app. No Docker.
 
-**Open-source. Free forever.** An alternative to Laravel Herd, Valet and Laragon for macOS.
+**Open-source. Free forever.** An alternative to Laravel Herd, ServBay, Valet, and Laragon for macOS.
 
 [![Latest release](https://img.shields.io/github/v/release/KTStackAPP/KTStack?style=flat-square&color=b8232c)](https://github.com/KTStackAPP/KTStack/releases)
 [![Downloads](https://img.shields.io/github/downloads/KTStackAPP/KTStack/total?style=flat-square)](https://github.com/KTStackAPP/KTStack/releases)
@@ -37,19 +37,24 @@ The features other tools **lock behind a paid plan or a separate app** (the data
 
 ## KTStack vs the alternatives
 
-| | **KTStack** | Laravel Herd | Valet |
-|---|:---:|:---:|:---:|
-| Price | **Free** | Free + Pro **$99/yr** | Free |
-| Open source | ✅ | ❌ | ✅ |
-| Native UI | ✅ menu-bar | ✅ | ❌ CLI only |
-| No Docker / no Homebrew needed | ✅ | ✅ | ❌ (Homebrew) |
-| Trusted local HTTPS | ✅ | ✅ | extra setup |
-| Multiple PHP versions | ✅ 7.4 → 8.5 | ✅ | ✅ |
-| Database engines (MySQL/MariaDB/PG/Redis/Memcached/Mongo) | ✅ **built in** | Pro | ❌ |
-| **Database editor** (browse/edit/SQL/ER) | ✅ **built in** | ❌ (use TablePlus) | ❌ |
-| Mail testing (Mailpit) | ✅ | Pro | ❌ |
-| Public sharing (Cloudflare Tunnel) | ✅ | Pro | ❌ |
-| Configurable TLD (not only `.test`) | ✅ | ❌ `.test` only | ❌ |
+| | **KTStack** | Laravel Herd | ServBay | Valet |
+|---|:---:|:---:|:---:|:---:|
+| Price | **Free (MIT)** | Free + Pro **$99/yr** | Free + Pro **$59/yr** | Free |
+| Open source | ✅ **100% MIT** | ❌ Proprietary | ❌ Proprietary | ✅ |
+| Native UI | ✅ menu-bar (SwiftUI) | ✅ | ✅ | ❌ CLI only |
+| No Docker / Homebrew required | ✅ | ✅ | ✅ | ❌ (Homebrew) |
+| Trusted local HTTPS | ✅ Automatic | ✅ | ✅ | extra setup |
+| Multiple PHP versions | ✅ 7.4 → 8.5 | ✅ | ✅ | ✅ |
+| Database engines (MySQL/PG/Redis/Mongo) | ✅ **Built in** | Pro only | Pro only | ❌ |
+| **Database editor** (browse/edit/SQL/ER) | ✅ **Built in** | ❌ (TablePlus) | ❌ (Adminer/phpMyAdmin) | ❌ |
+| **AI Agent MCP Server** (`kt mcp`) | ✅ **Built in** | ❌ | Pro only | ❌ |
+| **Developer CLI** (`kt`) | ✅ **Built in** | Pro only | ❌ | ✅ |
+| **Database Backup & Restore** | ✅ **Built in** | Pro only | Pro only | ❌ |
+| **1-Click IDE Launch** (Cursor/VS Code) | ✅ **Built in** | Pro only | Pro only | ❌ |
+| Mail testing (Mailpit) | ✅ | Pro only | ✅ | ❌ |
+| Public sharing (Cloudflare Tunnel) | ✅ | Pro only | ❌ | ❌ |
+| Architecture support | ✅ arm64 + x86_64 | ✅ arm64 + x86_64 | ✅ arm64 + x86_64 | ✅ |
+| Configurable TLD (not only `.test`) | ✅ | ❌ `.test` only | ❌ `.test` only | ❌ |
 
 <sub>Comparison reflects publicly documented free/Pro tiers as of 2026. Corrections welcome via issue.</sub>
 
@@ -58,16 +63,19 @@ The features other tools **lock behind a paid plan or a separate app** (the data
 - **Automatic `.test` domains** with trusted local HTTPS (per-site certificates from a local CA)
 - **Nginx + PHP-FPM** with per-site PHP version isolation; per-version editable `php.ini`, extensions, Xdebug and FPM pool tuning
 - **PHP 7.4 → 8.5** (seven versions, EOL versions clearly flagged) and **Node.js 20/22/24/26**, self-contained, no Homebrew required
-- **Proxy sites**: point a `.test` domain at any local port, LAN host or remote HTTPS origin
-- **Per-site settings**: alias domains (extra `.test` names, added to the HTTPS certificate), environment variables (passed to PHP and Node), and custom nginx directives (validated with `nginx -t` before reload)
-- **Databases & cache**: MySQL, MariaDB, PostgreSQL, Redis, Memcached, MongoDB
-- **Built-in database editor**: browse & edit rows, run SQL, structure/DDL, foreign-key navigation, and an interactive ER diagram, for MySQL/MariaDB, PostgreSQL and SQLite
-- **Mailpit** mail catcher
-- **Per-site & per-service log viewer**
-- **`dd()` / `dump()` viewer**, Laravel/Symfony dumps stream straight into the app, no code changes
-- **Cloudflare Tunnel sharing**, expose a local site over a temporary public HTTPS URL for client reviews, mobile testing or QA
-- **Native SwiftUI** menu-bar app with Sparkle auto-updates
-
+- **AI Coding Agent MCP Server (`kt mcp`)**: Built-in Model Context Protocol server over stdio for Cursor, Claude Code, and Windsurf to list sites, switch PHP versions, trigger backups, inspect DB schemas, and query live logs
+- **Unified Developer CLI (`kt`)**: Control sites, supervise daemons, perform database snapshots, and run diagnostics straight from your terminal
+- **1-Click IDE Quick Launch**: Instantly open projects from Site Cards into Cursor, VS Code, PhpStorm, Zed, or Sublime Text
+- **Built-in database editor**: Browse & edit rows, run SQL, inspect structure/DDL, foreign-key navigation, and explain plans for MySQL/MariaDB, PostgreSQL, SQLite, and MongoDB
+- **1-Click Database Backup & Restore**: Streamlined dump and restore pipelines for MySQL, PostgreSQL, and SQLite without third-party tools
+- **Proxy sites**: Point a `.test` domain at any local port, LAN host or remote HTTPS origin
+- **Per-site settings**: Alias domains (extra `.test` names on TLS cert), custom environment variables, and validated nginx directives
+- **Databases & cache**: MySQL 9.6, MariaDB 10.11/11.4, PostgreSQL 17, Redis 7.4, Memcached 1.6, MongoDB 7
+- **Mailpit** mail catcher and HTML email inspector
+- **`dd()` / `dump()` viewer**: Laravel and Symfony dumps stream straight into the app with zero code configuration
+- **Per-site & per-service log viewer**: Live multi-source log streaming with instant filtering
+- **Cloudflare Tunnel sharing**: Expose a local site over a temporary public HTTPS URL for client reviews or mobile testing
+- **Native macOS UI**: Built with native SwiftUI + Liquid Glass design tokens (with macOS 13+ fallback) and Sparkle auto-updates
 ## Screenshots
 
 | Sites | Services | Runtimes |
@@ -78,13 +86,83 @@ The features other tools **lock behind a paid plan or a separate app** (the data
 
 ## Install
 
-1. Download the latest `KTStack.dmg` from the [**Releases**](https://github.com/KTStackAPP/KTStack/releases) page.
+1. Download the latest DMG from the [**Releases**](https://github.com/KTStackAPP/KTStack/releases) page:
+   - **Apple Silicon (M1/M2/M3/M4/M5)**: `KTStack-<version>-arm64.dmg`
+   - **Intel Mac**: `KTStack-<version>-x86_64.dmg`
 2. Drag **KTStack** to Applications and launch it.
 3. Approve the privileged helper when prompted (needed only for local DNS, the `/etc/resolver` entry, and installing the local HTTPS CA).
 4. Add a site, open `https://<name>.test`. Done.
+5. *(Optional)* Install the CLI helper: Open **Settings → General → Install CLI Helper** to make `kt` globally available in your terminal.
 
-Requires **macOS 13 (Ventura) or newer**, Apple Silicon.
+Requires **macOS 13 (Ventura) or newer**, on Apple Silicon (`arm64`) or Intel (`x86_64`).
 
+
+## AI Agent Integration (MCP Server)
+
+KTStack includes a built-in **Model Context Protocol (MCP)** server (`kt mcp`) that communicates over stdio JSON-RPC 2.0. This allows AI coding agents in Cursor, Claude Code, Windsurf, or Roo Code to inspect and modify your local development environment with zero network latency.
+
+### Cursor Configuration (`.cursor/mcp.json` or Global MCP Settings)
+```json
+{
+  "mcpServers": {
+    "ktstack": {
+      "command": "kt",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+### Claude Code / Claude Desktop Configuration (`claude_desktop_config.json`)
+```json
+{
+  "mcpServers": {
+    "ktstack": {
+      "command": "/usr/local/bin/kt",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+### Exposed MCP Tools
+- `ktstack_list_sites`: List all local sites, domains, PHP/Node versions, backend ports, and TLS statuses.
+- `ktstack_create_site`: Provision a new local site with automatic `.test` domain and TLS.
+- `ktstack_switch_php_version`: Change the assigned PHP runtime (7.4 through 8.5) for any site.
+- `ktstack_inspect_db_schema`: Inspect tables, columns, indexes, and primary keys across MySQL, Postgres, and SQLite.
+- `ktstack_backup_db`: Export a compressed snapshot dump of a site's database.
+- `ktstack_restore_db`: Restore a SQL dump into a database.
+- `ktstack_get_recent_logs`: Fetch recent access/error log entries for instant troubleshooting.
+
+---
+
+## Developer CLI (`kt`)
+
+KTStack ships with a lightweight, native command-line tool `kt` communicating directly with the background app over a private Unix domain socket (`ktstack.sock`):
+
+```bash
+# List registered sites (or output structured JSON for scripts)
+kt sites list
+kt sites list --json
+
+# Register a new local site
+kt sites create --name my-app --path ~/Sites/my-app --php 8.4
+
+# Manage database & cache services
+kt services status
+kt services start mysql
+kt services stop redis
+
+# Trigger a database backup
+kt db backup my-app
+kt db backup my-app --out ~/Backups/my-app.sql
+
+# Run environment health diagnostics
+kt doctor
+
+# Start the Model Context Protocol stdio server
+kt mcp
+```
 ## How it works
 
 ```
