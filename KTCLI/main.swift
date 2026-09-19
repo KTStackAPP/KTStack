@@ -108,7 +108,7 @@ case "mcp":
     dispatchMain()
 
 case "version", "--version", "-v":
-    print("kt version 0.3.0 (build 36)")
+    print("kt version 0.3.1 (build 37)")
     exit(0)
 
 case "help", "--help", "-h":
