@@ -26,21 +26,19 @@ struct ShellShimWriter {
     fi
     """
 
-    // Strip the shim dir from PATH before resolving: the picked runtime and the "command -v"
-    // fallback must find the real binary, or the shim would re-exec itself in a loop.
-    func directBinaryShim(lang: String) -> String {
-        let isolation = lang == "php" ? "\n" + phpConfigIsolation : ""
+    func directBinaryShim(tool: String) -> String {
+        let isolation = tool == "php" ? "\n" + phpConfigIsolation : ""
         return """
         #!/bin/sh
         system_path="$(printf '%s' "$PATH" | tr ':' '\\n' | grep -vxF "\(shimDir)" | paste -sd ':' -)"
-        if target="$("\(helperPath)" \(lang) "$PWD" 2>/dev/null)"; then
+        if target="$("\(helperPath)" "\(tool)" "$PWD" 2>/dev/null)"; then
             export PATH="${target%/*}:$system_path"\(isolation)
             exec "$target" "$@"
         fi
-        if fallback="$(PATH="$system_path" command -v \(lang) 2>/dev/null)"; then
+        if fallback="$(PATH="$system_path" command -v \(tool) 2>/dev/null)"; then
             exec "$fallback" "$@"
         fi
-        echo "ktstack: \(lang) is not installed — open KTStack to add a runtime" >&2
+        echo "ktstack: \(tool) is not enabled or installed — open KTStack to manage tools" >&2
         exit 127
         """
     }
@@ -49,22 +47,31 @@ struct ShellShimWriter {
         """
         #!/bin/sh
         system_path="$(printf '%s' "$PATH" | tr ':' '\\n' | grep -vxF "\(shimDir)" | paste -sd ':' -)"
-        phar="\(phar)"
-        [ -f "$phar" ] || { echo "ktstack: \(name) is not provisioned — open KTStack to install it" >&2; exit 127; }
-        target="$("\(helperPath)" php "$PWD")" || { echo "ktstack: php is not installed" >&2; exit 127; }
-        export PATH="${target%/*}:$system_path"
-        \(phpConfigIsolation)
-        exec "$target" "$phar" "$@"
+        if target="$("\(helperPath)" "\(name)" "$PWD" 2>/dev/null)"; then
+            export PATH="${target%/*}:$system_path"
+            \(phpConfigIsolation)
+            exec "$target" "\(phar)" "$@"
+        fi
+        if fallback="$(PATH="$system_path" command -v \(name) 2>/dev/null)"; then
+            exec "$fallback" "$@"
+        fi
+        echo "ktstack: \(name) is not enabled or installed — open KTStack to manage tools" >&2
+        exit 127
         """
     }
 
     var shims: [String: String] {
-        [
-            "php": directBinaryShim(lang: "php"),
-            "node": directBinaryShim(lang: "node"),
-            "composer": pharShim(name: "composer", phar: paths.composerPhar.path),
-            "wp": pharShim(name: "wp", phar: paths.wpCliPhar.path),
-        ]
+        var map: [String: String] = [:]
+        for tool in ShellToolCatalog.tools {
+            if tool.id == "composer" {
+                map[tool.command] = pharShim(name: tool.id, phar: paths.composerPhar.path)
+            } else if tool.id == "wp" {
+                map[tool.command] = pharShim(name: tool.id, phar: paths.wpCliPhar.path)
+            } else {
+                map[tool.command] = directBinaryShim(tool: tool.command)
+            }
+        }
+        return map
     }
 
     func writeShims() throws {

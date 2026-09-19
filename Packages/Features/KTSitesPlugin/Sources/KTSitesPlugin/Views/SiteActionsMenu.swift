@@ -11,6 +11,7 @@ struct SiteActionsMenu: View {
     var onConfigureVSCode: () -> Void = {}
     var onRestore: () -> Void = {}
     var onSettings: () -> Void = {}
+    var onRecheckType: () -> Void = {}
 
     @State private var open = false
     @State private var pickingEditor = false
@@ -20,7 +21,7 @@ struct SiteActionsMenu: View {
         Button { open.toggle() } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 16, weight: .regular))
-                .foregroundStyle(KTColor.muted)
+                .foregroundStyle(KTColor.ink2)
                 .frame(width: 32, height: 30)
                 .contentShape(Rectangle())
         }
@@ -36,7 +37,7 @@ struct SiteActionsMenu: View {
             }
             .padding(.top, 8)
             .frame(width: 268)
-            .background(Color.white)
+            .background(KTColor.cardBg)
             .onAppear {
                 editors = CodeEditorCatalog(locate: {
                     NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0)
@@ -61,6 +62,9 @@ struct SiteActionsMenu: View {
                 sectionLabel("Develop")
                 row("Site Settings…", "slider.horizontal.3", "", action: onSettings)
                 row("Logs", "text.alignleft", "⌘L", action: onOpenLogs)
+                if !site.path.isEmpty {
+                    row("Re-detect Site Type", "arrow.triangle.2.circlepath", "", action: onRecheckType)
+                }
                 if site.kind == .php {
                     row("Configure VS Code Debug", "curlybraces", "", action: onConfigureVSCode)
                     row("Restore from Backup…", "arrow.uturn.backward.circle", "", action: onRestore)
@@ -138,7 +142,7 @@ struct SiteActionsMenu: View {
         Text(title.uppercased())
             .font(KTType.sectionLabel)
             .tracking(KTType.sectionLabelTracking)
-            .foregroundStyle(KTColor.faint)
+            .foregroundStyle(KTColor.ink2)
             .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 3)
     }
 
@@ -183,7 +187,7 @@ private struct SiteActionRow: View {
                     .foregroundStyle(danger ? KTColor.danger : KTColor.ink)
                 Spacer(minLength: 12)
                 if !shortcut.isEmpty {
-                    Text(shortcut).font(.jbMono(12.5)).foregroundStyle(KTColor.faint)
+                    Text(shortcut).font(.jbMono(12.5)).foregroundStyle(KTColor.ink2)
                 }
             }
             .padding(.horizontal, 10).padding(.vertical, 7)

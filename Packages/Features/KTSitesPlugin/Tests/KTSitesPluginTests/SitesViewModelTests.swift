@@ -76,6 +76,15 @@ final class SitesViewModelTests: XCTestCase {
         XCTAssertTrue(catalog.setNodePortCalls.isEmpty)
     }
 
+    func testRecheckKindDelegatesToCatalog() {
+        let site = makeSite(kind: .staticSite)
+        let h = makeVM(sites: [site])
+        h.catalog.recheckKindResult = .php
+
+        XCTAssertEqual(h.vm.recheckKind(site.id), .php)
+        XCTAssertEqual(h.catalog.recheckKindCalls, [site.id])
+    }
+
     func testSetNodePortSucceedsWhenPortIsFree() throws {
         let site = makeSite(kind: .node, nodePort: nil)
         let h = makeVM(sites: [site])

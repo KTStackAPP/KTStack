@@ -5,6 +5,28 @@ public final class ShellPathManager: @unchecked Sendable {
     public struct Status: Sendable, Equatable {
         public let enabled: Bool
         public let shellsPatched: [String]
+        public let toolStates: [String: Bool]
+        public let installedTools: Set<String>
+
+        public init(
+            enabled: Bool,
+            shellsPatched: [String],
+            toolStates: [String: Bool] = [:],
+            installedTools: Set<String> = []
+        ) {
+            self.enabled = enabled
+            self.shellsPatched = shellsPatched
+            self.toolStates = toolStates
+            self.installedTools = installedTools
+        }
+
+        public func isToolEnabled(_ toolId: String) -> Bool {
+            toolStates[toolId] ?? true
+        }
+
+        public func isToolInstalled(_ toolId: String) -> Bool {
+            installedTools.contains(toolId)
+        }
     }
 
     public enum ShellError: LocalizedError {
@@ -21,6 +43,8 @@ public final class ShellPathManager: @unchecked Sendable {
     private let paths: AppSupportPaths
     private let helperSource: URL?
     private let home: URL
+    private let toolStore: ShellToolStore
+    private let toolResolver: ShellToolResolver
 
     public init(
         paths: AppSupportPaths,
@@ -30,6 +54,8 @@ public final class ShellPathManager: @unchecked Sendable {
         self.paths = paths
         self.helperSource = helperSource
         self.home = home
+        self.toolStore = ShellToolStore(paths: paths)
+        self.toolResolver = ShellToolResolver(paths: paths)
     }
 
     private var exportLine: String {
@@ -38,7 +64,7 @@ public final class ShellPathManager: @unchecked Sendable {
 
     private var rcFiles: [URL] {
         let fm = FileManager.default
-        var files = [home.appendingPathComponent(".zshrc")]
+        var files = [home.appendingPathComponent(".zshrc"), home.appendingPathComponent(".zprofile")]
         for candidate in [".bashrc", ".bash_profile"] {
             let url = home.appendingPathComponent(candidate)
             if fm.fileExists(atPath: url.path) { files.append(url) }
@@ -50,8 +76,11 @@ public final class ShellPathManager: @unchecked Sendable {
         try prepareShimDir()
         try ShellShimWriter(paths: paths).writeShims()
         if provisionComposer {
-            do { _ = try await ComposerProvisioner(paths: paths).provision() }
-            catch { NSLog("KTStack: composer provisioning skipped — \(error.localizedDescription)") }
+            do {
+                _ = try await ComposerProvisioner(paths: paths).provision()
+            } catch {
+                NSLog("KTStack: composer provisioning skipped — \(error.localizedDescription)")
+            }
         }
         let patcher = ShellRCPatcher(exportLine: exportLine)
         for rc in rcFiles {
@@ -87,6 +116,22 @@ public final class ShellPathManager: @unchecked Sendable {
         ComposerProvisioner(paths: paths).isProvisioned
     }
 
+    public func isToolEnabled(_ toolId: String) -> Bool {
+        toolStore.isEnabled(toolId)
+    }
+
+    public func setToolEnabled(_ toolId: String, enabled: Bool) throws {
+        try toolStore.setEnabled(toolId, enabled: enabled)
+    }
+
+    public func setSuiteEnabled(_ suite: ShellToolSuite, enabled: Bool) throws {
+        try toolStore.setSuiteEnabled(suite, enabled: enabled)
+    }
+
+    public func isToolInstalled(_ tool: ShellTool) -> Bool {
+        toolResolver.isInstalled(tool.command)
+    }
+
     public func status() -> Status {
         let patcher = ShellRCPatcher(exportLine: exportLine)
         var patched: [String] = []
@@ -99,7 +144,17 @@ public final class ShellPathManager: @unchecked Sendable {
         let helperReady = FileManager.default.fileExists(
             atPath: paths.shimBinDir.appendingPathComponent("ktstack-resolve").path
         )
-        return Status(enabled: helperReady && !patched.isEmpty, shellsPatched: patched)
+        let toolStates = toolStore.allStates()
+        var installed = Set<String>()
+        for tool in ShellToolCatalog.tools where toolResolver.isInstalled(tool.command) {
+            installed.insert(tool.id)
+        }
+        return Status(
+            enabled: helperReady && !patched.isEmpty,
+            shellsPatched: patched,
+            toolStates: toolStates,
+            installedTools: installed
+        )
     }
 
     private func prepareShimDir() throws {

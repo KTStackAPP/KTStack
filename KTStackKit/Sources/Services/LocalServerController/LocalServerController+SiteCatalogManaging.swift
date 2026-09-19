@@ -96,4 +96,11 @@ extension LocalServerController: SiteCatalogManaging {
         guard let site = registry.sites.first(where: { $0.id == id }) else { return }
         try await saveFrontDirectives(site, text)
     }
+
+    @discardableResult
+    public func recheckKind(_ id: UUID) -> SiteKind? {
+        guard let site = registry.sites.first(where: { $0.id == id }), site.hasFolder else { return nil }
+        let type = registry.reinspect(site)
+        return SiteKind(rawValue: type.rawValue)
+    }
 }

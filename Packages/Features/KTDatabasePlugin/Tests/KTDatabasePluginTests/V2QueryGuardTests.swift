@@ -38,6 +38,8 @@ final class V2QueryGuardTests: XCTestCase {
             }
             return QueryResult(columns: [ColumnMeta(name: "id")], rows: [[.int(1)]])
         }
+
+        func serverVersion() async throws -> String { "8.0" }
     }
 
     private func tempRoot() -> AppSupportPaths {

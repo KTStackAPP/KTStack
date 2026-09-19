@@ -36,7 +36,7 @@ struct EngineVersionRow: View {
                         }
                     }
                 }
-                Text(meta).font(KTType.sub).foregroundStyle(KTColor.ink3)
+                Text(meta).font(KTType.sub).foregroundStyle(KTColor.ink2)
             }
             Spacer(minLength: 8)
             trailing
@@ -54,7 +54,7 @@ struct EngineVersionRow: View {
     @ViewBuilder
     private var background: some View {
         if isActive {
-            KTColor.accentBand
+            KTColor.accentSoft.opacity(0.5)
         } else if hovering {
             KTColor.rowHover
         } else {
@@ -83,7 +83,8 @@ struct EngineVersionRow: View {
     private var gearButton: some View {
         Button(action: onToggleInspector) {
             Image(systemName: "gearshape").font(.system(size: 15, weight: .regular))
-                .foregroundStyle(isExpanded ? KTColor.accent : KTColor.muted)
+                .foregroundStyle(isExpanded ? KTColor.accent : KTColor.ink2)
+                .opacity(hovering || isExpanded ? 1.0 : 0.75)
                 .frame(width: 28, height: 30).contentShape(Rectangle())
         }
         .buttonStyle(.plain)

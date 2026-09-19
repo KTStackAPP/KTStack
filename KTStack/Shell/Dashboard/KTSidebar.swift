@@ -42,7 +42,15 @@ struct KTSidebar: View {
         .padding(.horizontal, 14)
         .frame(width: KTMetric.sidebarWidth)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(KTColor.sidebarBackground.ignoresSafeArea())
+        .background {
+            if #available(macOS 27, *) {
+                Color.clear
+                    .glassEffect(.regular, in: .rect(cornerRadius: 0))
+                    .ignoresSafeArea()
+            } else {
+                KTColor.sidebarBackground.ignoresSafeArea()
+            }
+        }
         .overlay(alignment: .trailing) {
             Rectangle().fill(KTColor.hairline).frame(width: KTMetric.hairline)
         }
@@ -70,7 +78,7 @@ struct KTSidebar: View {
             Text(section.title)
                 .font(KTType.sectionLabel)
                 .tracking(KTType.sectionLabelTracking)
-                .foregroundStyle(KTColor.muted)
+                .foregroundStyle(KTColor.ink2)
                 .padding(.horizontal, 8)
                 .padding(.top, topPadding)
                 .padding(.bottom, 8)

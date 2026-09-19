@@ -54,6 +54,10 @@ extension SitesViewModel {
         try await catalog.saveFrontDirectives(id, text)
     }
 
+    func recheckKind(_ id: UUID) -> SiteKind? {
+        catalog.recheckKind(id)
+    }
+
     func installApache() {
         webEngineManager.installApache()
     }

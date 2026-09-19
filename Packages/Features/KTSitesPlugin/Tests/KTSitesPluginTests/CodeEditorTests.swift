@@ -60,4 +60,11 @@ final class CodeEditorTests: XCTestCase {
         let catalog = CodeEditorCatalog(locate: { present.contains($0) ? self.url($0) : nil }, defaults: defaults)
         XCTAssertEqual(catalog.installed, [.vscode, .sublime]) // CaseIterable order, not insertion
     }
+
+    func testAllEditorsDefineNonEmptySymbolAndDisplayName() {
+        for editor in CodeEditor.allCases {
+            XCTAssertFalse(editor.displayName.isEmpty)
+            XCTAssertFalse(editor.symbol.isEmpty)
+        }
+    }
 }

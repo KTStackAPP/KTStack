@@ -186,8 +186,8 @@ extension RuntimesScreen {
         let content = isEmpty ? AnyView(empty()) : AnyView(VStack(spacing: 0) { rows() })
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Text(label).font(.jbMono(12, .bold)).foregroundStyle(KTColor.ink2)
-                Text("\(count)").font(KTType.caption).foregroundStyle(KTColor.muted)
+                Text(label).font(.jbMono(12, .bold)).foregroundStyle(KTColor.ink)
+                Text("\(count)").font(KTType.caption).foregroundStyle(KTColor.ink2)
             }
             .padding(.leading, 4)
             KTListContainer { content }

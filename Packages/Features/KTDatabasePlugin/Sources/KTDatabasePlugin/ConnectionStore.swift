@@ -18,11 +18,16 @@ public final class ConnectionStore: ObservableObject {
     }
 
     public var allProfiles: [ConnectionProfile] {
-        [.managedMySQL, .managedPostgres, .managedMongo] + profiles
+        ConnectionProfile.managedProfiles + profiles
     }
 
     public func add(_ profile: ConnectionProfile, password: String? = nil) {
-        profiles.append(profile)
+        let key = deduplicationKey(for: profile)
+        if let existingIdx = profiles.firstIndex(where: { deduplicationKey(for: $0) == key }) {
+            profiles[existingIdx] = profile
+        } else {
+            profiles.append(profile)
+        }
         setPassword(password, for: profile)
         persist()
     }
@@ -51,9 +56,13 @@ public final class ConnectionStore: ObservableObject {
 
     private func load() {
         defer { onChange?() }
-        guard let data = try? Data(contentsOf: storeURL) else { return } // absent file → fresh
+        guard let data = try? Data(contentsOf: storeURL) else { return }
         if let decoded = try? JSONDecoder().decode([ConnectionProfile].self, from: data) {
-            profiles = decoded
+            let unique = deduplicated(decoded)
+            profiles = unique
+            if unique.count != decoded.count {
+                persist()
+            }
         } else {
             let backup = storeURL.appendingPathExtension("bak")
             try? FileManager.default.removeItem(at: backup)
@@ -75,5 +84,21 @@ public final class ConnectionStore: ObservableObject {
             NSLog("KTStack: failed to persist connection store: \(error.localizedDescription)")
         }
         onChange?()
+    }
+
+    private func deduplicated(_ list: [ConnectionProfile]) -> [ConnectionProfile] {
+        var seen = Set<String>()
+        var result: [ConnectionProfile] = []
+        for profile in list {
+            let key = deduplicationKey(for: profile)
+            if seen.insert(key).inserted {
+                result.append(profile)
+            }
+        }
+        return result
+    }
+
+    private func deduplicationKey(for profile: ConnectionProfile) -> String {
+        "\(profile.kind.rawValue)|\(profile.host.lowercased())|\(profile.port)|\(profile.user)|\(profile.database)|\(profile.name)"
     }
 }

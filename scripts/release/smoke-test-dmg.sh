@@ -101,6 +101,27 @@ else
 fi
 
 echo ""
+echo "=== 2.5 Spotlight launcher stub (Contents/Applications) ==="
+STUB="$APP/Contents/Applications/KTStack Database.app"
+if [[ ! -d "$STUB" ]]; then
+    fail "launcher stub missing: Contents/Applications/KTStack Database.app"
+else
+    STUB_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleName' "$STUB/Contents/Info.plist" 2>/dev/null || echo '')"
+    STUB_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$STUB/Contents/Info.plist" 2>/dev/null || echo '')"
+    [[ "$STUB_NAME" == "KTStack Database" ]] && pass "stub CFBundleName 'KTStack Database'" \
+        || fail "stub CFBundleName '$STUB_NAME' != 'KTStack Database'"
+    [[ "$STUB_ID" == "com.ktstack.database-launcher" ]] && pass "stub id com.ktstack.database-launcher" \
+        || fail "stub id '$STUB_ID' != com.ktstack.database-launcher"
+    # mdls reads the live Spotlight index; a read-only DMG mount is usually unindexed, so soft-check.
+    MD_NAME="$(mdls -name kMDItemDisplayName -raw "$STUB" 2>/dev/null || echo '')"
+    if [[ "$MD_NAME" == "KTStack Database" ]]; then
+        pass "mdls kMDItemDisplayName 'KTStack Database'"
+    else
+        warn "mdls kMDItemDisplayName unavailable on DMG mount (got '${MD_NAME:-null}'); verified via Info.plist above"
+    fi
+fi
+
+echo ""
 echo "=== 3. Gatekeeper / notarization ==="
 online() { curl -sf --max-time 5 -o /dev/null https://www.apple.com/; }
 assess() { # <label> <spctl args...>

@@ -133,6 +133,8 @@ public struct ConnectionProfile: Codable, Sendable, Identifiable, Equatable {
         readOnly: false
     )
 
+    public static let managedProfiles: [ConnectionProfile] = [managedMySQL, managedPostgres, managedMongo]
+
     public var isManaged: Bool {
         id == Self.managedMySQL.id || id == Self.managedPostgres.id || id == Self.managedMongo.id
     }

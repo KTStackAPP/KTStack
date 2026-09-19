@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 public extension Color {
@@ -13,53 +14,54 @@ public extension Color {
 }
 
 public enum KTColor {
-    public static let accent = Color(hex: 0x2F6BFF)
-    public static let accentTop = Color(hex: 0x4385FF)
-    public static let accentSoft = Color(hex: 0x2F6BFF, opacity: 0.10)
-    public static let accentBand = Color(hex: 0x2F6BFF, opacity: 0.06)
+    public static let accent = Color(nsColor: .controlAccentColor)
+    public static let accentTop = Color(nsColor: .controlAccentColor)
+    public static let accentSoft = Color(nsColor: .controlAccentColor).opacity(0.12)
+    public static let accentBand = Color(nsColor: .controlAccentColor).opacity(0.06)
     public static let accentGradient = LinearGradient(
-        colors: [Color(hex: 0x4385FF), Color(hex: 0x2F6BFF)],
+        colors: [Color(nsColor: .controlAccentColor), Color(nsColor: .controlAccentColor).opacity(0.85)],
         startPoint: .top, endPoint: .bottom
     )
 
-    public static let ink = Color(hex: 0x1D1D1F)
-    public static let ink2 = Color(hex: 0x42424C)
-    public static let ink3 = Color(hex: 0x6B6B76)
-    public static let muted = Color(hex: 0x9A9AA5)
-    public static let faint = Color(hex: 0xC0C0C8)
+    public static let ink = Color(nsColor: .labelColor)
+    public static let ink2 = Color(nsColor: .secondaryLabelColor)
+    public static let ink3 = Color(nsColor: .secondaryLabelColor)
+    public static let muted = Color(nsColor: .secondaryLabelColor)
+    public static let faint = Color(nsColor: .secondaryLabelColor).opacity(0.85)
+    public static let cardBg = Color(nsColor: .controlBackgroundColor)
 
-    public static let contentBg = Color.white
-    public static let sidebarBg = Color(hex: 0xF8F8FB, opacity: 0.82)
-    public static let rowHover = Color(hex: 0xFAFAFC)
+    public static let contentBg = Color(nsColor: .windowBackgroundColor)
+    public static let sidebarBg = Color(nsColor: .controlBackgroundColor)
+    public static let rowHover = Color(nsColor: .selectedContentBackgroundColor).opacity(0.08)
 
-    public static let sep = Color(hex: 0xECECF1)
-    public static let sepFaint = Color(hex: 0xF2F2F5)
-    public static let hairline = Color(hex: 0xF9F9FC)
-    public static let sidebarBackground = Color(hex: 0xF9F9FC)
+    public static let sep = Color(nsColor: .separatorColor)
+    public static let sepFaint = Color(nsColor: .separatorColor).opacity(0.60)
+    public static let hairline = Color(nsColor: .separatorColor).opacity(0.30)
+    public static let sidebarBackground = Color(nsColor: .controlBackgroundColor)
 
-    public static let fieldBg = Color(hex: 0xF4F4F7)
-    public static let fieldBorder = Color(hex: 0xEAEAEF)
-    public static let fieldBorderStrong = Color(hex: 0xE2E2E8)
+    public static let fieldBg = Color(nsColor: .controlBackgroundColor)
+    public static let fieldBorder = Color(nsColor: .separatorColor)
+    public static let fieldBorderStrong = Color(nsColor: .separatorColor)
 
-    public static let pillBg = Color(hex: 0xF0F0F3)
-    public static let segmentBg = Color(hex: 0xF0F0F3)
-    public static let btnBorder = Color(hex: 0xDCDCE3)
-    public static let btnHover = Color(hex: 0xF7F7FA)
-    public static let menuHover = Color(hex: 0x2F6BFF, opacity: 0.10)
+    public static let pillBg = Color(nsColor: .controlBackgroundColor)
+    public static let segmentBg = Color(nsColor: .controlBackgroundColor)
+    public static let btnBorder = Color(nsColor: .separatorColor)
+    public static let btnHover = Color(nsColor: .selectedControlColor)
+    public static let menuHover = Color(nsColor: .selectedContentBackgroundColor).opacity(0.10)
 
-    public static let runDot = Color(hex: 0x34C759)
-    public static let stopDot = Color(hex: 0xC7C7CC)
-    public static let runText = Color(hex: 0x1D1D1F)
-    public static let stopText = Color(hex: 0x9A9AA5)
-    public static let online = Color(hex: 0x1FA463)
-    public static let onlineBg = Color(hex: 0xE7F8EE)
+    public static let runDot = Color(nsColor: .systemGreen)
+    public static let stopDot = Color(nsColor: .secondaryLabelColor)
+    public static let runText = Color(nsColor: .labelColor)
+    public static let stopText = Color(nsColor: .secondaryLabelColor)
+    public static let online = Color(nsColor: .systemGreen)
+    public static let onlineBg = Color(nsColor: .systemGreen).opacity(0.12)
 
-    public static let danger = Color(hex: 0xFF453A)
-    public static let dangerBg = Color(hex: 0xFFF5F4)
-    public static let dangerBorder = Color(hex: 0xFFD4D0)
+    public static let danger = Color(nsColor: .systemRed)
+    public static let dangerBg = Color(nsColor: .systemRed).opacity(0.12)
+    public static let dangerBorder = Color(nsColor: .systemRed).opacity(0.30)
 
-    public static let editorBg = Color(hex: 0x14141A)
-    public static let modalScrim = Color(hex: 0x140F28, opacity: 0.32)
+    public static let editorBg = Color(nsColor: .textBackgroundColor)
+    public static let modalScrim = Color(nsColor: .shadowColor).opacity(0.32)
 }
 
 public struct KTTint: Sendable, Hashable {

@@ -26,6 +26,7 @@ private struct MenuBarWindowReader: NSViewRepresentable {
 
 struct MenuBarContentView: View {
     var plugins: [any KTStackPlugin] = []
+    var openDatabase: () -> Void = {}
     #if DEBUG
         var openSQLDrafts: () -> Void = {}
     #endif
@@ -146,6 +147,10 @@ struct MenuBarContentView: View {
                 if !AppActivationPolicy.focusExistingWindow(titled: "KTStack Dashboard") {
                     openWindow(id: DashboardWindow.windowID)
                 }
+                dismisser.dismiss()
+            }
+            footerButton("Open Database…", systemImage: "cylinder.split.1x2", shortcut: "⌘⇧D") {
+                openDatabase()
                 dismisser.dismiss()
             }
             settingsFooterItem

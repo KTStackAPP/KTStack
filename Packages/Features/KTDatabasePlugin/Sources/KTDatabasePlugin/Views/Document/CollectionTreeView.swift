@@ -146,3 +146,25 @@ struct CollectionTreeView: View {
         )
     }
 }
+
+struct SchemaHeaderButton: View {
+    let systemImage: String
+    let help: String
+    let isEnabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            if isEnabled { action() }
+        } label: {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 20, height: 18)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .opacity(isEnabled ? 1 : 0.38)
+        .help(help)
+        .accessibilityLabel(help)
+    }
+}

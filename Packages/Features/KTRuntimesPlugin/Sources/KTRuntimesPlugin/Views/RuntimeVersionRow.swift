@@ -33,7 +33,7 @@ struct RuntimeVersionRow: View {
                         KTBadge(text: "Xdebug", tint: KTIconTint.cube, radius: 20)
                     }
                 }
-                Text(meta).font(KTType.sub).foregroundStyle(KTColor.ink3)
+                Text(meta).font(KTType.sub).foregroundStyle(KTColor.ink2)
             }
             Spacer(minLength: 8)
             trailing
@@ -51,7 +51,7 @@ struct RuntimeVersionRow: View {
     @ViewBuilder
     private var background: some View {
         if isDefault {
-            KTColor.accentBand
+            KTColor.accentSoft.opacity(0.5)
         } else if hovering {
             KTColor.rowHover
         } else {
@@ -66,7 +66,8 @@ struct RuntimeVersionRow: View {
             }
             Button(action: onToggleInspector) {
                 Image(systemName: "gearshape").font(.system(size: 15, weight: .regular))
-                    .foregroundStyle(isExpanded ? KTColor.accent : KTColor.muted)
+                    .foregroundStyle(isExpanded ? KTColor.accent : KTColor.ink2)
+                    .opacity(hovering || isExpanded ? 1.0 : 0.75)
                     .frame(width: 28, height: 30).contentShape(Rectangle())
             }
             .buttonStyle(.plain)

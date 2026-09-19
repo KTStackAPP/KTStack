@@ -27,7 +27,7 @@ struct AvailableVersionRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(title).font(KTType.rowName).foregroundStyle(KTColor.ink2)
+            Text(title).font(KTType.rowName).foregroundStyle(KTColor.ink)
             Spacer(minLength: 8)
             trailing
         }
@@ -43,16 +43,16 @@ struct AvailableVersionRow: View {
             KTButton(title: "Retry", kind: .secondary, action: onInstall)
         } else if let fraction {
             ProgressView(value: fraction).frame(width: 140)
-            Text(progressText).font(KTType.caption).foregroundStyle(KTColor.muted)
+            Text(progressText).font(KTType.caption).foregroundStyle(KTColor.ink2)
                 .monospacedDigit().fixedSize()
             Button(action: onCancel) {
-                Image(systemName: "xmark.circle").foregroundStyle(KTColor.muted)
+                Image(systemName: "xmark.circle").foregroundStyle(KTColor.ink2)
                     .frame(width: 28, height: 28).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Cancel download")
         } else {
-            Text("SHA-256 verified").font(KTType.caption).foregroundStyle(KTColor.muted)
+            Text("SHA-256 verified").font(KTType.caption).foregroundStyle(KTColor.ink2)
             KTButton(title: "Install", kind: .primary, action: onInstall)
         }
     }

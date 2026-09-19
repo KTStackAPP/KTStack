@@ -16,6 +16,10 @@ import ServiceManagement
 import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    // Deep link (ktstack://) tới trước khi plugin sẵn sàng → giữ lại, xử lý cuối applicationDidFinishLaunching.
+    @MainActor var pendingURLs: [URL] = []
+    @MainActor var isReadyForURLs = false
+
     @MainActor lazy var preferences = AppPreferences()
 
     @MainActor lazy var server: LocalServerController = .init(
@@ -61,6 +65,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor lazy var databasePlugin = KTDatabasePlugin(
         tools: DatabaseToolsService(paths: AppSupportPaths()),
         engines: services,
+        sites: server,
+        modals: modals,
         route: { [weak self] route in self?.routeDatabase(route) }
     )
 
@@ -163,6 +169,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         modals: modals
     )
 
+    @MainActor lazy var ipcListener: KTLocalIPCSocketListener = {
+        let dispatcher = KTIPCCommandDispatcher(
+            serverProvider: { [weak self] in await MainActor.run { self?.server } },
+            servicesProvider: { [weak self] in await MainActor.run { self?.services } }
+        )
+        return KTLocalIPCSocketListener(dispatcher: dispatcher)
+    }()
+
     private static func alreadyRunningInstance() -> NSRunningApplication? {
         guard let bundleID = Bundle.main.bundleIdentifier else { return nil }
         let current = NSRunningApplication.current
@@ -204,6 +218,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         navigation.openLogsHandler = { [weak self] in self?.logsPlugin.show(sourceID: $0) }
         applyStartupPreferences()
         pluginLifecycle.startAll()
+        ipcListener.start()
+
+        indexDatabaseSpotlightItem()
+        isReadyForURLs = true
+        let queued = pendingURLs
+        pendingURLs.removeAll()
+        queued.forEach(handle(url:))
     }
 
     @MainActor
@@ -248,6 +269,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Plugin dọn resource của mình trước, platform teardown sau (chi tiết ở CLAUDE.md ## Invariants).
         MainActor.assumeIsolated { pluginLifecycle }.shutdownAllBlocking()
         MainActor.assumeIsolated { platformLifecycle }.shutdownBlocking()
+        MainActor.assumeIsolated { ipcListener }.stop()
     }
 
     @objc

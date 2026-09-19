@@ -68,6 +68,9 @@ check_imports "Contracts" "Packages/Contracts" "SwiftUI|AppKit|KTStackKit|KTPlug
 check_imports "Plugin"    "Packages/Plugin"    "KTStackKit|KTPlatformContracts"
 check_imports "KTStackKit" "KTStackKit/Sources" "KTPluginKit|MySQLNIO|PostgresNIO|GRDB|MongoKitten|MongoCore|NIOCore|NIOPosix|NIOSSL|Logging"
 
+# Spotlight launcher stub links no app code: it only opens ktstack://database and exits.
+check_imports "Launcher" "KTStackDatabaseLauncher" "KTStackKit|KTStackCore|KTPluginKit|KTPlatformContracts|KTDatabasePlugin"
+
 # Feature packages (M04+): no platform implementation, no sibling feature.
 if compgen -G "Packages/Features/*/Sources" >/dev/null 2>&1; then
     feature_mods=$(find Packages/Features -mindepth 1 -maxdepth 1 -type d -exec basename {} \;)

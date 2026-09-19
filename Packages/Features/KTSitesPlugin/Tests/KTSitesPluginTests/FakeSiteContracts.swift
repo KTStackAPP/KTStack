@@ -47,6 +47,8 @@ final class FakeSiteCatalog: SiteCatalogManaging {
     var setEnvVarsShouldThrow: Error?
     private(set) var saveFrontDirectivesCalls: [(UUID, String)] = []
     var saveFrontDirectivesShouldThrow: Error?
+    private(set) var recheckKindCalls: [UUID] = []
+    var recheckKindResult: SiteKind?
     private var continuation: AsyncStream<SiteCatalogState>.Continuation?
 
     nonisolated init(catalog: SiteCatalogState) {
@@ -98,6 +100,12 @@ final class FakeSiteCatalog: SiteCatalogManaging {
     func saveFrontDirectives(_ id: UUID, _ text: String) async throws {
         if let saveFrontDirectivesShouldThrow { throw saveFrontDirectivesShouldThrow }
         saveFrontDirectivesCalls.append((id, text))
+    }
+
+    @discardableResult
+    func recheckKind(_ id: UUID) -> SiteKind? {
+        recheckKindCalls.append(id)
+        return recheckKindResult
     }
 }
 

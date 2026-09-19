@@ -29,7 +29,6 @@ public struct MkcertRunner {
         try run(Self.mintArgs(domain: domain, aliases: aliases, certFile: certFile, keyFile: keyFile))
     }
 
-    // mkcert nhận domain chính + alias trên một lệnh; alias thành SAN của leaf.
     public static func mintArgs(domain: String, aliases: [String] = [], certFile: URL, keyFile: URL) -> [String] {
         ["-cert-file", certFile.path, "-key-file", keyFile.path, domain] + aliases
     }
@@ -39,7 +38,11 @@ public struct MkcertRunner {
         let proc = Process()
         proc.executableURL = mkcert
         proc.arguments = args
-        proc.environment = ["CAROOT": caroot.path, "PATH": "/usr/bin:/bin:/usr/sbin:/sbin"]
+        proc.environment = [
+            "CAROOT": caroot.path,
+            "TRUST_STORES": "system",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin"
+        ]
         let pipe = Pipe()
         proc.standardOutput = pipe
         proc.standardError = pipe

@@ -71,8 +71,8 @@ public struct KTButton: View {
     @ViewBuilder private var background: some View {
         switch kind {
         case .primary: KTColor.accentGradient
-        case .secondary: hovering ? KTColor.btnHover : Color.white
-        case .danger: hovering ? KTColor.dangerBg : Color.white
+        case .secondary: hovering ? KTColor.btnHover : KTColor.cardBg
+        case .danger: hovering ? KTColor.dangerBg : KTColor.cardBg
         case .link: Color.clear
         }
     }

@@ -48,6 +48,8 @@ final class V2QueryRunTests: XCTestCase {
             let rows = (0..<rowsPerQuery).map { [Cell.int(Int64($0))] }
             return QueryResult(columns: [ColumnMeta(name: "id")], rows: rows)
         }
+
+        func serverVersion() async throws -> String { "8.0" }
     }
 
     private func makeVM(_ driver: StubDriver) -> DatabaseV2ViewModel {

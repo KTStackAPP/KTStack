@@ -54,7 +54,7 @@ public struct KTCategoryRail<ID: Hashable>: View {
                     if !compact {
                         Text(section.id)
                             .font(KTType.sectionLabel).tracking(KTType.sectionLabelTracking)
-                            .foregroundStyle(KTColor.faint)
+                            .foregroundStyle(KTColor.ink2)
                             .padding(.leading, 10).padding(.top, 2)
                     }
                     ForEach(section.items) { item in
@@ -99,8 +99,8 @@ public struct KTCategoryRail<ID: Hashable>: View {
                     .font(.jbMono(12, .medium))
                     .foregroundStyle(isSelected ? KTColor.accent : KTColor.ink)
                 Text(item.summary)
-                    .font(KTType.caption)
-                    .foregroundStyle(isSelected ? KTColor.accent : KTColor.muted)
+                    .font(.system(size: 11))
+                    .foregroundStyle(isSelected ? KTColor.accent : KTColor.ink2)
                     .lineLimit(1).truncationMode(.tail)
             }
             Spacer(minLength: 4)
@@ -109,10 +109,7 @@ public struct KTCategoryRail<ID: Hashable>: View {
             }
         }
         .padding(.vertical, 7).padding(.horizontal, 10)
-        .background(
-            RoundedRectangle(cornerRadius: KTRadius.buttonSmall, style: .continuous)
-                .fill(isSelected ? KTColor.accentSoft : Color.clear)
-        )
+        .background(rowBackground(isSelected: isSelected))
         .contentShape(Rectangle())
     }
 
@@ -124,12 +121,22 @@ public struct KTCategoryRail<ID: Hashable>: View {
                 }
             }
             .padding(6)
-            .background(
-                RoundedRectangle(cornerRadius: KTRadius.buttonSmall, style: .continuous)
-                    .fill(isSelected ? KTColor.accentSoft : Color.clear)
-            )
+            .background(rowBackground(isSelected: isSelected))
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
+    }
+    @ViewBuilder
+    private func rowBackground(isSelected: Bool) -> some View {
+        if isSelected {
+            RoundedRectangle(cornerRadius: KTRadius.buttonSmall, style: .continuous)
+                .fill(KTColor.accentSoft)
+                .overlay(
+                    RoundedRectangle(cornerRadius: KTRadius.buttonSmall, style: .continuous)
+                        .strokeBorder(KTColor.accent.opacity(0.35), lineWidth: 0.5)
+                )
+        } else {
+            Color.clear
+        }
     }
 }
 

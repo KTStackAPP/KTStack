@@ -280,10 +280,23 @@ public final class SiteRegistry: ObservableObject {
         update(id) { $0.serverEngine = engine; $0.backendPort = port }
     }
 
-    public func reinspect(_ site: Site) {
-        let info = inspector.inspect(folder: URL(fileURLWithPath: site.path), tld: tld)
-        guard info.docroot.path != site.docroot || info.type != site.type else { return }
-        update(site.id) { $0.docroot = info.docroot.path; $0.type = info.type }
+    // Cấp port còn thiếu khi type đổi, không thì site vừa đổi type chết tới khi restart app.
+    // Đọc lại row theo id: snapshot caller đưa vào có thể cũ (đường restore async).
+    @discardableResult
+    public func reinspect(_ site: Site) -> SiteType {
+        guard let current = sites.first(where: { $0.id == site.id }) else { return site.type }
+        let info = inspector.inspect(folder: URL(fileURLWithPath: current.path), tld: tld)
+        guard info.docroot.path != current.docroot || info.type != current.type else { return current.type }
+        let nodePort = (info.type == .node && current.nodePort == nil) ? nextFreeNodePort() : current.nodePort
+        let backendPort = (info.type == .php && current.backendPort == nil)
+            ? (try? nextFreeBackendPort()) : current.backendPort
+        update(current.id) {
+            $0.docroot = info.docroot.path
+            $0.type = info.type
+            $0.nodePort = nodePort
+            $0.backendPort = backendPort
+        }
+        return info.type
     }
 
     public func validateDomain(_ domain: String, excluding id: UUID? = nil) throws {

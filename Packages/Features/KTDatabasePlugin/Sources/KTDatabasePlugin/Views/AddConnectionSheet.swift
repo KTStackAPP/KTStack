@@ -10,6 +10,9 @@ struct AddConnectionSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let editing: ConnectionProfile?
+    var draft: ConnectionDraft?
+    /// Ngoài `.sheet` (modal cửa sổ con) `dismiss` không có gì để đóng, nên chủ gọi tự xử lý.
+    var onClose: (() -> Void)?
 
     @State private var kind: DatabaseKind = .mysql
     @State private var name = ""
@@ -137,10 +140,14 @@ struct AddConnectionSheet: View {
     private var footer: some View {
         HStack {
             Spacer()
-            Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+            Button("Cancel", action: close).keyboardShortcut(.cancelAction)
             Button(editing == nil ? "Add" : "Save", action: save)
                 .keyboardShortcut(.defaultAction).disabled(!isValid)
         }
+    }
+
+    private func close() {
+        if let onClose { onClose() } else { dismiss() }
     }
 
     private var isValid: Bool {
@@ -163,19 +170,22 @@ struct AddConnectionSheet: View {
     }
 
     private static func defaultPort(_ kind: DatabaseKind) -> String {
-        switch kind {
-        case .postgres: "5432"
-        case .mysql: "3306"
-        case .mongodb: "27017"
-        case .sqlite: ""
-        }
+        kind == .sqlite ? "" : String(kind.defaultPort)
     }
 
     private func hydrate() {
-        guard let e = editing else { return }
-        kind = e.kind; name = e.name; host = e.host; port = String(e.port)
-        user = e.user; database = e.database; filePath = e.filePath ?? ""
-        tlsMode = e.tlsMode; readOnly = e.readOnly // password intentionally left blank
+        if let e = editing {
+            apply(e) // password intentionally left blank
+        } else if let draft {
+            apply(draft.profile)
+            password = draft.password ?? ""
+        }
+    }
+
+    private func apply(_ profile: ConnectionProfile) {
+        kind = profile.kind; name = profile.name; host = profile.host; port = String(profile.port)
+        user = profile.user; database = profile.database; filePath = profile.filePath ?? ""
+        tlsMode = profile.tlsMode; readOnly = profile.readOnly
     }
 
     private func buildProfile() -> ConnectionProfile? {
@@ -193,10 +203,16 @@ struct AddConnectionSheet: View {
         guard let portNum = Int(port) else { return nil }
         return ConnectionProfile(
             id: editing?.id ?? UUID(),
-            name: name.isEmpty ? trimmedHost : name,
+            name: name.isEmpty ? defaultName(host: trimmedHost, database: database) : name,
             kind: kind, host: trimmedHost, port: portNum, user: user, database: database,
             tlsMode: tlsMode, readOnly: readOnly
         )
+    }
+
+    // Tên trống: dùng host/database để không sinh loạt "127.0.0.1" trùng nhau.
+    private func defaultName(host: String, database: String) -> String {
+        let db = database.trimmingCharacters(in: .whitespaces)
+        return db.isEmpty ? host : "\(host)/\(db)"
     }
 
     private var effectivePassword: String? {
@@ -235,6 +251,6 @@ struct AddConnectionSheet: View {
         } else {
             store.update(profile, password: pwd) // nil pwd keeps the existing secret
         }
-        dismiss()
+        close()
     }
 }

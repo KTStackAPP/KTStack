@@ -2,13 +2,13 @@ import Combine
 import CryptoKit
 import Foundation
 import KTStackCore
-
+import Security
 @MainActor
 public final class CATrustService: ObservableObject {
     public enum Status: Equatable, Sendable {
-        case notInstalled // no CA generated yet
-        case untrusted // CA exists on disk but not trusted in the System Keychain
-        case trusted // CA present in the System Keychain
+        case notInstalled
+        case untrusted
+        case trusted
     }
 
     @Published public private(set) var status: Status = .notInstalled
@@ -45,11 +45,20 @@ public final class CATrustService: ObservableObject {
 
     public func install() {
         let runner = runner, helper = helper, usesHelper = usesHelper, caCert = paths.caRootCert
-        run { try CATrustInstaller.trust(caCert: caCert, runner: runner, helper: helper, usesHelper: usesHelper) }
+        run({
+            try CATrustInstaller.trust(caCert: caCert, runner: runner, helper: helper, usesHelper: usesHelper)
+        }, completion: { [weak self] ok in
+            if ok { self?.status = .trusted }
+        })
     }
 
     public func untrust() {
-        run { try self.runner.uninstall() }
+        let runner = runner, helper = helper, usesHelper = usesHelper, caCert = paths.caRootCert
+        run({
+            try CATrustInstaller.untrust(caCert: caCert, runner: runner, helper: helper, usesHelper: usesHelper)
+        }, completion: { [weak self] ok in
+            if ok { self?.status = .untrusted }
+        })
     }
 
     public func ensureTrusted() throws {
@@ -57,7 +66,7 @@ public final class CATrustService: ObservableObject {
         try CATrustInstaller.trust(caCert: paths.caRootCert, runner: runner, helper: helper, usesHelper: usesHelper)
     }
 
-    private func run(_ work: @escaping @Sendable () throws -> Void) {
+    private func run(_ work: @escaping @Sendable () throws -> Void, completion: (@Sendable @MainActor (Bool) -> Void)? = nil) {
         guard !isBusy else { return }
         isBusy = true; lastError = nil
         Task.detached(priority: .userInitiated) {
@@ -67,26 +76,28 @@ public final class CATrustService: ObservableObject {
                 self.isBusy = false
                 if let failure { self.lastError = failure }
                 self.refresh()
+                completion?(failure == nil)
             }
         }
     }
 
     public nonisolated static func isTrustedInSystemKeychain(caCert: URL) -> Bool {
         guard let pem = try? Data(contentsOf: caCert),
-              let der = CertMinter.pemToDER(pem) else { return false }
-        // SHA-1 to match "security find-certificate -Z", which prints SHA-1 fingerprints. This is a
-        // string match against the tool's output, not a security decision.
-        let sha1 = Insecure.SHA1.hash(data: der).map { String(format: "%02X", $0) }.joined()
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/bin/security")
-        proc.arguments = ["find-certificate", "-a", "-Z", "/Library/Keychains/System.keychain"]
-        let pipe = Pipe()
-        proc.standardOutput = pipe
-        proc.standardError = FileHandle.nullDevice
-        do { try proc.run() } catch { return false }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        proc.waitUntilExit()
-        let out = String(data: data, encoding: .utf8) ?? ""
-        return out.uppercased().contains(sha1)
+              let der = CertMinter.pemToDER(pem),
+              let cert = SecCertificateCreateWithData(nil, der as CFData) else {
+            return false
+        }
+        var settings: CFArray?
+        let hasAdminSettings = SecTrustSettingsCopyTrustSettings(cert, .admin, &settings) == errSecSuccess
+        let hasUserSettings = SecTrustSettingsCopyTrustSettings(cert, .user, &settings) == errSecSuccess
+        guard hasAdminSettings || hasUserSettings else {
+            return false
+        }
+        var trust: SecTrust?
+        if SecTrustCreateWithCertificates(cert, SecPolicyCreateBasicX509(), &trust) == errSecSuccess,
+           let trust {
+            return SecTrustEvaluateWithError(trust, nil)
+        }
+        return true
     }
 }

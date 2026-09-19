@@ -14,7 +14,26 @@ public extension DatabaseV2ViewModel {
     /// Rows with staged updates applied, so inline edits show before commit. Index-aligned with `rows`.
     var displayRows: QueryResult? {
         guard let rows else { return nil }
-        return staged?.displayResult(base: rows) ?? rows
+        let base = staged?.displayResult(base: rows) ?? rows
+        guard insertDraft != nil else { return base }
+        let draftRow = draftDisplayRow(columns: base.columns)
+        return QueryResult(
+            columns: base.columns, rows: base.rows + [draftRow],
+            truncated: base.truncated, estimatedTotal: base.estimatedTotal
+        )
+    }
+
+    /// Sửa ô grid: dòng nháp insert (index cuối) đi vào draft, còn lại vào staged buffer.
+    func stageOrDraftEdit(row: Int, column: Int, edit: CellEdit) {
+        if let draftIndex = insertDraftRowIndex, row == draftIndex {
+            editDraftCell(column: column, edit: edit)
+        } else {
+            stageCellEdit(row: row, column: column, edit: edit)
+        }
+    }
+
+    func stageOrDraftEdit(row: Int, column: Int, value: String) {
+        stageOrDraftEdit(row: row, column: column, edit: .value(value))
     }
 
     func rebuildStagedEditor() {
@@ -84,6 +103,7 @@ public extension DatabaseV2ViewModel {
 
     func commitStaged() async {
         guard let editor = staged, editor.hasPendingChanges else { return }
+        await ensureConnected()
         let token = generation
         isCommitting = true
         editError = nil
@@ -112,6 +132,48 @@ public extension DatabaseV2ViewModel {
     func redoStaged() {
         staged?.redo()
         refreshStagedState()
+    }
+    func deleteRowOrCancelDraft(row: Int) {
+        if let draftIndex = insertDraftRowIndex, row == draftIndex {
+            cancelInsertDraft()
+            return
+        }
+        stageDelete(row: row)
+    }
+
+    func undoOrCancelDraft() {
+        if isDraftingInsert {
+            cancelInsertDraft()
+            return
+        }
+        undoStaged()
+    }
+
+    func commitAllStagedAndDraft() async {
+        if isDraftingInsert {
+            commitInsertDraft()
+        }
+        await commitStaged()
+    }
+
+    var modifiedCellCoords: Set<CellCoord> {
+        guard let base = rows, let display = displayRows else { return [] }
+        var result: Set<CellCoord> = []
+        let rowCount = min(base.rows.count, display.rows.count)
+        for row in 0..<rowCount {
+            let colCount = min(base.rows[row].count, display.rows[row].count)
+            for col in 0..<colCount {
+                if base.rows[row][col] != display.rows[row][col] {
+                    result.insert(CellCoord(row: row, column: col))
+                }
+            }
+        }
+        return result
+    }
+
+    var stagedDeleteRowIndices: Set<Int> {
+        guard let staged, let base = rows else { return [] }
+        return staged.stagedDeleteRows(in: base)
     }
 
     func refreshStagedState() {
