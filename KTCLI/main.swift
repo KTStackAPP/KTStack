@@ -15,6 +15,7 @@ func printUsage() {
       db backup [name]              Trigger database backup
       doctor                        Run diagnostic probes
       mcp                           Start stdio Model Context Protocol server
+      version, --version, -v        Print version
       help, --help, -h              Show this help message
     """)
 }
@@ -66,6 +67,10 @@ case "mcp":
         exit(0)
     }
     dispatchMain()
+
+case "version", "--version", "-v":
+    print("kt version 0.3.0 (build 36)")
+    exit(0)
 
 case "help", "--help", "-h":
     printUsage()
