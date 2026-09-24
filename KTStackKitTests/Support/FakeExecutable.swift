@@ -22,7 +22,7 @@ struct FakeExecutable {
     }
 
     static func sleeping(seconds: Int, named name: String = "sleeper", in directory: URL? = nil) throws -> FakeExecutable {
-        try make(named: name, script: "trap '' TERM\nsleep \(seconds)", in: directory)
+        try make(named: name, script: "trap '' TERM\nexec /bin/sleep \(seconds)", in: directory)
     }
 
     func remove() {
