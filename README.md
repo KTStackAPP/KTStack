@@ -45,7 +45,7 @@ Everything in KTStack is built-in, 100% free, and open-source (MIT)—no Pro tie
 - **Built-in Database Engines**: One-click supervision for MySQL 9.6, MariaDB 10.11/11.4, PostgreSQL 17, Redis 7.4, Memcached 1.6, and MongoDB 7.
 - **Full Database Management Workspace**: Browse and edit rows, execute SQL, inspect DDL/schemas, navigate foreign keys, and explain plans (MySQL, MariaDB, Postgres, SQLite, Mongo).
 - **1-Click Database Backup & Restore**: Snapshot dumps and restores for MySQL, PostgreSQL, and SQLite without external tools.
-- **AI Coding Agent MCP Server (`kt mcp`)**: Built-in Model Context Protocol server over stdio for Cursor, Claude Code, and Windsurf to manage sites, switch PHP versions, trigger backups, and query logs.
+- **AI Coding Agent MCP Server (`kt mcp`)**: Built-in Model Context Protocol server over stdio for Cursor, Claude Code, and Windsurf to list sites and services, restart services, and read logs.
 - **Unified Developer CLI (`kt`)**: Fast terminal tool communicating via private Unix domain socket (`kt sites`, `kt services`, `kt db`, `kt doctor`).
 - **1-Click IDE Quick Launch**: Instantly open projects from Site Cards into Cursor, VS Code, PhpStorm, Zed, or Sublime Text.
 - **Mail Testing (Mailpit)**: Embedded SMTP server and HTML email inspector.
@@ -107,13 +107,12 @@ KTStack includes a built-in **Model Context Protocol (MCP)** server (`kt mcp`) t
 ```
 
 ### Exposed MCP Tools
-- `ktstack_list_sites`: List all local sites, domains, PHP/Node versions, backend ports, and TLS statuses.
-- `ktstack_create_site`: Provision a new local site with automatic `.test` domain and TLS.
-- `ktstack_switch_php_version`: Change the assigned PHP runtime (7.4 through 8.5) for any site.
-- `ktstack_inspect_db_schema`: Inspect tables, columns, indexes, and primary keys across MySQL, Postgres, and SQLite.
-- `ktstack_backup_db`: Export a compressed snapshot dump of a site's database.
-- `ktstack_restore_db`: Restore a SQL dump into a database.
-- `ktstack_get_recent_logs`: Fetch recent access/error log entries for instant troubleshooting.
+- `ktstack_list_sites`: List local sites with their domains, PHP versions, backend ports and TLS status.
+- `ktstack_list_services`: List background services and whether each is running.
+- `ktstack_restart_service`: Restart a background service (starts it if it is stopped).
+- `ktstack_get_recent_logs`: Fetch the last lines of a KTStack log source (`nginx-error`, `php-<version>`, `mysql`, `site-<domain>-error`, …).
+- `ktstack_backup_database`: Not available yet; returns an error. Back up from KTStack › Database › Backups.
+- `ktstack_doctor`: Check that the KTStack app is reachable.
 
 ---
 
@@ -126,17 +125,11 @@ KTStack ships with a lightweight, native command-line tool `kt` communicating di
 kt sites list
 kt sites list --json
 
-# Register a new local site
-kt sites create --name my-app --path ~/Sites/my-app --php 8.4
-
 # Manage database & cache services
-kt services status
+kt services list
 kt services start mysql
 kt services stop redis
-
-# Trigger a database backup
-kt db backup my-app
-kt db backup my-app --out ~/Backups/my-app.sql
+kt services restart nginx
 
 # Run environment health diagnostics
 kt doctor
