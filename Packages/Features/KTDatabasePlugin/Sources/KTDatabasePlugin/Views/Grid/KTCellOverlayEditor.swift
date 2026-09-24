@@ -8,6 +8,7 @@ public final class KTCellOverlayEditor: NSObject {
     public private(set) var currentRow: Int = -1
     public private(set) var currentColumn: Int = -1
     public private(set) var isEditing: Bool = false
+    public private(set) var originalText: String = ""
 
     public var onCommit: ((Int, Int, String) -> Void)?
     public var onMovement: ((Int, Int, KTCellEditorMovement, String) -> Void)?
@@ -40,6 +41,7 @@ public final class KTCellOverlayEditor: NSObject {
         self.currentRow = row
         self.currentColumn = column
         self.isEditing = true
+        self.originalText = value
 
         let cellRect = tableView.frameOfCell(atColumn: column, row: row)
         let expandedRect = cellRect.insetBy(dx: -1, dy: -1)
@@ -91,7 +93,7 @@ public final class KTCellOverlayEditor: NSObject {
             tableView?.window?.makeFirstResponder(tableView)
         }
 
-        if commit {
+        if commit, Self.hasChanged(original: originalText, edited: text) {
             onCommit?(row, column, text)
         }
         onDismiss?()
@@ -113,9 +115,15 @@ public final class KTCellOverlayEditor: NSObject {
         currentColumn = -1
 
         tableView?.window?.makeFirstResponder(tableView)
-        onCommit?(row, column, text)
+        if Self.hasChanged(original: originalText, edited: text) {
+            onCommit?(row, column, text)
+        }
         onMovement?(row, column, movement, text)
         onDismiss?()
+    }
+
+    public static func hasChanged(original: String, edited: String) -> Bool {
+        original != edited
     }
 
     private func addScrollObserver(for tableView: NSTableView) {

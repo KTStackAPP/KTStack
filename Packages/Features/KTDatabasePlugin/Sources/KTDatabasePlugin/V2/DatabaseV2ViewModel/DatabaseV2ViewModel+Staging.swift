@@ -8,7 +8,8 @@ public extension DatabaseV2ViewModel {
     var editableColumns: Set<String> {
         guard canEdit else { return [] }
         let pkNames = Set(columns.primaryKeyColumns.map(\.name))
-        return Set(columns.map(\.name)).subtracting(pkNames)
+        let binaryNames = Set(columns.filter { CellEditorKind.forColumn($0) == .binary }.map(\.name))
+        return Set(columns.map(\.name)).subtracting(pkNames).subtracting(binaryNames)
     }
 
     /// Rows with staged updates applied, so inline edits show before commit. Index-aligned with `rows`.
