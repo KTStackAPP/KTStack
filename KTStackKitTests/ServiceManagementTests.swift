@@ -274,7 +274,7 @@ final class ServiceManagementTests: XCTestCase {
         XCTAssertLessThan(mongoIdx, mailpitIdx, "MongoDB must precede Mailpit")
     }
 
-    func testResetDataRemovesServiceDataDir() throws {
+    func testResetDataMovesServiceDataDirToRemoved() throws {
         let root = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("kd-reset-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -285,22 +285,17 @@ final class ServiceManagementTests: XCTestCase {
         try Data().write(to: dir.appendingPathComponent("mongod.lock"))
         XCTAssertTrue(FileManager.default.fileExists(atPath: dir.path))
 
-        ServiceManager.removeServiceData(.mongodb, version: version, paths: paths)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path), "reset must delete the versioned data dir")
+        let retired = try XCTUnwrap(ServiceManager.retireServiceData(.mongodb, version: version, paths: paths))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path), "reset must clear the live versioned data dir")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: retired.appendingPathComponent("mongod.lock").path))
+        XCTAssertTrue(retired.path.contains("/.removed/"), "reset keeps the old data under .removed/")
     }
 
-    func testResetDataKeepsMailpitFlat() throws {
+    func testResetDataWithoutLiveDataIsANoOp() throws {
         let root = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("kd-reset-mailpit-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kd-reset-empty-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
-        let paths = AppSupportPaths(root: root)
-        let dir = paths.serviceData("mailpit")
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        try Data().write(to: dir.appendingPathComponent("mailpit.db"))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: dir.path))
-
-        ServiceManager.removeServiceData(.mailpit, version: nil, paths: paths)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path), "mailpit reset removes flat dir")
+        XCTAssertNil(try ServiceManager.retireServiceData(.postgres, version: "16", paths: AppSupportPaths(root: root)))
     }
 
     func testServiceManifestWellFormed() {

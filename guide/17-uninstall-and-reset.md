@@ -8,7 +8,7 @@ KTStack provides two cleanup options:
 
 | Action | What it does | Data lost | Reversible |
 |--------|-------------|-----------|-----------|
-| **Reset data** | Stops a service and deletes its database. App and code remain. | Only that service's data (MySQL, PostgreSQL, etc.) | Restore from backup |
+| **Reset data** | Stops a service and moves its data aside to a `.removed` folder. App and code remain. | Nothing until you delete the moved data | Yes — restore it from Runtimes |
 | **Full uninstall** | Removes the entire app, all services, DNS config, CA trust, and all app data. | Everything | No — requires fresh install |
 
 Choose **reset data** if you want to keep KTStack but start fresh with a service. Choose **full uninstall** if you want to remove KTStack entirely from your Mac.
@@ -18,13 +18,13 @@ Choose **reset data** if you want to keep KTStack but start fresh with a service
 If a database service is corrupted or you just want to start clean with one database:
 
 1. Open the KTStack dashboard and go to the **Services** section.
-2. Find the service (e.g., MySQL, PostgreSQL, MongoDB).
+2. Find the service (MySQL, MariaDB, PostgreSQL, Redis or MongoDB).
 3. Click the **menu button** (three dots) next to the service row.
 4. Select **Reset Data**.
-5. A confirmation dialog appears: "Reset [Service] data? This permanently deletes [Service]'s stored data, then restarts it from an empty datastore."
+5. A confirmation dialog appears: "Reset [Service] data? This stops [Service] and moves the active version's data to a .removed folder. The next start creates an empty datastore. You can restore the old data from Runtimes."
 6. Click **Reset [Service] data** to confirm.
 
-KTStack stops the service, deletes its stored data, and restarts it empty. Any databases that were in the service are permanently gone.
+KTStack stops the service and moves the data for the active version to `~/Library/Application Support/KTStack/data/<service>/.removed/`. The next start creates an empty datastore. To get the old data back, restore it from **Runtimes**; to free the space, move it to the Trash from there.
 
 **If you have a backup**, restore it before the reset, or restore it afterward. See [09 — Database backup & restore](09-database-backup-and-restore.md).
 

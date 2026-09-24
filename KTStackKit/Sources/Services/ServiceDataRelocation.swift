@@ -40,7 +40,7 @@ enum ServiceDataRelocation {
         guard fm.fileExists(atPath: flatDir.path),
               hasDataMarker(at: flatDir, for: kind) else { return }
 
-        guard let version = latestInstalled(kind, catalog: catalog) else { return }
+        guard let version = targetVersion(kind, dataDir: flatDir, paths: paths, catalog: catalog) else { return }
         let versionedDir = paths.serviceData(service, version: version)
         guard !fm.fileExists(atPath: versionedDir.path) else { return }
 
@@ -60,7 +60,7 @@ enum ServiceDataRelocation {
         catalog: ServiceBinaryCatalog
     ) {
         let fm = FileManager.default
-        guard let version = latestInstalled(kind, catalog: catalog) else { return }
+        guard let version = targetVersion(kind, dataDir: migratingDir, paths: paths, catalog: catalog) else { return }
         let versionedDir = paths.serviceData(service, version: version)
         guard !fm.fileExists(atPath: versionedDir.path) else { return }
 
@@ -72,8 +72,21 @@ enum ServiceDataRelocation {
         } catch {}
     }
 
-    private static func latestInstalled(_ kind: ServiceKind, catalog: ServiceBinaryCatalog) -> String? {
-        catalog.installedVersions(kind).max { $0.compare($1, options: .numeric) == .orderedAscending }
+    static func targetVersion(
+        _ kind: ServiceKind,
+        dataDir: URL,
+        paths: AppSupportPaths,
+        catalog: ServiceBinaryCatalog
+    ) -> String? {
+        guard kind == .postgres else {
+            return ServiceVersionStore(paths: paths, catalog: catalog).activeVersion(kind)
+        }
+        let file = dataDir.appendingPathComponent("PG_VERSION")
+        guard let raw = try? String(contentsOf: file, encoding: .utf8) else { return nil }
+        let major = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return catalog.installedVersions(kind)
+            .filter { $0 == major || $0.hasPrefix(major + ".") }
+            .max { $0.compare($1, options: .numeric) == .orderedAscending }
     }
 
     private static func hasDataMarker(at dir: URL, for kind: ServiceKind) -> Bool {
