@@ -10,15 +10,7 @@ public struct ProcessRunner: Sendable {
     }
 
     public func run(_ request: ProcessRequest) throws -> ProcessResult {
-        let execution = try makeExecution(request)
-        let done = DispatchSemaphore(value: 0)
-        let box = ResultBox()
-        try execution.start { result in
-            box.set(result)
-            done.signal()
-        }
-        done.wait()
-        return box.value!
+        try BlockingProcess(request: request, terminationGrace: terminationGrace, drainGrace: drainGrace).run()
     }
 
     public func run(
@@ -54,22 +46,5 @@ public struct ProcessRunner: Sendable {
 
     private func makeExecution(_ request: ProcessRequest) throws -> ProcessExecution {
         try ProcessExecution(request: request, terminationGrace: terminationGrace, drainGrace: drainGrace)
-    }
-}
-
-private final class ResultBox: @unchecked Sendable {
-    private let lock = NSLock()
-    private var stored: ProcessResult?
-
-    var value: ProcessResult? {
-        lock.lock()
-        defer { lock.unlock() }
-        return stored
-    }
-
-    func set(_ result: ProcessResult) {
-        lock.lock()
-        stored = result
-        lock.unlock()
     }
 }
