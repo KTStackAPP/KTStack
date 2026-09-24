@@ -28,7 +28,7 @@ public enum RelaunchGate {
         return true
     }
 
-    static func processIsAlive(_ pid: pid_t) -> Bool {
+    public static func processIsAlive(_ pid: pid_t) -> Bool {
         kill(pid, 0) == 0 || errno == EPERM
     }
 }
