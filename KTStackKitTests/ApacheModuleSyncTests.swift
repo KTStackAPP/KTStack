@@ -21,7 +21,7 @@ final class ApacheModuleSyncTests: XCTestCase {
     // Every `LoadModule <name>_module modules/<file>.so` → the `.so` basename without extension.
     private static func modulesLoadedBySwift() -> Set<String> {
         let regex = try! NSRegularExpression(pattern: #"modules/(mod_[A-Za-z0-9_]+)\.so"#)
-        let text = ApacheBackend.loadModules
+        let text = ApacheBackend.loadModules + ApacheBackend.remoteIPBlock
         let range = NSRange(text.startIndex..., in: text)
         var names = Set<String>()
         for match in regex.matches(in: text, range: range) {
