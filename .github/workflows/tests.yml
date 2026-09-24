@@ -21,12 +21,12 @@ jobs:
       - run: scripts/architecture-check.sh
       - uses: actions/cache@v4
         with:
-          path: Packages/Features/*/.build
-          key: spm-${{ runner.os }}-${{ hashFiles('Packages/Features/*/Package.resolved') }}
+          path: Packages/*/*/.build
+          key: spm-${{ runner.os }}-${{ hashFiles('Packages/*/*/Package.resolved') }}
           restore-keys: spm-${{ runner.os }}-
       - name: Package tests
         run: |
-          for pkg in Packages/Features/*/; do
+          for pkg in Packages/Core/*/ Packages/Contracts/*/ Packages/Plugin/*/ Packages/Features/*/; do
             [ -d "${pkg}Tests" ] || continue
             swift test --package-path "$pkg"
           done

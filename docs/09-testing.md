@@ -40,6 +40,17 @@ Key test coverage areas:
 - `DatabaseDriverTransactionTests`: Verifies transactional atomicity (`$N` parameter mapping in Postgres, `BEGIN IMMEDIATE` in SQLite).
 - `NginxConfigGeneratorTests`: Verifies correct directives, proxy headers, and port allocation in candidate `.conf` strings.
 
+The same scheme also runs `KTCLITests`, which compiles `KTCLI/MCP` and `KTCLI/Commands` (not `main.swift`) against `KTStackCoreStatic` so the `kt` CLI and the stdio MCP server are covered without a running app.
+
+### 2.2 Package Tests
+Every local package with a `Tests/` directory (`Packages/Core`, `Contracts`, `Plugin`, `Features`) runs with `swift test --package-path <pkg>`, both in `.github/workflows/tests.yml` and in `scripts/ci-local.sh`.
+
+### 2.3 Test Support Utilities (`KTStackKitTests/Support`)
+- `FileDescriptorCounter`: counts this process's open descriptors (`proc_pidinfo` + `PROC_PIDLISTFDS`) and reports the delta around a block, for leak regression tests.
+- `FakeLaunchAgentManager`: an in-memory `LaunchAgentManaging` that records bootstrap/kickstart/bootout calls and can inject failures, so `LaunchdServiceRunner` logic runs without `launchctl`.
+- `FakeExecutable`: writes a throwaway `/bin/sh` script (fixed exit code, N bytes of stderr, a TERM-ignoring sleeper) to drive process-runner tests.
+- `LoopbackListener`: a bound 127.0.0.1 listener on an ephemeral port for health and port-probe tests.
+
 ---
 
 ## 3. Architecture Boundary Verification (`scripts/architecture-check.sh`)

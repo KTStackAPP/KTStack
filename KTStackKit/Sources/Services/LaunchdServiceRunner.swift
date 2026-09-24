@@ -9,7 +9,7 @@ public struct LaunchdServiceRunner: Sendable {
 
     public let startTimeout: TimeInterval
 
-    private let agents: LaunchAgentManager
+    private let agents: any LaunchAgentManaging
     private let health = HealthChecker()
     private let preflight = PortPreflight()
     private let diag: ServiceDiagnostics
@@ -19,7 +19,7 @@ public struct LaunchdServiceRunner: Sendable {
         label: String,
         preflightPorts: [Int],
         probe: HealthProbe,
-        agents: LaunchAgentManager,
+        agents: any LaunchAgentManaging,
         startTimeout: TimeInterval = 8
     ) {
         self.kind = kind
