@@ -73,7 +73,7 @@ Everything in KTStack is built-in, 100% free, and open-source (MIT)—no Pro tie
 2. Drag **KTStack** to Applications and launch it.
 3. Approve the privileged helper when prompted (needed only for local DNS, the `/etc/resolver` entry, and installing the local HTTPS CA).
 4. Add a site, open `https://<name>.test`. Done.
-5. *(Optional)* Install the CLI helper: Open **Settings → General → Install CLI Helper** to make `kt` globally available in your terminal.
+5. *(Optional)* Install the CLI helper: open **Settings → Maintenance → Terminal shell integration** and click **Install kt Command in /usr/local/bin**. KTStack never replaces an existing `/usr/local/bin/kt` it did not create.
 
 Requires **macOS 13 (Ventura) or newer**, on Apple Silicon (`arm64`) or Intel (`x86_64`).
 
