@@ -11,14 +11,21 @@ public enum SQLStatementKind: Equatable {
     ]
 
     public static func classify(_ statement: String) -> SQLStatementKind {
-        guard let word = leadingWord(statement) else { return .read }
+        let skeleton = SQLSkeleton.scan(statement).text
+        guard let word = leadingWord(skeleton) else { return .read }
         guard readLeaders.contains(word) else { return .write }
         // WITH có thể bọc INSERT/UPDATE/DELETE (data-modifying CTE): coi là ghi.
-        if word == "WITH",
-           statement.range(of: #"\b(INSERT|UPDATE|DELETE|MERGE)\b"#, options: [.regularExpression, .caseInsensitive]) != nil {
+        if word == "WITH", contains(skeleton, #"\b(INSERT|UPDATE|DELETE|MERGE)\b"#) {
+            return .write
+        }
+        if word == "SET", contains(skeleton, #"\bREAD\s+WRITE\b|read_only\b"#) {
             return .write
         }
         return .read
+    }
+
+    private static func contains(_ text: String, _ pattern: String) -> Bool {
+        text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
     }
 
     public static func hasWrite(_ sql: String) -> Bool {

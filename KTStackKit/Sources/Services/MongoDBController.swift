@@ -56,6 +56,7 @@ public final class MongoDBController: ManagedService, @unchecked Sendable {
     public func start() async throws {
         guard let binary else { throw ServiceNotInstalled(.mongodb) }
         try ServiceInitializer.ensureDir(dataDir)
+        try DataDirVersionMarker.verify(dataDir, version: activeVersionProvider(), kind: .mongodb)
         try await runner.start(spec: spec(binary: binary))
     }
 

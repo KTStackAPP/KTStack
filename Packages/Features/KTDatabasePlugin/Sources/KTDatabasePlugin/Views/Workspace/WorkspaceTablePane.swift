@@ -83,6 +83,8 @@ struct WorkspaceTablePane: View {
                 onCommitEdit: { row, column, value in
                     vm.stageOrDraftEdit(row: row, column: column, value: value)
                 },
+                rowRef: vm.canEdit ? { vm.rowRef(at: $0) } : nil,
+                onCommitRowEdit: { ref, column, value in vm.stageOrDraftEdit(ref: ref, column: column, value: value) },
                 foreignKeyColumns: foreignKeyColumnNames,
                 onNavigateFK: { row, column in vm.navigateForeignKey(row: row, column: column) },
                 onPaste: vm.canEdit ? { cells in vm.stagePaste(cells) } : nil,

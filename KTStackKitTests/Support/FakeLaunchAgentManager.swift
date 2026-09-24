@@ -19,6 +19,8 @@ final class FakeLaunchAgentManager: LaunchAgentManaging, @unchecked Sendable {
     private var loaded: Set<String>
     private var recorded: [Call] = []
     private var failures: [Operation: Error] = [:]
+    private var pids: [String: pid_t] = [:]
+    private var arguments: [String: [String]] = [:]
 
     init(paths: AppSupportPaths, loaded: Set<String> = []) {
         self.paths = paths
@@ -37,6 +39,22 @@ final class FakeLaunchAgentManager: LaunchAgentManaging, @unchecked Sendable {
         locked { failures[operation] = error }
     }
 
+    func setJobPID(_ pid: pid_t?, for label: String) {
+        locked { pids[label] = pid }
+    }
+
+    func setLoadedArguments(_ args: [String]?, for label: String) {
+        locked { arguments[label] = args }
+    }
+
+    func loadedProgramArguments(_ label: String) -> [String]? {
+        locked { arguments[label] }
+    }
+
+    func jobPID(_ label: String) -> pid_t? {
+        locked { pids[label] }
+    }
+
     func markLoaded(_ label: String) {
         locked { _ = loaded.insert(label) }
     }
@@ -48,7 +66,10 @@ final class FakeLaunchAgentManager: LaunchAgentManaging, @unchecked Sendable {
     }
 
     func bootstrap(_ spec: LaunchAgentSpec) throws {
-        try perform(.bootstrap, call: .bootstrap(spec.label)) { loaded.insert(spec.label) }
+        try perform(.bootstrap, call: .bootstrap(spec.label)) {
+            loaded.insert(spec.label)
+            arguments[spec.label] = spec.programArguments
+        }
     }
 
     func kickstart(_ label: String) throws {
@@ -56,7 +77,10 @@ final class FakeLaunchAgentManager: LaunchAgentManaging, @unchecked Sendable {
     }
 
     func bootout(_ label: String) throws {
-        try perform(.bootout, call: .bootout(label)) { loaded.remove(label) }
+        try perform(.bootout, call: .bootout(label)) {
+            loaded.remove(label)
+            arguments[label] = nil
+        }
     }
 
     func isLoaded(_ label: String) -> Bool {

@@ -155,93 +155,24 @@ public struct RuntimeDownloader: Sendable {
     }
 
     private func extract(_ archive: URL) throws -> URL {
-        let work = paths.runtimes.appendingPathComponent(".dl-\(UUID().uuidString)", isDirectory: true)
+        try Self.extract(archive, into: paths.runtimes)
+    }
+
+    static func extract(_ archive: URL, into root: URL) throws -> URL {
+        let work = root.appendingPathComponent(".dl-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
-        let tar = Process()
-        tar.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
-        tar.arguments = ["-xf", archive.path, "-C", work.path]
-        let err = Pipe(); tar.standardError = err; tar.standardOutput = FileHandle.nullDevice
-        try tar.run(); tar.waitUntilExit()
-        guard tar.terminationStatus == 0 else {
-            let msg = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "tar failed"
-            throw ExtractError(message: "Extract failed: \(msg)")
+        var extracted = false
+        defer { if !extracted { try? FileManager.default.removeItem(at: work) } }
+        let tar = try ProcessRunner().run("/usr/bin/tar", ["-xf", archive.path, "-C", work.path], timeout: 900)
+        guard tar.succeeded else {
+            throw ExtractError(message: "Extract failed: \(tar.stderrText.isEmpty ? "tar failed" : tar.stderrText)")
         }
         let entries = try FileManager.default.contentsOfDirectory(atPath: work.path)
             .filter { !$0.hasPrefix(".") }
         guard entries.count == 1 else {
             throw ExtractError(message: "Unexpected archive layout (\(entries.count) top-level entries).")
         }
+        extracted = true
         return work.appendingPathComponent(entries[0], isDirectory: true)
-    }
-}
-
-private final class DownloadCoordinator: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
-    private let onProgress: @Sendable (Int64, Int64) -> Void
-    private var continuation: CheckedContinuation<URL, Error>?
-    private var session: URLSession!
-    private var task: URLSessionDownloadTask?
-    private var saved: URL?
-    private var saveError: Error?
-
-    init(onProgress: @escaping @Sendable (Int64, Int64) -> Void) {
-        self.onProgress = onProgress
-        super.init()
-        session = URLSession(configuration: .ephemeral, delegate: self, delegateQueue: nil)
-    }
-
-    func download(_ url: URL) async throws -> URL {
-        try RuntimeDownloader.requireHTTPS(url)
-        return try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { cont in
-                continuation = cont
-                let t = session.downloadTask(with: url)
-                task = t
-                t.resume()
-            }
-        } onCancel: { [task] in task?.cancel() }
-    }
-
-    func urlSession(
-        _: URLSession,
-        downloadTask _: URLSessionDownloadTask,
-        didWriteData _: Int64,
-        totalBytesWritten written: Int64,
-        totalBytesExpectedToWrite expected: Int64
-    ) {
-        onProgress(written, expected)
-    }
-
-    func urlSession(
-        _: URLSession,
-        task _: URLSessionTask,
-        willPerformHTTPRedirection _: HTTPURLResponse,
-        newRequest request: URLRequest,
-        completionHandler: @escaping (URLRequest?) -> Void
-    ) {
-        if let url = request.url, RuntimeDownloader.isRedirectAllowed(to: url) {
-            completionHandler(request)
-        } else {
-            completionHandler(nil)
-        }
-    }
-
-    func urlSession(
-        _: URLSession,
-        downloadTask _: URLSessionDownloadTask,
-        didFinishDownloadingTo location: URL
-    ) {
-        let dest = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ktstack-dl-\(UUID().uuidString)")
-        do { try FileManager.default.moveItem(at: location, to: dest); saved = dest }
-        catch { saveError = error }
-    }
-
-    func urlSession(_ session: URLSession, task _: URLSessionTask, didCompleteWithError error: Error?) {
-        defer { continuation = nil; session.finishTasksAndInvalidate() }
-        if let error { continuation?.resume(throwing: error); return }
-        if let saved { continuation?.resume(returning: saved); return }
-        continuation?.resume(throwing: saveError ?? RuntimeDownloader.ExtractError(
-            message: "Download finished but the file could not be saved."
-        ))
     }
 }

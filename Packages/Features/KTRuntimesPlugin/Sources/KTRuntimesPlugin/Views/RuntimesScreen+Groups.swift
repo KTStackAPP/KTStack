@@ -116,6 +116,7 @@ extension RuntimesScreen {
                 }
             }
         }
+        retiredDataGroup(engine)
     }
 
     @ViewBuilder
@@ -141,10 +142,7 @@ extension RuntimesScreen {
                 engine: engine,
                 version: entry.version,
                 uninstallBlockReason: blockReason,
-                onUninstall: {
-                    handleUninstall(engine, version: entry.version)
-                    expandedVersion = nil
-                }
+                onUninstall: { requestEngineUninstall(engine, version: entry.version) }
             )
             .id(key)
         }
@@ -164,12 +162,6 @@ extension RuntimesScreen {
 
     func handleSetActive(_ engine: ServiceEngine, version: String) {
         if case let .failure(error) = engines.setActive(engine, version: version) {
-            feedback.toast(error.localizedDescription)
-        }
-    }
-
-    func handleUninstall(_ engine: ServiceEngine, version: String) {
-        if case let .failure(error) = engines.uninstall(engine, version: version) {
             feedback.toast(error.localizedDescription)
         }
     }

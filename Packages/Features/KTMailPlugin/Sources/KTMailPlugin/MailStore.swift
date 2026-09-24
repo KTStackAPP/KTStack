@@ -35,6 +35,7 @@ public final class MailStore: ObservableObject {
     public func refresh() async {
         do {
             let resp = try await client.list()
+            guard !Task.isCancelled else { return }
             messages = resp.messages
             unread = resp.unread
             isReachable = true
@@ -43,9 +44,14 @@ public final class MailStore: ObservableObject {
                 selectedID = nil; detail = nil
             }
         } catch {
+            guard !Self.isCancellation(error) else { return }
             isReachable = false
-            messages = []
+            lastError = error.localizedDescription
         }
+    }
+
+    nonisolated static func isCancellation(_ error: Error) -> Bool {
+        error is CancellationError || (error as? URLError)?.code == .cancelled
     }
 
     public func select(_ id: String) {

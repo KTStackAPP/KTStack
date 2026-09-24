@@ -121,11 +121,11 @@ public struct LaunchAgentManager: Sendable {
     }
 
     public func loadedLabels(withPrefix prefix: String) -> [String] {
-        Self.loadedLabels().filter { $0.hasPrefix(prefix) }.sorted()
+        Self.loadedLabels(prefix: prefix).sorted()
     }
 
     public func bootout(matchingPrefix prefix: String) {
-        for label in Self.loadedLabels() where label.hasPrefix(prefix) {
+        for label in Self.loadedLabels(prefix: prefix) {
             try? run("bootout", ["\(Self.guiDomain)/\(label)"])
         }
         Self.loadedCache.invalidate()
@@ -154,11 +154,11 @@ public struct LaunchAgentManager: Sendable {
         }
     }
 
-    static func loadedLabels() -> Set<String> {
-        parseLoadedLabels(from: launchctl(["print", guiDomain]).out)
+    static func loadedLabels(prefix: String = "com.ktstack.") -> Set<String> {
+        parseLoadedLabels(from: launchctl(["print", guiDomain]).out, prefix: prefix)
     }
 
-    static func parseLoadedLabels(from output: String) -> Set<String> {
+    static func parseLoadedLabels(from output: String, prefix: String = "com.ktstack.") -> Set<String> {
         var labels = Set<String>()
         var inServices = false
         var depth = 0
@@ -172,7 +172,7 @@ public struct LaunchAgentManager: Sendable {
             depth -= line.filter { $0 == "}" }.count
             if depth <= 0 { break }
             if let token = line.split(whereSeparator: { $0 == " " || $0 == "\t" }).last,
-               token.hasPrefix("com.ktstack."),
+               token.hasPrefix(prefix),
                !token.contains("-sparkle-")
             {
                 labels.insert(String(token))

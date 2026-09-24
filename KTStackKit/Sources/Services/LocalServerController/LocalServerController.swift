@@ -45,6 +45,7 @@ public final class LocalServerController: ObservableObject {
     nonisolated let httpsProvisioner: SiteHTTPSProvisioner
     var didSeed = false
     var pendingReconcile = false
+    var didCheckCertRenewal = false
 
     public init(
         bundleBinDir: URL,
@@ -127,6 +128,7 @@ public final class LocalServerController: ObservableObject {
     func finish(missing: [String], error: String?) {
         isBusy = false
         if let error { lastError = error }
+        else if let warning = skippedEnvWarning { lastError = warning }
         else if !missing.isEmpty {
             let pins = missing.joined(separator: ", ")
             let installed = BundledPHP.availableVersions(php: paths.phpRuntimesRoot)
@@ -140,7 +142,8 @@ public final class LocalServerController: ObservableObject {
         }
         recomputeStatus()
         refreshWatches()
-        certMinter.pruneOrphans(keeping: Set(registry.sites.map(\.domain))) // drop removed sites' leaves
+        if registry.loadFailure == nil { certMinter.pruneOrphans(keeping: Set(registry.sites.map(\.domain))) }
+        if error == nil { renewCertificatesIfNeeded() }
         if pendingReconcile { pendingReconcile = false; reconcile() }
     }
 

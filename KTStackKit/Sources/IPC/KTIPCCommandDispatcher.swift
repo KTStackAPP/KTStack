@@ -1,16 +1,20 @@
 import Foundation
+import KTPlatformContracts
 import KTStackCore
 
 public final class KTIPCCommandDispatcher: Sendable {
-    private let serverProvider: @Sendable () async -> LocalServerController?
-    private let servicesProvider: @Sendable () async -> ServiceManager?
+    let serverProvider: @Sendable () async -> LocalServerController?
+    let servicesProvider: @Sendable () async -> ServiceManager?
+    let backupProvider: @Sendable () async -> (any DatabaseBackupProviding)?
 
     public init(
         serverProvider: @escaping @Sendable () async -> LocalServerController?,
-        servicesProvider: @escaping @Sendable () async -> ServiceManager?
+        servicesProvider: @escaping @Sendable () async -> ServiceManager?,
+        backupProvider: @escaping @Sendable () async -> (any DatabaseBackupProviding)? = { nil }
     ) {
         self.serverProvider = serverProvider
         self.servicesProvider = servicesProvider
+        self.backupProvider = backupProvider
     }
 
     public func dispatch(_ request: KTIPCRequest) async -> KTIPCResponse {
@@ -25,12 +29,12 @@ public final class KTIPCCommandDispatcher: Sendable {
             return await handleSiteSwitchPHP(request: request)
         case "services.list":
             return await handleServicesList(id: request.id)
-        case "services.restart":
-            return await handleServiceRestart(request: request)
+        case "services.restart", "services.start", "services.stop":
+            return await handleServiceAction(request: request)
         case "logs.recent":
-            return handleRecentLogs(request: request)
+            return await handleRecentLogs(request: request)
         case "db.backup":
-            return handleDBBackup(request: request)
+            return await handleDatabaseBackup(request: request)
         default:
             return .fail("Unknown method: \(request.method)", id: request.id)
         }
@@ -89,62 +93,12 @@ public final class KTIPCCommandDispatcher: Sendable {
             guard let site = server.registry.sites.first(where: { $0.domain == domain || $0.name == domain }) else {
                 return .fail("Site not found: \(domain)", id: request.id)
             }
+            let available = server.phpVersions
+            guard available.contains(version) else {
+                return .fail("PHP \(version) is not installed. Installed: \(available.joined(separator: ", "))", id: request.id)
+            }
             server.setPHPVersion(site.id, version)
             return .ok("Updated \(site.domain) to PHP \(version)", id: request.id)
         }
-    }
-
-    private func handleServicesList(id: String?) async -> KTIPCResponse {
-        guard let services = await servicesProvider() else {
-            return .fail("Service manager unavailable", id: id)
-        }
-        let list: [KTIPCServiceInfo] = await MainActor.run {
-            services.snapshots.map { snap in
-                KTIPCServiceInfo(
-                    name: snap.kind.rawValue,
-                    running: snap.status == .running,
-                    detail: snap.detail
-                )
-            }
-        }
-        guard let data = try? JSONEncoder().encode(list),
-              let str = String(data: data, encoding: .utf8) else {
-            return .fail("Failed to encode services", id: id)
-        }
-        return .ok(str, id: id)
-    }
-
-    private func handleServiceRestart(request: KTIPCRequest) async -> KTIPCResponse {
-        guard let name = request.params?["service"], let kind = ServiceKind(rawValue: name) else {
-            return .fail("Missing or invalid service name", id: request.id)
-        }
-        guard let services = await servicesProvider() else {
-            return .fail("Service manager unavailable", id: request.id)
-        }
-        await MainActor.run {
-            services.toggle(kind)
-        }
-        return .ok("Toggled \(name)", id: request.id)
-    }
-
-    private func handleRecentLogs(request: KTIPCRequest) -> KTIPCResponse {
-        let source = request.params?["source"] ?? "front-error"
-        let lineCount = Int(request.params?["lines"] ?? "50") ?? 50
-        let logFile = AppSupportPaths().logs.appendingPathComponent("\(source).log")
-        guard FileManager.default.fileExists(atPath: logFile.path),
-              let content = try? String(contentsOf: logFile, encoding: .utf8) else {
-            return .ok("No logs found for \(source)", id: request.id)
-        }
-        let lines = content.components(separatedBy: .newlines).filter { !$0.isEmpty }
-        let tail = lines.suffix(lineCount).joined(separator: "\n")
-        return .ok(tail, id: request.id)
-    }
-
-    private func handleDBBackup(request: KTIPCRequest) -> KTIPCResponse {
-        let dbName = request.params?["database"] ?? "default"
-        let backupDir = AppSupportPaths().data.appendingPathComponent("backups", isDirectory: true)
-        try? FileManager.default.createDirectory(at: backupDir, withIntermediateDirectories: true)
-        let dest = backupDir.appendingPathComponent("\(dbName)-\(Int(Date().timeIntervalSince1970)).sql")
-        return .ok("Backup queued for \(dbName) at \(dest.path)", id: request.id)
     }
 }

@@ -115,12 +115,12 @@ final class EngineVersionsViewModelTests: XCTestCase {
         XCTAssertEqual(engines.setActiveCalls.count, 2)
     }
 
-    func testUninstallSuccessAndFailure() {
+    func testUninstallSuccessAndFailure() async {
         let engines = FakeEngines()
         let vm = EngineVersionsViewModel(engines: engines)
-        if case .failure = vm.uninstall(.mongodb, version: "7.0") { XCTFail("expected success") }
+        if case .failure = await vm.uninstall(.mongodb, version: "7.0") { XCTFail("expected success") }
         engines.uninstallError = TestError.boom
-        if case .success = vm.uninstall(.mongodb, version: "6.0") { XCTFail("expected failure") }
+        if case .success = await vm.uninstall(.mongodb, version: "6.0") { XCTFail("expected failure") }
         XCTAssertEqual(engines.uninstallCalls.count, 2)
     }
 

@@ -7,11 +7,14 @@ private final class StubPHP: PHPRuntimeConfiguring, @unchecked Sendable {
     var versions = ["8.4"]
     private(set) var setCalls: [(file: String, version: String)] = []
     private(set) var removeCalls: [(file: String, version: String)] = []
+    private(set) var reloads: [String] = []
+    var failSetForVersion: String?
     private var active: Set<String> = []
 
     var installedPHPVersions: [String] { versions }
 
     func setAutoPrepend(file: String, version: String) throws {
+        if version == failSetForVersion { throw CocoaError(.fileWriteNoPermission) }
         setCalls.append((file, version))
         active.insert(file)
     }
@@ -23,7 +26,7 @@ private final class StubPHP: PHPRuntimeConfiguring, @unchecked Sendable {
 
     func isAutoPrependSet(file: String, version: String) -> Bool { active.contains(file) }
 
-    @MainActor func reloadPHPPool(version _: String) async throws {}
+    @MainActor func reloadPHPPool(version: String) async throws { reloads.append(version) }
 }
 
 final class DumpInjectorTests: XCTestCase {
@@ -87,5 +90,34 @@ final class DumpInjectorTests: XCTestCase {
 
     func testCleanupIsNoOpWhenFileAbsent() {
         XCTAssertNoThrow(injector.cleanupPrependFile())
+    }
+
+    func testLeftoverPrependIsRemovedOnStart() async throws {
+        try injector.enable(version: version, port: 9912)
+        await DumpInjector.reconcileLeftover(injector: injector, php: php)
+        XCTAssertFalse(injector.isEnabled(version: version))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: paths.dumpsPrependFile.path))
+    }
+
+    func testTemplateTruncatesHugeStringsAndSurvivesInvalidUTF8() throws {
+        try injector.enable(version: version, port: 9912)
+        let content = try String(contentsOf: paths.dumpsPrependFile, encoding: .utf8)
+        XCTAssertTrue(content.contains("65536"))
+        XCTAssertTrue(content.contains("'truncated' => true"))
+        XCTAssertTrue(content.contains("JSON_INVALID_UTF8_SUBSTITUTE"))
+    }
+
+    @MainActor
+    func testPartialEnableIsRolledBack() async throws {
+        php.versions = ["8.3", "8.4"]
+        php.failSetForVersion = "8.4"
+        let model = DumpsViewModel(php: php, server: DumpServer(), injector: injector)
+        model.toggle(true)
+        for _ in 0..<300 where model.busy { try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertFalse(model.enabled)
+        XCTAssertNotNil(model.errorMessage)
+        XCTAssertEqual(php.removeCalls.map(\.version), ["8.3"])
+        XCTAssertFalse(injector.isEnabled(version: "8.3"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: paths.dumpsPrependFile.path))
     }
 }

@@ -36,7 +36,10 @@ public extension DatabaseV2ViewModel {
             case let .value(text): values.append(ColumnValue(column: column.name, value: .text(text)))
             case .null: values.append(ColumnValue(column: column.name, value: .null))
             case .empty: values.append(ColumnValue(column: column.name, value: .text("")))
-            case .default, .now: values.append(ColumnValue(defaultFor: column.name))
+            case .default: values.append(ColumnValue(defaultFor: column.name))
+            case .now:
+                let stamp = CellCoercion.timestampString(kind: .forColumn(column))
+                values.append(ColumnValue(column: column.name, value: .text(stamp)))
             }
         }
         stageInsertRow(values)

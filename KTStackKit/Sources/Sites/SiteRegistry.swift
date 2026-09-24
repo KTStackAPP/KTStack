@@ -18,17 +18,18 @@ public struct SiteRemovalCoordinator: Sendable {
     }
 
     public func remove(_ site: Site) async throws {
-        try await deleteFolder(site)
         if let databaseName = site.databaseName {
             try await dropDatabase(databaseName)
         }
+        try await deleteFolder(site)
         await removeRecord(site)
     }
 }
 
 @MainActor
 public final class SiteRegistry: ObservableObject {
-    @Published public private(set) var sites: [Site] = []
+    @Published public internal(set) var sites: [Site] = []
+    @Published public internal(set) var loadFailure: String?
 
     /// Fired after any successful mutation (and after load), on the main actor.
     public var onChange: (() -> Void)?
@@ -38,7 +39,7 @@ public final class SiteRegistry: ObservableObject {
     /// next launch (the registry/helper read the TLD once at startup; live re-injection is avoided).
     public let tld: String
 
-    private let storeURL: URL
+    let storeURL: URL
     private let inspector = SiteInspector()
     private let versionResolver = ProjectVersionResolver()
     private let preflight = PortPreflight()
@@ -62,8 +63,10 @@ public final class SiteRegistry: ObservableObject {
         case domainTaken(String)
         case notADirectory(String)
         case unsafeDeletePath(String)
+        case unsafeSiteFolder(String)
         case noFreeBackendPort
         case proxyTargetLoopsToSite(String)
+        case proxyTargetIsFront(String)
         case aliasTaken(String, by: String)
         case aliasEqualsDomain(String)
         case invalidEnv(String)
@@ -76,8 +79,10 @@ public final class SiteRegistry: ObservableObject {
             case let .domainTaken(d): "Another site already uses “\(d)”."
             case let .notADirectory(p): "“\(p)” is not a folder."
             case let .unsafeDeletePath(p): "Refusing to delete unsafe site folder “\(p)”."
+            case let .unsafeSiteFolder(p): "“\(p)” is a protected location and can't be a site folder."
             case .noFreeBackendPort: "No free loopback port in 4000-4999 for a site backend."
             case let .proxyTargetLoopsToSite(d): "The target cannot point back at this site (\(d))."
+            case let .proxyTargetIsFront(t): "\(t) is KTStack's own web front; point the proxy at your app's port instead."
             case let .aliasTaken(a, owner): "“\(a)” is already used by “\(owner)”."
             case let .aliasEqualsDomain(a): "“\(a)” is already the site's main domain."
             case let .invalidEnv(k): "“\(k)” is not a valid environment variable."
@@ -97,8 +102,10 @@ public final class SiteRegistry: ObservableObject {
         guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDir), isDir.boolValue else {
             throw RegistryError.notADirectory(folder.path)
         }
+        guard !SiteFolderDeletionPolicy.standard().isProtected(folder) else { throw RegistryError.unsafeSiteFolder(folder.path) }
         let info = inspector.inspect(folder: folder, tld: tld)
         let domain = uniqueDomain(info.defaultDomain)
+        try validateDomain(domain)
 
         let resolvedPHP = respectProjectMarkers
             ? resolveInitialPHP(folder: folder, fallback: phpVersion)
@@ -124,6 +131,7 @@ public final class SiteRegistry: ObservableObject {
     @discardableResult
     public func addProxy(name: String, domain: String, target: ProxyTarget) throws -> Site {
         try validateDomain(domain)
+        try validateProxyTarget(target, for: nil, domain: domain)
         let site = Site(
             name: name,
             path: "",
@@ -140,13 +148,6 @@ public final class SiteRegistry: ObservableObject {
 
     public func setProxyTarget(_ site: Site, _ target: ProxyTarget) {
         update(site.id) { $0.proxyTarget = target.upstreamURLString }
-    }
-
-    // Chặn upstream trỏ về chính domain của site (vòng lặp qua front nginx).
-    public func validateProxyTarget(_ target: ProxyTarget, for site: Site?) throws {
-        if let site, target.host == site.domain {
-            throw RegistryError.proxyTargetLoopsToSite(site.domain)
-        }
     }
 
     public func nextFreeNodePort() -> Int {
@@ -185,26 +186,6 @@ public final class SiteRegistry: ObservableObject {
     public func remove(_ site: Site) {
         sites.removeAll { $0.id == site.id }
         persist()
-    }
-
-    public func removeDeletingFolder(_ site: Site) throws {
-        try deleteFolderForRemoval(site)
-        remove(site)
-    }
-
-    public func validateCanRemoveFolder(_ site: Site) throws {
-        let folder = URL(fileURLWithPath: site.path, isDirectory: true).standardizedFileURL
-        try validateDeletableSiteFolder(folder)
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory) else { return }
-        guard isDirectory.boolValue else { throw RegistryError.notADirectory(folder.path) }
-    }
-
-    public func deleteFolderForRemoval(_ site: Site) throws {
-        let folder = URL(fileURLWithPath: site.path, isDirectory: true).standardizedFileURL
-        try validateCanRemoveFolder(site)
-        guard FileManager.default.fileExists(atPath: folder.path) else { return }
-        try FileManager.default.removeItem(at: folder)
     }
 
     public func editDomain(_ site: Site, to newDomain: String) throws {
@@ -360,14 +341,6 @@ public final class SiteRegistry: ObservableObject {
         persist()
     }
 
-    private func validateDeletableSiteFolder(_ folder: URL) throws {
-        let path = folder.path
-        let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path
-        guard path != "/", path != home, !folder.lastPathComponent.isEmpty else {
-            throw RegistryError.unsafeDeletePath(path)
-        }
-    }
-
     // domain hoặc alias của bất kỳ site nào đang chiếm tên này.
     private func isDomainInUse(_ candidate: String) -> Bool {
         sites.contains { $0.domain == candidate || $0.aliases.contains(candidate) }
@@ -382,33 +355,5 @@ public final class SiteRegistry: ObservableObject {
             n += 1
         }
         return "\(label)-\(n).\(tld)"
-    }
-
-    private func load() {
-        guard let data = try? Data(contentsOf: storeURL) else { return } // absent file → fresh
-        if let decoded = try? JSONDecoder().decode([Site].self, from: data) {
-            sites = decoded
-        } else {
-            let backup = storeURL.appendingPathExtension("bak")
-            try? FileManager.default.removeItem(at: backup)
-            try? FileManager.default.copyItem(at: storeURL, to: backup)
-            NSLog("KTStack: could not decode site registry; backed up to \(backup.lastPathComponent)")
-        }
-        onChange?()
-    }
-
-    private func persist() {
-        do {
-            try FileManager.default.createDirectory(
-                at: storeURL.deletingLastPathComponent(),
-                withIntermediateDirectories: true,
-                attributes: [.posixPermissions: 0o700]
-            )
-            let data = try JSONEncoder().encode(sites)
-            try data.write(to: storeURL, options: .atomic)
-        } catch {
-            NSLog("KTStack: failed to persist site registry: \(error.localizedDescription)")
-        }
-        onChange?()
     }
 }

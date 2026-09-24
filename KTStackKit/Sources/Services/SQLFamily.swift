@@ -26,12 +26,16 @@ public struct SQLFamily: Sendable {
 
     public func ensureRunning() async throws {
         if await UpstreamProbe().probe(host: "127.0.0.1", port: 3306) == .running { return }
-        if catalog.isInstalled(.mysql) {
-            try await MySQLController(paths: paths, agents: agents, flavor: .mysql).start()
-        } else if catalog.isInstalled(.mariadb) {
-            try await MySQLController(paths: paths, agents: agents, flavor: .mariadb).start()
-        } else {
-            throw ServiceNotInstalled(.mysql)
-        }
+        guard let kind = Self.preferredKind(catalog: catalog) else { throw ServiceNotInstalled(.mysql) }
+        let paths = paths, catalog = catalog
+        let active: () -> String? = { ServiceVersionStore(paths: paths, catalog: catalog).activeVersion(kind) }
+        let flavor: MySQLFlavor = kind == .mariadb ? .mariadb : .mysql
+        try await MySQLController(paths: paths, agents: agents, activeVersion: active, flavor: flavor).start()
+    }
+
+    public static func preferredKind(catalog: ServiceBinaryCatalog) -> ServiceKind? {
+        if catalog.isInstalled(.mysql) { return .mysql }
+        if catalog.isInstalled(.mariadb) { return .mariadb }
+        return nil
     }
 }

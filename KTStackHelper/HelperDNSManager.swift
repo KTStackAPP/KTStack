@@ -13,7 +13,10 @@ final class HelperDNSManager {
             return (false, "Port 53 is already held by “\(owner.command)”. Stop it (another DNS tool?) and retry.")
         }
         do {
-            try writeRootData(dnsmasqData, to: DNSConstants.dnsmasqBinaryPath, mode: 0o755)
+            try StagedBinaryInstaller.install(
+                dnsmasqData, to: URL(fileURLWithPath: DNSConstants.dnsmasqBinaryPath), mode: 0o755,
+                verify: HelperBinaryVerifier.isTrusted
+            )
             try writeRootFile(DNSConstants.dnsmasqConf(for: tld), to: DNSConstants.dnsmasqConfPath, mode: 0o644)
             try writeRootFile(DNSConstants.daemonPlist, to: DNSConstants.daemonPlistPath, mode: 0o644)
             try writeRootFile(DNSConstants.resolverContents, to: resolverPath, mode: 0o644)
@@ -103,16 +106,6 @@ final class HelperDNSManager {
             withIntermediateDirectories: true
         )
         try contents.write(to: url, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: mode], ofItemAtPath: path)
-    }
-
-    private func writeRootData(_ contents: Data, to path: String, mode: Int) throws {
-        let url = URL(fileURLWithPath: path)
-        try FileManager.default.createDirectory(
-            at: url.deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-        try contents.write(to: url, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: mode], ofItemAtPath: path)
     }
 

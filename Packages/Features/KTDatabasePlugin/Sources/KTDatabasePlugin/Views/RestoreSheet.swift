@@ -11,6 +11,7 @@ struct RestoreSheet: View {
 
     let set: BackupSet
     let isReadOnly: Bool
+    let targetName: String
     let onConfirm: @MainActor (_ database: String, _ target: RestoreTarget) async -> Void
 
     @State private var selectedDatabase: String
@@ -22,10 +23,12 @@ struct RestoreSheet: View {
     init(
         set: BackupSet,
         isReadOnly: Bool,
+        targetName: String,
         onConfirm: @escaping @MainActor (_ database: String, _ target: RestoreTarget) async -> Void
     ) {
         self.set = set
         self.isReadOnly = isReadOnly
+        self.targetName = targetName
         self.onConfirm = onConfirm
         _selectedDatabase = State(initialValue: set.databases.first ?? "")
         _newDatabaseName = State(initialValue: (set.databases.first ?? "") + "_restored")
@@ -82,7 +85,7 @@ struct RestoreSheet: View {
             Text("Restore to").font(KDFont.headline)
             Picker("", selection: $mode) {
                 Text("New database").tag(Mode.newDatabase)
-                Text("Overwrite source database").tag(Mode.overwrite)
+                Text("Overwrite “\(selectedDatabase)” on \(targetName)").tag(Mode.overwrite)
             }
             .pickerStyle(.radioGroup)
             .labelsHidden()

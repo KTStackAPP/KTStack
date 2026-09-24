@@ -31,6 +31,11 @@ public final class RedisController: ManagedService, @unchecked Sendable {
         return paths.serviceData("redis", version: v)
     }
 
+    private var configFile: URL {
+        guard let v = activeVersionProvider() else { return paths.serviceConfig("redis") }
+        return paths.serviceConfig("redis-\(v)")
+    }
+
     public init(
         paths: AppSupportPaths,
         agents: LaunchAgentManager,
@@ -53,6 +58,7 @@ public final class RedisController: ManagedService, @unchecked Sendable {
     public func start() async throws {
         guard let binary else { throw ServiceNotInstalled(.redis) }
         try ServiceInitializer.ensureDir(dataDir)
+        try DataDirVersionMarker.verify(dataDir, version: activeVersionProvider(), kind: .redis)
         try writeConfig()
         try await runner.start(spec: spec(binary: binary))
     }
@@ -79,13 +85,13 @@ public final class RedisController: ManagedService, @unchecked Sendable {
         daemonize no
         save 900 1
         """
-        try config.write(to: paths.serviceConfig("redis"), atomically: true, encoding: .utf8)
+        try config.write(to: configFile, atomically: true, encoding: .utf8)
     }
 
     private func spec(binary: URL) -> LaunchAgentSpec {
         LaunchAgentSpec(
             label: kind.launchdLabel,
-            programArguments: [binary.path, paths.serviceConfig("redis").path],
+            programArguments: [binary.path, configFile.path],
             workingDirectory: dataDir.path,
             stdoutPath: paths.serviceLog("redis").path,
             stderrPath: paths.serviceLog("redis").path

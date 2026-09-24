@@ -57,6 +57,15 @@ final class StagedTableEditorTests: XCTestCase {
         XCTAssertEqual(editor.pendingCount, 1)
     }
 
+    func testBlobCellRefusesTextValueAndStagesNothing() {
+        let editor = makeEditor(RecordingDriver())
+        let blobRow: [String: Cell] = ["id": .int(1), "name": .blob(Data([0, 1, 2])), "age": .int(1)]
+        XCTAssertThrowsError(try editor.stageUpdate(row: blobRow, column: "name", edit: .value("[3 bytes]"))) { error in
+            XCTAssertEqual(error as? CellCoercionError, .binaryNotEditable)
+        }
+        XCTAssertEqual(editor.pendingCount, 0)
+    }
+
     func testKeylessRowRefused() {
         let editor = makeEditor(RecordingDriver())
         let noKey = row(id: 1, name: .text("x"), age: .int(1))

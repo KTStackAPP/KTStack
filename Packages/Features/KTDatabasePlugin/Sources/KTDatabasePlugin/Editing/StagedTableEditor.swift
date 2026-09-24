@@ -49,6 +49,7 @@ public final class StagedTableEditor {
             buffer.stageDefault(identity: identity, column: column)
             return true
         }
+        if case .blob = row[column], case .value = edit { throw CellCoercionError.binaryNotEditable }
         let value = try CellCoercion.cell(for: edit, column: info, kind: .forColumn(info))
         if let current = row[column], current == value { return false }
         buffer.stageUpdate(identity: identity, column: column, value: value)
@@ -77,7 +78,11 @@ public final class StagedTableEditor {
     public func stageInsert(values: [ColumnValue]) -> DraftRowID {
         let id = buffer.stageInsert()
         for value in values {
-            buffer.setDraftValue(id, column: value.column, value: value.value)
+            if value.isDefault {
+                buffer.setDraftDefault(id, column: value.column)
+            } else {
+                buffer.setDraftValue(id, column: value.column, value: value.value)
+            }
         }
         return id
     }
@@ -164,11 +169,13 @@ public final class StagedTableEditor {
         executor = RelationalWriteExecutor(driver: driver, database: database)
     }
 
+    @MainActor
     public func commit() async throws {
         let operations = buffer.operations()
         guard !operations.isEmpty else { return }
+        let snapshot = buffer.commitSnapshot()
         let steps = try planner.plan(operations)
         try await executor.commit(steps)
-        buffer.markCommitted()
+        buffer.markCommitted(snapshot)
     }
 }

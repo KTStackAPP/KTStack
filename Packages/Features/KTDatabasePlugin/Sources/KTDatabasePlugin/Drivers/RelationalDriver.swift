@@ -5,6 +5,8 @@ public protocol RelationalDriver: DatabaseDriver {
 
     func listDatabases() async throws -> [DatabaseInfo]
 
+    func backupDatabaseNames() async throws -> [String]
+
     func listTables(database: String) async throws -> [TableInfo]
 
     func columns(database: String, table: String) async throws -> [ColumnInfo]

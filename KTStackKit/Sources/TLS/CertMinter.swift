@@ -47,8 +47,8 @@ public struct CertMinter {
             at: paths.certsDir,
             includingPropertiesForKeys: nil
         ) else { return }
-        for dir in dirs where !keeping.contains(dir.lastPathComponent) {
-            try? fm.removeItem(at: dir)
+        for dir in dirs where !keeping.contains(dir.lastPathComponent) && !dir.lastPathComponent.hasPrefix(".") {
+            CertPruneStore(certsDir: paths.certsDir).retire(dir)
         }
     }
 

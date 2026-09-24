@@ -33,6 +33,14 @@ public enum SiteEnvVars {
         env.sorted { $0.key < $1.key }.map { (key: $0.key, value: $0.value) }
     }
 
+    public static func renderable(_ env: [String: String]) -> [(key: String, value: String)] {
+        sorted(env).filter { validate([$0.key: $0.value]) == nil }
+    }
+
+    public static func skippedKeys(_ env: [String: String]) -> [String] {
+        sorted(env).filter { validate([$0.key: $0.value]) != nil }.map(\.key)
+    }
+
     // ^[A-Za-z_][A-Za-z0-9_]*$
     private static func isValidKey(_ key: String) -> Bool {
         guard !key.isEmpty else { return false }
@@ -49,6 +57,6 @@ public enum SiteEnvVars {
     }
 
     private static func hasForbiddenValueChar(_ value: String) -> Bool {
-        value.unicodeScalars.contains { $0 == "\n" || $0 == "\r" || $0 == "\0" }
+        value.unicodeScalars.contains { "\n\r\0\"$\\".unicodeScalars.contains($0) }
     }
 }

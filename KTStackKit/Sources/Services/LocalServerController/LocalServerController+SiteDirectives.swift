@@ -4,8 +4,8 @@ import KTStackCore
 
 public extension LocalServerController {
     // Không đi qua reconcile() vì cần kết quả nginx -t trước khi persist; SiteDirectivesSaver giữ trình
-    // tự fail-closed. isBusy chặn reconcile song song từ registry hook; config trên đĩa đã đúng lúc thoát
-    // nên bỏ pendingReconcile.
+    // tự fail-closed. isBusy chặn reconcile song song từ registry hook; reconcile bị hoãn trong lúc đó
+    // được chạy lại khi thoát.
     func saveFrontDirectives(_ site: Site, _ text: String) async throws {
         guard !isBusy else { throw SiteRegistry.RegistryError.serverBusy }
         let generator = self.generator
@@ -23,7 +23,7 @@ public extension LocalServerController {
         )
 
         isBusy = true
-        defer { isBusy = false; pendingReconcile = false }
+        defer { finishDirectivesSave() }
         try await saver.save(site, text)
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 enum RestoreShellTools {
     private static let unzip = URL(fileURLWithPath: "/usr/bin/unzip")
@@ -43,21 +44,12 @@ enum RestoreShellTools {
 
     @discardableResult
     private static func run(_ executable: URL, _ arguments: [String]) throws -> String {
-        let proc = Process()
-        proc.executableURL = executable
-        proc.arguments = arguments
-        let out = Pipe(); let err = Pipe()
-        proc.standardOutput = out
-        proc.standardError = err
-        proc.environment = ["PATH": "/usr/bin:/bin"]
-        try proc.run()
-        let data = out.fileHandleForReading.readDataToEndOfFile()
-        proc.waitUntilExit()
-        let text = String(data: data, encoding: .utf8) ?? ""
-        guard proc.terminationStatus == 0 else {
-            let msg = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            throw RestoreArchiveError.extractFailed("\(executable.lastPathComponent) exit \(proc.terminationStatus): \(msg)")
+        let result = try ProcessRunner().run(ProcessRequest(
+            executable: executable.path, arguments: arguments, environment: ["PATH": "/usr/bin:/bin"]
+        ))
+        guard result.succeeded else {
+            throw RestoreArchiveError.extractFailed("\(executable.lastPathComponent) exit \(result.status): \(result.stderrText)")
         }
-        return text
+        return result.stdoutText
     }
 }

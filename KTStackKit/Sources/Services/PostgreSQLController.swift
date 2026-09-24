@@ -58,6 +58,7 @@ public final class PostgreSQLController: ManagedService, @unchecked Sendable {
     public func start() async throws {
         guard let binary, let initdb else { throw ServiceNotInstalled(.postgres) }
         try initializeIfNeeded(initdb: initdb)
+        try DataDirVersionMarker.verify(dataDir, version: activeVersionProvider(), kind: .postgres)
         try await runner.start(spec: spec(binary: binary))
     }
 
