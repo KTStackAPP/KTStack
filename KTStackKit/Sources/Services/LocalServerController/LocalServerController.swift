@@ -141,7 +141,7 @@ public final class LocalServerController: ObservableObject {
         }
         recomputeStatus()
         refreshWatches()
-        certMinter.pruneOrphans(keeping: Set(registry.sites.map(\.domain))) // drop removed sites' leaves
+        if registry.loadFailure == nil { certMinter.pruneOrphans(keeping: Set(registry.sites.map(\.domain))) }
         if pendingReconcile { pendingReconcile = false; reconcile() }
     }
 
