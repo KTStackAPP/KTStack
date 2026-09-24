@@ -169,13 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         modals: modals
     )
 
-    @MainActor lazy var ipcListener: KTLocalIPCSocketListener = {
-        let dispatcher = KTIPCCommandDispatcher(
-            serverProvider: { [weak self] in await MainActor.run { self?.server } },
-            servicesProvider: { [weak self] in await MainActor.run { self?.services } }
-        )
-        return KTLocalIPCSocketListener(dispatcher: dispatcher)
-    }()
+    @MainActor lazy var ipcListener = KTLocalIPCSocketListener(dispatcher: makeIPCDispatcher())
 
     private static func alreadyRunningInstance() -> NSRunningApplication? {
         guard let bundleID = Bundle.main.bundleIdentifier else { return nil }

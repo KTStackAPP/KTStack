@@ -1,16 +1,20 @@
 import Foundation
+import KTPlatformContracts
 import KTStackCore
 
 public final class KTIPCCommandDispatcher: Sendable {
     let serverProvider: @Sendable () async -> LocalServerController?
     let servicesProvider: @Sendable () async -> ServiceManager?
+    let backupProvider: @Sendable () async -> (any DatabaseBackupProviding)?
 
     public init(
         serverProvider: @escaping @Sendable () async -> LocalServerController?,
-        servicesProvider: @escaping @Sendable () async -> ServiceManager?
+        servicesProvider: @escaping @Sendable () async -> ServiceManager?,
+        backupProvider: @escaping @Sendable () async -> (any DatabaseBackupProviding)? = { nil }
     ) {
         self.serverProvider = serverProvider
         self.servicesProvider = servicesProvider
+        self.backupProvider = backupProvider
     }
 
     public func dispatch(_ request: KTIPCRequest) async -> KTIPCResponse {
@@ -30,7 +34,7 @@ public final class KTIPCCommandDispatcher: Sendable {
         case "logs.recent":
             return await handleRecentLogs(request: request)
         case "db.backup":
-            return .fail(Self.backupUnavailable, id: request.id)
+            return await handleDatabaseBackup(request: request)
         default:
             return .fail("Unknown method: \(request.method)", id: request.id)
         }

@@ -3,7 +3,7 @@ import KTStackCore
 
 extension KTIPCCommandDispatcher {
     static let backupUnavailable =
-        "Database backup is not available from the CLI or MCP yet. Use KTStack › Database › Backups."
+        "Database backup is unavailable right now. Use KTStack › Database › Backups."
 
     func handleServicesList(id: String?) async -> KTIPCResponse {
         guard let services = await servicesProvider() else {
