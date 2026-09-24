@@ -32,13 +32,13 @@ shopt -u nullglob
 
 if [[ ${#DMGS[@]} -le 1 ]]; then
     echo "=== generate_appcast over $RELEASES ==="
-    "$GEN_APPCAST" "${PREFIX_ARGS[@]}" "$RELEASES"
+    "$GEN_APPCAST" ${PREFIX_ARGS[@]+"${PREFIX_ARGS[@]}"} "$RELEASES"
 else
     echo "=== per-arch appcast: generating ${#DMGS[@]} archives separately then merging ==="
     ITEMS=""
     for d in "${DMGS[@]}"; do
         sub="$(mktemp -d)"; cp "$d" "$sub/"
-        "$GEN_APPCAST" "${PREFIX_ARGS[@]}" "$sub" >/dev/null
+        "$GEN_APPCAST" ${PREFIX_ARGS[@]+"${PREFIX_ARGS[@]}"} "$sub" >/dev/null
         ITEMS+="$(sed -n '/<item>/,/<\/item>/p' "$sub/appcast.xml")"$'\n'
         rm -rf "$sub"
     done
