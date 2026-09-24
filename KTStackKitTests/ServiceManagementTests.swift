@@ -584,7 +584,7 @@ final class ServiceManagementTests: XCTestCase {
     }
 
     @MainActor
-    func testUninstallPreservesActiveVersionWhenUninstallingNonMax() throws {
+    func testUninstallPreservesActiveVersionWhenUninstallingNonMax() async throws {
         let root = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("kd-sm-h1-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -610,7 +610,8 @@ final class ServiceManagementTests: XCTestCase {
         try sut.setActiveVersion(ServiceKind.redis, version: "7.0.0")
         XCTAssertEqual(sut.activeVersion(.redis), "7.0.0")
 
-        try sut.uninstall(kind: .redis, version: "7.2.0")
+        sut.jobLoadedProbe = { _ in false }
+        let kept = try await sut.uninstall(kind: .redis, version: "7.2.0")
 
         XCTAssertEqual(sut.activeVersion(.redis), "7.0.0",
                        "uninstalling non-active mid version must not change active version")
@@ -618,9 +619,10 @@ final class ServiceManagementTests: XCTestCase {
             FileManager.default.fileExists(atPath: p.runtimeDir("redis", "7.2.0").path),
             "uninstalled runtime dir must be removed"
         )
-        XCTAssertFalse(
-            FileManager.default.fileExists(atPath: p.serviceData("redis", version: "7.2.0").path),
-            "uninstalled data dir must be removed"
+        XCTAssertFalse(FileManager.default.fileExists(atPath: p.serviceData("redis", version: "7.2.0").path))
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: try XCTUnwrap(kept).path),
+            "uninstalled data dir must be kept under .removed, never deleted"
         )
         XCTAssertTrue(
             FileManager.default.fileExists(atPath: p.serviceData("redis", version: "7.0.0").path),
@@ -629,7 +631,7 @@ final class ServiceManagementTests: XCTestCase {
     }
 
     @MainActor
-    func testUninstallRepointsToMaxNumericWhenActiveIsGone() throws {
+    func testUninstallRepointsToMaxNumericWhenActiveIsGone() async throws {
         let root = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("kd-sm-repoint-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -657,14 +659,15 @@ final class ServiceManagementTests: XCTestCase {
         XCTAssertEqual(sut.activeVersion(.redis), "7.4.2",
                        "stale stored version → falls back to max installed before any uninstall")
 
-        try sut.uninstall(kind: .redis, version: "7.0.0")
+        sut.jobLoadedProbe = { _ in false }
+        _ = try await sut.uninstall(kind: .redis, version: "7.0.0")
 
         XCTAssertEqual(sut.activeVersion(.redis), "7.4.2",
                        "after uninstalling non-active version, active remains at max installed")
     }
 
     @MainActor
-    func testUninstallRefusesActiveVersion() throws {
+    func testUninstallRefusesActiveVersion() async throws {
         let root = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("kd-sm-refuse-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -685,11 +688,11 @@ final class ServiceManagementTests: XCTestCase {
 
         try sut.setActiveVersion(ServiceKind.redis, version: "7.4.2")
 
-        XCTAssertThrowsError(try sut.uninstall(kind: .redis, version: "7.4.2")) { error in
-            XCTAssertTrue(
-                (error as? ServiceVersionError) != nil,
-                "uninstalling the active version must throw ServiceVersionError"
-            )
+        do {
+            _ = try await sut.uninstall(kind: .redis, version: "7.4.2")
+            XCTFail("uninstalling the active version must throw")
+        } catch {
+            XCTAssertTrue(error is ServiceVersionError, "uninstalling the active version must throw ServiceVersionError")
         }
         XCTAssertTrue(
             FileManager.default.fileExists(atPath: p.runtimeDir("redis", "7.4.2").path),
