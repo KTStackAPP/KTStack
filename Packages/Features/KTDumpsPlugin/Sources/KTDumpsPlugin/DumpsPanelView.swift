@@ -113,7 +113,7 @@ struct DumpsPanelView: View {
                         Color.clear.frame(height: 1).id(bottomID)
                     }
                 }
-                .onChange(of: model.events.count) { _ in
+                .onChange(of: model.events.last?.id) { _ in
                     guard model.autoScroll else { return }
                     if reduceMotion { proxy.scrollTo(bottomID, anchor: .bottom) }
                     else { withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(bottomID, anchor: .bottom) } }
