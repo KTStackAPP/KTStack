@@ -11,7 +11,7 @@
 - **Primary Tech Stack**: Swift 6+, SwiftUI, AppKit (high-performance virtualized grid), XcodeGen.
 - **Platform Targets**:
   - Minimum Deployment Target: **macOS 13.0 (Ventura)**
-  - Architecture: **Apple Silicon (arm64)**
+  - Architecture: **Apple Silicon (arm64) and Intel (x86_64)**, released as separate per-arch DMGs (`KTStack-<version>-arm64.dmg`, `-x86_64.dmg`); the appcast tags the arm64 item with `sparkle:hardwareRequirements`.
   - Modern Visual Target: **macOS 27+ Liquid Glass (with macOS 13+ fallback)**
 - **Build System**: XcodeGen via `project.yml`. Never edit `KTStack.xcodeproj` directly.
 
