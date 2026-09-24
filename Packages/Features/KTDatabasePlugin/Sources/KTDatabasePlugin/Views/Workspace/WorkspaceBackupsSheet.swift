@@ -4,7 +4,7 @@ import SwiftUI
 
 struct WorkspaceBackupsSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var vm: DatabaseViewModel
+    @ObservedObject var admin: DatabaseAdminModel
     let session: BackupSession
     @StateObject var feedback = KTFeedbackCenter()
     @State var backupSets: [BackupSet] = []
@@ -14,7 +14,7 @@ struct WorkspaceBackupsSheet: View {
     @State var showAllConnections = false
     @State var confirmedTargets: Set<UUID> = []
 
-    private var isConnected: Bool { vm.connection == .connected }
+    private var isConnected: Bool { admin.connection == .connected }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,8 +25,8 @@ struct WorkspaceBackupsSheet: View {
         .frame(width: 560, height: 480)
         .background(KTColor.contentBg)
         .sheet(item: $restoringSet) { set in
-            RestoreSheet(set: set, isReadOnly: vm.isReadOnlyConnection, targetName: targetName) { db, target in
-                let restored = await vm.restoreBackup(
+            RestoreSheet(set: set, isReadOnly: admin.isReadOnlyConnection, targetName: targetName) { db, target in
+                let restored = await admin.restoreBackup(
                     set, database: db, target: target, session: session,
                     confirmedTarget: confirmedTargets.contains(set.id)
                 )
@@ -98,7 +98,7 @@ struct WorkspaceBackupsSheet: View {
         guard !backingUp else { return }
         backingUp = true
         Task {
-            let set = await vm.backupAllDatabases(session: session)
+            let set = await admin.backupAllDatabases(session: session)
             await reloadBackups()
             backingUp = false
             if set != nil { feedback.toast("Backup complete") } else { reportFailure(unless: false) }
@@ -112,7 +112,7 @@ struct WorkspaceBackupsSheet: View {
             okLabel: "Delete",
             danger: true
         ) {
-            vm.deleteBackup(set, session: session)
+            admin.deleteBackup(set, session: session)
             Task { await reloadBackups() }
             feedback.toast("Backup deleted")
         }
@@ -122,7 +122,7 @@ struct WorkspaceBackupsSheet: View {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = "\(set.databases.first ?? "backup").zip"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        vm.exportBackup(set, to: url, session: session)
+        admin.exportBackup(set, to: url, session: session)
     }
 
     private func reloadBackups() async {

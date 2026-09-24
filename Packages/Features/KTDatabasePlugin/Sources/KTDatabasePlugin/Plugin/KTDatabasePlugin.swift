@@ -19,7 +19,6 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
             .appendingPathComponent("database", isDirectory: true)
             .appendingPathComponent("connections.json")
     )
-    @MainActor lazy var databaseVM = DatabaseViewModel(tools: tools)
     @MainActor lazy var documentVM = DocumentViewModel(tools: tools)
     @MainActor lazy var filterPresetStore = FilterPresetStore(
         storeURL: paths.config
@@ -100,7 +99,6 @@ public final class KTDatabasePlugin: KTStackPlugin, PluginLifecycle, SectionActi
                 onOpenPanel: { [weak self] in self?.openDatabasePanel() }
             )
             .environmentObject(connectionStore)
-            .environmentObject(databaseVM)
             .environmentObject(documentVM)
             .ktFeedbackHost(feedback)
         )

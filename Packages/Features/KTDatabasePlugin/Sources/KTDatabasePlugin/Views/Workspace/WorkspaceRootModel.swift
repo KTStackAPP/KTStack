@@ -14,7 +14,7 @@ final class WorkspaceRootModel: ObservableObject {
     var backupSession: BackupSession { session.backupSession }
     var feedback: KTFeedbackCenter { session.feedback }
     var sectionState: DatabaseSectionState { session.sectionState }
-    var databaseVM: DatabaseViewModel { session.databaseVM }
+    var admin: DatabaseAdminModel { session.admin }
     var documentVM: DocumentViewModel { session.documentVM }
     let connectionStore: ConnectionStore
     let engineInstalled: (DatabaseEngine) -> Bool
@@ -107,7 +107,7 @@ final class WorkspaceRootModel: ObservableObject {
         defer { isConnecting = false }
         await vm.connect(profile: profile)
         guard case .connected = vm.connectionState else { return }
-        Task { await databaseVM.select(profile: profile) }
+        Task { await admin.select(profile: profile) }
         if let last = lastUsed.lastDatabase(for: profile.id),
            vm.databases.contains(where: { $0.name == last }), last != vm.selectedDatabase {
             await vm.select(database: last)

@@ -80,7 +80,7 @@ public protocol KTDatabaseDriverProtocol: Sendable {
 By conforming to this contract, any database engine automatically inherits:
 - Focus-free table grid editing (`KTCellOverlayEditor`).
 - Virtual scrolling with keyboard shortcuts (`KTGridKeyHandlingTableView`).
-- Primary-key indexed staging and rollbacks (`KTGridStagingState`).
+- Primary-key indexed staging and rollbacks (`StagedTableEditor`).
 
 ---
 

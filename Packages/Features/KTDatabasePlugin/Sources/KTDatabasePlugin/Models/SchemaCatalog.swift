@@ -20,15 +20,6 @@ public struct SchemaCatalog: Sendable, Equatable {
 
     public static let empty = SchemaCatalog()
 
-    public func withRelations(_ relations: [ForeignKeyRelation]) -> SchemaCatalog {
-        SchemaCatalog(
-            tables: tables,
-            columnsByTable: columnsByTable,
-            detailedColumnsByTable: detailedColumnsByTable,
-            relations: relations
-        )
-    }
-
     public func withDetailedColumns(_ detailed: [String: [ColumnInfo]]) -> SchemaCatalog {
         let names = detailed.mapValues { $0.map(\.name) }
         let mergedNames = columnsByTable.merging(names) { _, new in new }

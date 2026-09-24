@@ -31,10 +31,10 @@ extension WorkspaceRootModel {
     private func backupProfile(_ profile: ConnectionProfile) {
         Task {
             guard await ensureBackupConnection(profile) else { return }
-            let set = await databaseVM.backupAllDatabases(session: backupSession)
+            let set = await admin.backupAllDatabases(session: backupSession)
             if set != nil {
                 feedback.toast("Backed up “\(profile.name)”")
-            } else if case let .failed(message) = databaseVM.backupStatus {
+            } else if case let .failed(message) = admin.backupStatus {
                 feedback.toast("Backup failed: \(message)")
             }
         }
@@ -45,10 +45,10 @@ extension WorkspaceRootModel {
     }
 
     private func ensureBackupConnection(_ profile: ConnectionProfile) async -> Bool {
-        if databaseVM.selectedProfile?.id == profile.id, databaseVM.connection == .connected { return true }
-        await databaseVM.select(profile: profile)
-        if databaseVM.connection == .connected { return true }
-        if case let .failed(error) = databaseVM.connection { feedback.toast(error.message) }
+        if admin.selectedProfile?.id == profile.id, admin.connection == .connected { return true }
+        await admin.select(profile: profile)
+        if admin.connection == .connected { return true }
+        if case let .failed(error) = admin.connection { feedback.toast(error.message) }
         return false
     }
 

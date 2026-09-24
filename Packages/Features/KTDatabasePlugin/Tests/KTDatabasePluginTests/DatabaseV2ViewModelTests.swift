@@ -284,7 +284,7 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         driver2.tables = [TableInfo(name: "newtable")]
 
         var driverIndex = 0
-        let makeDriver: DatabaseViewModel.DriverFactory = { _, _ in
+        let makeDriver: RelationalDriverFactory = { _, _ in
             defer { driverIndex += 1 }
             return driverIndex == 0 ? driver1 : driver2
         }
@@ -728,7 +728,7 @@ final class DatabaseV2ViewModelTests: XCTestCase {
         let driver2 = TestDriver()
 
         var driverIndex = 0
-        let makeDriver: DatabaseViewModel.DriverFactory = { _, _ in
+        let makeDriver: RelationalDriverFactory = { _, _ in
             defer { driverIndex += 1 }
             return driverIndex == 0 ? driver1 : driver2
         }

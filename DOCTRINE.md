@@ -96,7 +96,7 @@ Packages/
 ### 4.1 Database Editor Grid Architecture
 - **Floating Overlay Editor (`KTCellOverlayEditor`)**: Bypasses AppKit's default `NSTextFieldDelegate` field editor to prevent focus trapping and preserve Tab/Enter/Arrow navigation.
 - **Key Interception (`KTGridKeyHandlingTableView`)**: Intercepts keyboard events before standard AppKit dispatch for instant type-to-edit, draft row insertion (`⌘N`), deletion, and commit (`⌘S`).
-- **PK-Indexed Staging (`KTGridStagingState`)**: Dirty cells and staged rows must be tracked strictly by **primary key (PK)**, never by volatile visual row indices, guaranteeing state integrity during virtual scrolling, sorting, and sliding pagination.
+- **PK-Indexed Staging (`StagedTableEditor`)**: Dirty cells and staged rows must be tracked strictly by **primary key (PK)**, never by volatile visual row indices, guaranteeing state integrity during virtual scrolling, sorting, and sliding pagination.
 - **Transaction Parity**: Driver transactions must execute atomically (`$N` parameter binding in `PostgresDriver`, `BEGIN IMMEDIATE TRANSACTION` in `SQLiteDriver`).
 
 ### 4.2 macOS Root CA Trust & Verification

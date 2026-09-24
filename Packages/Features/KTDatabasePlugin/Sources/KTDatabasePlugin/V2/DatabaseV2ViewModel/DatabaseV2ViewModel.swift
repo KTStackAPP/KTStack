@@ -103,7 +103,7 @@ public final class DatabaseV2ViewModel: ObservableObject {
         )
     }
 
-    let makeDriver: DatabaseViewModel.DriverFactory
+    let makeDriver: RelationalDriverFactory
     let passwordFor: @Sendable (ConnectionProfile) -> String?
     let presetStore: FilterPresetStore?
     let historyStore: QueryHistoryStore
@@ -116,10 +116,10 @@ public final class DatabaseV2ViewModel: ObservableObject {
         presetStore: FilterPresetStore? = nil,
         historyStore: QueryHistoryStore = QueryHistoryStore(),
         favoriteStore: QueryFavoriteStore = QueryFavoriteStore(),
-        makeDriver: DatabaseViewModel.DriverFactory? = nil,
-        passwordFor: @escaping @Sendable (ConnectionProfile) -> String? = DatabaseViewModel.defaultPassword
+        makeDriver: RelationalDriverFactory? = nil,
+        passwordFor: @escaping @Sendable (ConnectionProfile) -> String? = RelationalDrivers.password
     ) {
-        self.makeDriver = makeDriver ?? DatabaseViewModel.defaultDriver(tools: tools)
+        self.makeDriver = makeDriver ?? RelationalDrivers.factory(tools: tools)
         self.passwordFor = passwordFor
         self.presetStore = presetStore
         self.historyStore = historyStore

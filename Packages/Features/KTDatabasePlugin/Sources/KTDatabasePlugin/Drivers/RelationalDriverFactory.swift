@@ -2,8 +2,10 @@ import Foundation
 import KTPlatformContracts
 import KTStackCore
 
-public extension DatabaseViewModel {
-    static func defaultDriver(tools: any DatabaseToolsProviding) -> DriverFactory {
+public typealias RelationalDriverFactory = @Sendable (ConnectionProfile, String?) -> RelationalDriver?
+
+public enum RelationalDrivers {
+    public static func factory(tools: any DatabaseToolsProviding) -> RelationalDriverFactory {
         { profile, password in
             switch profile.kind {
             case .mysql: MySQLDriver(profile: profile, password: password, tools: tools)
@@ -14,7 +16,7 @@ public extension DatabaseViewModel {
         }
     }
 
-    static let defaultPassword: @Sendable (ConnectionProfile) -> String? = { profile in
+    public static let password: @Sendable (ConnectionProfile) -> String? = { profile in
         if profile.isManaged { return nil }
         return try? KeychainStore(service: DatabaseKeychain.service).get(account: profile.id.uuidString)
     }

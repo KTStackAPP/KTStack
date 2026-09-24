@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 struct KTConnectModal: View {
     @EnvironmentObject private var store: ConnectionStore
-    @EnvironmentObject private var vm: DatabaseViewModel
+    @EnvironmentObject private var admin: DatabaseAdminModel
     @EnvironmentObject private var documentVM: DocumentViewModel
     let onClose: () -> Void
     let onConnected: (String) -> Void
@@ -126,10 +126,10 @@ struct KTConnectModal: View {
         testError = nil
         tested = false
         Task { @MainActor in
-            let tools = vm.tools
+            let tools = admin.tools
             let driver: DatabaseDriver? = profile.kind == .mongodb
                 ? DocumentViewModel.defaultDriver(tools: tools)(profile, pwd)
-                : DatabaseViewModel.defaultDriver(tools: tools)(profile, pwd)
+                : RelationalDrivers.factory(tools: tools)(profile, pwd)
             guard let driver else {
                 testing = false
                 testError = "Unsupported engine"
@@ -165,9 +165,9 @@ struct KTConnectModal: View {
                 default: testError = "Could not connect."
                 }
             } else {
-                await vm.select(profile: profile)
+                await admin.select(profile: profile)
                 testing = false
-                switch vm.connection {
+                switch admin.connection {
                 case .connected: onConnected(profile.name)
                 case let .failed(error): testError = error.message
                 default: testError = "Could not connect."

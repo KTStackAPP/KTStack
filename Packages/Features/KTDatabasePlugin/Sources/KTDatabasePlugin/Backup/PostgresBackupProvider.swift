@@ -46,50 +46,6 @@ public struct PostgresBackupProvider: BackupProvider {
         return try await databaseExists(database, profile: profile, passwordFile: passwordFile)
     }
 
-    public func importManual(
-        profile: ConnectionProfile,
-        password: String?,
-        from artifactURL: URL,
-        database: String,
-        replaceExisting: Bool
-    ) async throws {
-        try DumpService.validateIdentifier(database, label: "database")
-        guard FileManager.default.fileExists(atPath: artifactURL.path) else {
-            throw DatabaseError.connection("Import file not found: \(artifactURL.lastPathComponent)")
-        }
-
-        let passwordFile = try runner.writePasswordFile(password)
-        defer { if let passwordFile { try? FileManager.default.removeItem(at: passwordFile) } }
-
-        if artifactURL.pathExtension.lowercased() == "sql" {
-            try await importSQL(
-                artifactURL,
-                into: database,
-                profile: profile,
-                passwordFile: passwordFile,
-                replaceExisting: replaceExisting
-            )
-            return
-        }
-
-        if replaceExisting {
-            try await overwrite(database, from: artifactURL, profile: profile, passwordFile: passwordFile)
-        } else {
-            if try await databaseExists(database, profile: profile, passwordFile: passwordFile) {
-                throw DatabaseError.connection(
-                    "A database named \"\(database)\" already exists. Choose another name or overwrite it explicitly."
-                )
-            }
-            try await createDatabase(database, profile: profile, passwordFile: passwordFile)
-            do {
-                try await restoreArchive(artifactURL, into: database, profile: profile, passwordFile: passwordFile)
-            } catch {
-                try? await dropDatabase(database, profile: profile, passwordFile: passwordFile)
-                throw error
-            }
-        }
-    }
-
     public func backup(
         profile: ConnectionProfile,
         password: String?,
@@ -193,38 +149,6 @@ public struct PostgresBackupProvider: BackupProvider {
             args: runner.connectionArgs(profile) + ["--no-owner", "--no-acl", "-d", database, artifactURL.path],
             passwordFile: passwordFile
         )
-    }
-
-    private func importSQL(
-        _ artifactURL: URL,
-        into database: String,
-        profile: ConnectionProfile,
-        passwordFile: URL?,
-        replaceExisting: Bool
-    ) async throws {
-        let existed = try await databaseExists(database, profile: profile, passwordFile: passwordFile)
-        if !replaceExisting, existed {
-            throw DatabaseError.connection(
-                "A database named \"\(database)\" already exists. Choose another name or overwrite it explicitly."
-            )
-        }
-        if !existed {
-            try await createDatabase(database, profile: profile, passwordFile: passwordFile)
-        }
-        let psql = try runner.binary("bin/psql")
-        do {
-            try await runner.run(
-                psql,
-                args: runner.connectionArgs(profile)
-                    + ["-d", database, "-v", "ON_ERROR_STOP=1", "-f", artifactURL.path],
-                passwordFile: passwordFile
-            )
-        } catch {
-            if !existed {
-                try? await dropDatabase(database, profile: profile, passwordFile: passwordFile)
-            }
-            throw error
-        }
     }
 
     private func createDatabase(_ name: String, profile: ConnectionProfile, passwordFile: URL?) async throws {

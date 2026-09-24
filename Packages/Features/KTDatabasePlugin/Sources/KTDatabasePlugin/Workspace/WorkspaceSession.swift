@@ -11,7 +11,7 @@ public final class WorkspaceSession: ObservableObject, Identifiable {
     public let shell: DatabaseV2ViewModel
     let sectionState = DatabaseSectionState()
     let feedback = KTFeedbackCenter()
-    let databaseVM: DatabaseViewModel
+    let admin: DatabaseAdminModel
     let documentVM: DocumentViewModel
     let backupSession: BackupSession
     @Published public private(set) var title = "KTStack Database"
@@ -26,7 +26,7 @@ public final class WorkspaceSession: ObservableObject, Identifiable {
     ) {
         self.store = store
         self.shell = shell
-        databaseVM = DatabaseViewModel(tools: tools)
+        admin = DatabaseAdminModel(tools: tools)
         documentVM = DocumentViewModel(tools: tools)
         backupSession = BackupSession.managed(tools: tools, paths: paths)
         Publishers.CombineLatest3(store.$selectedProfileID, store.$profiles, shell.$selectedDatabase)
@@ -54,7 +54,7 @@ public final class WorkspaceSession: ObservableObject, Identifiable {
 
     public func closeAll() async {
         store.closeAll()
-        await databaseVM.deselectAndWait()
+        await admin.close()
         await shell.disconnect()
     }
 

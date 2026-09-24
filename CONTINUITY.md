@@ -44,7 +44,7 @@ The following specialized SwiftUI and system skills are installed and verified i
 - **Clean-Room Implementation**: MIT-licensed original code (zero AGPL TablePro code).
 - **`KTCellOverlayEditor`**: Floating `NSTextView` overlay bypassing standard `NSTextFieldDelegate` focus trapping.
 - **`KTGridKeyHandlingTableView`**: Intercepts key events before dispatch for keyboard navigation and shortcuts (`⌘N`, `⌘S`, `⌘Z`, `Delete`).
-- **`KTGridStagingState`**: PK-indexed dirty/staged cell management to maintain integrity across virtual scrolling.
+- **`StagedTableEditor`**: PK-indexed dirty/staged cell management to maintain integrity across virtual scrolling.
 - **Atomic Parity**: Postgres uses `$1, $2` positional parameters; SQLite uses `BEGIN IMMEDIATE TRANSACTION`.
 
 ### 3.3 macOS Root CA Trust Management
