@@ -68,7 +68,7 @@ The following specialized SwiftUI and system skills are installed and verified i
 1. **Comment Policy**: Zero comments in code (`//`, `/* */`, `MARK:`, `TODO:`). Self-documenting code only. Rationale belongs in documentation and ADRs.
 2. **File Size**: Swift files must not exceed 200 lines. Split into focused submodules with descriptive kebab-case names.
 3. **No Mocks or Placeholders**: Implement real, compilable, and executable code.
-4. **Git Discipline**: Conventional commit messages (`feat:`, `fix:`, `refactor:`). No AI references in commit messages. Never use `chore` or `docs` on files inside `.claude/`.
+4. **Git Discipline**: Conventional commit messages (`feat:`, `fix:`, `refactor:`). Branches named `feat/<topic>`. No AI references in commit messages, PR bodies or GitHub comments (no `Co-Authored-By: Claude`, no "Generated with Claude Code"); see `.claude/rules/git-conventions.md`. Never use `chore` or `docs` on files inside `.claude/`.
 
 ---
 
