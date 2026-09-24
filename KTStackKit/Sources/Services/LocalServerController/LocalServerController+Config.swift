@@ -78,6 +78,7 @@ extension LocalServerController {
         startNginx: Bool,
         runPreflight: Bool = true
     ) async throws -> [String] {
+        if let failure = await registry.loadFailure { throw SiteRegistry.LoadFailure(message: failure) }
         let changed = try generator.generate(sites: sites, port: port)
 
         let phpUp = !pools.activeVersions.isEmpty && pools.activeVersions.allSatisfy { pools.isRunning(version: $0) }
