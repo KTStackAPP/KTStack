@@ -53,6 +53,11 @@ LOG="$LOG_DIR/architecture-check.log"
 scripts/architecture-check.sh >"$LOG" 2>&1 || fail "architecture-check" "$LOG"
 ok "architecture-check"
 
+begin "release scripts"
+LOG="$LOG_DIR/release-scripts.log"
+scripts/release/tests/test-update-appcast.sh >"$LOG" 2>&1 || fail "release scripts" "$LOG"
+ok "release scripts"
+
 begin "lint"
 LOG="$LOG_DIR/lint.log"
 scripts/lint.sh >"$LOG" 2>&1 || fail "lint" "$LOG"
