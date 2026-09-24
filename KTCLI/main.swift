@@ -21,6 +21,13 @@ func printUsage() {
 }
 
 let args = Array(CommandLine.arguments.dropFirst())
+if args.first == ProcessWatchdog.command {
+    guard let parsed = ProcessWatchdog.parse(Array(args.dropFirst())) else {
+        fputs("usage: kt tunnel-watchdog --parent-pid <pid> [--deadline <epoch>] -- <program> [args]\n", stderr)
+        exit(64)
+    }
+    exit(parsed.watchdog.run(executable: parsed.executable, arguments: parsed.arguments))
+}
 let client = KTIPCClient()
 let resolver = ShellToolResolver()
 guard resolver.isToolEnabled("kt") else {

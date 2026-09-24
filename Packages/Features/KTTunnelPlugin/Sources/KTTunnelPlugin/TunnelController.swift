@@ -39,6 +39,7 @@ public actor TunnelController {
         binary: URL,
         originPort: Int,
         localDomain: String,
+        watchdog: TunnelWatchdogLaunch? = nil,
         onURL: @escaping @Sendable (URL) async -> Void = { _ in },
         onStatus: @escaping @Sendable (TunnelStatus) -> Void
     ) async {
@@ -51,13 +52,10 @@ public actor TunnelController {
         let fm = FileManager.default
         try? fm.removeItem(at: logURL)
         fm.createFile(atPath: logURL.path, contents: nil)
+        let arguments = TunnelOrigin.cloudflaredArguments(port: originPort)
+        let launch = watchdog?.wrap(binary: binary, arguments: arguments) ?? (binary, arguments)
         do {
-            try jobs.bootstrapTunnelJob(
-                label: label,
-                binary: binary,
-                arguments: TunnelOrigin.cloudflaredArguments(port: originPort),
-                logPath: logURL.path
-            )
+            try jobs.bootstrapTunnelJob(label: label, binary: launch.binary, arguments: launch.arguments, logPath: logURL.path)
         } catch {
             onStatus(.error(error.localizedDescription))
             return

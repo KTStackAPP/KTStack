@@ -14,8 +14,11 @@ public struct NginxTunnelVhostWriter {
         errorLog: URL? = nil,
         publicHost: String? = nil,
         supportsBodyRewrite: Bool = false,
-        hostPrependFile: URL? = nil
+        hostPrependFile: URL? = nil,
+        directivesInclude: URL? = nil,
+        apacheBackendPort: Int? = nil
     ) -> String {
+        let include = NginxConfigWriter.includeDirective(directivesInclude)
         // Proxy/Node site: route thẳng tới upstream, không phục vụ static.
         let upstream: ProxyTarget? = switch site.type {
         case .proxy: site.proxyUpstream
@@ -26,23 +29,30 @@ public struct NginxTunnelVhostWriter {
             return """
             server {
                 listen \(Self.listenAddress):\(port);
-                server_name _;\(FrontAccessPolicy.tunnelClientIP)\(NginxConfigWriter.logDirectives(access: accessLog, error: errorLog))
+                server_name _;\(FrontAccessPolicy.tunnelClientIP)\(NginxConfigWriter.logDirectives(access: accessLog, error: errorLog))\(include)
 
             \(NginxConfigWriter.proxyRouting(upstream: upstream))
             }
             """
         }
+        let rewrite = supportsBodyRewrite ? publicHostRewrite(localDomain: site.domain, publicHost: publicHost) : ""
+        if let apacheBackendPort {
+            return backendProxyServer(
+                port: port, backendPort: apacheBackendPort, host: publicHost ?? site.domain,
+                logs: FrontAccessPolicy.tunnelClientIP + NginxConfigWriter.logDirectives(access: accessLog, error: errorLog) + rewrite + include,
+                clearEncoding: !rewrite.isEmpty
+            )
+        }
         let root = URL(fileURLWithPath: site.docroot)
         let prepend = publicHost == nil ? nil : hostPrependFile
         let routing = phpFpmSocket.map { phpRouting(socket: $0, localHost: site.domain, publicHost: publicHost, prependFile: prepend, env: site.envVars) } ?? staticRouting()
         let index = phpFpmSocket == nil ? "index.html index.htm" : "index.php index.html"
-        let rewrite = supportsBodyRewrite ? publicHostRewrite(localDomain: site.domain, publicHost: publicHost) : ""
         return """
         server {
             listen \(Self.listenAddress):\(port);
             server_name _;\(FrontAccessPolicy.tunnelClientIP)
             root \(NginxConfigWriter.q(root.path));
-            index \(index);\(NginxConfigWriter.logDirectives(access: accessLog, error: errorLog))\(rewrite)
+            index \(index);\(NginxConfigWriter.logDirectives(access: accessLog, error: errorLog))\(rewrite)\(include)
 
         \(routing)
         }

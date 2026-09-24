@@ -81,6 +81,7 @@ public final class TunnelOriginService: TunnelOriginConfiguring, @unchecked Send
 
     private func writeTunnelVhost(site: Site, port: Int, publicHost: String?, hostPrependFile: URL?) throws {
         let socket = site.type == .php ? paths.phpFpmSocket(generator.effectivePHPVersion(site.phpVersion)) : nil
+        let apache = site.type == .php && WebServerBackendFactory.effectiveEngine(site.serverEngine, paths: paths) == .apache
         let config = tunnelWriter.vhost(
             site: site,
             port: port,
@@ -89,7 +90,9 @@ public final class TunnelOriginService: TunnelOriginConfiguring, @unchecked Send
             errorLog: paths.siteErrorLog(site.domain),
             publicHost: publicHost,
             supportsBodyRewrite: nginx.supportsResponseBodyRewrite(),
-            hostPrependFile: hostPrependFile
+            hostPrependFile: hostPrependFile,
+            directivesInclude: site.hasFrontDirectives ? paths.siteDirectivesConf(site.id.uuidString) : nil,
+            apacheBackendPort: apache ? site.backendPort : nil
         )
         try config.write(to: tunnelVhostURL(site.id), atomically: true, encoding: .utf8)
     }
