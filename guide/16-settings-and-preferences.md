@@ -46,6 +46,14 @@ These options control how KTStack behaves on your Mac.
 2. Toggle it off to restore the full-color KTStack icon.
 3. The icon updates immediately; KTStack does not need to restart.
 
+### Appearance
+
+**What it does**: Chooses whether KTStack follows the macOS appearance or always uses a light or dark look.
+
+1. Click the **dropdown** next to "Appearance".
+2. Choose **System** (default, follows macOS), **Light** or **Dark**.
+3. The change applies immediately.
+
 ## Sites & Network Settings
 
 These options set defaults for how your sites are served.

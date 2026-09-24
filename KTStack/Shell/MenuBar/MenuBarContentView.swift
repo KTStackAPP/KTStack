@@ -200,7 +200,7 @@ struct MenuBarContentView: View {
         Button(action: action) {
             footerRowLabel(title, systemImage: systemImage, shortcut: shortcut)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.plain).ktMenuShortcut(shortcut)
     }
 
     private func footerRowLabel(

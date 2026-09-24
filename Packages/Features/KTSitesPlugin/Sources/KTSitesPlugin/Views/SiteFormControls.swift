@@ -77,7 +77,7 @@ enum SiteFormControls {
                 Text(subtitle).font(.jbMono(12.5)).foregroundStyle(KTColor.muted)
             }
             Spacer()
-            KTToggle(isOn: binding.wrappedValue) { binding.wrappedValue.toggle() }
+            KTToggle(title, isOn: binding.wrappedValue) { binding.wrappedValue.toggle() }
         }
     }
 

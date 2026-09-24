@@ -50,7 +50,7 @@ struct XdebugToggleView: View {
                 if model.busy {
                     ProgressView().controlSize(.small)
                 } else {
-                    KTToggle(isOn: model.enabled) { model.toggle(!model.enabled) }
+                    KTToggle("Xdebug", isOn: model.enabled) { model.toggle(!model.enabled) }
                         .opacity(model.supported ? 1 : 0.4)
                         .allowsHitTesting(model.supported)
                 }
