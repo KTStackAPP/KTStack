@@ -28,7 +28,8 @@ public struct SiteRemovalCoordinator: Sendable {
 
 @MainActor
 public final class SiteRegistry: ObservableObject {
-    @Published public private(set) var sites: [Site] = []
+    @Published public internal(set) var sites: [Site] = []
+    @Published public internal(set) var loadFailure: String?
 
     /// Fired after any successful mutation (and after load), on the main actor.
     public var onChange: (() -> Void)?
@@ -38,7 +39,7 @@ public final class SiteRegistry: ObservableObject {
     /// next launch (the registry/helper read the TLD once at startup; live re-injection is avoided).
     public let tld: String
 
-    private let storeURL: URL
+    let storeURL: URL
     private let inspector = SiteInspector()
     private let versionResolver = ProjectVersionResolver()
     private let preflight = PortPreflight()
@@ -357,33 +358,5 @@ public final class SiteRegistry: ObservableObject {
             n += 1
         }
         return "\(label)-\(n).\(tld)"
-    }
-
-    private func load() {
-        guard let data = try? Data(contentsOf: storeURL) else { return } // absent file → fresh
-        if let decoded = try? JSONDecoder().decode([Site].self, from: data) {
-            sites = decoded
-        } else {
-            let backup = storeURL.appendingPathExtension("bak")
-            try? FileManager.default.removeItem(at: backup)
-            try? FileManager.default.copyItem(at: storeURL, to: backup)
-            NSLog("KTStack: could not decode site registry; backed up to \(backup.lastPathComponent)")
-        }
-        onChange?()
-    }
-
-    private func persist() {
-        do {
-            try FileManager.default.createDirectory(
-                at: storeURL.deletingLastPathComponent(),
-                withIntermediateDirectories: true,
-                attributes: [.posixPermissions: 0o700]
-            )
-            let data = try JSONEncoder().encode(sites)
-            try data.write(to: storeURL, options: .atomic)
-        } catch {
-            NSLog("KTStack: failed to persist site registry: \(error.localizedDescription)")
-        }
-        onChange?()
     }
 }
