@@ -105,6 +105,9 @@ extension ServiceManager {
         guard snapshot(kind)?.status != .running else {
             throw ServiceVersionError(message: "Stop \(kind.displayName) before switching versions.")
         }
+        if version != activeVersion(kind), agents.isLoadedNow(kind.launchdLabel) {
+            try agents.bootout(kind.launchdLabel)
+        }
         objectWillChange.send()
         versionStore.setActiveVersion(kind, version)
     }
