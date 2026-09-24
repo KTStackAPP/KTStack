@@ -178,7 +178,7 @@ final class ServiceManagementTests: XCTestCase {
             }
         }
         XCTAssertEqual(bound, 0)
-        XCTAssertEqual(Darwin.listen(listenFD, 1), 0)
+        XCTAssertEqual(Darwin.listen(listenFD, 16), 0)
 
         var assigned = sockaddr_in()
         var len = socklen_t(MemoryLayout<sockaddr_in>.size)
