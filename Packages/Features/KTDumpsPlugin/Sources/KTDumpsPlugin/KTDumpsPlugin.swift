@@ -19,7 +19,9 @@ public final class KTDumpsPlugin: KTStackPlugin, PluginLifecycle {
         AnyView(DumpsPanelView(model: model))
     }
 
-    public func start() async {}
+    public func start() async {
+        await DumpInjector.reconcileLeftover(injector: injector, php: php)
+    }
 
     // Quit cleanup: chỉ file ops (nonisolated) vì applicationWillTerminate block main thread.
     // Không reloadPHPPool: server sắp bootout và hop MainActor lúc quit sẽ deadlock.

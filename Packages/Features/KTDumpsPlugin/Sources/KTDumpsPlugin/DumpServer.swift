@@ -4,88 +4,101 @@ import Network
 
 public final class DumpServer: @unchecked Sendable {
     public static let preferredPort: UInt16 = 9912
-    private static let maxEvents = 500
 
-    private var listener: NWListener?
     private let queue = DispatchQueue(label: "com.ktstack.dumpserver", qos: .utility)
     private let subject = PassthroughSubject<DumpEvent, Never>()
+    private let limits: DumpServerLimits
+    private var listener: NWListener?
+    private var connections: [ObjectIdentifier: DumpConnection] = [:]
+    private var boundPort: UInt16 = 0
 
     public var eventsPublisher: AnyPublisher<DumpEvent, Never> {
         subject.eraseToAnyPublisher()
     }
 
-    public private(set) var port: UInt16 = DumpServer.preferredPort
+    public var port: UInt16 {
+        queue.sync { boundPort }
+    }
 
-    public init() {}
+    var connectionCount: Int {
+        queue.sync { connections.count }
+    }
+
+    public convenience init() {
+        self.init(limits: DumpServerLimits())
+    }
+
+    init(limits: DumpServerLimits) {
+        self.limits = limits
+    }
 
     @discardableResult
-    public func start() throws -> UInt16 {
+    public func start(preferred: UInt16 = DumpServer.preferredPort) async throws -> UInt16 {
         stop()
-        let params = NWParameters.tcp
-        params.allowLocalEndpointReuse = true
-
-        let assignedPort: NWEndpoint.Port = if let preferred = NWEndpoint.Port(rawValue: Self.preferredPort) {
-            preferred
-        } else {
-            .any
+        if let port = NWEndpoint.Port(rawValue: preferred), let bound = try? await listen(on: port) {
+            return bound
         }
-
-        let l = try NWListener(using: params, on: assignedPort)
-        l.newConnectionHandler = { [weak self] conn in self?.accept(conn) }
-        l.stateUpdateHandler = { [weak self] state in
-            if case .ready = state {
-                self?.port = self?.listener?.port?.rawValue ?? Self.preferredPort
-            }
-            if case .failed = state {
-                self?.attemptFallbackPort()
-            }
-        }
-        l.start(queue: queue)
-        listener = l
-        return port
+        return try await listen(on: .any)
     }
 
     public func stop() {
-        listener?.cancel()
-        listener = nil
+        queue.sync {
+            listener?.cancel()
+            listener = nil
+            boundPort = 0
+            let open = Array(connections.values)
+            connections.removeAll()
+            open.forEach { $0.close() }
+        }
     }
 
-    private func attemptFallbackPort() {
-        guard let l = try? NWListener(using: NWParameters.tcp, on: .any) else { return }
-        l.newConnectionHandler = { [weak self] conn in self?.accept(conn) }
-        l.stateUpdateHandler = { [weak self] state in
-            if case .ready = state {
-                self?.port = self?.listener?.port?.rawValue ?? Self.preferredPort
+    private func listen(on port: NWEndpoint.Port) async throws -> UInt16 {
+        let parameters = NWParameters.tcp
+        parameters.allowLocalEndpointReuse = true
+        parameters.requiredInterfaceType = .loopback
+        let candidate = try NWListener(using: parameters, on: port)
+        return try await withCheckedThrowingContinuation { continuation in
+            var settled = false
+            candidate.newConnectionHandler = { [weak self] in self?.accept($0) }
+            candidate.stateUpdateHandler = { [weak self] state in
+                guard !settled else { return }
+                switch state {
+                case .ready:
+                    settled = true
+                    let bound = candidate.port?.rawValue ?? 0
+                    self?.boundPort = bound
+                    continuation.resume(returning: bound)
+                case let .failed(error):
+                    settled = true
+                    candidate.cancel()
+                    continuation.resume(throwing: error)
+                case .cancelled:
+                    settled = true
+                    continuation.resume(throwing: CancellationError())
+                default:
+                    break
+                }
+            }
+            queue.async { [self] in
+                listener = candidate
+                candidate.start(queue: queue)
             }
         }
-        l.start(queue: queue)
-        listener = l
     }
 
     private func accept(_ connection: NWConnection) {
-        connection.start(queue: queue)
-        readLines(from: connection, buffer: Data())
-    }
-
-    private func readLines(from connection: NWConnection, buffer: Data) {
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] content, _, isComplete, error in
-            guard let self else { return }
-            var accumulated = buffer
-            if let data = content { accumulated.append(data) }
-
-            while let newline = accumulated.firstIndex(of: UInt8(ascii: "\n")) {
-                let lineData = accumulated[accumulated.startIndex..<newline]
-                if !lineData.isEmpty, let event = try? DumpEventDecoder.decode(line: Data(lineData)) {
-                    subject.send(event)
-                }
-                accumulated = accumulated[accumulated.index(after: newline)...]
-            }
-
-            if !isComplete, error == nil {
-                readLines(from: connection, buffer: accumulated)
-            } else {
-                connection.cancel()
-            }
+        guard connections.count < limits.maxConnections else {
+            connection.cancel()
+            return
         }
+        let handler = DumpConnection(
+            connection,
+            queue: queue,
+            limits: limits,
+            onEvent: { [weak self] in self?.subject.send($0) },
+            onClose: { [weak self] in self?.connections[$0] = nil }
+        )
+        connections[handler.id] = handler
+        handler.start()
     }
 }

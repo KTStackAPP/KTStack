@@ -37,26 +37,42 @@ final class DumpsViewModel: ObservableObject {
         errorMessage = nil
         Task {
             do {
-                if on {
-                    let port = try dumpServer.start()
-                    for version in php.installedPHPVersions {
-                        try injector.enable(version: version, port: port)
-                        try await php.reloadPHPPool(version: version)
-                    }
-                } else {
-                    for version in php.installedPHPVersions {
-                        try injector.disable(version: version)
-                        try await php.reloadPHPPool(version: version)
-                    }
-                    dumpServer.stop()
-                }
+                if on { try await enable() } else { try await disable() }
                 enabled = on
             } catch {
                 errorMessage = error.localizedDescription
-                if on { dumpServer.stop() }
             }
             busy = false
         }
+    }
+
+    private func enable() async throws {
+        let port = try await dumpServer.start()
+        var enabledVersions: [String] = []
+        do {
+            for version in php.installedPHPVersions {
+                try injector.enable(version: version, port: port)
+                enabledVersions.append(version)
+                try await php.reloadPHPPool(version: version)
+            }
+        } catch {
+            for version in enabledVersions {
+                try? injector.disable(version: version)
+                try? await php.reloadPHPPool(version: version)
+            }
+            injector.cleanupPrependFile()
+            dumpServer.stop()
+            throw error
+        }
+    }
+
+    private func disable() async throws {
+        for version in php.installedPHPVersions {
+            try injector.disable(version: version)
+            try await php.reloadPHPPool(version: version)
+        }
+        injector.cleanupPrependFile()
+        dumpServer.stop()
     }
 
     func clear() {
