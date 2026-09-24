@@ -24,6 +24,7 @@ final class ServiceControlSemanticsTests: XCTestCase {
     func testRefreshStartedBeforeBootstrapDoesNotHideTheNewLabel() {
         let slow = SlowFetch()
         let cache = LoadedLabelsCache(ttl: 0) { slow.fetch() }
+        cache.markUnloaded("com.ktstack.redis")
         _ = cache.contains("com.ktstack.redis")
         XCTAssertEqual(slow.started.wait(timeout: .now() + 5), .success)
 
