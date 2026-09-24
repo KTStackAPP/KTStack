@@ -17,6 +17,7 @@ public extension MongoDriver {
         json: String
     ) async throws {
         try ensureWritable()
+        if let refusal = record.saveRefusal { throw DatabaseError.syntax(refusal) }
         let document = try MongoJSONMapper.document(fromJSON: json)
         if let editedID = document["_id"],
            let editedIDJSON = MongoJSONMapper.identifierJSON(for: editedID),
