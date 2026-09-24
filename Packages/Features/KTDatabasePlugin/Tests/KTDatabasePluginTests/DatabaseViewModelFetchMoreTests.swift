@@ -9,6 +9,17 @@ final class DatabaseViewModelFetchMoreTests: XCTestCase {
         var paginateDelay: Duration = .zero
         var columnNameByTable: [String: String] = ["users": "id", "orders": "ref"]
         private(set) var paginateOffsets: [Int] = []
+        var holdPaginate = false
+        private let gateLock = NSLock()
+        private var held: CheckedContinuation<Void, Never>?
+
+        func releaseHeld() {
+            gateLock.lock()
+            let continuation = held
+            held = nil
+            gateLock.unlock()
+            continuation?.resume()
+        }
 
         init(total: Int) {
             self.total = total
@@ -51,6 +62,13 @@ final class DatabaseViewModelFetchMoreTests: XCTestCase {
             offset: Int
         ) async throws -> QueryResult {
             if paginateDelay > .zero { try? await Task.sleep(for: paginateDelay) }
+            if holdPaginate {
+                await withCheckedContinuation { continuation in
+                    gateLock.lock()
+                    held = continuation
+                    gateLock.unlock()
+                }
+            }
             paginateOffsets.append(offset)
             let name = columnNameByTable[table] ?? "id"
             let end = min(offset + limit, total)
@@ -119,14 +137,22 @@ final class DatabaseViewModelFetchMoreTests: XCTestCase {
 
     func testDoesNotDoubleFetchWhileAlreadyFetching() async {
         let driver = FetchStub(total: 500)
-        driver.paginateDelay = .milliseconds(50)
         let vm = await browse(driver, pageSize: 100)
         let before = driver.paginateOffsets.count
+        driver.holdPaginate = true
 
-        async let first: Void = vm.loadMoreRows()
-        try? await Task.sleep(for: .milliseconds(8))
-        async let second: Void = vm.loadMoreRows()
-        _ = await (first, second)
+        let first = Task { await vm.loadMoreRows() }
+        for _ in 0..<500 where !vm.isFetchingMore {
+            try? await Task.sleep(for: .milliseconds(2))
+        }
+        XCTAssertTrue(vm.isFetchingMore)
+        driver.holdPaginate = false
+        await vm.loadMoreRows()
+        for _ in 0..<500 where driver.paginateOffsets.count == before {
+            driver.releaseHeld()
+            try? await Task.sleep(for: .milliseconds(2))
+        }
+        await first.value
 
         XCTAssertEqual(driver.paginateOffsets.count, before + 1)
         XCTAssertEqual(vm.result?.rowCount, 200)
