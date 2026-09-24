@@ -65,6 +65,7 @@ public final class SiteRegistry: ObservableObject {
         case unsafeDeletePath(String)
         case noFreeBackendPort
         case proxyTargetLoopsToSite(String)
+        case proxyTargetIsFront(String)
         case aliasTaken(String, by: String)
         case aliasEqualsDomain(String)
         case invalidEnv(String)
@@ -79,6 +80,7 @@ public final class SiteRegistry: ObservableObject {
             case let .unsafeDeletePath(p): "Refusing to delete unsafe site folder “\(p)”."
             case .noFreeBackendPort: "No free loopback port in 4000-4999 for a site backend."
             case let .proxyTargetLoopsToSite(d): "The target cannot point back at this site (\(d))."
+            case let .proxyTargetIsFront(t): "\(t) is KTStack's own web front; point the proxy at your app's port instead."
             case let .aliasTaken(a, owner): "“\(a)” is already used by “\(owner)”."
             case let .aliasEqualsDomain(a): "“\(a)” is already the site's main domain."
             case let .invalidEnv(k): "“\(k)” is not a valid environment variable."
@@ -100,6 +102,7 @@ public final class SiteRegistry: ObservableObject {
         }
         let info = inspector.inspect(folder: folder, tld: tld)
         let domain = uniqueDomain(info.defaultDomain)
+        try validateDomain(domain)
 
         let resolvedPHP = respectProjectMarkers
             ? resolveInitialPHP(folder: folder, fallback: phpVersion)
@@ -125,6 +128,7 @@ public final class SiteRegistry: ObservableObject {
     @discardableResult
     public func addProxy(name: String, domain: String, target: ProxyTarget) throws -> Site {
         try validateDomain(domain)
+        try validateProxyTarget(target, for: nil, domain: domain)
         let site = Site(
             name: name,
             path: "",
@@ -141,13 +145,6 @@ public final class SiteRegistry: ObservableObject {
 
     public func setProxyTarget(_ site: Site, _ target: ProxyTarget) {
         update(site.id) { $0.proxyTarget = target.upstreamURLString }
-    }
-
-    // Chặn upstream trỏ về chính domain của site (vòng lặp qua front nginx).
-    public func validateProxyTarget(_ target: ProxyTarget, for site: Site?) throws {
-        if let site, target.host == site.domain {
-            throw RegistryError.proxyTargetLoopsToSite(site.domain)
-        }
     }
 
     public func nextFreeNodePort() -> Int {

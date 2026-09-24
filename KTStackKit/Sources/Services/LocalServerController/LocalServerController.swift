@@ -45,6 +45,7 @@ public final class LocalServerController: ObservableObject {
     nonisolated let httpsProvisioner: SiteHTTPSProvisioner
     var didSeed = false
     var pendingReconcile = false
+    var didCheckCertRenewal = false
 
     public init(
         bundleBinDir: URL,
@@ -141,6 +142,7 @@ public final class LocalServerController: ObservableObject {
         recomputeStatus()
         refreshWatches()
         if registry.loadFailure == nil { certMinter.pruneOrphans(keeping: Set(registry.sites.map(\.domain))) }
+        if error == nil { renewCertificatesIfNeeded() }
         if pendingReconcile { pendingReconcile = false; reconcile() }
     }
 
