@@ -10,6 +10,9 @@ final class ShellIntegrationModel: ObservableObject {
     @Published private(set) var composerWarning = false
     @Published var errorText: String?
     @Published var expandedSuites: Set<ShellToolSuite> = Set(ShellToolSuite.allCases)
+    @Published private(set) var globalCLIState: GlobalCLILink.State
+    @Published private(set) var globalCLIError: String?
+    @Published private(set) var backups: [URL]
 
     private let manager: ShellPathManager
 
@@ -17,6 +20,8 @@ final class ShellIntegrationModel: ObservableObject {
         let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/ktstack-resolve")
         manager = ShellPathManager(paths: AppSupportPaths(), helperSource: helper)
         status = manager.status()
+        globalCLIState = manager.globalCLI.state()
+        backups = manager.latestBackups()
     }
 
     func setMasterEnabled(_ enabled: Bool) {
@@ -31,6 +36,8 @@ final class ShellIntegrationModel: ObservableObject {
             }
             status = manager.status()
             composerWarning = status.enabled && !manager.composerProvisioned()
+            backups = manager.latestBackups()
+            globalCLIState = manager.globalCLI.state()
             busy = false
         }
     }
@@ -63,6 +70,16 @@ final class ShellIntegrationModel: ObservableObject {
     func reapply() {
         setMasterEnabled(true)
     }
+
+    func installGlobalCLI() {
+        globalCLIError = nil
+        do {
+            try manager.installGlobalCLI()
+        } catch {
+            globalCLIError = error.localizedDescription
+        }
+        globalCLIState = manager.globalCLI.state()
+    }
 }
 
 struct ShellIntegrationView: View {
@@ -89,6 +106,11 @@ struct ShellIntegrationView: View {
                 Button("Re-apply") { model.reapply() }.disabled(model.busy)
             }
 
+            ForEach(model.backups, id: \.self) { backup in
+                Text("Backup: \(backup.path)")
+                    .font(KDFont.footnote).foregroundStyle(.secondary).textSelection(.enabled)
+            }
+
             if model.composerWarning {
                 Label(
                     "Composer download didn't finish — the composer command won't work yet. Re-apply to retry.",
@@ -102,6 +124,12 @@ struct ShellIntegrationView: View {
                     .font(KDFont.footnote).foregroundStyle(.red)
             }
         }
+
+        ShellGlobalCLISection(
+            state: model.globalCLIState,
+            errorText: model.globalCLIError,
+            onInstall: { model.installGlobalCLI() }
+        )
 
         if model.status.enabled {
             Section("Managed Tools") {
