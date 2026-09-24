@@ -63,7 +63,7 @@ struct MenuBarContentView: View {
     }
 
     private var anyRunning: Bool {
-        services.snapshots.contains { $0.status == .running }
+        services.snapshots.contains { $0.status == .running || $0.status == .starting }
     }
 
     private var header: some View {

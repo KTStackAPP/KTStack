@@ -83,7 +83,7 @@ struct ServiceRow: View, Equatable {
         } else if state.isBusy {
             ProgressView().controlSize(.small).frame(width: 40)
         } else {
-            KTToggle("Run \(state.displayName)", isOn: state.health == .running, action: onToggle)
+            KTToggle("Run \(state.displayName)", isOn: state.health == .running || state.health == .starting, action: onToggle)
                 .disabled(!canToggle || !state.isInstalled)
                 .opacity(canToggle && state.isInstalled ? 1 : 0.45)
         }

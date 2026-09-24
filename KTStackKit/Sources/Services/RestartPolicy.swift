@@ -10,6 +10,7 @@ public final class RestartPolicy: @unchecked Sendable {
 
     private let lock = NSLock()
     private var firstFailure: [ServiceKind: Date] = [:]
+    private var gaveUp: Set<ServiceKind> = []
     private let now: @Sendable () -> Date
 
     public init(errorAfter: TimeInterval = 20, now: @escaping @Sendable () -> Date = { Date() }) {
@@ -32,7 +33,16 @@ public final class RestartPolicy: @unchecked Sendable {
     }
 
     public func reset(_ kind: ServiceKind) {
-        lock.lock(); firstFailure[kind] = nil; lock.unlock()
+        lock.lock(); firstFailure[kind] = nil; gaveUp.remove(kind); lock.unlock()
+    }
+
+    public func markGaveUp(_ kind: ServiceKind) {
+        lock.lock(); firstFailure[kind] = nil; gaveUp.insert(kind); lock.unlock()
+    }
+
+    public func hasGivenUp(_ kind: ServiceKind) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return gaveUp.contains(kind)
     }
 
     public func isFailing(_ kind: ServiceKind) -> Bool {

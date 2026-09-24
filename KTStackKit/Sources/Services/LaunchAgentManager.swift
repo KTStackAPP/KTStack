@@ -92,7 +92,7 @@ public struct LaunchAgentManager: Sendable {
         let plist = try writeBootstrapPlist(for: spec)
         if Self.loadedCache.containsNow(spec.label) { return }
         try run("bootstrap", [Self.guiDomain, plist.path])
-        Self.loadedCache.invalidate()
+        Self.loadedCache.markLoaded(spec.label)
     }
 
     public func kickstart(_ label: String) throws {
@@ -102,7 +102,7 @@ public struct LaunchAgentManager: Sendable {
     public func bootout(_ label: String) throws {
         guard Self.loadedCache.containsNow(label) else { return }
         try run("bootout", ["\(Self.guiDomain)/\(label)"])
-        Self.loadedCache.invalidate()
+        Self.loadedCache.markUnloaded(label)
     }
 
     public func isLoaded(_ label: String) -> Bool {
@@ -187,47 +187,5 @@ public struct LaunchAgentManager: Sendable {
         }
         if res.interruption == .timedOut { return (-1, "launchctl \(args.first ?? "") timed out") }
         return (res.status, res.stdoutText + res.stderrText)
-    }
-}
-
-final class LoadedLabelsCache: @unchecked Sendable {
-    private let lock = NSLock()
-    private let ttl: TimeInterval
-    private var labels = Set<String>()
-    private var fetchedAt = Date.distantPast
-    private var refreshing = false
-
-    init(ttl: TimeInterval = 0.5) {
-        self.ttl = ttl
-    }
-
-    func contains(_ label: String) -> Bool {
-        lock.lock()
-        if fetchedAt == .distantPast, !refreshing {
-            lock.unlock()
-            return containsNow(label)
-        }
-        let stale = Date().timeIntervalSince(fetchedAt) > ttl
-        let shouldRefresh = stale && !refreshing
-        if shouldRefresh { refreshing = true }
-        let snapshot = labels
-        lock.unlock()
-        if shouldRefresh {
-            DispatchQueue.global(qos: .utility).async { [self] in
-                let fresh = LaunchAgentManager.loadedLabels()
-                lock.lock(); labels = fresh; fetchedAt = Date(); refreshing = false; lock.unlock()
-            }
-        }
-        return snapshot.contains(label)
-    }
-
-    func containsNow(_ label: String) -> Bool {
-        let fresh = LaunchAgentManager.loadedLabels()
-        lock.lock(); labels = fresh; fetchedAt = Date(); refreshing = false; lock.unlock()
-        return fresh.contains(label)
-    }
-
-    func invalidate() {
-        lock.lock(); fetchedAt = .distantPast; lock.unlock()
     }
 }
