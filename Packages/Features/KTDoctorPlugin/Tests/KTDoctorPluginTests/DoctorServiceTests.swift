@@ -278,7 +278,7 @@ final class DoctorServiceTests: XCTestCase {
         let service = DoctorService(paths: paths, tld: tld, probes: probes, now: { Date(timeIntervalSince1970: 0) })
         let report = await service.run(environment: Self.environment)
 
-        XCTAssertEqual(report.checks.map(\.id), ["helper", "dns", "tls", "ports", "binaries", "services", "php"])
+        XCTAssertEqual(report.checks.map(\.id), ["helper", "dns", "tls", "ports", "binaries", "services", "php", "exposure"])
         XCTAssertEqual(report.status, .fail, "worst check decides the overall status")
         XCTAssertEqual(report.failures.map(\.id), ["ports"])
         XCTAssertEqual(report.generatedAt, Date(timeIntervalSince1970: 0))
@@ -299,15 +299,15 @@ final class DoctorServiceTests: XCTestCase {
         let service = DoctorService(paths: paths, tld: tld, probes: healthyProbes())
         let report = await service.run(environment: Self.environment, providers: [provider])
 
-        XCTAssertEqual(report.checks.count, 8)
-        XCTAssertEqual(report.checks.last?.id, "plugin-a", "plugin checks append after the 7 core checks")
+        XCTAssertEqual(report.checks.count, 9)
+        XCTAssertEqual(report.checks.last?.id, "plugin-a", "plugin checks append after the 8 core checks")
         XCTAssertEqual(report.status, .fail, "a failing plugin check drives the overall status")
     }
 
-    func testRunWithoutProvidersKeepsSevenChecks() async {
+    func testRunWithoutProvidersKeepsEightChecks() async {
         let service = DoctorService(paths: paths, tld: tld, probes: healthyProbes())
         let report = await service.run(environment: Self.environment)
-        XCTAssertEqual(report.checks.count, 7)
+        XCTAssertEqual(report.checks.count, 8)
     }
 
     func testPluginCheckFailureShowsInReportText() async {

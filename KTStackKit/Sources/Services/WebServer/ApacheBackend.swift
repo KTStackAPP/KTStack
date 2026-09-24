@@ -34,7 +34,7 @@ public struct ApacheBackend: WebServerBackend {
         UseCanonicalPhysicalPort Off
         TypesConfig \(q(serverRoot.appendingPathComponent("conf/mime.types").path))
 
-        \(Self.loadModules)
+        \(Self.loadModules)\(Self.remoteIPBlock)
 
         ErrorLog \(q(context.errorLog.path))
         CustomLog \(q(context.accessLog.path)) common
