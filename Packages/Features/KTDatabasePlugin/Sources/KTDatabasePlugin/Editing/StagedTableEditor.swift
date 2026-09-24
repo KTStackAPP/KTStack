@@ -78,7 +78,11 @@ public final class StagedTableEditor {
     public func stageInsert(values: [ColumnValue]) -> DraftRowID {
         let id = buffer.stageInsert()
         for value in values {
-            buffer.setDraftValue(id, column: value.column, value: value.value)
+            if value.isDefault {
+                buffer.setDraftDefault(id, column: value.column)
+            } else {
+                buffer.setDraftValue(id, column: value.column, value: value.value)
+            }
         }
         return id
     }
