@@ -104,9 +104,9 @@ public struct PostgresDriver: RelationalDriver {
         await session.shutdown()
     }
 
-    public func runSelect(_ statement: DMLStatement, database _: String?) async throws -> QueryResult {
+    public func runSelect(_ statement: DMLStatement, database: String?) async throws -> QueryResult {
         try preflightManagedEngine()
-        return try await session.runSelect(statement)
+        return try await session.runSelect(statement, database: database)
     }
 
     func runQuery(_ query: PostgresQuery) async throws -> QueryResult {
