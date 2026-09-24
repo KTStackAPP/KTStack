@@ -164,11 +164,13 @@ public final class StagedTableEditor {
         executor = RelationalWriteExecutor(driver: driver, database: database)
     }
 
+    @MainActor
     public func commit() async throws {
         let operations = buffer.operations()
         guard !operations.isEmpty else { return }
+        let snapshot = buffer.commitSnapshot()
         let steps = try planner.plan(operations)
         try await executor.commit(steps)
-        buffer.markCommitted()
+        buffer.markCommitted(snapshot)
     }
 }

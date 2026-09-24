@@ -62,6 +62,7 @@ public extension DatabaseV2ViewModel {
         let value = result.rows[row][column]
         guard value != .null else { return }
         let target = tables.first(where: { $0.name == relation.toTable }) ?? TableInfo(name: relation.toTable)
+        guard allowLeavingStagedTable(for: target) else { return }
         let entry = FKNavEntry(
             table: target, filters: [FilterCondition(column: relation.toColumn, op: .equals, value: value)]
         )
@@ -72,13 +73,13 @@ public extension DatabaseV2ViewModel {
     }
 
     func goBack() {
-        guard canGoBack else { return }
+        guard canGoBack, allowLeavingStagedTable(for: navStack[navIndex - 1].table) else { return }
         navIndex -= 1
         loadNavEntry()
     }
 
     func goForward() {
-        guard canGoForward else { return }
+        guard canGoForward, allowLeavingStagedTable(for: navStack[navIndex + 1].table) else { return }
         navIndex += 1
         loadNavEntry()
     }
