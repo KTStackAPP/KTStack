@@ -71,7 +71,7 @@ prompt.md
 ck.md
 
 # Generated runtime layout for release/install smoke tests
-/.claude/
+/.claude/*
 # But track repo-level rules that Claude Code reads
 !/.claude/rules/
 
