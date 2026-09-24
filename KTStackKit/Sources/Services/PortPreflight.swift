@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct PortPreflight {
     public enum Outcome: Equatable, Sendable {
@@ -79,17 +80,10 @@ public struct PortPreflight {
     }
 
     static func listeningProcess(onPort port: Int) -> String? {
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
-        proc.arguments = ["-nP", "-iTCP:\(port)", "-sTCP:LISTEN", "-F", "c"]
-        let pipe = Pipe()
-        proc.standardOutput = pipe
-        proc.standardError = FileHandle.nullDevice
-        do { try proc.run() } catch { return nil }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        proc.waitUntilExit()
-
-        guard let text = String(data: data, encoding: .utf8) else { return nil }
+        let args = ["-nP", "-iTCP:\(port)", "-sTCP:LISTEN", "-F", "c"]
+        guard let res = try? ProcessRunner().run("/usr/sbin/lsof", args, timeout: ToolTimeout.processQuery),
+              res.interruption == nil else { return nil }
+        let text = res.stdoutText
         for line in text.split(separator: "\n") where line.hasPrefix("c") {
             return String(line.dropFirst())
         }
