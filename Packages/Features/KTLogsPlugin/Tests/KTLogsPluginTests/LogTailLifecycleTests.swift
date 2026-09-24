@@ -1,4 +1,4 @@
-import KTStackCore
+@testable import KTStackCore
 import XCTest
 @testable import KTLogsPlugin
 
