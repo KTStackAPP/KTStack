@@ -55,7 +55,14 @@ extension SitesViewModel {
     }
 
     func recheckKind(_ id: UUID) -> SiteKind? {
-        catalog.recheckKind(id)
+        let kind = catalog.recheckKind(id)
+        if let path = sites.first(where: { $0.id == id })?.path {
+            Task {
+                await PHPFrameworkCache.shared.invalidate(path: path)
+                await refreshFrameworks()
+            }
+        }
+        return kind
     }
 
     func installApache() {
