@@ -212,7 +212,8 @@ final class SiteRegistryTests: XCTestCase {
         let site = try reg.add(folder: folder)
 
         let target = try XCTUnwrap(try reg.folderRemovalTarget(site))
-        let trashed = try XCTUnwrap(try await SiteRegistry.moveFolderToTrash(target))
+        let moved = try await SiteRegistry.moveFolderToTrash(target)
+        let trashed = try XCTUnwrap(moved)
         defer { try? fm.removeItem(at: trashed) }
 
         XCTAssertFalse(fm.fileExists(atPath: folder.path))
