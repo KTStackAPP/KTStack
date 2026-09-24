@@ -50,12 +50,9 @@ jobs:
           -configuration Release -derivedDataPath .build-release build
           CODE_SIGNING_ALLOWED=NO
 
-  # Reporting-only until the strict-concurrency pass (plan 3.1) clears the existing races; flip
-  # continue-on-error off once it is green.
   thread-sanitizer:
     runs-on: macos-26
     timeout-minutes: 60
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - run: brew install xcodegen

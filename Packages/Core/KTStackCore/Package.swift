@@ -15,3 +15,7 @@ let package = Package(
         .target(name: "KTStackCore")
     ]
 )
+
+for target in package.targets {
+    target.swiftSettings = (target.swiftSettings ?? []) + [.unsafeFlags(["-strict-concurrency=targeted"])]
+}

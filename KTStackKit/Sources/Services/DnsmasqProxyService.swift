@@ -1,6 +1,6 @@
 import Foundation
 
-public final class DnsmasqProxyService: ManagedService, @unchecked Sendable {
+public final class DnsmasqProxyService: ManagedService, Sendable {
     public let kind = ServiceKind.dnsmasq
     public var detail: String {
         "*.test"

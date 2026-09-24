@@ -44,6 +44,24 @@ extension ServiceManager {
     }
 
     func refresh() async {
+        if let running = refreshTask {
+            refreshQueued = true
+            await running.value
+            return
+        }
+        let task = Task { [weak self] in
+            guard let self else { return }
+            repeat {
+                self.refreshQueued = false
+                await self.performRefresh()
+            } while self.refreshQueued
+            self.refreshTask = nil
+        }
+        refreshTask = task
+        await task.value
+    }
+
+    private func performRefresh() async {
         server.refreshStatus()
         var next: [ServiceSnapshot] = []
         for kind in Self.order {

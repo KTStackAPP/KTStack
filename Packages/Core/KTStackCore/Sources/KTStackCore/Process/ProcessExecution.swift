@@ -27,7 +27,7 @@ final class ProcessExecution: @unchecked Sendable {
     }
 
     func start(completion: @escaping (ProcessResult) -> Void) throws {
-        self.completion = completion
+        lock.withLock { self.completion = completion }
         process.executableURL = URL(fileURLWithPath: request.executable)
         process.arguments = request.arguments
         if let environment = request.environment { process.environment = environment }
@@ -43,7 +43,7 @@ final class ProcessExecution: @unchecked Sendable {
             process.terminationHandler = nil
             _ = stdout.detach()
             _ = stderr.detach()
-            self.completion = nil
+            lock.withLock { self.completion = nil }
             throw ProcessRunnerError.launchFailed(request.executable, error.localizedDescription)
         }
         lock.lock()

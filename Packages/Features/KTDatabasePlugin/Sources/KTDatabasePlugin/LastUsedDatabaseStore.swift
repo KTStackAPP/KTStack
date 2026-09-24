@@ -1,6 +1,6 @@
 import Foundation
 
-public final class LastUsedDatabaseStore: @unchecked Sendable {
+public final class LastUsedDatabaseStore: Sendable {
     private let defaults: UserDefaults
     private let keyPrefix = "ktstack.lastDatabase."
     private let lastProfileKey = "ktstack.lastProfileID"

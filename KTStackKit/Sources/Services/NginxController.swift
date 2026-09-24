@@ -47,6 +47,7 @@ public final class NginxController: @unchecked Sendable {
     private let instance: NginxInstance
     private static let fileDescriptorLimit = 8192
     private var cachedBuildInfo: String?
+    private let buildInfoLock = NSLock()
 
     public init(paths: AppSupportPaths, agents: LaunchAgentManager, instance: NginxInstance? = nil) {
         self.paths = paths
@@ -88,11 +89,13 @@ public final class NginxController: @unchecked Sendable {
     }
 
     private func buildInfo() -> String {
-        if let cachedBuildInfo { return cachedBuildInfo }
-        let res = try? ProcessRunner().run(paths.nginxBinary.path, ["-V"], timeout: ToolTimeout.configTest)
-        let info = res.map { $0.stdoutText + $0.stderrText } ?? ""
-        cachedBuildInfo = info
-        return info
+        buildInfoLock.withLock { () -> String in
+            if let cachedBuildInfo { return cachedBuildInfo }
+            let res = try? ProcessRunner().run(paths.nginxBinary.path, ["-V"], timeout: ToolTimeout.configTest)
+            let info = res.map { $0.stdoutText + $0.stderrText } ?? ""
+            cachedBuildInfo = info
+            return info
+        }
     }
 
     public func stop(grace _: TimeInterval = 3.0) {

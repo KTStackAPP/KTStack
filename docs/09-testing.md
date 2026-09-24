@@ -45,6 +45,9 @@ The same scheme also runs `KTCLITests`, which compiles `KTCLI/MCP` and `KTCLI/Co
 ### 2.2 Package Tests
 Every local package with a `Tests/` directory (`Packages/Core`, `Contracts`, `Plugin`, `Features`) runs with `swift test --package-path <pkg>`, both in `.github/workflows/tests.yml` and in `scripts/ci-local.sh`.
 
+### 2.2.1 Concurrency Checking
+Every package target and every Xcode target builds with `-strict-concurrency=targeted` (`SWIFT_STRICT_CONCURRENCY: targeted` in `project.yml`). The `thread-sanitizer` job runs `KTStackKit-Tests` with `-enableThreadSanitizer YES`. It is a blocking check, so a data race it detects fails the PR.
+
 ### 2.3 Test Support Utilities (`KTStackKitTests/Support`)
 - `FileDescriptorCounter`: counts this process's open descriptors (`proc_pidinfo` + `PROC_PIDLISTFDS`) and reports the delta around a block, for leak regression tests.
 - `FakeLaunchAgentManager`: an in-memory `LaunchAgentManaging` that records bootstrap/kickstart/bootout calls and can inject failures, so `LaunchdServiceRunner` logic runs without `launchctl`.
