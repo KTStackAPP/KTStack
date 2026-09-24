@@ -1,0 +1,138 @@
+# Cold-verifies the DMGs users actually download from GitHub Releases, one fresh runner per arch:
+# download integrity, signatures, notarization, Gatekeeper, a bounded launch and the per-arch
+# appcast (scripts/release/smoke-test-dmg.sh). Runs when a release is published, weekly (catches a
+# revoked certificate, a latest/download redirect serving a stale appcast, or a new macOS runner
+# image rejecting the build) and on demand for any tag.
+name: Release smoke test
+
+on:
+  release:
+    types: [published]
+  schedule:
+    - cron: "0 2 * * 1"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to test, e.g. v0.3.1 (empty = latest release)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dmg-smoke-${{ github.event.release.tag_name || inputs.tag || 'latest' }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    # binaries-v* releases hold runtime tarballs, not the app.
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')
+    name: smoke (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-26
+          - arch: x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      ARCH: ${{ matrix.arch }}
+      REQUESTED_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve release
+        run: |
+          set -euo pipefail
+          if [[ -n "$REQUESTED_TAG" ]]; then
+            api="repos/$REPO/releases/tags/$REQUESTED_TAG"
+          else
+            api="repos/$REPO/releases/latest"
+          fi
+          # A freshly published release may still be uploading its assets.
+          attempts=1
+          [[ "$GITHUB_EVENT_NAME" == "release" ]] && attempts=20
+          for i in $(seq 1 "$attempts"); do
+            gh api "$api" > release.json
+            tag="$(jq -r .tag_name release.json)"
+            dmg="KTStack-${tag#v}-${ARCH}.dmg"
+            if jq -e --arg dmg "$dmg" \
+                '[.assets[] | select(.state == "uploaded") | .name] as $n
+                 | ($n | index($dmg)) != null and ($n | index("appcast.xml")) != null' \
+                release.json >/dev/null; then
+              break
+            fi
+            if [[ "$i" -eq "$attempts" ]]; then
+              echo "::error::$tag has no uploaded $dmg + appcast.xml"
+              jq -r '.assets[].name' release.json
+              exit 1
+            fi
+            echo "waiting for $dmg and appcast.xml on $tag ($i/$attempts)"
+            sleep 30
+          done
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+          echo "DMG=$dmg" >> "$GITHUB_ENV"
+          echo "Testing $dmg from $tag on $(uname -m) / macOS $(sw_vers -productVersion)"
+
+      - name: Download DMG and appcast
+        run: |
+          set -euo pipefail
+          mkdir -p dl
+          gh release download "$TAG" --repo "$REPO" --dir dl --pattern "$DMG" --pattern appcast.xml
+
+          want="$(jq -r --arg n "$DMG" '.assets[] | select(.name == $n) | .digest // empty' release.json)"
+          got="sha256:$(shasum -a 256 "dl/$DMG" | awk '{print $1}')"
+          if [[ -z "$want" ]]; then
+            echo "::warning::GitHub reports no digest for $DMG; skipping integrity check"
+          elif [[ "$want" != "$got" ]]; then
+            echo "::error::$DMG digest mismatch: release says $want, downloaded $got"
+            exit 1
+          else
+            echo "✅ $DMG matches release digest $want"
+          fi
+
+      - name: Check the update feed installed apps read
+        run: |
+          set -euo pipefail
+          url="$(grep -o "url=\"[^\"]*/$DMG\"" dl/appcast.xml | head -1 | sed 's/^url="//; s/"$//')"
+          if [[ -z "$url" ]]; then
+            echo "::error::appcast.xml of $TAG has no enclosure for $DMG"
+            exit 1
+          fi
+          curl -fsSIL --retry 3 -o /dev/null "$url"
+          echo "✅ appcast enclosure downloadable: $url"
+
+          # SUFeedURL points at releases/latest/download/appcast.xml; for the latest release it must
+          # serve exactly this release's appcast, or installed apps never see the update.
+          if [[ -z "$REQUESTED_TAG" ]]; then
+            feed="$(/usr/bin/plutil -extract SUFeedURL raw KTStack/Resources/Info.plist)"
+            curl -fsSL --retry 3 -o feed-appcast.xml "$feed"
+            if cmp -s feed-appcast.xml dl/appcast.xml; then
+              echo "✅ $feed serves the $TAG appcast"
+            else
+              echo "::error::$feed differs from the appcast.xml attached to $TAG"
+              diff feed-appcast.xml dl/appcast.xml || true
+              exit 1
+            fi
+          fi
+
+      - name: Smoke test
+        run: |
+          set -o pipefail
+          EXPECT_VERSION="${TAG#v}" scripts/release/smoke-test-dmg.sh "dl/$DMG" 2>&1 | tee smoke.log
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### ${DMG:-KTStack DMG} (${TAG:-unresolved}) on $(uname -m), macOS $(sw_vers -productVersion)"
+            echo '```'
+            cat smoke.log 2>/dev/null || echo "smoke test did not run"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
