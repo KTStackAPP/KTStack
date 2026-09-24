@@ -1,12 +1,15 @@
 import AppKit
+import KTPlatformContracts
 import KTPluginKit
 import SwiftUI
 
 struct SiteShareControls: View {
-    var shareStarting: Bool
-    var shareURL: URL?
-    var shareExpiresAt: Date?
+    var share: SiteShareState?
     let onToggleShare: (Bool) -> Void
+
+    private var shareStarting: Bool { share?.starting ?? false }
+    private var shareURL: URL? { share?.publicURL }
+    private var shareExpiresAt: Date? { share?.expiresAt }
 
     private static let expiryFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -37,6 +40,13 @@ struct SiteShareControls: View {
                     help: "Stop sharing via tunnel",
                     tint: KTColor.accent
                 ) { onToggleShare(false) }
+            } else if let error = share?.error {
+                iconButton(
+                    "exclamationmark.triangle.fill",
+                    help: "Sharing failed: \(error) Click to try again.",
+                    tint: KTColor.danger
+                ) { onToggleShare(true) }
+                .accessibilityLabel("Sharing failed: \(error)")
             } else {
                 iconButton(
                     "antenna.radiowaves.left.and.right.slash",
