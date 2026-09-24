@@ -8,9 +8,7 @@ struct SiteGridCard: View {
     let availableVersions: [String]
     let canOpen: Bool
     let isSharing: Bool
-    var shareStarting: Bool = false
-    var shareURL: URL?
-    var shareExpiresAt: Date?
+    var share: SiteShareState?
     let apacheInstalled: Bool
     let apacheInstalling: Bool
     let framework: PHPFramework
@@ -87,12 +85,7 @@ struct SiteGridCard: View {
                 KTButton(title: "Open", kind: .secondary, action: onOpen)
                     .disabled(!canOpen)
                     .frame(maxWidth: .infinity)
-                SiteShareControls(
-                    shareStarting: shareStarting,
-                    shareURL: shareURL,
-                    shareExpiresAt: shareExpiresAt,
-                    onToggleShare: onToggleShare
-                )
+                SiteShareControls(share: share, onToggleShare: onToggleShare)
                 SiteQuickEditorButton(site: site)
                 SiteActionsMenu(
                     site: site,

@@ -65,7 +65,7 @@ public enum TunnelOrigin {
 public enum TrycloudflareURL {
     public static func first(in text: String) -> URL? {
         guard let range = text.range(
-            of: "https://[a-z0-9-]+\\.trycloudflare\\.com",
+            of: "https://(?!api\\.)[a-z0-9-]+\\.trycloudflare\\.com(?![a-z0-9.-])",
             options: .regularExpression
         ) else { return nil }
         return URL(string: String(text[range]))
