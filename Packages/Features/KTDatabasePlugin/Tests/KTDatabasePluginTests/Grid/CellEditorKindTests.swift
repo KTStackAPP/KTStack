@@ -94,4 +94,30 @@ final class CellEditorKindTests: XCTestCase {
         XCTAssertEqual(CellCoercion.timestampString(kind: .datetime, date: date, timeZone: utc), "1970-01-01 00:00:00")
         XCTAssertEqual(CellCoercion.timestampString(kind: .time, date: date, timeZone: utc), "00:00:00")
     }
+
+    func testDecimalBeyondDoublePrecisionStaysText() throws {
+        let decimal = column("decimal(30,10)")
+        XCTAssertEqual(
+            try CellCoercion.cell(for: .value("12345678901234567.8901234567"), column: decimal, kind: .number),
+            .text("12345678901234567.8901234567")
+        )
+        XCTAssertEqual(try CellCoercion.cell(for: .value("0.1"), column: decimal, kind: .number), .double(0.1))
+        XCTAssertEqual(try CellCoercion.cell(for: .value("-7"), column: decimal, kind: .number), .int(-7))
+        XCTAssertEqual(try CellCoercion.cell(for: .value("1e400"), column: decimal, kind: .number), .text("1e400"))
+    }
+
+    func testBinaryColumnRefusesTextValue() {
+        XCTAssertThrowsError(
+            try CellCoercion.cell(for: .value("[16 bytes]"), column: column("varbinary(16)"), kind: .binary)
+        ) { error in
+            XCTAssertEqual(error as? CellCoercionError, .binaryNotEditable)
+        }
+        XCTAssertEqual(try CellCoercion.cell(for: .null, column: column("blob"), kind: .binary), .null)
+    }
+
+    func testBlobCellHasNoEditorText() {
+        XCTAssertNil(Cell.blob(Data([1, 2, 3])).editorText)
+        XCTAssertEqual(Cell.blob(Data([1, 2, 3])).displayText, "[3 bytes]")
+        XCTAssertEqual(Cell.text("a").editorText, "a")
+    }
 }

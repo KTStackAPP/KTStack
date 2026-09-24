@@ -49,6 +49,7 @@ public final class StagedTableEditor {
             buffer.stageDefault(identity: identity, column: column)
             return true
         }
+        if case .blob = row[column], case .value = edit { throw CellCoercionError.binaryNotEditable }
         let value = try CellCoercion.cell(for: edit, column: info, kind: .forColumn(info))
         if let current = row[column], current == value { return false }
         buffer.stageUpdate(identity: identity, column: column, value: value)
