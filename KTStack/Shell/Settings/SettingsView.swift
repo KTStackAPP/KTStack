@@ -114,9 +114,7 @@ struct SettingsView: View {
             KTSettingsRow(title: "Local TLD", subtitle: localTLDSubtitle) {
                 localTLDField
             }
-            KTSettingsRow(title: "Serve over HTTPS", subtitle: "Issue trusted local certificates per site.", showDivider: false) {
-                KTToggle(isOn: preferences.serveHTTPSByDefault) { preferences.serveHTTPSByDefault.toggle() }
-            }
+            NetworkAccessRows(preferences: preferences, server: server)
         }
     }
 

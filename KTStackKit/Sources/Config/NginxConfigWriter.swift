@@ -10,7 +10,7 @@ public struct NginxConfigWriter {
         "\"\(path)\""
     }
 
-    public func masterConfig(paths: AppSupportPaths, secureCatchAll: Bool = false) -> String {
+    public func masterConfig(paths: AppSupportPaths, secureCatchAll: Bool = false, allowLAN: Bool = FrontAccessPolicy.allowsLAN()) -> String {
         """
         worker_processes auto;
         pid \(Self.q(paths.nginxPid.path));
@@ -38,7 +38,7 @@ public struct NginxConfigWriter {
             sendfile on;
             keepalive_timeout 65;
             client_max_body_size 256M;
-            include \(Self.q(paths.nginxUserConf.path));
+            \(FrontAccessPolicy.httpRules(allowLAN: allowLAN))include \(Self.q(paths.nginxUserConf.path));
 
         \(catchAllServers(paths: paths, secure: secureCatchAll))
             include \(Self.q(paths.sitesEnabled.path + "/*.conf"));

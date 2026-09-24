@@ -26,7 +26,7 @@ public struct NginxTunnelVhostWriter {
             return """
             server {
                 listen \(Self.listenAddress):\(port);
-                server_name _;\(NginxConfigWriter.logDirectives(access: accessLog, error: errorLog))
+                server_name _;\(FrontAccessPolicy.tunnelClientIP)\(NginxConfigWriter.logDirectives(access: accessLog, error: errorLog))
 
             \(NginxConfigWriter.proxyRouting(upstream: upstream))
             }
@@ -40,7 +40,7 @@ public struct NginxTunnelVhostWriter {
         return """
         server {
             listen \(Self.listenAddress):\(port);
-            server_name _;
+            server_name _;\(FrontAccessPolicy.tunnelClientIP)
             root \(NginxConfigWriter.q(root.path));
             index \(index);\(NginxConfigWriter.logDirectives(access: accessLog, error: errorLog))\(rewrite)
 

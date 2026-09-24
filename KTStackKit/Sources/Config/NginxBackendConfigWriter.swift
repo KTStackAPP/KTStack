@@ -45,7 +45,7 @@ public struct NginxBackendConfigWriter: Sendable {
             client_max_body_size 256M;
 
             server {
-                listen 127.0.0.1:\(backendPort);
+                listen 127.0.0.1:\(backendPort);\(FrontAccessPolicy.backendRealIP)
                 server_name \(NginxConfigWriter.serverName(domain, aliases));
                 absolute_redirect off;
                 root \(q(root.path));
