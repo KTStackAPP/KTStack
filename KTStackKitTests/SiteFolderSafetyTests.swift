@@ -2,6 +2,7 @@ import KTStackCore
 import XCTest
 @testable import KTStackKit
 
+@MainActor
 final class SiteFolderSafetyTests: XCTestCase {
     private let fm = FileManager.default
 
