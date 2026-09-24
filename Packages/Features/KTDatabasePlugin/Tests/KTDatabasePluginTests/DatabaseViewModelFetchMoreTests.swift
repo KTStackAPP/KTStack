@@ -107,11 +107,11 @@ final class DatabaseViewModelFetchMoreTests: XCTestCase {
 
     func testIsFetchingMoreTogglesAroundLoadMore() async {
         let driver = FetchStub(total: 500)
-        driver.paginateDelay = .milliseconds(500)
+        driver.paginateDelay = .milliseconds(40)
         let vm = await browse(driver, pageSize: 100)
 
         async let inFlight: Void = vm.loadMoreRows()
-        await waitUntilFetching(vm)
+        try? await Task.sleep(for: .milliseconds(12))
         XCTAssertTrue(vm.isFetchingMore)
         await inFlight
         XCTAssertFalse(vm.isFetchingMore)
@@ -119,14 +119,14 @@ final class DatabaseViewModelFetchMoreTests: XCTestCase {
 
     func testDoesNotDoubleFetchWhileAlreadyFetching() async {
         let driver = FetchStub(total: 500)
-        driver.paginateDelay = .milliseconds(500)
+        driver.paginateDelay = .milliseconds(50)
         let vm = await browse(driver, pageSize: 100)
         let before = driver.paginateOffsets.count
 
         async let first: Void = vm.loadMoreRows()
-        await waitUntilFetching(vm)
-        await vm.loadMoreRows()
-        await first
+        try? await Task.sleep(for: .milliseconds(8))
+        async let second: Void = vm.loadMoreRows()
+        _ = await (first, second)
 
         XCTAssertEqual(driver.paginateOffsets.count, before + 1)
         XCTAssertEqual(vm.result?.rowCount, 200)
@@ -155,22 +155,16 @@ final class DatabaseViewModelFetchMoreTests: XCTestCase {
 
     func testSwitchingTableMidPrefetchDropsTheStaleAppend() async {
         let driver = FetchStub(total: 500)
-        driver.paginateDelay = .milliseconds(500)
+        driver.paginateDelay = .milliseconds(60)
         let vm = await browse(driver, pageSize: 100, table: "users")
 
         async let prefetch: Void = vm.loadMoreRows()
-        await waitUntilFetching(vm)
+        try? await Task.sleep(for: .milliseconds(10))
         await vm.select(table: TableInfo(name: "orders"))
         await prefetch
 
         XCTAssertEqual(vm.selectedTable?.name, "orders")
         XCTAssertEqual(vm.result?.rowCount, 100)
         XCTAssertEqual(vm.result?.columns.first?.name, "ref")
-    }
-
-    private func waitUntilFetching(_ vm: DatabaseViewModel) async {
-        for _ in 0 ..< 10000 where !vm.isFetchingMore {
-            await Task.yield()
-        }
     }
 }
