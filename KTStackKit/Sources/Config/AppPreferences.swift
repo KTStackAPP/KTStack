@@ -65,6 +65,10 @@ public final class AppPreferences: ObservableObject {
 
     // Writes verbose service-startup diagnostics to logs/diagnostics.log. Read live by
     // ServiceDiagnostics.isEnabled off UserDefaults.standard, so the key value is frozen.
+    @Published public var appearance: Appearance {
+        didSet { defaults.set(appearance.rawValue, forKey: Self.appearanceKey) }
+    }
+
     @Published public var devMode: Bool {
         didSet { defaults.set(devMode, forKey: Key.devMode) }
     }
@@ -100,6 +104,7 @@ public final class AppPreferences: ObservableObject {
         releaseChannel = ReleaseChannel(rawValue: defaults.string(forKey: Key.releaseChannel) ?? "") ?? .stable
         hasSeenDNSSetup = defaults.bool(forKey: Key.hasSeenDNSSetup)
         devMode = defaults.bool(forKey: Key.devMode)
+        appearance = Appearance(rawValue: defaults.string(forKey: Self.appearanceKey) ?? "") ?? .system
     }
 
     public func setLaunchAtLogin(_ on: Bool) {

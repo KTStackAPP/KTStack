@@ -144,7 +144,7 @@ struct MenuBarContentView: View {
         VStack(spacing: 0) {
             footerButton("Open Dashboard…", systemImage: "rectangle.split.3x1", shortcut: "⌘D") {
                 AppActivationPolicy.activateRegular()
-                if !AppActivationPolicy.focusExistingWindow(titled: "KTStack Dashboard") {
+                if !AppActivationPolicy.focusDashboard() {
                     openWindow(id: DashboardWindow.windowID)
                 }
                 dismisser.dismiss()
@@ -200,7 +200,7 @@ struct MenuBarContentView: View {
         Button(action: action) {
             footerRowLabel(title, systemImage: systemImage, shortcut: shortcut)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.plain).ktMenuShortcut(shortcut)
     }
 
     private func footerRowLabel(

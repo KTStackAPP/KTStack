@@ -9,11 +9,17 @@ private final class LifecycleDriver: RelationalDriver, @unchecked Sendable {
     private var _ping = 0
     private var _open = 0
     private var _close = 0
+    private var _queries: [String] = []
+    var failPing = false
+    var queries: [String] { lock.withLock { _queries } }
     var pingCount: Int { lock.withLock { _ping } }
     var openCount: Int { lock.withLock { _open } }
     var closeCount: Int { lock.withLock { _close } }
 
-    func ping() async throws { lock.withLock { _ping += 1 } }
+    func ping() async throws {
+        lock.withLock { _ping += 1 }
+        if failPing { throw DatabaseError.connection("server gone") }
+    }
     func listDatabases() async throws -> [DatabaseInfo] { [DatabaseInfo(name: "db")] }
     func listTables(database _: String) async throws -> [TableInfo] { [TableInfo(name: "t")] }
     func columns(database _: String, table _: String) async throws -> [ColumnInfo] {
@@ -26,8 +32,9 @@ private final class LifecycleDriver: RelationalDriver, @unchecked Sendable {
     func allColumnsDetailed(database _: String) async throws -> [String: [ColumnInfo]] { [:] }
     func indexes(database _: String, table _: String) async throws -> [IndexInfo] { [] }
     func foreignKeys(database _: String) async throws -> [ForeignKeyRelation] { [] }
-    func query(_: String, database _: String?) async throws -> QueryResult {
-        QueryResult(columns: [ColumnMeta(name: "id")], rows: [])
+    func query(_ sql: String, database _: String?) async throws -> QueryResult {
+        lock.withLock { _queries.append(sql) }
+        return QueryResult(columns: [ColumnMeta(name: "id")], rows: [])
     }
     func paginatedRows(database _: String, table _: String, limit: Int, offset: Int) async throws -> QueryResult {
         let count = max(0, min(limit, 10 - offset))
@@ -114,5 +121,46 @@ final class DatabaseV2ViewModelSuspendResumeTests: XCTestCase {
         let pings = driver.pingCount
         await vm.resumeConnection()
         XCTAssertEqual(driver.pingCount, pings)
+    }
+
+    private func suspendedVM(_ driver: LifecycleDriver) async -> DatabaseV2ViewModel {
+        let vm = makeVM(driver)
+        await vm.connect(profile: .managedMySQL)
+        vm.select(table: TableInfo(name: "t"))
+        await waitForRows(vm)
+        await vm.suspendConnection()
+        return vm
+    }
+
+    func testDDLAfterSuspendReconnectsAndRuns() async {
+        let driver = LifecycleDriver()
+        let vm = await suspendedVM(driver)
+        await vm.runDDL("ALTER TABLE t ADD COLUMN x int")
+        XCTAssertFalse(vm.isSuspended)
+        XCTAssertTrue(driver.queries.contains("ALTER TABLE t ADD COLUMN x int"))
+    }
+
+    func testReloadDatabasesAfterSuspendReconnects() async {
+        let driver = LifecycleDriver()
+        let vm = await suspendedVM(driver)
+        await vm.reloadDatabases()
+        XCTAssertFalse(vm.isSuspended)
+        XCTAssertNotNil(vm.driver)
+    }
+
+    func testFailedResumeIsVisibleAndRetriedOnNextAction() async {
+        let driver = LifecycleDriver()
+        let vm = await suspendedVM(driver)
+        driver.failPing = true
+        await vm.reloadDatabases()
+        guard case let .failed(message) = vm.connectionState else {
+            return XCTFail("expected a visible reconnect failure")
+        }
+        XCTAssertTrue(message.contains("server gone"))
+        XCTAssertTrue(vm.isSuspended)
+        driver.failPing = false
+        await vm.reloadDatabases()
+        XCTAssertFalse(vm.isSuspended)
+        XCTAssertEqual(vm.connectionState, .connected)
     }
 }

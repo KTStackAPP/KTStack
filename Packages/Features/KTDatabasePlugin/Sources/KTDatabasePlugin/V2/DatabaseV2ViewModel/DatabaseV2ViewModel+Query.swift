@@ -175,7 +175,7 @@ public extension DatabaseV2ViewModel {
 
     // Chạy EXPLAIN cho câu đầu; cây nếu phân tích được, ngược lại lưới thô.
     func explainActiveQuery() async {
-        guard let driver, let tab = activeQueryTab else { return }
+        guard let driver = await connectedDriver(), let tab = activeQueryTab else { return }
         guard let first = SQLStatementSplitter.statements(tab.text).first else { return }
         let database = tab.database ?? selectedDatabase
         let sql = explainSQL(for: first, kind: connectionKind ?? .mysql)
@@ -201,7 +201,7 @@ public extension DatabaseV2ViewModel {
     }
 
     private func executeRun(values: [String: Cell]) async {
-        guard let driver, let tab = activeQueryTab else { return }
+        guard let driver = await connectedDriver(), let tab = activeQueryTab else { return }
         let tabID = tab.id
         let database = tab.database ?? selectedDatabase
         let statements = SQLStatementSplitter.split(tab.text)
@@ -267,7 +267,7 @@ public extension DatabaseV2ViewModel {
 
     // Chạy lại đúng câu lệnh của một kết quả bị cap, không auto-limit.
     func fetchAll(resultID: UUID) async {
-        guard let driver, let tab = activeQueryTab else { return }
+        guard let driver = await connectedDriver(), let tab = activeQueryTab else { return }
         let tabID = tab.id
         guard let item = tab.session.items.first(where: { $0.id == resultID }), item.capApplied else { return }
         let database = tab.database ?? selectedDatabase

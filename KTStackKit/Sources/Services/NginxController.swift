@@ -89,16 +89,8 @@ public final class NginxController: @unchecked Sendable {
 
     private func buildInfo() -> String {
         if let cachedBuildInfo { return cachedBuildInfo }
-        let proc = Process()
-        proc.executableURL = paths.nginxBinary
-        proc.arguments = ["-V"]
-        let pipe = Pipe()
-        proc.standardError = pipe
-        proc.standardOutput = pipe
-        guard (try? proc.run()) != nil else { cachedBuildInfo = ""; return "" }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        proc.waitUntilExit()
-        let info = String(data: data, encoding: .utf8) ?? ""
+        let res = try? ProcessRunner().run(paths.nginxBinary.path, ["-V"], timeout: ToolTimeout.configTest)
+        let info = res.map { $0.stdoutText + $0.stderrText } ?? ""
         cachedBuildInfo = info
         return info
     }
@@ -124,18 +116,11 @@ public final class NginxController: @unchecked Sendable {
     }
 
     private func runControlCommand(_ extra: [String]) throws {
-        let proc = Process()
-        proc.executableURL = paths.nginxBinary
-        proc.arguments = ["-p", instance.prefix.path, "-c", instance.confFile.path] + extra
-        proc.standardOutput = FileHandle.nullDevice
-        let pipe = Pipe()
-        proc.standardError = pipe
-        try proc.run()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        proc.waitUntilExit()
-        guard proc.terminationStatus == 0 else {
-            let output = String(data: data, encoding: .utf8) ?? ""
-            throw ControlError.commandFailed(extra, proc.terminationStatus, output)
+        let args = ["-p", instance.prefix.path, "-c", instance.confFile.path] + extra
+        let res = try ProcessRunner().run(paths.nginxBinary.path, args, timeout: ToolTimeout.configTest)
+        guard res.succeeded else {
+            let output = res.interruption == .timedOut ? "timed out" : res.stderrText
+            throw ControlError.commandFailed(extra, res.status, output)
         }
     }
 }

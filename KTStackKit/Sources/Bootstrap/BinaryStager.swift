@@ -133,13 +133,8 @@ public struct BinaryStager {
     }
 
     public static func verifySignature(at url: URL) -> Bool {
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
-        proc.arguments = codesignArguments(for: url, requirement: releaseRequirement)
-        proc.standardOutput = FileHandle.nullDevice
-        proc.standardError = FileHandle.nullDevice
-        do { try proc.run() } catch { return false }
-        proc.waitUntilExit()
-        return proc.terminationStatus == 0
+        let args = codesignArguments(for: url, requirement: releaseRequirement)
+        let res = try? ProcessRunner().run("/usr/bin/codesign", args, timeout: ToolTimeout.codesign)
+        return res?.succeeded == true
     }
 }

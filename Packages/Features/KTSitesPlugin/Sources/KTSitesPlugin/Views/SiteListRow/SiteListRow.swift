@@ -179,7 +179,7 @@ struct SiteListRow: View, Equatable {
                 KTStatusLabel(running: canOpen).frame(width: 78, alignment: .leading)
             }
 
-            KTToggle(isOn: site.secure, action: { onSetSecure(!site.secure) })
+            KTToggle("Serve \(site.name) over HTTPS", isOn: site.secure, action: { onSetSecure(!site.secure) })
                 .ktTip("Serve over HTTPS with a locally-trusted certificate")
                 .accessibilityLabel("Serve \(site.domain) over HTTPS")
 

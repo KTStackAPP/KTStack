@@ -168,26 +168,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor lazy var ipcListener = KTLocalIPCSocketListener(dispatcher: makeIPCDispatcher())
 
-    private static func alreadyRunningInstance() -> NSRunningApplication? {
-        guard let bundleID = Bundle.main.bundleIdentifier else { return nil }
-        let current = NSRunningApplication.current
-        return NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
-            .first { $0.processIdentifier != current.processIdentifier }
-    }
-
-    static var bundleBinDir: URL {
-        Bundle.main.resourceURL?.appendingPathComponent("bin", isDirectory: true)
-            ?? Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/bin", isDirectory: true)
-    }
-
     func applicationDidFinishLaunching(_: Notification) {
-        if let existing = Self.alreadyRunningInstance() {
-            existing.activate(options: [.activateAllWindows])
-            exit(0)
-        }
+        if Self.yieldToRunningInstance() { exit(0) }
 
         NSApp.setActivationPolicy(.accessory)
-        NSApp.appearance = NSAppearance(named: .aqua)
+        AppAppearance.apply(preferences.appearance)
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(windowWillClose(_:)),
@@ -216,6 +201,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let queued = pendingURLs
         pendingURLs.removeAll()
         queued.forEach(handle(url:))
+        DispatchQueue.main.async { [weak self] in self?.presentDashboardOnLaunch() }
     }
 
     @MainActor

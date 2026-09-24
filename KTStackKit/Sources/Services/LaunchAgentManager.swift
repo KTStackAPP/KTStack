@@ -89,7 +89,7 @@ public struct LaunchAgentManager: Sendable {
     }
 
     public func bootstrap(_ spec: LaunchAgentSpec) throws {
-        let plist = try writePlist(for: spec)
+        let plist = try writeBootstrapPlist(for: spec)
         if Self.loadedCache.containsNow(spec.label) { return }
         try run("bootstrap", [Self.guiDomain, plist.path])
         Self.loadedCache.markLoaded(spec.label)
@@ -182,15 +182,10 @@ public struct LaunchAgentManager: Sendable {
     }
 
     static func launchctl(_ args: [String]) -> (code: Int32, out: String) {
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        proc.arguments = args
-        let pipe = Pipe()
-        proc.standardOutput = pipe
-        proc.standardError = pipe
-        do { try proc.run() } catch { return (-1, error.localizedDescription) }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        proc.waitUntilExit()
-        return (proc.terminationStatus, String(data: data, encoding: .utf8) ?? "")
+        guard let res = try? ProcessRunner().run("/bin/launchctl", args, timeout: ToolTimeout.launchctl) else {
+            return (-1, "launchctl could not be launched")
+        }
+        if res.interruption == .timedOut { return (-1, "launchctl \(args.first ?? "") timed out") }
+        return (res.status, res.stdoutText + res.stderrText)
     }
 }
