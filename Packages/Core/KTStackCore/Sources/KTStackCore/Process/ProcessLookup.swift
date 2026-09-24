@@ -4,7 +4,7 @@ public enum ProcessLookup {
     public static func pids(executablePath: String) -> [pid_t] {
         let target = canonical(executablePath)
         return allPIDs().filter { pid in
-            executablePath(of: pid).map(canonical) == target
+            Self.executablePath(of: pid).map(canonical) == target
         }
     }
 
