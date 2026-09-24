@@ -13,8 +13,9 @@ final class EngineVersionsViewModel: ObservableObject {
     }
 
     @Published private(set) var snapshots: [ServiceEngineSnapshot] = []
+    @Published var retired: [ServiceEngine: [ServiceEngineRetiredData]] = [:]
 
-    private let engines: any ServiceEngineVersionManaging
+    let engines: any ServiceEngineVersionManaging
     private var task: Task<Void, Never>?
 
     init(engines: any ServiceEngineVersionManaging) {
@@ -125,9 +126,5 @@ final class EngineVersionsViewModel: ObservableObject {
 
     func setActive(_ engine: ServiceEngine, version: String) -> Result<Void, Error> {
         Result { try engines.setActiveVersion(engine, version: version) }
-    }
-
-    func uninstall(_ engine: ServiceEngine, version: String) -> Result<Void, Error> {
-        Result { try engines.uninstall(engine, version: version) }
     }
 }

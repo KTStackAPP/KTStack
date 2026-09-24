@@ -38,6 +38,9 @@ struct RuntimesScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(KTColor.contentBg)
         .onChange(of: category) { _ in filter = ""; expandedVersion = nil }
+        .task(id: category) {
+            if case let .engine(engine) = category { await engines.reloadRetired(engine) }
+        }
         .sheet(item: $editingIni) { PHPIniEditorSheet(version: $0.version, phpConfig: phpConfig) }
         .sheet(item: $editingPool) { PHPPoolEditorSheet(version: $0.version, phpConfig: phpConfig) }
         .sheet(item: $managingExt) { PHPExtensionsSheet(version: $0.version, phpConfig: phpConfig) }
