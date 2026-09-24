@@ -208,6 +208,10 @@ final class LoadedLabelsCache: @unchecked Sendable {
 
     func contains(_ label: String) -> Bool {
         lock.lock()
+        if fetchedAt == .distantPast, !refreshing {
+            lock.unlock()
+            return containsNow(label)
+        }
         let stale = Date().timeIntervalSince(fetchedAt) > ttl
         let shouldRefresh = stale && !refreshing
         if shouldRefresh { refreshing = true }

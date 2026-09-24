@@ -193,11 +193,9 @@ final class ServiceManagementTests: XCTestCase {
             HealthChecker.tcpConnect(host: "127.0.0.1", port: port, timeout: 0.5),
             "connect probe must detect a 127.0.0.1-bound listener"
         )
-        XCTAssertEqual(
-            PortPreflight().check(port: port),
-            .available,
-            "wildcard bind probe cannot see a loopback-only listener — hence the connect probe"
-        )
+        guard case .inUse = PortPreflight().check(port: port) else {
+            return XCTFail("preflight must report a 127.0.0.1-only listener as in use")
+        }
     }
 
     func testIsInitializedDetectsMarkerAndEmptiness() throws {

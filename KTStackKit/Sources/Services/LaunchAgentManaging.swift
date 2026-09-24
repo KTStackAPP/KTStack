@@ -8,6 +8,7 @@ public protocol LaunchAgentManaging: Sendable {
     func bootout(_ label: String) throws
     func isLoaded(_ label: String) -> Bool
     func isLoadedNow(_ label: String) -> Bool
+    func jobPID(_ label: String) -> pid_t?
     func diagnostics() -> ServiceDiagnostics
 }
 
