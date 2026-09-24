@@ -18,7 +18,7 @@ struct ProcessCPUSample: Equatable {
     let sampledAt: Date
 }
 
-final class ServiceMetricsSampler {
+actor ServiceMetricsSampler {
     private var previous: [Int32: ProcessCPUSample] = [:]
 
     private static let kindByBinary: [String: ServiceKind] = {
