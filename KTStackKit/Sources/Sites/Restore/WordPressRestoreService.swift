@@ -9,14 +9,14 @@ public final class WordPressRestoreService: Sendable {
     private let staging: RestoreStagingArea
     private let applyServerConfig: @Sendable () async throws -> Void
     private let enableHTTPS: @Sendable () async throws -> Void
-    private let finalizeSite: @Sendable (String) async -> Void
+    private let finalizeSite: @Sendable (String) async -> @Sendable () async -> Void
 
     public init(
         paths: AppSupportPaths,
         ensureEngine: @escaping @Sendable () async throws -> Void,
         applyServerConfig: @escaping @Sendable () async throws -> Void,
         enableHTTPS: @escaping @Sendable () async throws -> Void,
-        finalizeSite: @escaping @Sendable (String) async -> Void
+        finalizeSite: @escaping @Sendable (String) async -> @Sendable () async -> Void
     ) {
         self.paths = paths
         provisioner = DatabaseProvisioner(ensureEngine: ensureEngine)
@@ -31,7 +31,6 @@ public final class WordPressRestoreService: Sendable {
         emit: @Sendable @escaping (RestoreEvent) -> Void
     ) async throws -> RestoreOutcome {
         let stagingRoot = try staging.make()
-        defer { staging.discard(stagingRoot) }
 
         var undo: [@Sendable () async -> Void] = []
         func rollback() async {
@@ -114,39 +113,39 @@ public final class WordPressRestoreService: Sendable {
 
             try Task.checkCancellation()
             emit(RestoreEvent(phase: .installingFiles, message: "Installing files into \(request.siteDomain)…"))
-            try swapIntoSite(prepared: prepared, siteFolder: request.siteFolder, stagingRoot: stagingRoot)
+            let siteSwap = RestoreSiteSwap(paths: paths)
+            let swapped = try siteSwap.swap(prepared: prepared, into: request.siteFolder)
+            undo.append { try? siteSwap.undo(swapped) }
 
-            await finalizeSite(database)
+            undo.append(await finalizeSite(database))
 
             try Task.checkCancellation()
             emit(RestoreEvent(phase: .configuringServer, message: "Configuring web server…"))
             try await applyServerConfig()
-            if request.secure {
-                try await enableHTTPS()
-                try await applyServerConfig()
+            if request.secure, let warning = await enableHTTPSReportingFailure() {
+                warnings.append(warning)
             }
+            staging.discard(stagingRoot)
+            if let warning = siteSwap.commit(swapped) { warnings.append(warning) }
 
             warnings.append("Hardcoded URLs inside PHP files are not rewritten automatically.")
             emit(RestoreEvent(phase: .done, message: "Restored at \(newURL)"))
             return RestoreOutcome(domain: request.siteDomain, warnings: warnings)
         } catch {
             await rollback()
+            staging.discard(stagingRoot)
             throw error
         }
     }
 
-    private func swapIntoSite(prepared: URL, siteFolder: URL, stagingRoot: URL) throws {
-        let fm = FileManager.default
-        let replaced = stagingRoot.appendingPathComponent("replaced-site", isDirectory: true)
-        let hadFolder = fm.fileExists(atPath: siteFolder.path)
-        if hadFolder { try fm.moveItem(at: siteFolder, to: replaced) }
+    private func enableHTTPSReportingFailure() async -> String? {
         do {
-            try fm.moveItem(at: prepared, to: siteFolder)
+            try await enableHTTPS()
+            try await applyServerConfig()
+            return nil
         } catch {
-            if hadFolder, !fm.fileExists(atPath: siteFolder.path) {
-                try? fm.moveItem(at: replaced, to: siteFolder)
-            }
-            throw error
+            try? await applyServerConfig()
+            return "The site was restored over HTTP; enabling HTTPS failed: \(error.localizedDescription)"
         }
     }
 
