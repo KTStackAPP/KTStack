@@ -38,7 +38,7 @@ final class GridRowIdentityTests: XCTestCase {
 
     func testOverlayCommitsToTheRowItWasOpenedOnWhenRowsArePrepended() async throws {
         let (coordinator, table) = makeGrid(windowStart: 3)
-        table.startEditing(row: 1, column: 2)
+        table.startEditing(row: 1, column: 2, initialCharacter: "x")
         XCTAssertTrue(table.overlayEditor.isEditing)
 
         current = Self.page([101, 102, 103, 1, 2, 3, 4, 5])
@@ -77,7 +77,7 @@ final class GridRowIdentityTests: XCTestCase {
 
     func testEditingAnotherCellCommitsThePreviousCellToItsOwnRow() {
         let (coordinator, table) = makeGrid(windowStart: 0)
-        table.startEditing(row: 0, column: 2)
+        table.startEditing(row: 0, column: 2, initialCharacter: "x")
         table.startEditing(row: 3, column: 2)
         XCTAssertTrue(coordinator.editingRef != nil)
         XCTAssertEqual(committed.map { $0.ref }, [.row(table: "users", values: ["id": .int(1)])])
