@@ -85,20 +85,22 @@ struct SettingsView: View {
     private var generalGroup: some View {
         KTSettingsGroup(title: "General") {
             KTSettingsRow(title: "Launch at login", subtitle: "Start KTStack when you log in to macOS.") {
-                KTToggle(isOn: preferences.launchAtLogin, action: toggleLaunchAtLogin)
+                KTToggle("Launch at login", isOn: preferences.launchAtLogin, action: toggleLaunchAtLogin)
             }
             KTSettingsRow(title: "Auto-start server", subtitle: "Bring the server up automatically on launch.") {
-                KTToggle(isOn: preferences.autoStartServer) { preferences.autoStartServer.toggle() }
+                KTToggle("Auto-start server", isOn: preferences.autoStartServer) { preferences.autoStartServer.toggle() }
             }
             KTSettingsRow(title: "Show in menu bar", subtitle: "Quick-access icon. If hidden, reopen KTStack from Finder.") {
-                KTToggle(isOn: preferences.showInMenuBar) { preferences.showInMenuBar.toggle() }
+                KTToggle("Show in menu bar", isOn: preferences.showInMenuBar) { preferences.showInMenuBar.toggle() }
             }
             KTSettingsRow(
                 title: "Monochrome menu bar icon",
-                subtitle: "Use a native black-and-white server symbol that follows macOS appearance.",
-                showDivider: false
+                subtitle: "Use a native black-and-white server symbol that follows macOS appearance."
             ) {
-                KTToggle(isOn: preferences.monochromeMenuBarIcon) { preferences.monochromeMenuBarIcon.toggle() }
+                KTToggle("Monochrome menu bar icon", isOn: preferences.monochromeMenuBarIcon) { preferences.monochromeMenuBarIcon.toggle() }
+            }
+            KTSettingsRow(title: "Appearance", subtitle: "Follow macOS, or keep KTStack light or dark.", showDivider: false) {
+                appearanceMenu
             }
         }
     }
@@ -115,7 +117,7 @@ struct SettingsView: View {
                 localTLDField
             }
             KTSettingsRow(title: "Serve over HTTPS", subtitle: "Issue trusted local certificates per site.", showDivider: false) {
-                KTToggle(isOn: preferences.serveHTTPSByDefault) { preferences.serveHTTPSByDefault.toggle() }
+                KTToggle("Serve over HTTPS", isOn: preferences.serveHTTPSByDefault) { preferences.serveHTTPSByDefault.toggle() }
             }
         }
     }
@@ -193,7 +195,7 @@ struct SettingsView: View {
     private var updatesGroup: some View {
         KTSettingsGroup(title: "Updates") {
             KTSettingsRow(title: "Automatic updates", subtitle: "Download and install updates in the background.") {
-                KTToggle(isOn: preferences.automaticUpdates, action: toggleAutomaticUpdates)
+                KTToggle("Automatic updates", isOn: preferences.automaticUpdates, action: toggleAutomaticUpdates)
             }
             KTSettingsRow(title: "Release channel", subtitle: "Currently on \(versionString).") {
                 releaseChannelMenu
@@ -244,7 +246,7 @@ struct SettingsView: View {
                 title: "Developer diagnostics",
                 subtitle: "Log verbose service startup details to diagnostics.log. Turn on when a service won’t start, then reproduce."
             ) {
-                KTToggle(isOn: preferences.devMode) { preferences.devMode.toggle() }
+                KTToggle("Developer diagnostics", isOn: preferences.devMode) { preferences.devMode.toggle() }
             }
             KTSettingsRow(
                 title: "Diagnostics log",
@@ -343,32 +345,5 @@ struct SettingsView: View {
                 }
             }
         }
-    }
-
-    private func sheetWrapper(
-        _ title: String,
-        _ onDone: @escaping () -> Void,
-        @ViewBuilder _ content: () -> some View
-    ) -> some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text(title).font(.jbMono(15, .regular)).foregroundStyle(KTColor.ink)
-                Spacer()
-                Button("Done", action: onDone).keyboardShortcut(.defaultAction)
-            }
-            .padding(.horizontal, 18).padding(.vertical, 12)
-            Divider()
-            content()
-        }
-        .frame(width: 540, height: 480)
-    }
-}
-
-private struct ShellIntegrationSheetBody: View {
-    var body: some View {
-        Form { ShellIntegrationView() }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
-            .background(KTColor.contentBg)
     }
 }

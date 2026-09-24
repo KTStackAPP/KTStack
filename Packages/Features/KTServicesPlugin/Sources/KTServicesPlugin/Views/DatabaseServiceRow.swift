@@ -79,7 +79,7 @@ struct DatabaseServiceRow: View, Equatable {
         if state.isBusy {
             ProgressView().controlSize(.small).frame(width: 40)
         } else {
-            KTToggle(isOn: isRunning, action: onToggle)
+            KTToggle("Run \(state.displayName)", isOn: isRunning, action: onToggle)
         }
     }
 
@@ -96,6 +96,7 @@ struct DatabaseServiceRow: View, Equatable {
         .disabled(!canRestart)
         .opacity(canRestart ? 1 : 0.4)
         .help("Restart \(state.displayName)")
+        .accessibilityLabel("Restart \(state.displayName)")
     }
 
     private var overflowMenu: some View {
@@ -107,6 +108,7 @@ struct DatabaseServiceRow: View, Equatable {
                 .foregroundStyle(KTColor.muted).frame(width: 28, height: 30).contentShape(Rectangle())
         }
         .menuStyle(.borderlessButton).menuIndicator(.hidden).frame(width: 28)
+        .accessibilityLabel("More actions for \(state.displayName)")
     }
 
     private var canRestart: Bool {

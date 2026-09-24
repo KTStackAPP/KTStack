@@ -44,7 +44,7 @@ struct SiteGridCard: View {
                     )
                 }
                 Spacer()
-                KTToggle(isOn: site.secure, action: { onSetSecure(!site.secure) })
+                KTToggle("Serve \(site.name) over HTTPS", isOn: site.secure, action: { onSetSecure(!site.secure) })
                     .help("Serve over HTTPS")
             }
             Text(site.name).font(KTType.cardName).foregroundStyle(KTColor.ink).lineLimit(1)

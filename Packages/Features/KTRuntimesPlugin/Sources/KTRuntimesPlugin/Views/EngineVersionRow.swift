@@ -67,7 +67,7 @@ struct EngineVersionRow: View {
         HStack(spacing: 10) {
             if isActive {
                 if isBusy { ProgressView().controlSize(.small) }
-                KTToggle(isOn: isRunning) { if !isBusy { onToggleRunning() } }
+                KTToggle("Run \(engine.displayName) \(version)", isOn: isRunning) { if !isBusy { onToggleRunning() } }
                     .opacity(isBusy ? 0.5 : 1)
                     .allowsHitTesting(!isBusy)
             } else {

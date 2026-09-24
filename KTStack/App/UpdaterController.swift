@@ -26,6 +26,7 @@ final class UpdaterController: NSObject, ObservableObject, SPUUpdaterDelegate {
 
     func setAutomaticChecks(_ enabled: Bool) {
         updaterController.updater.automaticallyChecksForUpdates = enabled
+        updaterController.updater.automaticallyDownloadsUpdates = enabled
     }
 
     func setChannel(_ channel: String) {

@@ -196,7 +196,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         NSApp.setActivationPolicy(.accessory)
-        NSApp.appearance = NSAppearance(named: .aqua)
+        AppAppearance.apply(preferences.appearance)
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(windowWillClose(_:)),
