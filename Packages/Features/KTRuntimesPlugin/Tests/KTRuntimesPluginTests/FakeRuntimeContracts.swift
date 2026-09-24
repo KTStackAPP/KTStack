@@ -97,57 +97,6 @@ final class FakePHPSites: PHPSiteRuntimeProviding {
 }
 
 @MainActor
-final class FakeEngines: ServiceEngineVersionManaging {
-    var engineSnapshots: [ServiceEngineSnapshot]
-    private(set) var installCalls: [ServiceEngineRelease] = []
-    private(set) var cancelCalls: [ServiceEngineRelease] = []
-    private(set) var setActiveCalls: [(ServiceEngine, String)] = []
-    private(set) var uninstallCalls: [(ServiceEngine, String)] = []
-    private(set) var toggleCalls: [ServiceEngine] = []
-    var setActiveError: Error?
-    var uninstallError: Error?
-    private var continuation: AsyncStream<[ServiceEngineSnapshot]>.Continuation?
-
-    init(snapshots: [ServiceEngineSnapshot] = []) {
-        engineSnapshots = snapshots
-    }
-
-    func engineSnapshotStream() -> AsyncStream<[ServiceEngineSnapshot]> {
-        AsyncStream { continuation in
-            self.continuation = continuation
-            continuation.yield(self.engineSnapshots)
-        }
-    }
-
-    func emit(_ next: [ServiceEngineSnapshot]) {
-        engineSnapshots = next
-        continuation?.yield(next)
-    }
-
-    func install(_ release: ServiceEngineRelease) {
-        installCalls.append(release)
-    }
-
-    func cancelInstall(_ release: ServiceEngineRelease) {
-        cancelCalls.append(release)
-    }
-
-    func setActiveVersion(_ engine: ServiceEngine, version: String) throws {
-        setActiveCalls.append((engine, version))
-        if let setActiveError { throw setActiveError }
-    }
-
-    func uninstall(_ engine: ServiceEngine, version: String) throws {
-        uninstallCalls.append((engine, version))
-        if let uninstallError { throw uninstallError }
-    }
-
-    func toggle(_ engine: ServiceEngine) {
-        toggleCalls.append(engine)
-    }
-}
-
-@MainActor
 final class FakePHPConfig: PHPExtensionManaging, PHPIniEditing, PHPPoolEditing {
     var entries: [PHPExtensionEntry] = []
     var installOutcome = PHPExtensionInstallOutcome(loaded: true, warning: nil)
