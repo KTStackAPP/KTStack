@@ -90,4 +90,10 @@ xcodebuild -project KTStack.xcodeproj -scheme KTStack -destination 'platform=mac
     -configuration Release -derivedDataPath "$DERIVED" build >"$LOG" 2>&1 || fail "build" "$LOG"
 ok "Release build"
 
+begin "KTStackKit-Tests (TSan)"
+LOG="$LOG_DIR/tsan.log"
+xcodebuild -project KTStack.xcodeproj -scheme KTStackKit-Tests -destination 'platform=macOS' \
+    -derivedDataPath "$DERIVED-tsan" -enableThreadSanitizer YES test >"$LOG" 2>&1 || fail "tsan" "$LOG"
+ok "TSan"
+
 printf '\nGate passed (full).\n'
