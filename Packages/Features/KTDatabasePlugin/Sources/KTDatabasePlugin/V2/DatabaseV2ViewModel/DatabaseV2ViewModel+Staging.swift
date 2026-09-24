@@ -165,7 +165,7 @@ public extension DatabaseV2ViewModel {
         canRedoStaged = staged?.canRedo ?? false
     }
 
-    private func rowDict(_ result: QueryResult, _ row: Int) -> [String: Cell] {
+    internal func rowDict(_ result: QueryResult, _ row: Int) -> [String: Cell] {
         var dict: [String: Cell] = [:]
         let names = result.columns.map(\.name)
         for (index, name) in names.enumerated() where index < result.rows[row].count {
