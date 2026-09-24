@@ -25,17 +25,22 @@ public extension DatabaseV2ViewModel {
             driver = newDriver
             capabilities = newDriver.capabilities
             isSuspended = false
+            connectionState = .connected
             if let database = selectedDatabase {
                 staged?.rebind(driver: newDriver, database: database)
             }
         } catch {
-            isSuspended = false
-            connectionState = .failed(error.localizedDescription)
+            connectionState = .failed("Couldn't reconnect to \(profile.name): \(error.localizedDescription)")
         }
     }
 
     /// Gọi đầu mọi thao tác cần driver; resume tab đã suspend trước khi chạm connection.
     func ensureConnected() async {
         if isSuspended { await resumeConnection() }
+    }
+
+    func connectedDriver() async -> RelationalDriver? {
+        await ensureConnected()
+        return driver
     }
 }
