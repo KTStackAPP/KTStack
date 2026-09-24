@@ -1,3 +1,4 @@
+import KTPluginKit
 import KTStackCore
 import XCTest
 @testable import KTDoctorPlugin
