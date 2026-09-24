@@ -2,132 +2,106 @@ import Foundation
 import KTStackCore
 
 public final class KTLocalIPCSocketListener: @unchecked Sendable {
+    static let maxRequestBytes = 1 << 20
+
     private let socketPath: String
     private let dispatcher: KTIPCCommandDispatcher
+    private let receiveTimeout: Int
+    private let retryDelay: TimeInterval
+    private let maxBindAttempts: Int
+    private let lock = NSLock()
     private var serverFd: Int32 = -1
     private var isRunning = false
+    private var bindAttempts = 0
     private let queue = DispatchQueue(label: "com.ktstack.ipc.listener", qos: .userInitiated)
+    private let clientQueue = DispatchQueue(label: "com.ktstack.ipc.clients", qos: .userInitiated, attributes: .concurrent)
 
     public init(
         socketPath: String = AppSupportPaths().ipcSocket.path,
-        dispatcher: KTIPCCommandDispatcher
+        dispatcher: KTIPCCommandDispatcher,
+        receiveTimeout: Int = 5,
+        retryDelay: TimeInterval = 2,
+        maxBindAttempts: Int = 5
     ) {
         self.socketPath = socketPath
         self.dispatcher = dispatcher
+        self.receiveTimeout = receiveTimeout
+        self.retryDelay = retryDelay
+        self.maxBindAttempts = maxBindAttempts
+    }
+
+    public var isListening: Bool {
+        locked { isRunning && serverFd >= 0 }
     }
 
     public func start() {
-        guard !isRunning else { return }
-        unlink(socketPath)
-
-        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard fd >= 0 else { return }
-
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        let capacity = MemoryLayout.size(ofValue: addr.sun_path)
-        guard socketPath.utf8.count < capacity else {
-            close(fd)
-            return
+        let shouldStart = locked { () -> Bool in
+            guard !isRunning else { return false }
+            isRunning = true
+            bindAttempts = 0
+            return true
         }
-
-        _ = withUnsafeMutablePointer(to: &addr.sun_path) { tuplePtr in
-            tuplePtr.withMemoryRebound(to: CChar.self, capacity: capacity) { dst in
-                strncpy(dst, socketPath, capacity - 1)
-            }
-        }
-
-        let bindResult = withUnsafePointer(to: &addr) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
-            }
-        }
-        guard bindResult == 0 else {
-            close(fd)
-            return
-        }
-
-        chmod(socketPath, 0o600)
-        guard listen(fd, 10) == 0 else {
-            close(fd)
-            return
-        }
-
-        serverFd = fd
-        isRunning = true
-
-        queue.async { [weak self] in
-            self?.acceptLoop()
-        }
+        if shouldStart { attemptBind() }
     }
 
     public func stop() {
-        isRunning = false
-        if serverFd >= 0 {
-            close(serverFd)
+        let fd = locked { () -> Int32 in
+            isRunning = false
+            let fd = serverFd
             serverFd = -1
+            return fd
         }
+        if fd >= 0 { close(fd) }
         unlink(socketPath)
     }
 
-    private func acceptLoop() {
-        while isRunning && serverFd >= 0 {
-            let clientFd = accept(serverFd, nil, nil)
-            guard clientFd >= 0 else { break }
-
-            Task.detached { [dispatcher = self.dispatcher] in
-                await Self.handleClient(clientFd, dispatcher: dispatcher)
+    private func attemptBind() {
+        guard locked({ isRunning && serverFd < 0 }) else { return }
+        do {
+            let fd = try IPCSocketBinder.bind(path: socketPath)
+            let kept = locked { () -> Bool in
+                guard isRunning else { return false }
+                serverFd = fd
+                return true
             }
-        }
-    }
-
-    private static func handleClient(_ fd: Int32, dispatcher: KTIPCCommandDispatcher) async {
-        defer { close(fd) }
-        var reqData = Data()
-        var buffer = [UInt8](repeating: 0, count: 4096)
-        while true {
-            let bytesRead = read(fd, &buffer, buffer.count)
-            if bytesRead < 0 {
-                if errno == EINTR { continue }
+            guard kept else {
+                close(fd)
+                unlink(socketPath)
                 return
             }
-            if bytesRead == 0 { break }
-            reqData.append(buffer, count: bytesRead)
-            if (try? JSONDecoder().decode(KTIPCRequest.self, from: reqData)) != nil {
-                break
+            queue.async { self.acceptLoop(fd) }
+        } catch {
+            let attempt = locked { () -> Int in
+                bindAttempts += 1
+                return bindAttempts
             }
-        }
-        guard !reqData.isEmpty else { return }
-
-        guard let request = try? JSONDecoder().decode(KTIPCRequest.self, from: reqData) else {
-            let errResponse = KTIPCResponse.fail("Malformed JSON request")
-            if let errData = try? JSONEncoder().encode(errResponse) {
-                writeAll(fd, data: errData)
-            }
-            return
-        }
-
-        let response = await dispatcher.dispatch(request)
-        if let respData = try? JSONEncoder().encode(response) {
-            writeAll(fd, data: respData)
+            NSLog("KTStack: IPC socket bind failed (attempt \(attempt)/\(maxBindAttempts)): \(error.localizedDescription)")
+            guard attempt < maxBindAttempts else { return }
+            queue.asyncAfter(deadline: .now() + retryDelay) { [weak self] in self?.attemptBind() }
         }
     }
 
-    private static func writeAll(_ fd: Int32, data: Data) {
-        data.withUnsafeBytes { rawBuffer in
-            guard let base = rawBuffer.baseAddress else { return }
-            var remaining = data.count
-            var offset = 0
-            while remaining > 0 {
-                let written = write(fd, base.advanced(by: offset), remaining)
-                if written <= 0 {
-                    if errno == EINTR { continue }
-                    break
-                }
-                offset += written
-                remaining -= written
+    private func acceptLoop(_ fd: Int32) {
+        while locked({ isRunning && serverFd == fd }) {
+            let client = accept(fd, nil, nil)
+            if client < 0 {
+                if errno == EINTR { continue }
+                break
             }
+            guard Self.peerIsCurrentUser(client) else {
+                close(client)
+                continue
+            }
+            let dispatcher = dispatcher
+            let timeout = receiveTimeout
+            clientQueue.async { Self.serve(client, dispatcher: dispatcher, timeout: timeout) }
         }
+    }
+
+    private func locked<T>(_ body: () -> T) -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        return body()
     }
 
     deinit {
