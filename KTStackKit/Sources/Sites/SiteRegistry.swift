@@ -18,10 +18,10 @@ public struct SiteRemovalCoordinator: Sendable {
     }
 
     public func remove(_ site: Site) async throws {
-        try await deleteFolder(site)
         if let databaseName = site.databaseName {
             try await dropDatabase(databaseName)
         }
+        try await deleteFolder(site)
         await removeRecord(site)
     }
 }
@@ -62,6 +62,7 @@ public final class SiteRegistry: ObservableObject {
         case domainTaken(String)
         case notADirectory(String)
         case unsafeDeletePath(String)
+        case unsafeSiteFolder(String)
         case noFreeBackendPort
         case proxyTargetLoopsToSite(String)
         case aliasTaken(String, by: String)
@@ -76,6 +77,7 @@ public final class SiteRegistry: ObservableObject {
             case let .domainTaken(d): "Another site already uses “\(d)”."
             case let .notADirectory(p): "“\(p)” is not a folder."
             case let .unsafeDeletePath(p): "Refusing to delete unsafe site folder “\(p)”."
+            case let .unsafeSiteFolder(p): "“\(p)” is a protected location and can't be a site folder."
             case .noFreeBackendPort: "No free loopback port in 4000-4999 for a site backend."
             case let .proxyTargetLoopsToSite(d): "The target cannot point back at this site (\(d))."
             case let .aliasTaken(a, owner): "“\(a)” is already used by “\(owner)”."
@@ -97,6 +99,7 @@ public final class SiteRegistry: ObservableObject {
         guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDir), isDir.boolValue else {
             throw RegistryError.notADirectory(folder.path)
         }
+        guard !SiteFolderDeletionPolicy.standard().isProtected(folder) else { throw RegistryError.unsafeSiteFolder(folder.path) }
         let info = inspector.inspect(folder: folder, tld: tld)
         let domain = uniqueDomain(info.defaultDomain)
 
@@ -185,26 +188,6 @@ public final class SiteRegistry: ObservableObject {
     public func remove(_ site: Site) {
         sites.removeAll { $0.id == site.id }
         persist()
-    }
-
-    public func removeDeletingFolder(_ site: Site) throws {
-        try deleteFolderForRemoval(site)
-        remove(site)
-    }
-
-    public func validateCanRemoveFolder(_ site: Site) throws {
-        let folder = URL(fileURLWithPath: site.path, isDirectory: true).standardizedFileURL
-        try validateDeletableSiteFolder(folder)
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory) else { return }
-        guard isDirectory.boolValue else { throw RegistryError.notADirectory(folder.path) }
-    }
-
-    public func deleteFolderForRemoval(_ site: Site) throws {
-        let folder = URL(fileURLWithPath: site.path, isDirectory: true).standardizedFileURL
-        try validateCanRemoveFolder(site)
-        guard FileManager.default.fileExists(atPath: folder.path) else { return }
-        try FileManager.default.removeItem(at: folder)
     }
 
     public func editDomain(_ site: Site, to newDomain: String) throws {
@@ -358,14 +341,6 @@ public final class SiteRegistry: ObservableObject {
         guard let idx = sites.firstIndex(where: { $0.id == id }) else { return }
         mutate(&sites[idx])
         persist()
-    }
-
-    private func validateDeletableSiteFolder(_ folder: URL) throws {
-        let path = folder.path
-        let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path
-        guard path != "/", path != home, !folder.lastPathComponent.isEmpty else {
-            throw RegistryError.unsafeDeletePath(path)
-        }
     }
 
     // domain hoặc alias của bất kỳ site nào đang chiếm tên này.

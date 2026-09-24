@@ -197,12 +197,11 @@ public final class SiteProvisioningService: SiteProvisioning, WordPressRestoring
         guard let site = registry.sites.first(where: { $0.id == id }) else { return }
         let registry = registry
         let dropDB = self.dropDatabase
-        // Proxy site không có thư mục: không bao giờ đụng filesystem khi remove.
-        let deleteFolder = deleteFolder && site.hasFolder
+        let folder = try (deleteFolder && site.hasFolder ? registry.folderRemovalTarget(site) : nil)
         let coordinator = SiteRemovalCoordinator(
-            deleteFolder: { site in
-                guard deleteFolder else { return }
-                try await MainActor.run { try registry.deleteFolderForRemoval(site) }
+            deleteFolder: { _ in
+                guard let folder else { return }
+                _ = try await SiteRegistry.moveFolderToTrash(folder)
             },
             dropDatabase: { name in
                 guard dropDatabase else { return }

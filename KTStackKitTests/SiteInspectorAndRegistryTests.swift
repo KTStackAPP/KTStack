@@ -206,40 +206,61 @@ final class SiteRegistryTests: XCTestCase {
         XCTAssertNil(reloaded.sites.first?.databaseName)
     }
 
-    func testRemoveDeletingFolderDeletesFolderAndRegistryEntry() throws {
+    func testFolderRemovalTargetMovesFolderToTrashNotDeletion() async throws {
         let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
         let folder = try phpFolder(in: dir, named: "shop")
         let site = try reg.add(folder: folder)
 
-        try reg.removeDeletingFolder(site)
+        let target = try XCTUnwrap(try reg.folderRemovalTarget(site))
+        let moved = try await SiteRegistry.moveFolderToTrash(target)
+        let trashed = try XCTUnwrap(moved)
+        defer { try? fm.removeItem(at: trashed) }
 
         XCTAssertFalse(fm.fileExists(atPath: folder.path))
-        XCTAssertTrue(reg.sites.isEmpty)
-        let reloaded = SiteRegistry(storeURL: dir.appendingPathComponent("sites.json"))
-        XCTAssertTrue(reloaded.sites.isEmpty)
+        XCTAssertTrue(fm.fileExists(atPath: trashed.appendingPathComponent("public/index.php").path))
     }
 
-    func testRemoveDeletingFolderRemovesRegistryEntryWhenFolderIsMissing() throws {
+    func testFolderRemovalTargetIsNilWhenFolderIsMissing() throws {
         let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
         let folder = try phpFolder(in: dir, named: "shop")
         let site = try reg.add(folder: folder)
         try fm.removeItem(at: folder)
 
-        try reg.removeDeletingFolder(site)
-
-        XCTAssertTrue(reg.sites.isEmpty)
+        XCTAssertNil(try reg.folderRemovalTarget(site))
     }
 
-    func testRemoveDeletingFolderRejectsFilePathAndKeepsRegistryEntry() throws {
+    func testFolderRemovalTargetRejectsFilePath() throws {
         let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
         let folder = try phpFolder(in: dir, named: "shop")
         let site = try reg.add(folder: folder)
         try fm.removeItem(at: folder)
         try "not a directory".write(to: folder, atomically: true, encoding: .utf8)
 
-        XCTAssertThrowsError(try reg.validateCanRemoveFolder(site))
-        XCTAssertThrowsError(try reg.removeDeletingFolder(site))
+        XCTAssertThrowsError(try reg.folderRemovalTarget(site))
         XCTAssertEqual(reg.sites.count, 1)
+    }
+
+    func testFolderRemovalTargetRejectsAncestorOfAnotherSite() throws {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        let parent = try phpFolder(in: dir, named: "parent")
+        let child = try phpFolder(in: parent, named: "child")
+        let parentSite = try reg.add(folder: parent)
+        _ = try reg.add(folder: child)
+
+        XCTAssertThrowsError(try reg.folderRemovalTarget(parentSite)) { error in
+            guard case .unsafeDeletePath = error as? SiteRegistry.RegistryError else {
+                return XCTFail("unexpected error \(error)")
+            }
+        }
+        XCTAssertTrue(fm.fileExists(atPath: child.path))
+    }
+
+    func testAddRejectsHomeFolder() {
+        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
+        XCTAssertThrowsError(try reg.add(folder: fm.homeDirectoryForCurrentUser)) { error in
+            XCTAssertEqual(error as? SiteRegistry.RegistryError, .unsafeSiteFolder(fm.homeDirectoryForCurrentUser.path))
+        }
+        XCTAssertTrue(reg.sites.isEmpty)
     }
 
     func testDuplicateDefaultDomainGetsSuffix() throws {
@@ -391,7 +412,7 @@ final class SiteRegistryTests: XCTestCase {
 }
 
 final class SiteRemovalCoordinatorTests: XCTestCase {
-    func testManagedSiteDeletesFolderBeforeDroppingDatabaseAndRemovingRecord() async throws {
+    func testManagedSiteDropsDatabaseBeforeTrashingFolderAndRemovingRecord() async throws {
         let events = RemovalEvents()
         let coordinator = SiteRemovalCoordinator(
             deleteFolder: { site in await events.append("delete-folder:\(site.domain)") },
@@ -404,8 +425,8 @@ final class SiteRemovalCoordinatorTests: XCTestCase {
 
         let values = await events.values
         XCTAssertEqual(values, [
-            "delete-folder:shop.test",
             "drop-database:shop_db",
+            "delete-folder:shop.test",
             "remove-record:shop.test",
         ])
     }
@@ -428,7 +449,7 @@ final class SiteRemovalCoordinatorTests: XCTestCase {
         ])
     }
 
-    func testFolderFailureSkipsDatabaseDropAndRecordRemoval() async {
+    func testFolderFailureKeepsRecordAfterDatabaseDrop() async {
         let events = RemovalEvents()
         let coordinator = SiteRemovalCoordinator(
             deleteFolder: { site in
@@ -446,10 +467,10 @@ final class SiteRemovalCoordinatorTests: XCTestCase {
             XCTAssertEqual(error as? RemovalFailure, .folder)
         }
         let values = await events.values
-        XCTAssertEqual(values, ["delete-folder:shop.test"])
+        XCTAssertEqual(values, ["drop-database:shop_db", "delete-folder:shop.test"])
     }
 
-    func testDatabaseFailureKeepsRecordForRetryAfterFolderDeletion() async {
+    func testDatabaseFailureLeavesFolderAndRecordUntouched() async {
         let events = RemovalEvents()
         let coordinator = SiteRemovalCoordinator(
             deleteFolder: { site in await events.append("delete-folder:\(site.domain)") },
@@ -467,10 +488,7 @@ final class SiteRemovalCoordinatorTests: XCTestCase {
             XCTAssertEqual(error as? RemovalFailure, .database)
         }
         let values = await events.values
-        XCTAssertEqual(values, [
-            "delete-folder:shop.test",
-            "drop-database:shop_db",
-        ])
+        XCTAssertEqual(values, ["drop-database:shop_db"])
     }
 
     private func site(databaseName: String?) -> Site {
