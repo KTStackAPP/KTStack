@@ -40,8 +40,9 @@ public final class ShellPathManager: @unchecked Sendable {
         }
     }
 
-    private let paths: AppSupportPaths
-    private let helperSource: URL?
+    let paths: AppSupportPaths
+    let helperSource: URL?
+    let globalCLIPath: URL
     private let home: URL
     private let toolStore: ShellToolStore
     private let toolResolver: ShellToolResolver
@@ -49,20 +50,22 @@ public final class ShellPathManager: @unchecked Sendable {
     public init(
         paths: AppSupportPaths,
         helperSource: URL? = nil,
-        home: URL = FileManager.default.homeDirectoryForCurrentUser
+        home: URL = FileManager.default.homeDirectoryForCurrentUser,
+        globalCLIPath: URL = GlobalCLILink.defaultPath
     ) {
         self.paths = paths
         self.helperSource = helperSource
+        self.globalCLIPath = globalCLIPath
         self.home = home
         self.toolStore = ShellToolStore(paths: paths)
         self.toolResolver = ShellToolResolver(paths: paths)
     }
 
-    private var exportLine: String {
+    var exportLine: String {
         "export PATH=\"\(paths.shimBinDir.path):$PATH\""
     }
 
-    private var rcFiles: [URL] {
+    var rcFiles: [URL] {
         let fm = FileManager.default
         var files = [home.appendingPathComponent(".zshrc"), home.appendingPathComponent(".zprofile")]
         for candidate in [".bashrc", ".bash_profile"] {
@@ -95,57 +98,6 @@ public final class ShellPathManager: @unchecked Sendable {
         try prepareShimDir()
         try ShellShimWriter(paths: paths).writeShims()
     }
-    public func installCLI() throws {
-        guard isToolEnabled("kt") else {
-            uninstallCLI()
-            return
-        }
-        let fm = FileManager.default
-        let dir = paths.shimBinDir
-        try fm.createDirectory(
-            at: dir,
-            withIntermediateDirectories: true,
-            attributes: [.posixPermissions: 0o755]
-        )
-        guard let helperSource else { return }
-        let cliSource = helperSource.deletingLastPathComponent().appendingPathComponent("kt")
-        guard fm.isExecutableFile(atPath: cliSource.path) else { return }
-
-        let cliDest = dir.appendingPathComponent("kt")
-        if fm.fileExists(atPath: cliDest.path) { try? fm.removeItem(at: cliDest) }
-        try? fm.copyItem(at: cliSource, to: cliDest)
-        try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: cliDest.path)
-
-        let usrLocalBin = URL(fileURLWithPath: "/usr/local/bin/kt")
-        try? fm.removeItem(at: usrLocalBin)
-        try? fm.createSymbolicLink(at: usrLocalBin, withDestinationURL: cliSource)
-    }
-
-    public func uninstallCLI() {
-        let fm = FileManager.default
-        let cliDest = paths.shimBinDir.appendingPathComponent("kt")
-        try? fm.removeItem(at: cliDest)
-        let usrLocalBin = URL(fileURLWithPath: "/usr/local/bin/kt")
-        try? fm.removeItem(at: usrLocalBin)
-    }
-
-    public func disable() throws {
-        uninstallCLI()
-        let patcher = ShellRCPatcher(exportLine: exportLine)
-        let fm = FileManager.default
-        var firstError: Error?
-        for rc in rcFiles where fm.fileExists(atPath: rc.path) {
-            do {
-                let content = (try? String(contentsOf: rc, encoding: .utf8)) ?? ""
-                let updated = try patcher.contentRemovingBlock(from: content, file: rc.lastPathComponent)
-                try backup(rc)
-                try updated.data(using: .utf8)!.write(to: rc, options: .atomic)
-            } catch { if firstError == nil { firstError = error } }
-        }
-        if fm.fileExists(atPath: paths.shimBinDir.path) { try? fm.removeItem(at: paths.shimBinDir) }
-        if let firstError { throw firstError }
-    }
-
     public func composerProvisioned() -> Bool {
         ComposerProvisioner(paths: paths).isProvisioned
     }
@@ -230,22 +182,5 @@ public final class ShellPathManager: @unchecked Sendable {
         } else {
             uninstallCLI()
         }
-    }
-
-    private func patch(_ url: URL, with patcher: ShellRCPatcher) throws {
-        let content = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
-        let updated = try patcher.contentWithBlock(in: content, file: url.lastPathComponent)
-        try backup(url)
-        try updated.data(using: .utf8)!.write(to: url, options: .atomic)
-    }
-
-    private func backup(_ url: URL) throws {
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: url.path) else { return }
-        let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
-        let dest = url.deletingLastPathComponent()
-            .appendingPathComponent("\(url.lastPathComponent).ktstack.bak-\(stamp)")
-        try? fm.removeItem(at: dest)
-        try fm.copyItem(at: url, to: dest)
     }
 }
