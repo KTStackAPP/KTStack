@@ -32,7 +32,11 @@ extension WorkspaceRootModel {
         Task {
             guard await ensureBackupConnection(profile) else { return }
             let set = await databaseVM.backupAllDatabases(session: backupSession)
-            if set != nil { feedback.toast("Backed up “\(profile.name)”") }
+            if set != nil {
+                feedback.toast("Backed up “\(profile.name)”")
+            } else if case let .failed(message) = databaseVM.backupStatus {
+                feedback.toast("Backup failed: \(message)")
+            }
         }
     }
 
