@@ -95,7 +95,7 @@ struct LogsSectionView: View {
                         .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
-                .onChange(of: store.tail.lines.count) { _ in
+                .onChange(of: store.tail.lines.last?.id) { _ in
                     guard store.tail.isLive else { return }
                     if reduceMotion { proxy.scrollTo(bottomID, anchor: .bottom) }
                     else { withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(bottomID, anchor: .bottom) } }

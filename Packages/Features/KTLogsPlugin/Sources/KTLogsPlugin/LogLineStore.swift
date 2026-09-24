@@ -32,6 +32,21 @@ public final class LogLineStore: @unchecked Sendable {
         return lines
     }
 
+    public func appendIncremental(_ raw: [String]) -> (added: [LogLine], firstRetainedID: Int?) {
+        lock.lock(); defer { lock.unlock() }
+        let added = raw.enumerated().map { LogLine(id: nextID + $0.offset, text: $0.element, severity: Self.severity(of: $0.element)) }
+        nextID += raw.count
+        lines.append(contentsOf: added)
+        if lines.count > capacity { lines.removeFirst(lines.count - capacity) }
+        return (added.filter { $0.id >= (lines.first?.id ?? 0) }, lines.first?.id)
+    }
+
+    public static func matching(_ lines: [LogLine], _ query: String) -> [LogLine] {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return lines }
+        return lines.filter { $0.text.range(of: q, options: .caseInsensitive) != nil }
+    }
+
     public func clear() {
         lock.lock(); lines.removeAll(keepingCapacity: true); lock.unlock()
     }
@@ -42,10 +57,7 @@ public final class LogLineStore: @unchecked Sendable {
     }
 
     public func filtered(_ query: String) -> [LogLine] {
-        let q = query.trimmingCharacters(in: .whitespaces)
-        let all = snapshot()
-        guard !q.isEmpty else { return all }
-        return all.filter { $0.text.range(of: q, options: .caseInsensitive) != nil }
+        Self.matching(snapshot(), query)
     }
 
     static func severity(of line: String) -> LogSeverity {
