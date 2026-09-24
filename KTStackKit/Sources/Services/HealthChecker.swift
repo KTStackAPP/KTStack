@@ -86,15 +86,19 @@ public struct HealthChecker: Sendable {
         return rc == 0
     }
 
+    static let probeSession: URLSession = {
+        let cfg = URLSessionConfiguration.ephemeral
+        cfg.timeoutIntervalForRequest = 30
+        cfg.httpMaximumConnectionsPerHost = 4
+        return URLSession(configuration: cfg)
+    }()
+
     static func httpReachable(_ url: URL, timeout: TimeInterval) async -> Bool {
         var req = URLRequest(url: url)
         req.httpMethod = "GET"
         req.timeoutInterval = timeout
-        let cfg = URLSessionConfiguration.ephemeral
-        cfg.timeoutIntervalForRequest = timeout
-        let session = URLSession(configuration: cfg)
         do {
-            let (_, response) = try await session.data(for: req)
+            let (_, response) = try await probeSession.data(for: req)
             return (response as? HTTPURLResponse) != nil
         } catch {
             return false

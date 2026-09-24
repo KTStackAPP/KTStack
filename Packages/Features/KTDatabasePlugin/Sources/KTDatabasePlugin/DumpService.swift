@@ -248,38 +248,20 @@ public struct DumpService: Sendable {
     }
 
     func runCapturing(_ executable: URL, args: [String]) async throws -> String {
-        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<String, Error>) in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let proc = Process()
-                proc.executableURL = executable
-                proc.arguments = args
-                proc.environment = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin"]
-                let outPipe = Pipe()
-                let errPipe = Pipe()
-                proc.standardOutput = outPipe
-                proc.standardError = errPipe
-                proc.standardInput = FileHandle.nullDevice
-                do {
-                    try proc.run()
-                } catch {
-                    cont.resume(throwing: DatabaseError.connection(
-                        "Couldn't launch \(executable.lastPathComponent): \(error.localizedDescription)"
-                    ))
-                    return
-                }
-                let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
-                let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
-                proc.waitUntilExit()
-                if proc.terminationStatus == 0 {
-                    cont.resume(returning: String(data: outData, encoding: .utf8) ?? "")
-                } else {
-                    let message = String(data: errData, encoding: .utf8)?
-                        .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                    cont.resume(throwing: DatabaseError.connection(
-                        "\(executable.lastPathComponent) failed (exit \(proc.terminationStatus)): \(message)"
-                    ))
-                }
-            }
+        let result: ProcessResult
+        do {
+            result = try await ProcessRunner().runAsync(ProcessRequest(
+                executable: executable.path, arguments: args, environment: ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin"]
+            ))
+        } catch {
+            throw DatabaseError.connection(
+                "Couldn't launch \(executable.lastPathComponent): \(error.localizedDescription)"
+            )
         }
+        guard result.status == 0, result.interruption == nil else {
+            let message = result.stderrText.trimmingCharacters(in: .whitespacesAndNewlines)
+            throw DatabaseError.connection("\(executable.lastPathComponent) failed (exit \(result.status)): \(message)")
+        }
+        return result.stdoutText
     }
 }
