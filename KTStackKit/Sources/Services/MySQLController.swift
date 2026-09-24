@@ -111,24 +111,24 @@ public final class MySQLController: ManagedService, @unchecked Sendable {
     }
 
     private func initializeIfNeeded(binary: URL) throws {
-        try ServiceInitializer.ensureDir(dataDir)
         // Cả hai flavor tạo subdir `mysql/` trong data dir, nên marker dùng chung.
-        guard !ServiceInitializer.isInitialized(dataDir, marker: "mysql") else { return }
-        switch flavor {
-        case .mysql:
-            try ServiceInitializer.run(
-                binary,
-                ["--defaults-file=\(configFile.path)", "--initialize-insecure"],
-                tool: "mysqld"
-            )
-        case .mariadb:
-            guard let basedir else { throw ServiceNotInstalled(.mariadb) }
-            try initializeMariaDB(basedir: basedir)
+        try StagedDataDir.initialize(dataDir, marker: "mysql", tool: flavor == .mysql ? "mysqld" : "mariadb-install-db") { staging in
+            switch flavor {
+            case .mysql:
+                try ServiceInitializer.run(
+                    binary,
+                    ["--defaults-file=\(configFile.path)", "--initialize-insecure", "--datadir=\(staging.path)"],
+                    tool: "mysqld"
+                )
+            case .mariadb:
+                guard let basedir else { throw ServiceNotInstalled(.mariadb) }
+                try initializeMariaDB(basedir: basedir, dataDir: staging)
+            }
         }
     }
 
     // mariadb-install-db là shell script word-split $basedir; khoảng trắng trong path ("Application Support") làm nó không thấy my_print_defaults. Chạy qua symlink basedir không khoảng trắng để né; spaced datadir thì script xử lý được.
-    private func initializeMariaDB(basedir: URL) throws {
+    private func initializeMariaDB(basedir: URL, dataDir: URL) throws {
         let fm = FileManager.default
         let linkBase = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("ktstack-mariadb-\(UUID().uuidString)")

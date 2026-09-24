@@ -109,7 +109,8 @@ struct ServicesScreen: View {
                             onRestart: { vm.restart(id) },
                             onOpenLogs: { route(.logs(sourceID: ServicesViewModel.logSourceID(id))) },
                             onSetActive: { handleSetActive(id: id, version: $0) },
-                            onManageInRuntimes: { route(.runtimes) }
+                            onManageInRuntimes: { route(.runtimes) },
+                            onResetData: { vm.resetData(id) }
                         )
                         .equatable()
                         if index < entries.count - 1 {

@@ -13,8 +13,10 @@ struct DatabaseServiceRow: View, Equatable {
     let onOpenLogs: () -> Void
     let onSetActive: (String) -> Void
     let onManageInRuntimes: () -> Void
+    let onResetData: () -> Void
 
     @State private var hovering = false
+    @State private var showResetConfirm = false
 
     static func == (a: DatabaseServiceRow, b: DatabaseServiceRow) -> Bool {
         a.state.id == b.state.id
@@ -102,11 +104,21 @@ struct DatabaseServiceRow: View, Equatable {
         Menu {
             Button("Open Logs", systemImage: "text.alignleft", action: onOpenLogs)
             Button("Manage in Runtimes…", systemImage: "cube", action: onManageInRuntimes)
+            if state.id.keepsData {
+                Divider()
+                Button("Reset Data…", systemImage: "trash", role: .destructive) { showResetConfirm = true }
+            }
         } label: {
             Image(systemName: "ellipsis").font(.system(size: 15, weight: .regular))
                 .foregroundStyle(KTColor.muted).frame(width: 28, height: 30).contentShape(Rectangle())
         }
         .menuStyle(.borderlessButton).menuIndicator(.hidden).frame(width: 28)
+        .confirmationDialog("Reset \(state.displayName) data?", isPresented: $showResetConfirm) {
+            Button("Reset \(state.displayName) data", role: .destructive, action: onResetData)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(ServiceID.resetDataMessage(state.displayName))
+        }
     }
 
     private var canRestart: Bool {
