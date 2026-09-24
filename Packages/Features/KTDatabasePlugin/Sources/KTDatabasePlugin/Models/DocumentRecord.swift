@@ -4,13 +4,11 @@ public struct DocumentRecord: Sendable, Equatable, Identifiable {
     public let id: String
     public let json: String
     public let identifierJSON: String?
-    public let saveRefusal: String?
 
-    public init(id: String, json: String, identifierJSON: String?, saveRefusal: String? = nil) {
+    public init(id: String, json: String, identifierJSON: String?) {
         self.id = id
         self.json = json
         self.identifierJSON = identifierJSON
-        self.saveRefusal = saveRefusal
     }
 }
 
