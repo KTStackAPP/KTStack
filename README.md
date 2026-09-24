@@ -55,7 +55,7 @@ Everything in KTStack is built-in, 100% free, and open-source (MIT)—no Pro tie
 - **`dd()` / `dump()` Stream Viewer**: Laravel and Symfony dumps stream straight into the app with zero code setup.
 - **Cloudflare Tunnel Sharing**: Expose local sites over temporary public HTTPS URLs for client reviews and mobile testing.
 - **Configurable TLD**: Customize your local top-level domain beyond `.test`.
-- **Apple Silicon & Intel Mac Support**: Native universal builds for both `arm64` and `x86_64` on macOS 13+.
+- **Apple Silicon & Intel Mac Support**: Native builds for `arm64` and `x86_64` on macOS 13+, shipped as one DMG per architecture (the bundled runtimes are architecture-specific).
 - **Native macOS Liquid Glass UI**: Modern SwiftUI interface supporting macOS 27+ Liquid Glass with macOS 13+ material fallback, and Sparkle auto-updates.
 ## Screenshots
 
