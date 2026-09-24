@@ -76,9 +76,10 @@ final class GridRowIdentityTests: XCTestCase {
     }
 
     func testEditingAnotherCellCommitsThePreviousCellToItsOwnRow() {
-        let (_, table) = makeGrid(windowStart: 0)
+        let (coordinator, table) = makeGrid(windowStart: 0)
         table.startEditing(row: 0, column: 2)
         table.startEditing(row: 3, column: 2)
+        XCTAssertTrue(coordinator.editingRef != nil)
         XCTAssertEqual(committed.map { $0.ref }, [.row(table: "users", values: ["id": .int(1)])])
     }
 
