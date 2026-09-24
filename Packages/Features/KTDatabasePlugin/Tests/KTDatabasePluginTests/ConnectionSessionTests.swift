@@ -19,6 +19,10 @@ final class ConnectionSessionTests: XCTestCase {
         func leave() {
             lock.lock(); current -= 1; lock.unlock()
         }
+
+        var entered: Bool {
+            lock.lock(); defer { lock.unlock() }; return maxConcurrent > 0
+        }
     }
 
     private final class FakeConnection: SessionConnection, @unchecked Sendable {
@@ -39,7 +43,14 @@ final class ConnectionSessionTests: XCTestCase {
         func runText(_ sql: String) async throws -> QueryResult {
             probe.enter()
             defer { probe.leave() }
-            try? await Task.sleep(for: .milliseconds(25))
+            if sql == "SELECT SLEEP" {
+                let deadline = Date().addingTimeInterval(5)
+                while live, Date() < deadline {
+                    try? await Task.sleep(for: .milliseconds(1))
+                }
+            } else {
+                try? await Task.sleep(for: .milliseconds(25))
+            }
             return QueryResult(columns: [ColumnMeta(name: sql)], rows: [])
         }
 
@@ -118,7 +129,10 @@ final class ConnectionSessionTests: XCTestCase {
         let probe = Probe()
         let session = makeSession(probe: probe, box: ConnectionBox())
         async let query: QueryResult = session.runText("SELECT SLEEP", database: nil)
-        try await Task.sleep(for: .milliseconds(5)) // để query giữ gate và vào runText
+        let deadline = Date().addingTimeInterval(5)
+        while !probe.entered, Date() < deadline {
+            try await Task.sleep(for: .milliseconds(1))
+        }
         await session.cancelInFlight()
         do {
             _ = try await query

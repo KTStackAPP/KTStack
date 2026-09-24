@@ -19,6 +19,7 @@ final class FakeLaunchAgentManager: LaunchAgentManaging, @unchecked Sendable {
     private var loaded: Set<String>
     private var recorded: [Call] = []
     private var failures: [Operation: Error] = [:]
+    private var pids: [String: pid_t] = [:]
 
     init(paths: AppSupportPaths, loaded: Set<String> = []) {
         self.paths = paths
@@ -35,6 +36,14 @@ final class FakeLaunchAgentManager: LaunchAgentManaging, @unchecked Sendable {
 
     func fail(_ operation: Operation, with error: Error) {
         locked { failures[operation] = error }
+    }
+
+    func setJobPID(_ pid: pid_t?, for label: String) {
+        locked { pids[label] = pid }
+    }
+
+    func jobPID(_ label: String) -> pid_t? {
+        locked { pids[label] }
     }
 
     func markLoaded(_ label: String) {

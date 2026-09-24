@@ -9,10 +9,10 @@ public struct LaunchdServiceRunner: Sendable {
 
     public let startTimeout: TimeInterval
 
-    private let agents: any LaunchAgentManaging
+    let agents: any LaunchAgentManaging
     private let health = HealthChecker()
     private let preflight = PortPreflight()
-    private let diag: ServiceDiagnostics
+    let diag: ServiceDiagnostics
 
     public init(
         kind: ServiceKind,
@@ -50,6 +50,7 @@ public struct LaunchdServiceRunner: Sendable {
             try agents.bootstrap(spec)
         }
         try await waitHealthy(spec: spec, timeout: startTimeout)
+        try verifyPortOwnership()
     }
 
     public func stop() throws {
@@ -62,10 +63,12 @@ public struct LaunchdServiceRunner: Sendable {
         if agents.isLoaded(label) { try agents.kickstart(label) }
         else { try agents.bootstrap(spec) }
         try await waitHealthy(spec: spec, timeout: startTimeout)
+        try verifyPortOwnership()
     }
 
     public func probe() async -> ServiceStatus {
-        await health.check(probe)
+        guard agents.isLoaded(label) else { return .stopped }
+        return await health.check(probe)
     }
 
     private func reapStrayInstances(_ spec: LaunchAgentSpec) {
