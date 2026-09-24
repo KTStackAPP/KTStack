@@ -70,10 +70,7 @@ public extension DatabaseV2ViewModel {
 
     func runDDL(_ sql: String) async {
         guard !sql.isEmpty, let driver else { return }
-        guard canApplySchema else {
-            ddlError = "This connection is read-only."
-            return
-        }
+        guard ddlAllowed() else { return }
         let token = generation
         isDDLBusy = true
         ddlError = nil
@@ -163,10 +160,7 @@ public extension DatabaseV2ViewModel {
     // Chạy tuần tự, dừng ở lỗi đầu tiên, báo số câu đã chạy rồi refresh schema thật.
     func applyStatements(_ statements: [DDLStatement]) async {
         guard !statements.isEmpty, let driver else { return }
-        guard canApplySchema else {
-            ddlError = "This connection is read-only."
-            return
-        }
+        guard ddlAllowed() else { return }
         let token = generation
         isDDLBusy = true
         ddlError = nil
