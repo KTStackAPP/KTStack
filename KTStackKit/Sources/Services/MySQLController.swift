@@ -62,7 +62,8 @@ public final class MySQLController: ManagedService, @unchecked Sendable {
     }
 
     private var configFile: URL {
-        paths.serviceConfig(name, ext: "cnf")
+        guard let v = activeVersionProvider() else { return paths.serviceConfig(name, ext: "cnf") }
+        return paths.serviceConfig("\(name)-\(v)", ext: "cnf")
     }
 
     public init(
@@ -92,6 +93,7 @@ public final class MySQLController: ManagedService, @unchecked Sendable {
         guard let binary else { throw ServiceNotInstalled(flavor.kind) }
         try writeConfig()
         try initializeIfNeeded(binary: binary)
+        try DataDirVersionMarker.verify(dataDir, version: activeVersionProvider(), kind: kind)
         try await runner.start(spec: spec(binary: binary))
     }
 
