@@ -1,7 +1,6 @@
 import Combine
 import Foundation
 import KTStackCore
-import ServiceManagement
 
 @MainActor
 public final class UninstallService: ObservableObject {
@@ -10,85 +9,88 @@ public final class UninstallService: ObservableObject {
     @Published public private(set) var state: State = .idle
     @Published public private(set) var log: [String] = []
 
-    private let paths: AppSupportPaths
-    private let dns: DNSAutomationService
-    private let mkcert: MkcertRunner
-    private let agents: LaunchAgentManager
+    public var onFinished: (@MainActor (State) -> Void)?
 
-    public init(paths: AppSupportPaths, dns: DNSAutomationService, mkcertBinary: URL) {
-        self.paths = paths
-        self.dns = dns
-        mkcert = MkcertRunner(mkcert: mkcertBinary, caroot: paths.caDir)
-        agents = LaunchAgentManager(paths: paths)
+    private let steps: UninstallSteps
+
+    public convenience init(
+        paths: AppSupportPaths,
+        dns: DNSAutomationService,
+        mkcertBinary: URL,
+        quiesce: @escaping @MainActor @Sendable () async -> Void = {}
+    ) {
+        self.init(steps: .live(paths: paths, dns: dns, mkcertBinary: mkcertBinary, quiesce: quiesce))
+    }
+
+    public init(steps: UninstallSteps) {
+        self.steps = steps
     }
 
     public func uninstall() {
         guard state != .running else { return }
         state = .running
         log = []
-        record("Starting uninstall…")
+        Task { await run() }
+    }
 
-        dns.disable()
-        record("Removing .\(dns.tld) DNS resolver…")
+    func run() async {
+        record("Starting uninstall…")
+        await steps.quiesce()
+        record("Stopped background polling and the CLI socket.")
 
         do {
-            try ShellPathManager(paths: paths).disable()
-            record("Removed shell PATH integration.")
+            try await steps.disableDNS()
+            record("Removed the DNS resolver.")
         } catch {
-            record("Shell PATH cleanup warning: \(error.localizedDescription)")
+            record("DNS cleanup warning: \(error.localizedDescription)")
         }
 
-        let agents = agents, mkcert = mkcert, root = paths.root, resolverTLD = dns.tld
-        Task.detached(priority: .userInitiated) { [weak self] in
-            // Boot out every launchd job before deleting the data root below, or launchd keeps the
-            // removed binaries running (and can respawn them) while the delete races live writers.
-            agents.bootoutAll()
-            await self?.record("Stopped all launchd services.")
-
-            var caNote = "Removed local CA trust (System Keychain + Firefox/NSS)."
-            if mkcert.caExists {
-                do { try mkcert.uninstall() } catch { caNote = "CA untrust warning: \(error.localizedDescription)" }
-            }
-            await self?.record(caNote)
-
-            Self.unregisterDaemonIfSigned()
-            await self?.record("Unregistered privileged helper (if installed).")
-
-            var failure: String?
+        let work = steps
+        let tail = await Task.detached(priority: .userInitiated) { () -> [String] in
+            var notes: [String] = []
             do {
-                if FileManager.default.fileExists(atPath: root.path) {
-                    try FileManager.default.removeItem(at: root)
-                }
-            } catch { failure = error.localizedDescription }
-
-            let resolverLeft = FileManager.default.fileExists(atPath: DNSConstants.resolverPath(for: resolverTLD))
-
-            await MainActor.run {
-                self?.record(
-                    failure == nil
-                        ? "Removed all app-support data, runtimes and databases."
-                        : "Data removal warning: \(failure!)"
-                )
-                if resolverLeft {
-                    self?.record("Warning: \(DNSConstants.resolverPath(for: resolverTLD)) still present — re-run, or remove it with sudo.")
-                }
-                if let failure {
-                    self?.state = .failed(failure)
-                } else if resolverLeft {
-                    self?.state = .failed("DNS resolver not removed")
-                } else {
-                    self?.state = .done
-                }
+                try work.disableShell()
+                notes.append("Removed shell PATH integration.")
+            } catch {
+                notes.append("Shell PATH cleanup warning: \(error.localizedDescription)")
             }
+            do {
+                try work.untrustCA()
+                notes.append("Removed local CA trust.")
+            } catch {
+                notes.append("CA untrust warning: \(error.localizedDescription)")
+            }
+            work.bootoutAll()
+            notes.append("Stopped all launchd services.")
+            return notes
+        }.value
+        tail.forEach(record)
+
+        let removal = await Task.detached(priority: .userInitiated) { () -> Result<URL?, Error> in
+            Result { try work.removeDataRoot() }
+        }.value
+        var failure: String?
+        switch removal {
+        case let .success(trashed):
+            record(trashed.map { "Moved app data, runtimes and databases to the Trash: \($0.path)" }
+                ?? "No app data to remove.")
+        case let .failure(error):
+            failure = error.localizedDescription
+            record("Data removal warning: \(error.localizedDescription)")
         }
+
+        await Task.detached(priority: .userInitiated) { work.unregisterHelper() }.value
+        record("Unregistered privileged helper (if installed).")
+
+        if let left = work.resolverLeft() {
+            record("Warning: \(left) still present — re-run, or remove it with sudo.")
+            failure = failure ?? "DNS resolver not removed"
+        }
+        state = failure.map(State.failed) ?? .done
+        onFinished?(state)
     }
 
     private func record(_ message: String) {
         log.append(message)
-    }
-
-    private nonisolated static func unregisterDaemonIfSigned() {
-        guard HelperIdentity.hasSigningIdentity, #available(macOS 13.0, *) else { return }
-        try? SMAppService.daemon(plistName: "com.ktstack.helper.plist").unregister()
     }
 }
