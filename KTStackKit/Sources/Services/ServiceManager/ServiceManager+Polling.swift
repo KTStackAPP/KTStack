@@ -97,11 +97,12 @@ extension ServiceManager {
 
         let status: ServiceStatus
         if !agents.isLoaded(kind.launchdLabel) {
-            restart.reset(kind)
-            status = .stopped
+            status = restart.hasGivenUp(kind) ? .error : .stopped
         } else {
             let healthy = await svc.probe() == .running
-            status = restart.record(kind, healthy: healthy).status
+            let outcome = restart.record(kind, healthy: healthy)
+            if outcome.exhausted { await giveUp(kind) }
+            status = outcome.status
         }
         return ServiceSnapshot(
             kind: kind,
@@ -111,5 +112,11 @@ extension ServiceManager {
             isBusy: busy.contains(kind),
             errorMessage: status == .error ? lastErrorMessage(kind) : nil
         )
+    }
+
+    private func giveUp(_ kind: ServiceKind) async {
+        restart.markGaveUp(kind)
+        let agents = agents, label = kind.launchdLabel
+        await Task.detached { try? agents.bootout(label) }.value
     }
 }

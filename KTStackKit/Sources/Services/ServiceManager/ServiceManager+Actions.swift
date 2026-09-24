@@ -11,7 +11,7 @@ extension ServiceManager {
             server.togglePHP()
         default:
             guard let svc = services[kind] else { return }
-            if running {
+            if running || agents.isLoaded(kind.launchdLabel) {
                 perform(kind) { try await svc.stop() }
             } else {
                 run3306Aware(kind, svc) { try await svc.start() }
