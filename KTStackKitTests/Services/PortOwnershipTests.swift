@@ -36,7 +36,7 @@ final class PortOwnershipTests: XCTestCase {
         addr.sin6_family = sa_family_t(AF_INET6)
         addr.sin6_addr = in6addr_loopback
         let bound = withUnsafePointer(to: &addr) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in6>.size)) }
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in6>.size)) }
         }
         XCTAssertEqual(bound, 0)
         XCTAssertEqual(listen(fd, 1), 0)
