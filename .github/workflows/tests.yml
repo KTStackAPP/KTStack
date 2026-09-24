@@ -34,7 +34,22 @@ jobs:
           done
       - run: xcodegen generate
       - name: KTStackKit-Tests
-        run: xcodebuild -project KTStack.xcodeproj -scheme KTStackKit-Tests -destination 'platform=macOS' -derivedDataPath .build-ci test
+        run: |
+          (
+            last=0; idle=0
+            while sleep 30; do
+              size=$(stat -f %z /tmp/xc.log 2>/dev/null || echo 0)
+              if [ "$size" = "$last" ]; then idle=$((idle+30)); else idle=0; last=$size; fi
+              if [ $idle -ge 180 ]; then
+                for pid in $(pgrep -f xctest); do
+                  echo "=== sample $pid ==="; sample "$pid" 3 -mayDie 2>&1 | head -700
+                done
+                pkill -f xctest; break
+              fi
+            done
+          ) &
+          xcodebuild -project KTStack.xcodeproj -scheme KTStackKit-Tests -destination 'platform=macOS' -derivedDataPath .build-ci test 2>&1 | tee /tmp/xc.log
+          exit ${PIPESTATUS[0]}
 
   release-build:
     runs-on: macos-26
