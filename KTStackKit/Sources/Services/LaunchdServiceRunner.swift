@@ -9,17 +9,17 @@ public struct LaunchdServiceRunner: Sendable {
 
     public let startTimeout: TimeInterval
 
-    private let agents: LaunchAgentManager
+    let agents: any LaunchAgentManaging
     private let health = HealthChecker()
     private let preflight = PortPreflight()
-    private let diag: ServiceDiagnostics
+    let diag: ServiceDiagnostics
 
     public init(
         kind: ServiceKind,
         label: String,
         preflightPorts: [Int],
         probe: HealthProbe,
-        agents: LaunchAgentManager,
+        agents: any LaunchAgentManaging,
         startTimeout: TimeInterval = 8
     ) {
         self.kind = kind
@@ -35,9 +35,10 @@ public struct LaunchdServiceRunner: Sendable {
         try verifyBinarySignature(spec)
         // Return before reaping: the stray reaper matches by binary path, so reaping while the
         // managed instance is already healthy would SIGTERM it.
-        if agents.isLoaded(label), await isHealthy() { return }
+        if agents.isLoaded(label), runsSameProgram(spec), await isHealthy() { return }
         diag.log(.info, "\(kind.displayName) start: \(spec.programArguments.joined(separator: " "))")
         reapStrayInstances(spec)
+        try replaceStaleJob(spec)
         if agents.isLoaded(label) {
             try agents.kickstart(label)
         } else {
@@ -50,6 +51,7 @@ public struct LaunchdServiceRunner: Sendable {
             try agents.bootstrap(spec)
         }
         try await waitHealthy(spec: spec, timeout: startTimeout)
+        try verifyPortOwnership()
     }
 
     public func stop() throws {
@@ -59,13 +61,16 @@ public struct LaunchdServiceRunner: Sendable {
     public func restart(spec: LaunchAgentSpec) async throws {
         try verifyBinarySignature(spec)
         try agents.writePlist(for: spec)
+        try replaceStaleJob(spec)
         if agents.isLoaded(label) { try agents.kickstart(label) }
         else { try agents.bootstrap(spec) }
         try await waitHealthy(spec: spec, timeout: startTimeout)
+        try verifyPortOwnership()
     }
 
     public func probe() async -> ServiceStatus {
-        await health.check(probe)
+        guard agents.isLoaded(label) else { return .stopped }
+        return await health.check(probe)
     }
 
     private func reapStrayInstances(_ spec: LaunchAgentSpec) {

@@ -1,5 +1,6 @@
 import KTStackCore
 import XCTest
+@testable import KTStackKit
 
 final class SiteEnvVarsTests: XCTestCase {
     func testValidEnvPasses() {
@@ -28,5 +29,33 @@ final class SiteEnvVarsTests: XCTestCase {
         let sorted = SiteEnvVars.sorted(["B": "2", "A": "1", "C": "3"])
         XCTAssertEqual(sorted.map(\.key), ["A", "B", "C"])
         XCTAssertEqual(sorted.map(\.value), ["1", "2", "3"])
+    }
+}
+
+final class NginxValueEscapingTests: XCTestCase {
+    func testValuesThatBreakNginxQuotingAreRejected() {
+        for value in ["a\"b", "$HOME", "a\\b"] {
+            XCTAssertEqual(SiteEnvVars.validate(["K": value]), .invalidValue("K"), value)
+        }
+    }
+
+    func testLegacyInvalidValuesAreLeftOutOfRenderedConfig() {
+        let env = ["GOOD": "ok", "BAD": "x\"; include /etc/passwd; #"]
+        XCTAssertEqual(SiteEnvVars.renderable(env).map(\.key), ["GOOD"])
+        XCTAssertEqual(SiteEnvVars.skippedKeys(env), ["BAD"])
+        let config = NginxBackendConfigWriter().config(
+            domain: "app.test", root: URL(fileURLWithPath: "/site"), phpFpmSocket: URL(fileURLWithPath: "/run/php.sock"),
+            backendPort: 18000, secure: false, pid: URL(fileURLWithPath: "/run/b.pid"),
+            accessLog: URL(fileURLWithPath: "/log/a"), errorLog: URL(fileURLWithPath: "/log/e"), env: env
+        )
+        XCTAssertTrue(config.contains("GOOD"))
+        XCTAssertFalse(config.contains("/etc/passwd"))
+    }
+
+    func testPathsWithQuotesDollarsOrBackslashesAreUnsafe() {
+        XCTAssertTrue(NginxConfigWriter.isSafePath("/Users/me/Sites/app"))
+        for path in ["/Users/me/\"x", "/Users/me/$x", "/Users/me/a\\b"] {
+            XCTAssertFalse(NginxConfigWriter.isSafePath(path), path)
+        }
     }
 }

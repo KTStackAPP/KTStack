@@ -30,7 +30,11 @@ public struct PortPreflight {
             }
         }
 
-        if bound == 0 { return .available }
+        if bound == 0 {
+            guard Self.loopbackAnswers(port: port) else { return .available }
+            let owner = Self.listeningProcess(onPort: port)
+            return .inUse(process: owner, message: Self.conflictMessage(port: port, process: owner))
+        }
 
         let err = errno
         if err == EADDRINUSE {
@@ -44,6 +48,11 @@ public struct PortPreflight {
             )
         }
         return .blocked(message: "Could not bind 0.0.0.0:\(port): \(String(cString: strerror(err))).")
+    }
+
+    static func loopbackAnswers(port: Int) -> Bool {
+        HealthChecker.tcpConnect(host: "127.0.0.1", port: port, timeout: 0.3)
+            || HealthChecker.tcpConnect(host: "::1", port: port, timeout: 0.3)
     }
 
     public func firstConflict(in ports: [Int]) -> Outcome {

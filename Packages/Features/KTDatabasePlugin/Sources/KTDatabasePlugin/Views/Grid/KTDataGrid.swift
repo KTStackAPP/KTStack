@@ -12,6 +12,8 @@ struct KTDataGrid: NSViewRepresentable {
     var onSortColumn: ((String) -> Void)?
     var editableColumns: Set<String> = []
     var onCommitEdit: ((Int, Int, String) -> Void)?
+    var rowRef: ((Int) -> GridRowRef?)?
+    var onCommitRowEdit: ((GridRowRef, String, String) -> Void)?
     var foreignKeyColumns: Set<String> = []
     var onNavigateFK: ((Int, Int) -> Void)?
     var onPaste: (([PastedCell]) -> Void)?
@@ -56,9 +58,10 @@ struct KTDataGrid: NSViewRepresentable {
             coordinator?.cellDisplayText(row: row, column: col) ?? ""
         }
         table.onCommitCell = { [weak coordinator] row, col, text in
-            guard let coordinator else { return }
-            let dataCol = max(0, col - 1)
-            coordinator.onCommitEdit?(row, dataCol, text)
+            coordinator?.commitEdit(row: row, column: col, text: text)
+        }
+        table.onBeginEditing = { [weak coordinator] row, col in
+            coordinator?.beginEditing(row: row, column: col)
         }
         table.onActiveCellChanged = { [weak coordinator] active in
             coordinator?.handleActiveCellChanged(active)
@@ -109,6 +112,8 @@ struct KTDataGrid: NSViewRepresentable {
         coordinator.onSortColumn = onSortColumn
         coordinator.editableColumns = editableColumns
         coordinator.onCommitEdit = onCommitEdit
+        coordinator.rowRef = rowRef
+        coordinator.onCommitRowEdit = onCommitRowEdit
         coordinator.foreignKeyColumns = foreignKeyColumns
         coordinator.onNavigateFK = onNavigateFK
         coordinator.onPaste = onPaste

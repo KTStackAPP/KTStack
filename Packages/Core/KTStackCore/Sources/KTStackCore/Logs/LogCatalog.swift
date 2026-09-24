@@ -1,5 +1,4 @@
 import Foundation
-import KTStackCore
 
 public struct LogSource: Identifiable, Sendable, Hashable {
     public enum Kind: String, Sendable { case service, site }

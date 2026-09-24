@@ -17,10 +17,13 @@ public struct KTMCPToolCatalog: Sendable {
             ),
             tool(
                 name: "ktstack_get_recent_logs",
-                description: "Fetch recent lines of Nginx or PHP-FPM error logs for diagnosing issues.",
+                description: "Fetch the last lines of a KTStack log. An unknown source returns the list of available source ids.",
                 properties: [
-                    "lines": ["type": AnyCodable("integer"), "description": AnyCodable("Number of trailing log lines to fetch (default: 50)")],
-                    "source": ["type": AnyCodable("string"), "description": AnyCodable("Log source: 'front-error', 'php-error', 'backends'")]
+                    "lines": ["type": AnyCodable("integer"), "description": AnyCodable("Number of trailing log lines to fetch (default: 50, max: 2000)")],
+                    "source": ["type": AnyCodable("string"), "description": AnyCodable(
+                        "Log source id: 'nginx-error' (default), 'nginx-access', 'php-<version>', a service such as 'mysql', "
+                            + "'diagnostics', or 'site-<domain>-error' / 'site-<domain>-access'"
+                    )]
                 ]
             ),
             tool(
@@ -30,7 +33,7 @@ public struct KTMCPToolCatalog: Sendable {
             ),
             tool(
                 name: "ktstack_restart_service",
-                description: "Restart a specified background service.",
+                description: "Restart a background service (starts it if it is stopped).",
                 properties: [
                     "service": ["type": AnyCodable("string"), "description": AnyCodable("Name of the service (nginx, mysql, postgres, redis, mailpit)")]
                 ],
@@ -38,11 +41,32 @@ public struct KTMCPToolCatalog: Sendable {
             ),
             tool(
                 name: "ktstack_backup_database",
-                description: "Trigger a backup for a target database (MySQL, PostgreSQL, SQLite).",
+                description: "Back up one database of a KTStack-managed engine and return the path of the backup file.",
                 properties: [
-                    "database": ["type": AnyCodable("string"), "description": AnyCodable("Name of the database")]
+                    "database": ["type": AnyCodable("string"), "description": AnyCodable("Name of the database")],
+                    "engine": ["type": AnyCodable("string"), "description": AnyCodable(
+                        "Managed engine: 'mysql', 'postgres' or 'mongodb' (default: the first installed)"
+                    )]
                 ],
                 required: ["database"]
+            ),
+            tool(
+                name: "ktstack_create_site",
+                description: "Register a project folder as a KTStack site served at <folder>.<tld>.",
+                properties: [
+                    "path": ["type": AnyCodable("string"), "description": AnyCodable("Absolute path of the project folder")],
+                    "php": ["type": AnyCodable("string"), "description": AnyCodable("PHP version, e.g. '8.3' (default: 8.3)")]
+                ],
+                required: ["path"]
+            ),
+            tool(
+                name: "ktstack_switch_php_version",
+                description: "Switch a site to another installed PHP version.",
+                properties: [
+                    "domain": ["type": AnyCodable("string"), "description": AnyCodable("Site domain or name")],
+                    "version": ["type": AnyCodable("string"), "description": AnyCodable("Installed PHP version, e.g. '8.4'")]
+                ],
+                required: ["domain", "version"]
             ),
             tool(
                 name: "ktstack_doctor",
@@ -64,10 +88,17 @@ public struct KTMCPToolCatalog: Sendable {
             }
             return try client.call(method: "services.restart", params: ["service": service])
         case "ktstack_get_recent_logs":
-            return fetchRecentLogs(arguments: arguments)
+            return try client.call(method: "logs.recent", params: logParams(arguments))
         case "ktstack_backup_database":
-            let db = arguments?["database"]?.value as? String ?? "default"
-            return "Database backup requested for '\(db)'. Use 'kt db backup \(db)' or check KTStack Database Backups."
+            var params = try requiredParams(arguments, ["database"])
+            if let engine = arguments?["engine"]?.value as? String { params["engine"] = engine }
+            return try client.call(method: "db.backup", params: params)
+        case "ktstack_create_site":
+            var params = try requiredParams(arguments, ["path"])
+            if let php = arguments?["php"]?.value as? String { params["php"] = php }
+            return try client.call(method: "sites.create", params: params)
+        case "ktstack_switch_php_version":
+            return try client.call(method: "sites.switch_php", params: requiredParams(arguments, ["domain", "version"]))
         case "ktstack_doctor":
             let paths = AppSupportPaths()
             let online = (try? client.call(method: "ping")) != nil
@@ -77,16 +108,23 @@ public struct KTMCPToolCatalog: Sendable {
         }
     }
 
-    private func fetchRecentLogs(arguments: [String: AnyCodable]?) -> String {
-        let count = arguments?["lines"]?.value as? Int ?? 50
-        let logsDir = AppSupportPaths().logs
-        let fileURL = logsDir.appendingPathComponent("front-error.log")
-        guard let content = try? String(contentsOf: fileURL, encoding: .utf8) else {
-            return "No recent logs found at \(fileURL.path)."
+    private func requiredParams(_ arguments: [String: AnyCodable]?, _ names: [String]) throws -> [String: String] {
+        var params: [String: String] = [:]
+        for name in names {
+            guard let value = arguments?[name]?.value as? String, !value.isEmpty else {
+                throw KTCLIError.serverError("Missing required parameter '\(name)'")
+            }
+            params[name] = value
         }
-        let lines = content.components(separatedBy: "\n")
-        let trailing = lines.suffix(count).joined(separator: "\n")
-        return trailing.isEmpty ? "Log file is empty." : trailing
+        return params
+    }
+
+    private func logParams(_ arguments: [String: AnyCodable]?) -> [String: String] {
+        var params: [String: String] = [:]
+        if let source = arguments?["source"]?.value as? String { params["source"] = source }
+        if let lines = arguments?["lines"]?.value as? Int { params["lines"] = String(lines) }
+        if let lines = arguments?["lines"]?.value as? String { params["lines"] = lines }
+        return params
     }
 
     private func tool(

@@ -12,7 +12,7 @@ extension KTDataGrid.Coordinator {
         guard row < result.rows.count, column > 0 else { return "" }
         let dataCol = column - 1
         guard dataCol < result.columns.count, dataCol < result.rows[row].count else { return "" }
-        return result.rows[row][dataCol].displayText ?? ""
+        return result.rows[row][dataCol].editorText ?? ""
     }
 
     func handleActiveCellChanged(_ active: (row: Int, column: Int)?) {

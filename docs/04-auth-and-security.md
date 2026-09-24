@@ -105,14 +105,19 @@ public func verifyCertificateTrust(cert: SecCertificate) -> Bool {
 
 KTStack is distributed outside the Mac App Store as an open-source Developer-ID signed application.
 
-### 4.1 Entitlements (`KTStack.entitlements`)
-- `com.apple.security.cs.allow-jit`: Required for V8 (Node.js) runtime execution.
-- `com.apple.security.cs.allow-unsigned-executable-memory`: Required by PHP-FPM JIT compilation.
-- `com.apple.security.cs.disable-library-validation`: Permits the app to load relocatable PHP dynamic extensions (`redis.so`, `xdebug.so`) compiled separately.
-- `com.apple.security.network.server` & `com.apple.security.network.client`: Local network sockets.
+### 4.1 Entitlements (`entitlements/`)
+Every Mach-O is signed with Hardened Runtime. Entitlements are kept minimal and per binary:
+
+| File | Signed onto | Keys |
+|------|-------------|------|
+| `entitlements/app.entitlements` | `KTStack.app`, `KTStackDatabaseLauncher`, and bundled non-JIT binaries (nginx, dnsmasq, mkcert, database engines) | `com.apple.security.app-sandbox = false` |
+| `entitlements/helper.entitlements` | `KTStackHelper`, `ktstack-resolve`, `kt` | `com.apple.security.app-sandbox = false` |
+| `entitlements/jit-runtime.entitlements` | JIT runtimes: `php`, `php-fpm`, `node` (and `java`/`ruby` if bundled) | `com.apple.security.cs.allow-jit = true` |
+
+There is no `allow-unsigned-executable-memory`, `disable-library-validation` or network-client/server entitlement: those only matter inside the App Sandbox or for unsigned code, and every bundled PHP extension is signed with the same Developer ID (`scripts/release/sign-all-binaries.sh`, `sign-extensions.sh`).
 
 ### 4.2 Sandboxing Rationale
-KTStack is deliberately **not sandboxed** (`com.apple.security.app-sandbox` is omitted). Sandboxing prohibits developer tools from accessing arbitrary project directories in `~/Sites` or `~/Projects`, interacting with `/etc/resolver/`, and supervising user launchd background jobs. Gatekeeper security is ensured via Apple Notarization and Hardened Runtime enforcement.
+KTStack is deliberately **not sandboxed** (`com.apple.security.app-sandbox` is explicitly `false`). Sandboxing prohibits developer tools from accessing arbitrary project directories in `~/Sites` or `~/Projects`, interacting with `/etc/resolver/`, and supervising user launchd background jobs. Gatekeeper security is ensured via Apple Notarization and Hardened Runtime enforcement.
 
 ---
 

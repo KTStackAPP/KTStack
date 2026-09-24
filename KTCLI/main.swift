@@ -11,8 +11,10 @@ func printUsage() {
     COMMANDS:
       sites [list] [--json]         List registered local sites
       services [list] [--json]      List service statuses
-      services restart <service>    Restart a specific background service
-      db backup [name]              Trigger database backup
+      services start <service>      Start a background service
+      services stop <service>       Stop a background service
+      services restart <service>    Restart a background service
+      db backup <name>              Not available yet (use KTStack › Database › Backups)
       doctor                        Run diagnostic probes
       mcp                           Start stdio Model Context Protocol server
       version, --version, -v        Print version
@@ -21,6 +23,13 @@ func printUsage() {
 }
 
 let args = Array(CommandLine.arguments.dropFirst())
+if args.first == ProcessWatchdog.command {
+    guard let parsed = ProcessWatchdog.parse(Array(args.dropFirst())) else {
+        fputs("usage: kt tunnel-watchdog --parent-pid <pid> [--deadline <epoch>] -- <program> [args]\n", stderr)
+        exit(64)
+    }
+    exit(parsed.watchdog.run(executable: parsed.executable, arguments: parsed.arguments))
+}
 let client = KTIPCClient()
 let resolver = ShellToolResolver()
 guard resolver.isToolEnabled("kt") else {
@@ -90,13 +99,12 @@ case "mcp":
           }
 
         AVAILABLE TOOLS:
-          • ktstack_list_sites: List all local development sites and ports
-          • ktstack_list_services: Inspect background service daemons
-          • ktstack_create_site: Register a new local development site
-          • ktstack_switch_php_version: Switch PHP version for a site
-          • ktstack_get_recent_logs: Fetch trailing error logs
-          • ktstack_inspect_db_schema: Inspect database schema and tables
-          • ktstack_backup_db: Trigger database backup
+          • ktstack_list_sites: List local sites, domains, PHP versions and ports
+          • ktstack_list_services: List background services and whether they run
+          • ktstack_restart_service: Restart a background service
+          • ktstack_get_recent_logs: Fetch the last lines of a KTStack log source
+          • ktstack_backup_database: Not available yet (returns an error)
+          • ktstack_doctor: Check that the KTStack app is reachable
         """)
         exit(0)
     }
@@ -108,7 +116,7 @@ case "mcp":
     dispatchMain()
 
 case "version", "--version", "-v":
-    print("kt version 0.3.1 (build 37)")
+    print("kt version \(CLIVersion.current())")
     exit(0)
 
 case "help", "--help", "-h":

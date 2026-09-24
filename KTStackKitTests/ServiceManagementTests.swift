@@ -178,7 +178,7 @@ final class ServiceManagementTests: XCTestCase {
             }
         }
         XCTAssertEqual(bound, 0)
-        XCTAssertEqual(Darwin.listen(listenFD, 1), 0)
+        XCTAssertEqual(Darwin.listen(listenFD, 16), 0)
 
         var assigned = sockaddr_in()
         var len = socklen_t(MemoryLayout<sockaddr_in>.size)
@@ -193,11 +193,9 @@ final class ServiceManagementTests: XCTestCase {
             HealthChecker.tcpConnect(host: "127.0.0.1", port: port, timeout: 0.5),
             "connect probe must detect a 127.0.0.1-bound listener"
         )
-        XCTAssertEqual(
-            PortPreflight().check(port: port),
-            .available,
-            "wildcard bind probe cannot see a loopback-only listener — hence the connect probe"
-        )
+        guard case .inUse = PortPreflight().check(port: port) else {
+            return XCTFail("preflight must report a 127.0.0.1-only listener as in use")
+        }
     }
 
     func testIsInitializedDetectsMarkerAndEmptiness() throws {
@@ -276,7 +274,7 @@ final class ServiceManagementTests: XCTestCase {
         XCTAssertLessThan(mongoIdx, mailpitIdx, "MongoDB must precede Mailpit")
     }
 
-    func testResetDataRemovesServiceDataDir() throws {
+    func testResetDataMovesServiceDataDirToRemoved() throws {
         let root = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("kd-reset-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -287,22 +285,17 @@ final class ServiceManagementTests: XCTestCase {
         try Data().write(to: dir.appendingPathComponent("mongod.lock"))
         XCTAssertTrue(FileManager.default.fileExists(atPath: dir.path))
 
-        ServiceManager.removeServiceData(.mongodb, version: version, paths: paths)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path), "reset must delete the versioned data dir")
+        let retired = try XCTUnwrap(ServiceManager.retireServiceData(.mongodb, version: version, paths: paths))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path), "reset must clear the live versioned data dir")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: retired.appendingPathComponent("mongod.lock").path))
+        XCTAssertTrue(retired.path.contains("/.removed/"), "reset keeps the old data under .removed/")
     }
 
-    func testResetDataKeepsMailpitFlat() throws {
+    func testResetDataWithoutLiveDataIsANoOp() throws {
         let root = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("kd-reset-mailpit-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kd-reset-empty-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
-        let paths = AppSupportPaths(root: root)
-        let dir = paths.serviceData("mailpit")
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        try Data().write(to: dir.appendingPathComponent("mailpit.db"))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: dir.path))
-
-        ServiceManager.removeServiceData(.mailpit, version: nil, paths: paths)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path), "mailpit reset removes flat dir")
+        XCTAssertNil(try ServiceManager.retireServiceData(.postgres, version: "16", paths: AppSupportPaths(root: root)))
     }
 
     func testServiceManifestWellFormed() {
@@ -584,7 +577,7 @@ final class ServiceManagementTests: XCTestCase {
     }
 
     @MainActor
-    func testUninstallPreservesActiveVersionWhenUninstallingNonMax() throws {
+    func testUninstallPreservesActiveVersionWhenUninstallingNonMax() async throws {
         let root = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("kd-sm-h1-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -610,7 +603,8 @@ final class ServiceManagementTests: XCTestCase {
         try sut.setActiveVersion(ServiceKind.redis, version: "7.0.0")
         XCTAssertEqual(sut.activeVersion(.redis), "7.0.0")
 
-        try sut.uninstall(kind: .redis, version: "7.2.0")
+        sut.jobLoadedProbe = { _ in false }
+        let kept = try await sut.uninstall(kind: .redis, version: "7.2.0")
 
         XCTAssertEqual(sut.activeVersion(.redis), "7.0.0",
                        "uninstalling non-active mid version must not change active version")
@@ -618,9 +612,10 @@ final class ServiceManagementTests: XCTestCase {
             FileManager.default.fileExists(atPath: p.runtimeDir("redis", "7.2.0").path),
             "uninstalled runtime dir must be removed"
         )
-        XCTAssertFalse(
-            FileManager.default.fileExists(atPath: p.serviceData("redis", version: "7.2.0").path),
-            "uninstalled data dir must be removed"
+        XCTAssertFalse(FileManager.default.fileExists(atPath: p.serviceData("redis", version: "7.2.0").path))
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: try XCTUnwrap(kept).path),
+            "uninstalled data dir must be kept under .removed, never deleted"
         )
         XCTAssertTrue(
             FileManager.default.fileExists(atPath: p.serviceData("redis", version: "7.0.0").path),
@@ -629,7 +624,7 @@ final class ServiceManagementTests: XCTestCase {
     }
 
     @MainActor
-    func testUninstallRepointsToMaxNumericWhenActiveIsGone() throws {
+    func testUninstallRepointsToMaxNumericWhenActiveIsGone() async throws {
         let root = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("kd-sm-repoint-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -657,14 +652,15 @@ final class ServiceManagementTests: XCTestCase {
         XCTAssertEqual(sut.activeVersion(.redis), "7.4.2",
                        "stale stored version → falls back to max installed before any uninstall")
 
-        try sut.uninstall(kind: .redis, version: "7.0.0")
+        sut.jobLoadedProbe = { _ in false }
+        _ = try await sut.uninstall(kind: .redis, version: "7.0.0")
 
         XCTAssertEqual(sut.activeVersion(.redis), "7.4.2",
                        "after uninstalling non-active version, active remains at max installed")
     }
 
     @MainActor
-    func testUninstallRefusesActiveVersion() throws {
+    func testUninstallRefusesActiveVersion() async throws {
         let root = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("kd-sm-refuse-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -685,11 +681,11 @@ final class ServiceManagementTests: XCTestCase {
 
         try sut.setActiveVersion(ServiceKind.redis, version: "7.4.2")
 
-        XCTAssertThrowsError(try sut.uninstall(kind: .redis, version: "7.4.2")) { error in
-            XCTAssertTrue(
-                (error as? ServiceVersionError) != nil,
-                "uninstalling the active version must throw ServiceVersionError"
-            )
+        do {
+            _ = try await sut.uninstall(kind: .redis, version: "7.4.2")
+            XCTFail("uninstalling the active version must throw")
+        } catch {
+            XCTAssertTrue(error is ServiceVersionError, "uninstalling the active version must throw ServiceVersionError")
         }
         XCTAssertTrue(
             FileManager.default.fileExists(atPath: p.runtimeDir("redis", "7.4.2").path),

@@ -31,7 +31,7 @@ public struct RestoreStagingArea: Sendable {
         let fm = FileManager.default
         let root = paths.restoreStagingRoot
         guard let entries = try? fm.contentsOfDirectory(atPath: root.path) else { return }
-        for entry in entries where !activeIDs.contains(entry) {
+        for entry in entries where !activeIDs.contains(entry) && !entry.hasSuffix(RestoreSiteSwap.replacedSuffix) {
             try? fm.removeItem(at: root.appendingPathComponent(entry, isDirectory: true))
         }
     }

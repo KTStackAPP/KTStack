@@ -54,6 +54,7 @@ public final class WorkspaceSession: ObservableObject, Identifiable {
 
     public func closeAll() async {
         store.closeAll()
+        await databaseVM.deselectAndWait()
         await shell.disconnect()
     }
 

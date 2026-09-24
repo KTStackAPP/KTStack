@@ -7,6 +7,7 @@ extension KTDataGrid.Coordinator {
         let rowCountChanged = newResult.rows.count != result.rows.count
         let contentChanged = columnsChanged || rowCountChanged || newResult.rows != result.rows
         let offsetDelta = rowNumberOffset - lastRowNumberOffset
+        if contentChanged || offsetDelta != 0 { settleOverlayBeforeRowsChange() }
         result = newResult
         if columnsChanged { rebuildColumns(for: newResult) }
         if rowCountChanged || offsetDelta != 0 {
@@ -14,6 +15,7 @@ extension KTDataGrid.Coordinator {
             nearTopRequested = false
         }
         if contentChanged { table?.reloadData() }
+        table?.shiftActiveCell(by: -offsetDelta)
         if offsetDelta != 0, let scroll = scrollView, let table {
             suppressScrollCallbacks = true
             var origin = scroll.contentView.bounds.origin

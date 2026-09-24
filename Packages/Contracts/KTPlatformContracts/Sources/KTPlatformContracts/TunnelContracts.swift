@@ -38,6 +38,7 @@ public protocol TunnelJobManaging: Sendable {
 // Không progress callback, không cancel: chưa consumer nào cần.
 public protocol TunnelBinaryProviding: Sendable {
     func ensureCloudflaredInstalled() async throws -> URL
+    var watchdogExecutable: URL? { get }
 }
 
 // Trạng thái share 1 site cho row UI Sites; map từ TunnelStatus/TunnelSession.
@@ -61,4 +62,8 @@ public protocol SiteSharing: AnyObject {
     @MainActor func shareStateStream() -> AsyncStream<[UUID: SiteShareState]>
     @MainActor func startShare(_ target: TunnelSiteTarget)
     @MainActor func stopShare(siteID: UUID)
+}
+
+public extension TunnelBinaryProviding {
+    var watchdogExecutable: URL? { nil }
 }

@@ -16,6 +16,7 @@ public final class TunnelManager: ObservableObject {
     private var controllers: [UUID: TunnelController] = [:]
     private var startTasks: [UUID: Task<Void, Never>] = [:]
     private var ttlTasks: [UUID: Task<Void, Never>] = [:]
+    private var tokens: [UUID: UUID] = [:]
 
     public init(
         origin: any TunnelOriginConfiguring,
@@ -40,6 +41,8 @@ public final class TunnelManager: ObservableObject {
     public func start(target: TunnelSiteTarget) {
         guard !isSharing(target.id), startTasks[target.id] == nil else { return }
         tearDown(target.id)
+        let token = UUID()
+        tokens[target.id] = token
         let startedAt = Date()
         sessions[target.id] = TunnelSession(
             siteID: target.id,
@@ -50,13 +53,14 @@ public final class TunnelManager: ObservableObject {
             expiresAt: ttl > 0 ? startedAt.addingTimeInterval(ttl) : nil
         )
         startTasks[target.id] = Task { [weak self] in
-            await self?.runStart(target: target)
+            await self?.runStart(target: target, token: token)
         }
         scheduleTTL(target.id)
     }
 
     public func stop(site siteID: UUID) {
         tearDown(siteID)
+        tokens[siteID] = nil
         sessions[siteID] = nil
     }
 
@@ -99,45 +103,48 @@ public final class TunnelManager: ObservableObject {
         updateStatus(siteID, .expired)
     }
 
-    private func runStart(target: TunnelSiteTarget) async {
+    private func runStart(target: TunnelSiteTarget, token: UUID) async {
         let siteID = target.id
-        if Task.isCancelled { clearStart(siteID); return }
+        if Task.isCancelled { clearStart(siteID, token); return }
         guard origin.isFrontListening else {
-            finishStart(siteID, status: .error("Local server isn't running — start KTStack's services first."))
+            finishStart(siteID, token, status: .error("Local server isn't running — start KTStack's services first."))
             return
         }
         do {
-            if Task.isCancelled { clearStart(siteID); return }
+            if Task.isCancelled { clearStart(siteID, token); return }
             let originPort = try await origin.prepareOrigin(siteID: siteID)
-            if Task.isCancelled { clearStart(siteID); return }
+            if Task.isCancelled { clearStart(siteID, token); return }
             let binary = try await binaries.ensureCloudflaredInstalled()
-            if Task.isCancelled { clearStart(siteID); return }
+            if Task.isCancelled || tokens[siteID] != token { clearStart(siteID, token); return }
             let controller = TunnelController(paths: paths, jobs: jobs, siteID: siteID)
             controllers[siteID] = controller
             await controller.start(
                 binary: binary,
                 originPort: originPort,
                 localDomain: target.domain,
+                watchdog: binaries.watchdogExecutable.map {
+                    TunnelWatchdogLaunch(executable: $0, deadline: sessions[siteID]?.expiresAt?.addingTimeInterval(60))
+                },
                 onURL: { [weak self] url in
                     guard let host = url.host else { return }
-                    await self?.applyPublicHost(target: target, port: originPort, publicHost: host)
+                    await self?.applyPublicHost(target: target, port: originPort, publicHost: host, token: token)
                 },
                 onStatus: { [weak self] status in
                     Task { @MainActor [weak self] in
-                        self?.updateStatus(siteID, status)
+                        self?.updateStatus(siteID, status, token: token)
                     }
                 }
             )
-            startTasks[siteID] = nil
+            if tokens[siteID] == token { startTasks[siteID] = nil }
         } catch is CancellationError {
-            clearStart(siteID)
+            clearStart(siteID, token)
         } catch {
-            finishStart(siteID, status: .error(error.localizedDescription))
+            finishStart(siteID, token, status: .error(error.localizedDescription))
         }
     }
 
-    private func applyPublicHost(target: TunnelSiteTarget, port: Int, publicHost: String) async {
-        guard sessions[target.id]?.status.isBusy == true else { return }
+    private func applyPublicHost(target: TunnelSiteTarget, port: Int, publicHost: String, token: UUID) async {
+        guard tokens[target.id] == token, sessions[target.id]?.status.isBusy == true else { return }
         // Prepend file feature-owned (WordPress/PHP semantics); platform chỉ nhận path để tham chiếu.
         try? TunnelHostPrepend.write(
             to: paths.tunnelHostPrependFile,
@@ -151,19 +158,23 @@ public final class TunnelManager: ObservableObject {
         )
     }
 
-    private func updateStatus(_ siteID: UUID, _ status: TunnelStatus) {
+    private func updateStatus(_ siteID: UUID, _ status: TunnelStatus, token: UUID? = nil) {
+        if let token, tokens[siteID] != token { return }
         guard var session = sessions[siteID] else { return }
         session.status = status
         sessions[siteID] = session
     }
 
-    private func finishStart(_ siteID: UUID, status: TunnelStatus) {
+    private func finishStart(_ siteID: UUID, _ token: UUID, status: TunnelStatus) {
+        guard tokens[siteID] == token else { return }
         updateStatus(siteID, status)
         startTasks[siteID] = nil
     }
 
-    private func clearStart(_ siteID: UUID) {
+    private func clearStart(_ siteID: UUID, _ token: UUID) {
+        guard tokens[siteID] == token else { return }
         tearDown(siteID)
+        tokens[siteID] = nil
         sessions[siteID] = nil
     }
 }

@@ -7,9 +7,9 @@ final class DriverCapabilitiesTests: XCTestCase {
         XCTAssertEqual(driver.capabilities, DriverCapabilities())
     }
 
-    func testPostgresAdvertisesFullCapabilities() {
+    func testPostgresDoesNotAdvertiseSchemaEditing() {
         let driver = PostgresDriver(profile: .managedPostgres, password: nil, tools: FakeDatabaseTools())
-        XCTAssertEqual(driver.capabilities, DriverCapabilities())
+        XCTAssertEqual(driver.capabilities, DriverCapabilities(canEditSchema: false))
     }
 
     func testSQLiteAdvertisesNoQueryCancel() {
@@ -20,7 +20,7 @@ final class DriverCapabilitiesTests: XCTestCase {
         let driver = SQLiteDriver(profile: profile)
         XCTAssertFalse(driver.capabilities.canCancelQueries)
         XCTAssertTrue(driver.capabilities.canEditRows)
-        XCTAssertTrue(driver.capabilities.canEditSchema)
+        XCTAssertFalse(driver.capabilities.canEditSchema, "the schema editor emits MySQL DDL")
         XCTAssertTrue(driver.capabilities.canBrowsePaged)
     }
 

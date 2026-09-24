@@ -47,27 +47,36 @@ public final class KTFeedbackCenter: ObservableObject {
 
 public extension View {
     func ktFeedbackHost(_ center: KTFeedbackCenter) -> some View {
-        overlay(alignment: .bottom) {
-            if let message = center.toastMessage {
-                KTToast(message: message)
-                    .padding(.bottom, 28)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+        modifier(KTFeedbackHost(center: center))
+    }
+}
+
+struct KTFeedbackHost: ViewModifier {
+    @ObservedObject var center: KTFeedbackCenter
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(alignment: .bottom) {
+                if let message = center.toastMessage {
+                    KTToast(message: message)
+                        .padding(.bottom, 28)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
-        }
-        .overlay {
-            if let request = center.confirmRequest {
-                KTConfirmModal(
-                    title: request.title,
-                    message: request.message,
-                    okLabel: request.okLabel,
-                    danger: request.danger,
-                    onCancel: { center.confirmRequest = nil },
-                    onConfirm: { center.confirmRequest = nil; request.onConfirm() }
-                )
-                .transition(.opacity)
+            .overlay {
+                if let request = center.confirmRequest {
+                    KTConfirmModal(
+                        title: request.title,
+                        message: request.message,
+                        okLabel: request.okLabel,
+                        danger: request.danger,
+                        onCancel: { center.confirmRequest = nil },
+                        onConfirm: { center.confirmRequest = nil; request.onConfirm() }
+                    )
+                    .transition(.opacity)
+                }
             }
-        }
-        .animation(.spring(response: 0.32, dampingFraction: 0.78), value: center.toastMessage)
-        .animation(.easeOut(duration: 0.15), value: center.confirmRequest?.id)
+            .animation(.spring(response: 0.32, dampingFraction: 0.78), value: center.toastMessage)
+            .animation(.easeOut(duration: 0.15), value: center.confirmRequest?.id)
     }
 }

@@ -76,6 +76,7 @@ public enum CellCoercionError: Error, Equatable {
     case notInEnum(String)
     case invalidSetMembers([String])
     case defaultNotCoercible
+    case binaryNotEditable
 }
 
 /// Turns a typed edit into a bound `Cell`, honouring nullability and the column's editor kind. An
@@ -128,9 +129,7 @@ public enum CellCoercion {
             if let flag = boolValue(raw) { return .bool(flag) }
             return .text(raw)
         case .number:
-            if let integer = Int64(raw) { return .int(integer) }
-            if let double = Double(raw) { return .double(double) }
-            return .text(raw)
+            return NumericLiteral.cell(raw)
         case let .enumeration(members):
             guard members.contains(raw) else { throw CellCoercionError.notInEnum(raw) }
             return .text(raw)
@@ -139,7 +138,9 @@ public enum CellCoercion {
             let invalid = picked.filter { !members.contains($0) }
             guard invalid.isEmpty else { throw CellCoercionError.invalidSetMembers(invalid) }
             return .text(picked.joined(separator: ","))
-        case .text, .date, .datetime, .time, .json, .binary:
+        case .binary:
+            throw CellCoercionError.binaryNotEditable
+        case .text, .date, .datetime, .time, .json:
             return .text(raw)
         }
     }

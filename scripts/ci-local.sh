@@ -53,14 +53,19 @@ LOG="$LOG_DIR/architecture-check.log"
 scripts/architecture-check.sh >"$LOG" 2>&1 || fail "architecture-check" "$LOG"
 ok "architecture-check"
 
+begin "release scripts"
+LOG="$LOG_DIR/release-scripts.log"
+scripts/release/tests/test-update-appcast.sh >"$LOG" 2>&1 || fail "release scripts" "$LOG"
+ok "release scripts"
+
 begin "lint"
 LOG="$LOG_DIR/lint.log"
 scripts/lint.sh >"$LOG" 2>&1 || fail "lint" "$LOG"
 ok "lint"
 
 begin "package tests"
-# Feature packages (M04+) ship tests next to the code; run each with SPM's own build dir.
-for pkg in Packages/Features/*/; do
+# Every local package that ships tests next to its code runs with SPM's own build dir.
+for pkg in Packages/Core/*/ Packages/Contracts/*/ Packages/Plugin/*/ Packages/Features/*/; do
     [ -d "${pkg}Tests" ] || continue
     name=$(basename "$pkg")
     LOG="$LOG_DIR/package-$name.log"
@@ -84,5 +89,11 @@ LOG="$LOG_DIR/build.log"
 xcodebuild -project KTStack.xcodeproj -scheme KTStack -destination 'platform=macOS' \
     -configuration Release -derivedDataPath "$DERIVED" build >"$LOG" 2>&1 || fail "build" "$LOG"
 ok "Release build"
+
+begin "KTStackKit-Tests (TSan)"
+LOG="$LOG_DIR/tsan.log"
+xcodebuild -project KTStack.xcodeproj -scheme KTStackKit-Tests -destination 'platform=macOS' \
+    -derivedDataPath "$DERIVED-tsan" -enableThreadSanitizer YES test >"$LOG" 2>&1 || fail "tsan" "$LOG"
+ok "TSan"
 
 printf '\nGate passed (full).\n'

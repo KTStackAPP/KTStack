@@ -1,9 +1,14 @@
+import KTPlatformContracts
 import KTPluginKit
 import SwiftUI
 
 struct NginxIncludeEditorSheet: View {
-    @ObservedObject var model: NginxIncludeEditorModel
+    @StateObject private var model: NginxIncludeEditorModel
     @Environment(\.dismiss) private var dismiss
+
+    init(nginxInclude: any NginxIncludeEditing) {
+        _model = StateObject(wrappedValue: NginxIncludeEditorModel(nginxInclude: nginxInclude))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: KDSpacing.space3) {

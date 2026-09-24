@@ -61,7 +61,7 @@ enum MongoJSONMapper {
         return result
     }
 
-    private static func jsonValue(from primitive: Primitive) -> Any {
+    static func jsonValue(from primitive: Primitive) -> Any {
         switch primitive {
         case let nested as Document: jsonObject(from: nested)
         case let id as ObjectId: [Hint.objectId: id.hexString]
@@ -88,7 +88,7 @@ enum MongoJSONMapper {
         return document
     }
 
-    private static func primitive(from any: Any) -> Primitive {
+    static func primitive(from any: Any) -> Primitive {
         switch any {
         case let dictionary as [String: Any]:
             if let hinted = hintedPrimitive(dictionary) { return hinted }
@@ -110,7 +110,7 @@ enum MongoJSONMapper {
         }
     }
 
-    private static func hintedPrimitive(_ dictionary: [String: Any]) -> Primitive? {
+    static func hintedPrimitive(_ dictionary: [String: Any]) -> Primitive? {
         guard dictionary.count == 1 else { return nil }
         if let hex = dictionary[Hint.objectId] as? String, let id = ObjectId(hex) {
             return id

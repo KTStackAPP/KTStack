@@ -53,10 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor lazy var updater = UpdaterController()
 
-    @MainActor lazy var uninstaller = UninstallService(
-        paths: AppSupportPaths(), dns: dns,
-        mkcertBinary: Self.bundleBinDir.appendingPathComponent("mkcert")
-    )
+    @MainActor lazy var uninstaller = makeUninstaller()
 
     @MainActor lazy var caTrust = CATrustService(
         paths: AppSupportPaths(), mkcertBinary: Self.bundleBinDir.appendingPathComponent("mkcert")
@@ -87,7 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor lazy var modals = KTModalPresenter()
 
-    @MainActor lazy var siteProvisioning = SiteProvisioningService(paths: AppSupportPaths(), server: server)
+    @MainActor lazy var siteProvisioning = makeSiteProvisioning()
 
     @MainActor lazy var sitesPlugin = KTSitesPlugin(
         catalog: server,
@@ -169,13 +166,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         modals: modals
     )
 
-    @MainActor lazy var ipcListener: KTLocalIPCSocketListener = {
-        let dispatcher = KTIPCCommandDispatcher(
-            serverProvider: { [weak self] in await MainActor.run { self?.server } },
-            servicesProvider: { [weak self] in await MainActor.run { self?.services } }
-        )
-        return KTLocalIPCSocketListener(dispatcher: dispatcher)
-    }()
+    @MainActor lazy var ipcListener = KTLocalIPCSocketListener(dispatcher: makeIPCDispatcher())
 
     func applicationDidFinishLaunching(_: Notification) {
         if Self.yieldToRunningInstance() { exit(0) }

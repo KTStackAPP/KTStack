@@ -14,7 +14,7 @@ import PostgresNIO
 /// `default_transaction_read_only`.
 public struct PostgresDriver: RelationalDriver {
     public let kind: DatabaseKind = .postgres
-    public let capabilities = DriverCapabilities()
+    public let capabilities = DriverCapabilities(canEditSchema: false)
 
     let profile: ConnectionProfile
     let password: String?
@@ -104,9 +104,9 @@ public struct PostgresDriver: RelationalDriver {
         await session.shutdown()
     }
 
-    public func runSelect(_ statement: DMLStatement, database _: String?) async throws -> QueryResult {
+    public func runSelect(_ statement: DMLStatement, database: String?) async throws -> QueryResult {
         try preflightManagedEngine()
-        return try await session.runSelect(statement)
+        return try await session.runSelect(statement, database: database)
     }
 
     func runQuery(_ query: PostgresQuery) async throws -> QueryResult {

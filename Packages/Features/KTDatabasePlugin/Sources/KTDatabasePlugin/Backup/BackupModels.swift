@@ -11,6 +11,8 @@ public struct BackupSet: Codable, Sendable, Identifiable, Equatable {
     public let engineVersion: String?
     public let profileName: String
     public let host: String
+    public let profileID: UUID?
+    public let port: Int?
     public let databases: [String]
     public let createdAt: Date
     public var sizeBytes: Int64
@@ -21,6 +23,8 @@ public struct BackupSet: Codable, Sendable, Identifiable, Equatable {
         engineVersion: String?,
         profileName: String,
         host: String,
+        profileID: UUID? = nil,
+        port: Int? = nil,
         databases: [String],
         createdAt: Date = Date(),
         sizeBytes: Int64 = 0
@@ -30,6 +34,8 @@ public struct BackupSet: Codable, Sendable, Identifiable, Equatable {
         self.engineVersion = engineVersion
         self.profileName = profileName
         self.host = host
+        self.profileID = profileID
+        self.port = port
         self.databases = databases
         self.createdAt = createdAt
         self.sizeBytes = sizeBytes

@@ -52,10 +52,10 @@ public final class SiteProvisioningService: SiteProvisioning, WordPressRestoring
         self.ideWriter = ideWriter
     }
 
-    public convenience init(paths: AppSupportPaths = AppSupportPaths(), server: LocalServerController) {
+    public convenience init(paths: AppSupportPaths = AppSupportPaths(), server: LocalServerController, ensureSQL: (@Sendable () async throws -> Void)? = nil) {
         let registry = server.registry
         let sqlFamily = SQLFamily(paths: paths, agents: LaunchAgentManager(paths: paths))
-        let ensureEngine: @Sendable () async throws -> Void = { try await sqlFamily.ensureRunning() }
+        let ensureEngine: @Sendable () async throws -> Void = ensureSQL ?? { try await sqlFamily.ensureRunning() }
         let database = DatabaseProvisioner(ensureEngine: ensureEngine)
         let mkcert = MkcertRunner(mkcert: paths.mkcertBinary, caroot: paths.caDir)
         let httpsProvisioner = SiteHTTPSProvisioner(
@@ -100,11 +100,8 @@ public final class SiteProvisioningService: SiteProvisioning, WordPressRestoring
                         await MainActor.run { registry.setSecure(site, true) }
                     },
                     finalizeSite: { database in
-                        await MainActor.run {
-                            registry.setDatabaseName(site, database)
-                            registry.setPHPVersion(site, to: request.phpVersion)
-                            registry.reinspect(site)
-                        }
+                        await MainActor.run { registry.applyRestore(site, database: database, phpVersion: request.phpVersion) }
+                        return { await MainActor.run { registry.applyRestore(site, database: site.databaseName, phpVersion: site.phpVersion) } }
                     }
                 )
                 return try await service.restore(request, emit: emit)
@@ -197,12 +194,11 @@ public final class SiteProvisioningService: SiteProvisioning, WordPressRestoring
         guard let site = registry.sites.first(where: { $0.id == id }) else { return }
         let registry = registry
         let dropDB = self.dropDatabase
-        // Proxy site không có thư mục: không bao giờ đụng filesystem khi remove.
-        let deleteFolder = deleteFolder && site.hasFolder
+        let folder = try (deleteFolder && site.hasFolder ? registry.folderRemovalTarget(site) : nil)
         let coordinator = SiteRemovalCoordinator(
-            deleteFolder: { site in
-                guard deleteFolder else { return }
-                try await MainActor.run { try registry.deleteFolderForRemoval(site) }
+            deleteFolder: { _ in
+                guard let folder else { return }
+                _ = try await SiteRegistry.moveFolderToTrash(folder)
             },
             dropDatabase: { name in
                 guard dropDatabase else { return }
