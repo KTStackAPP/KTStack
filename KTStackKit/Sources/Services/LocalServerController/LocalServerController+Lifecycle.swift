@@ -6,7 +6,7 @@ extension LocalServerController {
     }
 
     public func start() {
-        guard !isBusy, !isRunning else { return }
+        guard !deferIfBusy({ $0.start() }), !isRunning else { return }
         isBusy = true; lastError = nil
         nginxStatus = .starting; phpStatus = .starting
         ensureSeed()
@@ -29,7 +29,7 @@ extension LocalServerController {
     }
 
     public func stop() {
-        guard !isBusy else { return }
+        guard !deferIfBusy({ $0.stop() }) else { return }
         isBusy = true; nginxStatus = .stopping; phpStatus = .stopping
         Task.detached(priority: .userInitiated) { [nginx, backends, pools, self] in
             nginx.stop()
@@ -43,7 +43,7 @@ extension LocalServerController {
     }
 
     public func restart() {
-        guard !isBusy else { return }
+        guard !deferIfBusy({ $0.restart() }) else { return }
         isBusy = true; lastError = nil
         nginxStatus = .starting; phpStatus = .starting
         ensureSeed()
@@ -77,7 +77,7 @@ extension LocalServerController {
     }
 
     public func startNginx() {
-        guard !isBusy, !isRunning else { return }
+        guard !deferIfBusy({ $0.startNginx() }), !isRunning else { return }
         isBusy = true; lastError = nil; nginxStatus = .starting
         ensureSeed()
         let sites = registry.sites
@@ -104,7 +104,7 @@ extension LocalServerController {
     }
 
     public func stopNginx() {
-        guard !isBusy else { return }
+        guard !deferIfBusy({ $0.stopNginx() }) else { return }
         isBusy = true; nginxStatus = .stopping
         Task.detached(priority: .userInitiated) { [nginx, backends, self] in
             nginx.stop()
@@ -114,7 +114,7 @@ extension LocalServerController {
     }
 
     public func startPHP() {
-        guard !isBusy, !phpRunning else { return }
+        guard !deferIfBusy({ $0.startPHP() }), !phpRunning else { return }
         isBusy = true; lastError = nil; phpStatus = .starting
         ensureSeed()
         let sites = registry.sites
@@ -138,7 +138,7 @@ extension LocalServerController {
     }
 
     public func stopPHP() {
-        guard !isBusy else { return }
+        guard !deferIfBusy({ $0.stopPHP() }) else { return }
         isBusy = true; phpStatus = .stopping
         Task.detached(priority: .userInitiated) { [pools, self] in
             pools.stopAll()
@@ -147,7 +147,7 @@ extension LocalServerController {
     }
 
     public func restartNginx() {
-        guard !isBusy else { return }
+        guard !deferIfBusy({ $0.restartNginx() }) else { return }
         isBusy = true; lastError = nil; nginxStatus = .starting
         ensureSeed()
         let sites = registry.sites
@@ -175,7 +175,7 @@ extension LocalServerController {
     }
 
     public func restartPHP() {
-        guard !isBusy else { return }
+        guard !deferIfBusy({ $0.restartPHP() }) else { return }
         isBusy = true; lastError = nil; phpStatus = .starting
         ensureSeed()
         let sites = registry.sites

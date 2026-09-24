@@ -26,4 +26,22 @@ final class SiteBackendSupervisorTests: XCTestCase {
         XCTAssertTrue(paths.siteBackendPid("ABC", engine: "nginx").path.hasSuffix("run/site-ABC.nginx.pid"))
         XCTAssertTrue(paths.siteBackendPid("ABC", engine: "apache").path.hasSuffix("run/site-ABC.apache.pid"))
     }
+
+    func testChangedConfsReportsOnlySitesWhoseBackendConfDiffers() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let paths = AppSupportPaths(root: root)
+        try FileManager.default.createDirectory(at: paths.backendsConfigDir, withIntermediateDirectories: true)
+        let supervisor = SiteBackendSupervisor(paths: paths, agents: LaunchAgentManager(paths: paths))
+        let same = site("a.test", type: .php, backendPort: 4001)
+        let edited = site("b.test", type: .php, backendPort: 4002)
+        let added = site("c.test", type: .php, backendPort: 4003)
+        let sites = [same, edited, added]
+        try "a".write(to: paths.siteBackendConf(same.id.uuidString), atomically: true, encoding: .utf8)
+        try "b".write(to: paths.siteBackendConf(edited.id.uuidString), atomically: true, encoding: .utf8)
+        let before = supervisor.confSnapshot(for: sites)
+        try "b2".write(to: paths.siteBackendConf(edited.id.uuidString), atomically: true, encoding: .utf8)
+        try "c".write(to: paths.siteBackendConf(added.id.uuidString), atomically: true, encoding: .utf8)
+        XCTAssertEqual(supervisor.changedConfs(since: before, sites: sites), [edited.id, added.id])
+    }
 }

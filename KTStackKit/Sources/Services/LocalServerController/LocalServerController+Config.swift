@@ -79,6 +79,7 @@ extension LocalServerController {
         runPreflight: Bool = true
     ) async throws -> [String] {
         if let failure = await registry.loadFailure { throw SiteRegistry.LoadFailure(message: failure) }
+        let before = backends.confSnapshot(for: sites)
         let changed = try generator.generate(sites: sites, port: port)
 
         let phpUp = !pools.activeVersions.isEmpty && pools.activeVersions.allSatisfy { pools.isRunning(version: $0) }
@@ -90,7 +91,7 @@ extension LocalServerController {
         }
         // Per-site backends must be listening before the front routes to them, else the front
         // reloads into a dead loopback port and 502s the host. Per-site failures are isolated.
-        await backends.reconcile(sites: sites)
+        await backends.reconcile(sites: sites, reloading: backends.changedConfs(since: before, sites: sites))
         let installedPHP = Set(BundledPHP.availableVersions(php: paths.phpRuntimesRoot))
         let missing = SiteConfigGenerator.requiredVersions(for: sites)
             .subtracting(installedPHP).sorted()

@@ -5,7 +5,7 @@ import KTPlatformContracts
 // (block main thread) gọi được; reloadPHPPool ở +Config.swift đã @MainActor.
 extension LocalServerController: PHPRuntimeConfiguring {
     public nonisolated var installedPHPVersions: [String] {
-        let versions = BundledPHP.availableVersions(php: paths.phpRuntimesRoot)
+        let versions = BundledPHP.cachedAvailableVersions(php: paths.phpRuntimesRoot)
         return versions.isEmpty ? [BundledPHP.defaultVersion] : versions
     }
 

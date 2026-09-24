@@ -42,7 +42,7 @@ struct TLSSettingsView: View {
         }
         .formStyle(.grouped)
         .padding(KDSpacing.space4)
-        .onAppear { caTrust.refresh() }
+        .task { await caTrust.refreshAsync() }
     }
 
     private var statusText: String {
