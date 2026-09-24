@@ -100,11 +100,8 @@ public final class SiteProvisioningService: SiteProvisioning, WordPressRestoring
                         await MainActor.run { registry.setSecure(site, true) }
                     },
                     finalizeSite: { database in
-                        await MainActor.run {
-                            registry.setDatabaseName(site, database)
-                            registry.setPHPVersion(site, to: request.phpVersion)
-                            registry.reinspect(site)
-                        }
+                        await MainActor.run { registry.applyRestore(site, database: database, phpVersion: request.phpVersion) }
+                        return { await MainActor.run { registry.applyRestore(site, database: site.databaseName, phpVersion: site.phpVersion) } }
                     }
                 )
                 return try await service.restore(request, emit: emit)
