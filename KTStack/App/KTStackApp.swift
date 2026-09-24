@@ -8,7 +8,6 @@ import SwiftUI
 private struct MenuBarLaunchLabel: View {
     @Environment(\.openWindow) private var openWindow
     @AppStorage("KTStack.monochromeMenuBarIcon") private var monochromeMenuBarIcon = false
-    @State private var didLaunchWindow = false
 
     var body: some View {
         Group {
@@ -21,16 +20,7 @@ private struct MenuBarLaunchLabel: View {
         }
         .accessibilityLabel("KTStack")
         .onAppear {
-            guard !didLaunchWindow else { return }
-            didLaunchWindow = true
-            AppActivationPolicy.activateRegular()
-            if !AppActivationPolicy.focusExistingWindow(titled: "KTStack Dashboard") {
-                openWindow(id: DashboardWindow.windowID)
-            }
-            DispatchQueue.main.async {
-                AppActivationPolicy.activateRegular()
-                AppActivationPolicy.resizeWindow(titled: "KTStack Dashboard", toFraction: 0.8)
-            }
+            DashboardOpener.shared.action = { openWindow(id: DashboardWindow.windowID) }
         }
     }
 }

@@ -1,4 +1,5 @@
 import AppKit
+import KTPluginKit
 
 enum AppActivationPolicy {
     static func activateRegular() {
@@ -6,18 +7,21 @@ enum AppActivationPolicy {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    @MainActor
     @discardableResult
-    static func focusExistingWindow(titled title: String) -> Bool {
-        guard let window = NSApp.windows.first(where: {
-            $0.title == title && $0.canBecomeMain && !($0 is NSPanel)
-        }) else { return false }
+    static func focusDashboard() -> Bool {
+        guard let window = KTWindowIdentity.window(sceneID: DashboardWindow.windowID), window.canBecomeMain else {
+            return false
+        }
+        if window.isMiniaturized { window.deminiaturize(nil) }
         window.makeKeyAndOrderFront(nil)
         return true
     }
 
-    static func resizeWindow(titled title: String, toFraction fraction: CGFloat) {
+    @MainActor
+    static func resizeDashboard(toFraction fraction: CGFloat) {
         guard let screen = NSScreen.main,
-              let window = NSApp.windows.first(where: { $0.title == title && !($0 is NSPanel) })
+              let window = KTWindowIdentity.window(sceneID: DashboardWindow.windowID)
         else { return }
         let visible = screen.visibleFrame
         let width = (visible.width * fraction).rounded()
@@ -37,13 +41,36 @@ enum AppActivationPolicy {
     // ordinary window left, drop back to accessory so the app leaves the Dock for the menu bar.
     static func restoreAccessoryIfNoWindows(excluding closingWindow: NSWindow? = nil) {
         let hasOrdinaryWindow = NSApp.windows.contains { window in
-            window !== closingWindow
-                && window.isVisible
-                && window.canBecomeMain
-                && !(window is NSPanel)
+            window !== closingWindow && KTWindowIdentity.keepsAppInDock(
+                isVisible: window.isVisible,
+                isMiniaturized: window.isMiniaturized,
+                canBecomeMain: window.canBecomeMain,
+                isPanel: window is NSPanel
+            )
         }
         if !hasOrdinaryWindow {
             NSApp.setActivationPolicy(.accessory)
         }
+    }
+}
+
+@MainActor
+final class DashboardOpener {
+    static let shared = DashboardOpener()
+
+    var action: (() -> Void)?
+
+    func open() {
+        if let action {
+            action()
+        } else {
+            openFromWindowMenu()
+        }
+    }
+
+    private func openFromWindowMenu() {
+        let items = NSApp.mainMenu?.items.flatMap { $0.submenu?.items ?? [] } ?? []
+        guard let item = items.first(where: { $0.title == "KTStack Dashboard" }), let action = item.action else { return }
+        NSApp.sendAction(action, to: item.target, from: item)
     }
 }

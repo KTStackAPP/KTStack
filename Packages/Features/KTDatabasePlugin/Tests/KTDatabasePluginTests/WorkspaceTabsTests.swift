@@ -159,6 +159,22 @@ final class WorkspaceTabsTests: XCTestCase {
         XCTAssertTrue(session.vm.isSuspended)
         XCTAssertNil(session.vm.driver)
     }
+
+    func testPendingEditsInAnyWorkspaceVetoQuit() async {
+        let store = makeStore()
+        let workspace = WorkspaceSession(
+            store: store, shell: store.makeViewModel!(), tools: FakeDatabaseTools(), paths: AppSupportPaths(root: tempURL())
+        )
+        store.openTable(TableInfo(name: "t"), profileID: profileID, database: "db", forceNewTab: false)
+        let tab = store.tabs.first!
+        await waitFor { tab.vm.rows != nil && !tab.vm.isLoadingStructure }
+        tab.vm.stageCellEdit(row: 0, column: 1, newValue: "edited")
+
+        XCTAssertTrue(WorkspaceSessionRegistry.shared.sessions.contains { $0 === workspace })
+        XCTAssertGreaterThanOrEqual(WorkspaceSessionRegistry.shared.pendingChangeTotal, 1)
+        XCTAssertEqual(KTDatabasePlugin.pendingWorkDescription(pending: 1), "1 pending database change in open tabs will be discarded.")
+        XCTAssertNil(KTDatabasePlugin.pendingWorkDescription(pending: 0))
+    }
 }
 
 private extension DatabaseV2ViewModel.ConnectionState {
