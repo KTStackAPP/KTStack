@@ -69,43 +69,23 @@ struct PostgresBackupRunner {
 
     @discardableResult
     func run(_ executable: URL, args: [String], passwordFile: URL?) async throws -> String {
-        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<String, Error>) in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let proc = Process()
-                proc.executableURL = executable
-                proc.arguments = args
-                var env = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin"]
-                if let passwordFile { env["PGPASSFILE"] = passwordFile.path }
-                proc.environment = env
-                let outPipe = Pipe()
-                let errPipe = Pipe()
-                proc.standardOutput = outPipe
-                proc.standardError = errPipe
-                proc.standardInput = FileHandle.nullDevice
-                do {
-                    try proc.run()
-                } catch {
-                    cont.resume(throwing: DatabaseError.connection(
-                        "Couldn't launch \(executable.lastPathComponent): \(error.localizedDescription)"
-                    ))
-                    return
-                }
-                let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
-                let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
-                proc.waitUntilExit()
-                if proc.terminationStatus == 0 {
-                    cont.resume(returning: String(data: outData, encoding: .utf8) ?? "")
-                } else {
-                    let message = String(data: errData, encoding: .utf8)?
-                        .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                    cont.resume(throwing: Self.classify(
-                        message,
-                        tool: executable.lastPathComponent,
-                        status: proc.terminationStatus
-                    ))
-                }
-            }
+        var env = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin"]
+        if let passwordFile { env["PGPASSFILE"] = passwordFile.path }
+        let result: ProcessResult
+        do {
+            result = try await ProcessRunner().runAsync(
+                ProcessRequest(executable: executable.path, arguments: args, environment: env)
+            )
+        } catch {
+            throw DatabaseError.connection(
+                "Couldn't launch \(executable.lastPathComponent): \(error.localizedDescription)"
+            )
         }
+        guard result.status == 0, result.interruption == nil else {
+            let message = result.stderrText.trimmingCharacters(in: .whitespacesAndNewlines)
+            throw Self.classify(message, tool: executable.lastPathComponent, status: result.status)
+        }
+        return result.stdoutText
     }
 
     private static func classify(_ stderr: String, tool: String, status: Int32) -> DatabaseError {
