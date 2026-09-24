@@ -138,7 +138,7 @@ final class SiteSettingsModel: ObservableObject {
         case let .reservedKey(key):
             "“\(key)” is reserved by KTStack and can't be overridden."
         case let .invalidValue(key):
-            "The value for “\(key)” contains a newline or null character."
+            "The value for “\(key)” can't contain a newline, null character, double quote, $ or backslash."
         }
     }
 }

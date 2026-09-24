@@ -21,7 +21,7 @@ public struct ApacheBackend: WebServerBackend {
         let serverPort = context.secure ? 443 : 80
         let httpsEnv = context.secure ? "\n    SetEnv HTTPS on" : ""
         let aliasLine = context.aliases.isEmpty ? "" : "\n    ServerAlias \(context.aliases.joined(separator: " "))"
-        let envEnv = SiteEnvVars.sorted(context.env)
+        let envEnv = SiteEnvVars.renderable(context.env)
             .map { "\n    SetEnv \($0.key) \"\(Self.apacheEscaped($0.value))\"" }
             .joined()
         let handler = "proxy:unix:\(context.phpFpmSocket.path)|fcgi://localhost/"
