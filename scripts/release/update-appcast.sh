@@ -13,6 +13,8 @@
 # Then upload appcast.xml AND the .dmg to that release; SUFeedURL reads
 #   https://github.com/KTStackAPP/KTStack/releases/latest/download/appcast.xml
 set -euo pipefail
+# shellcheck source=scripts/release/lib-appcast.sh
+source "$(dirname "$0")/lib-appcast.sh"
 RELEASES="${1:?usage: update-appcast.sh <releases-dir-with-dmgs>}"
 DD="${DERIVED_DATA:-$HOME/Library/Developer/Xcode/DerivedData}"
 PREFIX_ARGS=()
@@ -50,5 +52,6 @@ else
         echo '</rss>'
     } > "$RELEASES/appcast.xml"
 fi
+tag_arm64_items "$RELEASES/appcast.xml"
 echo "appcast: $RELEASES/appcast.xml ($(grep -cE '<item>' "$RELEASES/appcast.xml") item(s))"
 echo "Next: upload appcast.xml AND every .dmg to the matching GitHub Release (gh release upload <tag> …)."

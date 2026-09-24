@@ -19,6 +19,7 @@ jobs:
       # Folder reference in project.yml; its contents are gitignored build artifacts.
       - run: mkdir -p KTStack/Resources/bin
       - run: scripts/architecture-check.sh
+      - run: scripts/release/tests/test-update-appcast.sh
       - uses: actions/cache@v4
         with:
           path: Packages/Features/*/.build
