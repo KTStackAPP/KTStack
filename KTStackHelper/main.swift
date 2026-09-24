@@ -43,6 +43,8 @@ final class HelperService: NSObject, HelperXPCProtocol {
 }
 
 final class HelperListenerDelegate: NSObject, NSXPCListenerDelegate {
+    private let idle = HelperIdleExit()
+
     func listener(
         _: NSXPCListener,
         shouldAcceptNewConnection connection: NSXPCConnection
@@ -50,6 +52,8 @@ final class HelperListenerDelegate: NSObject, NSXPCListenerDelegate {
         guard HelperSignatureValidator.isTrustedClient(connection) else { return false }
         connection.exportedInterface = NSXPCInterface(with: HelperXPCProtocol.self)
         connection.exportedObject = HelperService()
+        idle.opened()
+        connection.invalidationHandler = { [idle] in idle.closed() }
         connection.resume()
         return true
     }
