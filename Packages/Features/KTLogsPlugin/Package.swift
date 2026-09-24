@@ -25,7 +25,7 @@ let package = Package(
         ),
         .testTarget(
             name: "KTLogsPluginTests",
-            dependencies: ["KTLogsPlugin"]
+            dependencies: ["KTLogsPlugin", .product(name: "KTStackCore", package: "KTStackCore")]
         )
     ]
 )

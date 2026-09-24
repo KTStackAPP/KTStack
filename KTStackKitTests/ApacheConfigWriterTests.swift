@@ -74,7 +74,7 @@ final class ApacheConfigWriterTests: XCTestCase {
         ))
         XCTAssertTrue(c.contains("ServerAlias api.demo.test cdn.demo.test"))
         XCTAssertTrue(c.contains("SetEnv APP_DEBUG \"1\""))
-        XCTAssertTrue(c.contains("SetEnv QUOTE \"a\\\"b\\\\c\""))
+        XCTAssertFalse(c.contains("SetEnv QUOTE"), "values with quotes or backslashes are skipped, not rendered")
     }
 
     func testFactoryFallsBackToNginxWhenApacheBinaryMissing() {

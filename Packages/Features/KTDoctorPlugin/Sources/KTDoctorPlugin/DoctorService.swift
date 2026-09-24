@@ -41,6 +41,7 @@ public struct DoctorService: Sendable {
                 DoctorChecks.binaries(probes: probes),
                 DoctorChecks.services(probes: probes),
                 DoctorChecks.php(paths: paths, probes: probes),
+                DoctorChecks.networkExposure(paths: paths, probes: probes),
             ]
         }.value
 

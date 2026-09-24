@@ -98,37 +98,36 @@ public struct SudoFallbackInstaller {
     }
 
     public func runInstallWithAdminPrivileges() throws {
-        try runAsAdmin(writeScripts(to: Self.freshStagingDir()).install.path)
+        _ = try DNSConstants.validatedTLD(tld)
+        try runAsAdmin(installScript())
     }
 
     public func runUninstallWithAdminPrivileges() throws {
-        try runAsAdmin(writeScripts(to: Self.freshStagingDir()).uninstall.path)
+        _ = try DNSConstants.validatedTLD(tld)
+        try runAsAdmin(uninstallScript())
     }
 
     public func runResetWithAdminPrivileges() throws {
-        try runAsAdmin(writeScripts(to: Self.freshStagingDir()).reset.path)
+        _ = try DNSConstants.validatedTLD(tld)
+        try runAsAdmin(resetScript())
     }
 
     public func runSetTLDWithAdminPrivileges(old: String, new: String) throws {
         _ = try DNSConstants.validatedTLD(old)
         _ = try DNSConstants.validatedTLD(new)
-        let dir = Self.freshStagingDir()
-        try FileManager.default.createDirectory(
-            at: dir,
-            withIntermediateDirectories: true,
-            attributes: [.posixPermissions: 0o700]
-        )
-        let script = dir.appendingPathComponent("set-tld.sh")
-        try setTLDScript(old: old, new: new).write(to: script, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: script.path)
-        try runAsAdmin(script.path)
+        try runAsAdmin(setTLDScript(old: old, new: new))
     }
 
-    private func runAsAdmin(_ scriptPath: String) throws {
-        let asEscaped = scriptPath
+    static func appleScriptCommand(for script: String) -> String {
+        let literal = script
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
-        let osa = "do shell script \"/bin/bash \" & quoted form of \"\(asEscaped)\" with administrator privileges"
+            .replacingOccurrences(of: "\n", with: "\\n")
+        return "do shell script \"/bin/bash -c \" & quoted form of \"\(literal)\" with administrator privileges"
+    }
+
+    private func runAsAdmin(_ script: String) throws {
+        let osa = Self.appleScriptCommand(for: script)
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         proc.arguments = ["-e", osa]

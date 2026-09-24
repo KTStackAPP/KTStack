@@ -2,6 +2,8 @@ import Foundation
 import KTStackCore
 
 public final class QueryHistoryStore {
+    static let writeQueue = DispatchQueue(label: "com.ktstack.query-history", qos: .utility)
+
     public let limit: Int
 
     private let fileURL: URL
@@ -10,7 +12,7 @@ public final class QueryHistoryStore {
 
     public init(
         paths: AppSupportPaths = AppSupportPaths(),
-        limit: Int = 500,
+        limit: Int = 1000,
         fileManager: FileManager = .default
     ) {
         fileURL = paths.queryHistoryFile
@@ -25,8 +27,8 @@ public final class QueryHistoryStore {
     }
 
     public func record(sql: String, connectionLabel: String, database: String?, ranAt: Date = Date()) throws {
-        let trimmed = sql.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        let trimmed = QueryHistoryRedactor.redact(sql.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard !trimmed.isEmpty, trimmed.utf8.count <= QueryHistoryRedactor.maxStoredLength else { return }
         if let first = cache.first,
            first.sql == trimmed,
            first.connectionLabel == connectionLabel,
@@ -46,24 +48,42 @@ public final class QueryHistoryStore {
         if cache.count > limit {
             cache.removeLast(cache.count - limit)
         }
-        try flush()
+        flush()
     }
 
     public func clear() throws {
         cache = []
-        try flush()
+        flush()
     }
 
-    private func flush() throws {
-        let parent = fileURL.deletingLastPathComponent()
-        try fileManager.createDirectory(at: parent, withIntermediateDirectories: true)
+    private func flush() {
+        let snapshot = cache, url = fileURL
+        Self.writeQueue.async {
+            do {
+                try Self.write(snapshot, to: url)
+            } catch {
+                NSLog("KTStack: could not save query history: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    static func write(_ entries: [QueryHistoryEntry], to url: URL) throws {
+        let fm = FileManager.default
+        try fm.createDirectory(
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700]
+        )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(cache)
-        try data.write(to: fileURL, options: .atomic)
+        try encoder.encode(entries).write(to: url, options: .atomic)
+        try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    }
+
+    static func waitForPendingWrites() {
+        writeQueue.sync {}
     }
 
     private static func load(from url: URL, fileManager: FileManager) -> [QueryHistoryEntry] {
+        waitForPendingWrites()
         guard fileManager.fileExists(atPath: url.path),
               let data = try? Data(contentsOf: url),
               let entries = try? JSONDecoder().decode([QueryHistoryEntry].self, from: data)

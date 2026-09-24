@@ -5,9 +5,11 @@ struct ServicesCommand {
     let client: KTIPCClient
 
     func run(arguments: [String]) throws {
-        if arguments.first == "restart", arguments.count >= 2 {
-            let serviceName = arguments[1]
-            let result = try client.call(method: "services.restart", params: ["service": serviceName])
+        if let action = arguments.first, ["start", "stop", "restart"].contains(action) {
+            guard arguments.count >= 2 else {
+                throw KTCLIError.serverError("Usage: kt services \(action) <service>")
+            }
+            let result = try client.call(method: "services.\(action)", params: ["service": arguments[1]])
             print(result)
             return
         }

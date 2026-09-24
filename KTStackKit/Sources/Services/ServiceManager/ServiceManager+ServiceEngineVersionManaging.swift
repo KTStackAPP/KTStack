@@ -48,10 +48,6 @@ extension ServiceManager: ServiceEngineVersionManaging {
         try setActiveVersion(engine.serviceKind, version: version)
     }
 
-    public func uninstall(_ engine: ServiceEngine, version: String) throws {
-        try uninstall(kind: engine.serviceKind, version: version)
-    }
-
     public func toggle(_ engine: ServiceEngine) {
         toggle(engine.serviceKind)
     }

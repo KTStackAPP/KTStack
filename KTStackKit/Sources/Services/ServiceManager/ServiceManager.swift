@@ -15,6 +15,7 @@ public final class ServiceManager: ObservableObject {
     let dns: DNSAutomationService
     let paths: AppSupportPaths
     let agents: LaunchAgentManager
+    var jobLoadedProbe: @Sendable (String) -> Bool
 
     var services: [ServiceKind: ManagedService] = [:]
     let restart = RestartPolicy()
@@ -43,6 +44,7 @@ public final class ServiceManager: ObservableObject {
         self.paths = paths
         let agents = LaunchAgentManager(paths: paths)
         self.agents = agents
+        jobLoadedProbe = { agents.isLoadedNow($0) }
         let cat = ServiceBinaryCatalog(paths: paths)
         catalog = cat
         downloader = RuntimeDownloader(paths: paths)

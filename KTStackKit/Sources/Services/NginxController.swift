@@ -78,6 +78,7 @@ public final class NginxController: @unchecked Sendable {
     }
 
     public func restart() throws {
+        try test()
         stop()
         try start()
     }

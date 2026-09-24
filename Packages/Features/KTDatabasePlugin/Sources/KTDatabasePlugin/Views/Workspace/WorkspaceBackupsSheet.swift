@@ -6,11 +6,13 @@ struct WorkspaceBackupsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var vm: DatabaseViewModel
     let session: BackupSession
-    @StateObject private var feedback = KTFeedbackCenter()
-    @State private var backupSets: [BackupSet] = []
-    @State private var restoringSet: BackupSet?
+    @StateObject var feedback = KTFeedbackCenter()
+    @State var backupSets: [BackupSet] = []
+    @State var restoringSet: BackupSet?
     @State private var backingUp = false
     @State private var reloadGeneration = 0
+    @State var showAllConnections = false
+    @State var confirmedTargets: Set<UUID> = []
 
     private var isConnected: Bool { vm.connection == .connected }
 
@@ -23,8 +25,12 @@ struct WorkspaceBackupsSheet: View {
         .frame(width: 560, height: 480)
         .background(KTColor.contentBg)
         .sheet(item: $restoringSet) { set in
-            RestoreSheet(set: set, isReadOnly: vm.isReadOnlyConnection) { db, target in
-                _ = await vm.restoreBackup(set, database: db, target: target, session: session)
+            RestoreSheet(set: set, isReadOnly: vm.isReadOnlyConnection, targetName: targetName) { db, target in
+                let restored = await vm.restoreBackup(
+                    set, database: db, target: target, session: session,
+                    confirmedTarget: confirmedTargets.contains(set.id)
+                )
+                reportFailure(unless: restored)
                 await reloadBackups()
             }
         }
@@ -35,8 +41,11 @@ struct WorkspaceBackupsSheet: View {
     private var header: some View {
         HStack(spacing: 10) {
             Text("Backups").font(KTType.screenTitle).tracking(KTType.screenTitleTracking).foregroundStyle(KTColor.ink)
-            KTPill(text: "\(backupSets.count)")
+            KTPill(text: "\(visibleSets.count)")
             Spacer()
+            Toggle("All connections", isOn: $showAllConnections)
+                .toggleStyle(.checkbox)
+                .help("Also list backups made from other connections")
             KTButton(
                 title: backingUp ? "Backing up…" : "Backup All Now",
                 systemImage: "tray.and.arrow.down",
@@ -52,20 +61,20 @@ struct WorkspaceBackupsSheet: View {
 
     @ViewBuilder
     private var content: some View {
-        if backupSets.isEmpty {
+        if visibleSets.isEmpty {
             emptyState
         } else {
             ScrollView {
                 KTListContainer {
                     VStack(spacing: 0) {
-                        ForEach(Array(backupSets.enumerated()), id: \.element.id) { index, set in
+                        ForEach(Array(visibleSets.enumerated()), id: \.element.id) { index, set in
                             KTBackupRow(
                                 backup: set,
-                                onRestore: { restoringSet = set },
+                                onRestore: { requestRestore(set) },
                                 onDownload: { download(set) },
                                 onDelete: { confirmDelete(set) }
                             )
-                            if index < backupSets.count - 1 {
+                            if index < visibleSets.count - 1 {
                                 Rectangle().fill(KTColor.sepFaint).frame(height: 0.5).padding(.leading, 18)
                             }
                         }
@@ -92,7 +101,7 @@ struct WorkspaceBackupsSheet: View {
             let set = await vm.backupAllDatabases(session: session)
             await reloadBackups()
             backingUp = false
-            if set != nil { feedback.toast("Backup complete") }
+            if set != nil { feedback.toast("Backup complete") } else { reportFailure(unless: false) }
         }
     }
 

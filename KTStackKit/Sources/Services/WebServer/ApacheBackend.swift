@@ -21,7 +21,7 @@ public struct ApacheBackend: WebServerBackend {
         let serverPort = context.secure ? 443 : 80
         let httpsEnv = context.secure ? "\n    SetEnv HTTPS on" : ""
         let aliasLine = context.aliases.isEmpty ? "" : "\n    ServerAlias \(context.aliases.joined(separator: " "))"
-        let envEnv = SiteEnvVars.sorted(context.env)
+        let envEnv = SiteEnvVars.renderable(context.env)
             .map { "\n    SetEnv \($0.key) \"\(Self.apacheEscaped($0.value))\"" }
             .joined()
         let handler = "proxy:unix:\(context.phpFpmSocket.path)|fcgi://localhost/"
@@ -34,7 +34,7 @@ public struct ApacheBackend: WebServerBackend {
         UseCanonicalPhysicalPort Off
         TypesConfig \(q(serverRoot.appendingPathComponent("conf/mime.types").path))
 
-        \(Self.loadModules)
+        \(Self.loadModules)\(Self.remoteIPBlock)
 
         ErrorLog \(q(context.errorLog.path))
         CustomLog \(q(context.accessLog.path)) common

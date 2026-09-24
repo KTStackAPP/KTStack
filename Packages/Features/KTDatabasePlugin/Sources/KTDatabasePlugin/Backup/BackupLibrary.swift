@@ -60,7 +60,7 @@ public struct BackupLibrary: Sendable {
             }
             let set = BackupSet(
                 id: id, kind: kind, engineVersion: engineVersion,
-                profileName: profile.name, host: profile.host, databases: databases,
+                profileName: profile.name, host: profile.host, profileID: profile.id, port: profile.port, databases: databases,
                 createdAt: Date(),
                 sizeBytes: Self.directorySize(setDir, fileManager: fileManager)
             )
@@ -124,7 +124,7 @@ public struct BackupLibrary: Sendable {
         let id = UUID()
         let imported = BackupSet(
             id: id, kind: set.kind, engineVersion: set.engineVersion,
-            profileName: set.profileName, host: set.host, databases: set.databases,
+            profileName: set.profileName, host: set.host, profileID: set.profileID, port: set.port, databases: set.databases,
             createdAt: set.createdAt, sizeBytes: set.sizeBytes
         )
         let destination = paths.backupSetDir(id)

@@ -8,6 +8,11 @@ public final class KTMCPHandler: Sendable {
     }
 
     public func handle(_ message: KTMCPMessage) async -> KTMCPMessage? {
+        let response = await respond(to: message)
+        return message.id == nil ? nil : response
+    }
+
+    private func respond(to message: KTMCPMessage) async -> KTMCPMessage? {
         guard let method = message.method else { return nil }
 
         switch method {
@@ -17,7 +22,7 @@ public final class KTMCPHandler: Sendable {
             ]
             let serverInfo: [String: AnyCodable] = [
                 "name": AnyCodable("ktstack-mcp"),
-                "version": AnyCodable("1.0.0")
+                "version": AnyCodable(CLIVersion.current())
             ]
             let result: [String: AnyCodable] = [
                 "protocolVersion": AnyCodable("2024-11-05"),
@@ -41,7 +46,7 @@ public final class KTMCPHandler: Sendable {
                 let err = KTMCPErrorDetail(code: -32602, message: "Missing tool name")
                 return KTMCPMessage(id: message.id, error: err)
             }
-            let args = message.params?["arguments"]?.value as? [String: AnyCodable]
+            let args = (message.params?["arguments"]?.value as? [String: Any])?.mapValues { AnyCodable($0) }
             do {
                 let output = try await tools.callTool(name: name, arguments: args)
                 let content: [[String: AnyCodable]] = [

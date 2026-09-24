@@ -31,17 +31,20 @@ claude mcp add ktstack -- /Applications/KTStack.app/Contents/MacOS/kt mcp
 
 ## 2. Available MCP Tools
 
-KTStack exposes 7 AI tools over the MCP stdio protocol:
+KTStack exposes 8 AI tools over the MCP stdio protocol. None of them restores or deletes data:
 
 | Tool | Parameters | Description |
 |---|---|---|
-| `ktstack_list_sites` | none | Returns all registered `.test` sites, domains, PHP runtime pins, loopback backend ports, and disk paths. |
-| `ktstack_create_site` | `path` (string, required), `php` (string) | Registers a new local project directory under KTStack with automated `.test` domain routing. |
-| `ktstack_switch_php_version` | `domain` (string, required), `version` (string, required) | Dynamically changes the PHP version (e.g. 7.4 to 8.4) assigned to a site. |
-| `ktstack_get_recent_logs` | `source` (string), `lines` (integer) | Fetches trailing error logs from Front Nginx, Backend Nginx, or PHP-FPM for instant debugging. |
-| `ktstack_inspect_db_schema` | `database` (string, required) | Inspects tables, columns, and primary keys from local databases. |
-| `ktstack_backup_db` | `database` (string, required) | Triggers an immediate clean-room database snapshot/dump. |
-| `ktstack_doctor` | none | Probes local IPC socket, application support paths, and service health. |
+| `ktstack_list_sites` | none | Returns all registered `.test` sites, domains, PHP versions, loopback backend ports, and disk paths. |
+| `ktstack_list_services` | none | Returns each background service and whether it is running. |
+| `ktstack_restart_service` | `service` (string, required) | Restarts a service (`nginx`, `phpFpm`, `mysql`, `postgres`, `redis`, …); a stopped service is started. |
+| `ktstack_get_recent_logs` | `source` (string), `lines` (integer, max 2000) | Returns the last lines of a log source: `nginx-error` (default), `nginx-access`, `php-<version>`, a service such as `mysql`, `diagnostics`, or `site-<domain>-error` / `site-<domain>-access`. An unknown source returns the list of available ids. |
+| `ktstack_backup_database` | `database` (string, required), `engine` (string) | Backs up one database of a managed engine (`mysql`, `postgres` or `mongodb`; default: the first installed) into KTStack's backup library and returns the file path. Fails if the dump is missing or empty. |
+| `ktstack_create_site` | `path` (string, required), `php` (string) | Registers a project folder as a site. |
+| `ktstack_switch_php_version` | `domain` (string, required), `version` (string, required) | Switches a site to another installed PHP version. |
+| `ktstack_doctor` | none | Reports whether the KTStack app answers on the local IPC socket. |
+
+Notifications (JSON-RPC messages without an `id`) are processed but never answered.
 
 ---
 

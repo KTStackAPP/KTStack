@@ -24,7 +24,7 @@ public struct NginxBackendConfigWriter: Sendable {
         let q = NginxConfigWriter.q
         let serverPort = secure ? 443 : 80
         let httpsParam = secure ? "\n            fastcgi_param HTTPS            on;" : ""
-        let envParams = SiteEnvVars.sorted(env)
+        let envParams = SiteEnvVars.renderable(env)
             .map { "\n            fastcgi_param \($0.key) \(q($0.value));" }
             .joined()
         return """
@@ -45,7 +45,7 @@ public struct NginxBackendConfigWriter: Sendable {
             client_max_body_size 256M;
 
             server {
-                listen 127.0.0.1:\(backendPort);
+                listen 127.0.0.1:\(backendPort);\(FrontAccessPolicy.backendRealIP)
                 server_name \(NginxConfigWriter.serverName(domain, aliases));
                 absolute_redirect off;
                 root \(q(root.path));

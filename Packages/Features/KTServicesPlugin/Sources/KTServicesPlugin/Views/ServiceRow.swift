@@ -56,7 +56,7 @@ struct ServiceRow: View, Equatable {
             Button("Reset \(state.displayName) data", role: .destructive, action: onResetData)
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This permanently deletes \(state.displayName)'s stored data, then restarts it from an empty datastore.")
+            Text(ServiceID.resetDataMessage(state.displayName))
         }
     }
 
@@ -111,7 +111,7 @@ struct ServiceRow: View, Equatable {
             if state.id == .nginx, let editConfig = onEditConfig {
                 Button("Edit nginx config…", systemImage: "doc.text", action: editConfig)
             }
-            if state.id == .mongodb, state.health == .error {
+            if state.id.keepsData, state.isInstalled {
                 Divider()
                 Button("Reset Data…", systemImage: "trash", role: .destructive) { showResetConfirm = true }
             }

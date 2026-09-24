@@ -96,7 +96,11 @@ final class FakeEngineVersionManaging: ServiceEngineVersionManaging {
         if setActiveShouldThrow { throw SetActiveError() }
     }
 
-    func uninstall(_: ServiceEngine, version _: String) throws {}
+    func dataFootprint(_: ServiceEngine, version _: String) async -> ServiceEngineDataFootprint? { nil }
+    func uninstall(_: ServiceEngine, version _: String) async throws -> String? { nil }
+    func retiredData(_: ServiceEngine) async -> [ServiceEngineRetiredData] { [] }
+    func restoreRetiredData(_: ServiceEngineRetiredData) async throws {}
+    func trashRetiredData(_: ServiceEngineRetiredData) async throws {}
     func toggle(_: ServiceEngine) {}
 }
 

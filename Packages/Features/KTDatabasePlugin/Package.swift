@@ -46,6 +46,7 @@ let package = Package(
             dependencies: [
                 "KTDatabasePlugin",
                 .product(name: "GRDB", package: "GRDB.swift"),
+                .product(name: "MongoKitten", package: "MongoKitten"),
                 .product(name: "NIOCore", package: "swift-nio")
             ]
         )
