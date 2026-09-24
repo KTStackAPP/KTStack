@@ -38,6 +38,7 @@ public extension DatabaseV2ViewModel {
     }
 
     func rebuildStagedEditor() {
+        if keepsPendingEditor() { return }
         guard let driver, let database = selectedDatabase, let table = selectedTable, !columns.isEmpty else {
             staged = nil
             refreshStagedState()
@@ -100,24 +101,6 @@ public extension DatabaseV2ViewModel {
         guard let editor = staged else { return }
         editor.stageInsert(values: values)
         refreshStagedState()
-    }
-
-    func commitStaged() async {
-        guard let editor = staged, editor.hasPendingChanges else { return }
-        await ensureConnected()
-        let token = generation
-        isCommitting = true
-        editError = nil
-        do {
-            try await editor.commit()
-            guard token == generation else { isCommitting = false; return }
-            await reloadLoaded()
-            refreshStagedState()
-        } catch {
-            guard token == generation else { isCommitting = false; return }
-            editError = error.localizedDescription
-        }
-        isCommitting = false
     }
 
     func discardStaged() {
