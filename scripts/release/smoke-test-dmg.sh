@@ -5,6 +5,7 @@
 #
 # Usage: scripts/release/smoke-test-dmg.sh <path-to-dmg> [--no-launch]
 #   APPCAST=<path>   appcast.xml to check (default: appcast.xml next to the DMG; skipped if absent)
+#   EXPECT_VERSION=<ver>   fail unless the app's CFBundleShortVersionString equals it
 #
 # Release gate: 0.2.8 shipped a Mailpit binary with an invalid signature (#28) and a helper signed
 # with the wrong identifier (#25). Both survived the pre-DMG checks in sign-all-binaries.sh because
@@ -58,6 +59,10 @@ APP="$(find "$MOUNT" -maxdepth 2 -name "*.app" -type d -print -quit)"
 [[ -n "$APP" ]] || { echo "❌ no .app inside the DMG" >&2; exit 1; }
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist" 2>/dev/null || echo '?')"
 pass "mounted: $(basename "$APP") $VERSION"
+if [[ -n "${EXPECT_VERSION:-}" ]]; then
+    [[ "$VERSION" == "$EXPECT_VERSION" ]] && pass "version matches expected $EXPECT_VERSION" \
+        || fail "CFBundleShortVersionString $VERSION != expected $EXPECT_VERSION"
+fi
 
 echo ""
 echo "=== 1. strict codesign of the app and every nested Mach-O ==="
