@@ -10,6 +10,12 @@ struct SiteQuickEditorButton: View {
     @State private var hovering = false
 
     var body: some View {
+        ZStack { editorButton }
+            .onAppear { refreshCatalog() }
+    }
+
+    @ViewBuilder
+    private var editorButton: some View {
         if !site.path.isEmpty, let preferred = catalog.preferred() {
             Button {
                 SiteActions.openInEditor(site, editor: preferred, catalog: catalog)
@@ -42,9 +48,6 @@ struct SiteQuickEditorButton: View {
                         }
                     }
                 }
-            }
-            .onAppear {
-                refreshCatalog()
             }
         }
     }

@@ -17,4 +17,8 @@ actor PHPFrameworkCache {
         cache[path] = result
         return result
     }
+
+    func invalidate(path: String) {
+        cache[path] = nil
+    }
 }
