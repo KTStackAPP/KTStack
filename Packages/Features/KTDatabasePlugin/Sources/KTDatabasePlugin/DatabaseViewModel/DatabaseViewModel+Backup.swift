@@ -53,7 +53,7 @@ public extension DatabaseViewModel {
         backupStatus = .running("Listing databases…")
         let dbs: [String]
         do {
-            let all = try await driver.listDatabases().map(\.name)
+            let all = try await driver.backupDatabaseNames()
             dbs = BackupSession.userDatabaseNames(all, for: profile.kind)
         } catch {
             backupStatus = .failed(Self.asDatabaseError(error).message)
@@ -78,7 +78,7 @@ public extension DatabaseViewModel {
         }
     }
 
-    func restoreAllDatabases(_ set: BackupSet, session: BackupSession) async -> Bool {
+    func restoreAllDatabases(_ set: BackupSet, session: BackupSession, confirmedTarget: Bool = false) async -> Bool {
         guard let profile = selectedProfile else { return false }
         guard !isReadOnlyConnection else {
             backupStatus = .failed("This connection is read-only; restore is disabled.")
@@ -93,7 +93,8 @@ public extension DatabaseViewModel {
                     database: database,
                     profile: profile,
                     password: passwordFor(profile),
-                    target: .overwrite
+                    target: .overwrite,
+                    confirmedTarget: confirmedTarget
                 )
                 succeeded += 1
             } catch {
@@ -112,7 +113,8 @@ public extension DatabaseViewModel {
         _ set: BackupSet,
         database: String,
         target: RestoreTarget,
-        session: BackupSession
+        session: BackupSession,
+        confirmedTarget: Bool = false
     ) async -> Bool {
         guard let profile = selectedProfile else { return false }
         guard !isReadOnlyConnection else {
@@ -126,7 +128,8 @@ public extension DatabaseViewModel {
                 database: database,
                 profile: profile,
                 password: passwordFor(profile),
-                target: target
+                target: target,
+                confirmedTarget: confirmedTarget
             )
             backupStatus = .done("Restored \(database).")
             if let refreshed = try? await driver?.listDatabases() {
