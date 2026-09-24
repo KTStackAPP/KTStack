@@ -49,6 +49,36 @@ final class KTMCPToolCallTests: XCTestCase {
         XCTAssertEqual(server.requests.last?.method, "db.backup")
     }
 
+    func testCreateSiteToolSendsPathAndPHP() async throws {
+        let response = try await call(
+            #"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"ktstack_create_site","arguments":{"path":"/Users/me/Sites/shop","php":"8.4"}}}"#
+        )
+        XCTAssertEqual(isError(response), false)
+        XCTAssertEqual(server.requests.last?.method, "sites.create")
+        XCTAssertEqual(server.requests.last?.params?["path"], "/Users/me/Sites/shop")
+        XCTAssertEqual(server.requests.last?.params?["php"], "8.4")
+    }
+
+    func testSwitchPHPToolRequiresDomainAndVersion() async throws {
+        let missing = try await call(
+            #"{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"ktstack_switch_php_version","arguments":{"domain":"shop.test"}}}"#
+        )
+        XCTAssertEqual(isError(missing), true)
+        XCTAssertTrue(server.requests.isEmpty)
+        _ = try await call(
+            #"{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"ktstack_switch_php_version","arguments":{"domain":"shop.test","version":"8.4"}}}"#
+        )
+        XCTAssertEqual(server.requests.last?.method, "sites.switch_php")
+        XCTAssertEqual(server.requests.last?.params?["version"], "8.4")
+    }
+
+    func testToolListOffersSiteToolsButNoRestore() {
+        let names = KTMCPToolCatalog(client: server.client).listTools().compactMap { $0["name"]?.value as? String }
+        XCTAssertTrue(names.contains("ktstack_create_site"))
+        XCTAssertTrue(names.contains("ktstack_switch_php_version"))
+        XCTAssertFalse(names.contains { $0.contains("restore") })
+    }
+
     func testNotificationsAreNeverAnswered() async throws {
         let response = try await call(#"{"jsonrpc":"2.0","method":"tools/list"}"#)
         XCTAssertNil(response)
