@@ -87,7 +87,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor lazy var modals = KTModalPresenter()
 
-    @MainActor lazy var siteProvisioning = SiteProvisioningService(paths: AppSupportPaths(), server: server)
+    @MainActor lazy var siteProvisioning = makeSiteProvisioning()
 
     @MainActor lazy var sitesPlugin = KTSitesPlugin(
         catalog: server,
