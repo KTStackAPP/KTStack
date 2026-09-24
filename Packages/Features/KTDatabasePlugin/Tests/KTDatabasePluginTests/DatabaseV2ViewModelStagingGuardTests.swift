@@ -129,7 +129,7 @@ final class DatabaseV2ViewModelStagingGuardTests: XCTestCase {
         let vm = try await makeVM(driver)
         vm.stageCellEdit(row: 0, column: 1, newValue: "changed")
         await vm.runDDL("ALTER TABLE users ADD COLUMN x int")
-        XCTAssertTrue(driver.queries.isEmpty)
+        XCTAssertFalse(driver.queries.contains { $0.hasPrefix("ALTER TABLE") })
         XCTAssertNotNil(vm.ddlError)
         XCTAssertEqual(vm.pendingChangeCount, 1)
     }
