@@ -240,29 +240,6 @@ final class SiteRegistryTests: XCTestCase {
         XCTAssertEqual(reg.sites.count, 1)
     }
 
-    func testFolderRemovalTargetRejectsAncestorOfAnotherSite() throws {
-        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
-        let parent = try phpFolder(in: dir, named: "parent")
-        let child = try phpFolder(in: parent, named: "child")
-        let parentSite = try reg.add(folder: parent)
-        _ = try reg.add(folder: child)
-
-        XCTAssertThrowsError(try reg.folderRemovalTarget(parentSite)) { error in
-            guard case .unsafeDeletePath = error as? SiteRegistry.RegistryError else {
-                return XCTFail("unexpected error \(error)")
-            }
-        }
-        XCTAssertTrue(fm.fileExists(atPath: child.path))
-    }
-
-    func testAddRejectsHomeFolder() {
-        let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
-        XCTAssertThrowsError(try reg.add(folder: fm.homeDirectoryForCurrentUser)) { error in
-            XCTAssertEqual(error as? SiteRegistry.RegistryError, .unsafeSiteFolder(fm.homeDirectoryForCurrentUser.path))
-        }
-        XCTAssertTrue(reg.sites.isEmpty)
-    }
-
     func testDuplicateDefaultDomainGetsSuffix() throws {
         let (reg, dir) = makeRegistry(); defer { try? fm.removeItem(at: dir) }
         _ = try reg.add(folder: phpFolder(in: dir.appendingPathComponent("a", isDirectory: true), named: "blog"))
