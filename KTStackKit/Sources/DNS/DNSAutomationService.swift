@@ -183,7 +183,7 @@ public final class DNSAutomationService: ObservableObject {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             let guard1 = ResumeOnce(cont)
             let timeout = Task { try? await Task.sleep(nanoseconds: helperTimeout); guard1.fail(timeoutError()) }
-            guard1.onResolve = { timeout.cancel() }
+            guard1.setOnResolve { timeout.cancel() }
             guard let proxy = helper.remoteProxy({ guard1.fail($0) }) else {
                 guard1.fail(NSError(
                     domain: "KTStack",
@@ -218,7 +218,7 @@ public final class DNSAutomationService: ObservableObject {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             let guard1 = ResumeOnce(cont)
             let timeout = Task { try? await Task.sleep(nanoseconds: helperTimeout); guard1.fail(timeoutError()) }
-            guard1.onResolve = { timeout.cancel() }
+            guard1.setOnResolve { timeout.cancel() }
             guard let proxy = helper.remoteProxy({ guard1.fail($0) }) else {
                 guard1.fail(NSError(
                     domain: "KTStack",
@@ -265,8 +265,8 @@ public final class DNSAutomationService: ObservableObject {
         private let cont: CheckedContinuation<Void, Error>
         private let lock = NSLock()
         private var done = false
-        // Cancels the timeout task once the real result lands (harmless if already fired).
-        var onResolve: (@Sendable () -> Void)?
+        private var onResolve: (@Sendable () -> Void)?
+        func setOnResolve(_ block: @escaping @Sendable () -> Void) { lock.withLock { onResolve = block } }
         init(_ cont: CheckedContinuation<Void, Error>) {
             self.cont = cont
         }

@@ -1,7 +1,7 @@
 import Foundation
 import KTStackCore
 
-public final class MailpitController: ManagedService, @unchecked Sendable {
+public final class MailpitController: ManagedService, Sendable {
     public let kind = ServiceKind.mailpit
     public var detail: String {
         ":8025"

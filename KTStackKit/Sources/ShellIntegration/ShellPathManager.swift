@@ -1,7 +1,7 @@
 import Foundation
 import KTStackCore
 
-public final class ShellPathManager: @unchecked Sendable {
+public final class ShellPathManager: Sendable {
     public struct Status: Sendable, Equatable {
         public let enabled: Bool
         public let shellsPatched: [String]

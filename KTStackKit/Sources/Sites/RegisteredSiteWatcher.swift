@@ -14,7 +14,11 @@ public final class RegisteredSiteWatcher: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.ktstack.site-watcher")
     private var watches: [String: Watch] = [:] // keyed by folder path
 
-    public var onChange: (@Sendable (URL) -> Void)?
+    private var changeHandler: (@Sendable (URL) -> Void)?
+    public var onChange: (@Sendable (URL) -> Void)? {
+        get { queue.sync { changeHandler } }
+        set { queue.sync { changeHandler = newValue } }
+    }
 
     public init(debounce: TimeInterval = 0.5) {
         self.debounce = debounce
@@ -63,7 +67,7 @@ public final class RegisteredSiteWatcher: @unchecked Sendable {
     private func scheduleCallback(_ folder: URL) {
         guard let watch = watches[folder.path] else { return }
         watch.pending?.cancel()
-        let item = DispatchWorkItem { [weak self] in self?.onChange?(folder) }
+        let item = DispatchWorkItem { [weak self] in self?.changeHandler?(folder) }
         watch.pending = item
         queue.asyncAfter(deadline: .now() + debounce, execute: item)
     }

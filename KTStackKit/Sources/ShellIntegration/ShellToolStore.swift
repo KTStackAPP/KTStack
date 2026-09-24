@@ -1,7 +1,7 @@
 import Foundation
 import KTStackCore
 
-public final class ShellToolStore: @unchecked Sendable {
+public final class ShellToolStore: Sendable {
     private let configFile: URL
     private let lock = NSLock()
 

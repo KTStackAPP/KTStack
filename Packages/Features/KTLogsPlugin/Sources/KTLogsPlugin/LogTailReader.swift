@@ -1,7 +1,11 @@
 import Foundation
 
 public final class LogTailReader: @unchecked Sendable {
-    public var onLines: (@Sendable ([String]) -> Void)?
+    private var linesHandler: (@Sendable ([String]) -> Void)?
+    public var onLines: (@Sendable ([String]) -> Void)? {
+        get { queue.sync { linesHandler } }
+        set { queue.sync { linesHandler = newValue } }
+    }
 
     private let url: URL
     private let backfillBytes: Int
@@ -93,7 +97,7 @@ public final class LogTailReader: @unchecked Sendable {
         partial = lines.removeLast()
         let complete = lines.filter { !$0.isEmpty }
         guard !complete.isEmpty else { return }
-        onLines?(complete)
+        linesHandler?(complete)
     }
 
     private func scheduleReopen() {

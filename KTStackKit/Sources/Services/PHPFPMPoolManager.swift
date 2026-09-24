@@ -5,6 +5,7 @@ public final class PHPFPMPoolManager: @unchecked Sendable {
     private let paths: AppSupportPaths
     private let agents: LaunchAgentManager
     private let lock = NSLock()
+    private let opLock = NSLock()
     private var pools: [String: PHPFPMController] = [:]
 
     public init(paths: AppSupportPaths, agents: LaunchAgentManager) {
@@ -28,6 +29,7 @@ public final class PHPFPMPoolManager: @unchecked Sendable {
 
     @discardableResult
     public func reconcile(required: Set<String>) throws -> [String] {
+        opLock.lock(); defer { opLock.unlock() }
         for (version, ctl) in snapshot() where !required.contains(version) {
             ctl.stop()
             lock.lock(); pools[version] = nil; lock.unlock()
@@ -52,12 +54,14 @@ public final class PHPFPMPoolManager: @unchecked Sendable {
     }
 
     public func restart(version: String) throws {
+        opLock.lock(); defer { opLock.unlock() }
         guard let ctl = pool(for: version) else { return }
         ctl.stop()
         try ctl.start()
     }
 
     public func stopAll(grace: TimeInterval = 3.0) {
+        opLock.lock(); defer { opLock.unlock() }
         for (_, ctl) in snapshot() {
             ctl.stop(grace: grace)
         }

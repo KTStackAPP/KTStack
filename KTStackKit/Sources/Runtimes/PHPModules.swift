@@ -6,6 +6,7 @@ public enum PHPModules {
         let lock = NSLock()
         var byVersion: [String: [String]] = [:]
         var compiledByVersion: [String: [String]] = [:]
+        var generation = 0
     }
 
     private static let cache = Cache()
@@ -13,10 +14,13 @@ public enum PHPModules {
     public static func list(version: String, paths: AppSupportPaths = AppSupportPaths()) -> [String] {
         cache.lock.lock()
         if let hit = cache.byVersion[version] { cache.lock.unlock(); return hit }
+        let generation = cache.generation
         cache.lock.unlock()
 
         let mods = run(version: version, args: ["-m"], paths: paths)
-        cache.lock.lock(); cache.byVersion[version] = mods; cache.lock.unlock()
+        cache.lock.lock()
+        if cache.generation == generation { cache.byVersion[version] = mods }
+        cache.lock.unlock()
         return mods
     }
 
@@ -24,15 +28,19 @@ public enum PHPModules {
     public static func compiledIn(version: String, paths: AppSupportPaths = AppSupportPaths()) -> [String] {
         cache.lock.lock()
         if let hit = cache.compiledByVersion[version] { cache.lock.unlock(); return hit }
+        let generation = cache.generation
         cache.lock.unlock()
 
         let mods = run(version: version, args: ["-n", "-m"], paths: paths)
-        cache.lock.lock(); cache.compiledByVersion[version] = mods; cache.lock.unlock()
+        cache.lock.lock()
+        if cache.generation == generation { cache.compiledByVersion[version] = mods }
+        cache.lock.unlock()
         return mods
     }
 
     public static func invalidate(version: String) {
         cache.lock.lock()
+        cache.generation += 1
         cache.byVersion[version] = nil
         cache.compiledByVersion[version] = nil
         cache.lock.unlock()

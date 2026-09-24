@@ -4,7 +4,7 @@ import KTStackCore
 // Lifecycle for one per-site Apache backend over launchd. httpd runs in the foreground
 // (launchd supervises it) with ServerRoot at the relocated install and a per-site config.
 // Teardown is by launchd label (handled by SiteBackendSupervisor), never by binary path.
-public final class ApacheController: @unchecked Sendable {
+public final class ApacheController: Sendable {
     public enum ControlError: LocalizedError, Equatable {
         case commandFailed([String], Int32, String)
 
