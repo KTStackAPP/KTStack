@@ -94,14 +94,7 @@ public final class DatabaseV2ViewModel: ObservableObject {
     // Trần cửa sổ trượt: 5 trang, cắt đầu khi vượt để RAM 100k dòng đã cuộn nằm dưới 140 MB.
     public var maxWindowRows: Int { pageSize * 5 }
 
-    public var schemaCatalog: SchemaCatalog {
-        SchemaCatalog(
-            tables: tables.map(\.name),
-            columnsByTable: diagramColumns.mapValues { $0.map(\.name) },
-            detailedColumnsByTable: diagramColumns,
-            relations: foreignKeys
-        )
-    }
+    let catalogCache = SchemaCatalogCache()
 
     let makeDriver: RelationalDriverFactory
     let passwordFor: @Sendable (ConnectionProfile) -> String?

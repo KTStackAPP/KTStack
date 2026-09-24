@@ -24,7 +24,8 @@ public final class CATrustService: ObservableObject {
     public init(paths: AppSupportPaths, mkcertBinary: URL) {
         self.paths = paths
         runner = MkcertRunner(mkcert: mkcertBinary, caroot: paths.caDir)
-        refresh()
+        guard runner.caExists else { return }
+        Task { [weak self] in await self?.refreshAsync() }
     }
 
     public var isTrusted: Bool {

@@ -16,7 +16,9 @@ public enum NginxValidationResult: Sendable, Equatable {
 public final class LocalServerController: ObservableObject {
     @Published public internal(set) var nginxStatus: ServiceStatus = .stopped
     @Published public internal(set) var phpStatus: ServiceStatus = .stopped
-    @Published public internal(set) var isBusy = false
+    @Published public internal(set) var isBusy = false {
+        didSet { if !isBusy, let action = queuedAction { queuedAction = nil; Task { @MainActor in action(self) } } }
+    }
     @Published public internal(set) var lastError: String?
     @Published public internal(set) var apacheInstalled = false
     @Published public internal(set) var apacheInstalling = false
@@ -45,6 +47,7 @@ public final class LocalServerController: ObservableObject {
     nonisolated let httpsProvisioner: SiteHTTPSProvisioner
     var didSeed = false
     var pendingReconcile = false
+    var queuedAction: (@MainActor (LocalServerController) -> Void)?
     var didCheckCertRenewal = false
 
     public init(
@@ -87,7 +90,8 @@ public final class LocalServerController: ObservableObject {
 
         // Chỉ app thật adopt stack đang chạy: instance test (registry rỗng) mà reattach sẽ bootout
         // backend thật qua launchd. isRunningNow vì cache lạnh luôn trả false lúc init.
-        if adoptRunningStack, nginx.isRunningNow { reattachOnLaunch() } else { recomputeStatus() }
+        recomputeStatus()
+        if adoptRunningStack { reattachOnLaunch() }
     }
 
     public func refreshStatus() {
@@ -96,19 +100,29 @@ public final class LocalServerController: ObservableObject {
     }
 
     private func reattachOnLaunch() {
-        let required = generator.poolVersions(for: registry.sites)
-        _ = try? pools.reconcile(required: required)
-        recomputeStatus()
-        refreshWatches()
-        // Front is already up; bring each site's backend up too. Take the busy lock so a user
-        // start/stop can't race this on the same com.ktstack.site.* labels.
         guard !isBusy else { return }
         isBusy = true
         let sites = registry.sites
-        Task.detached(priority: .userInitiated) { [backends, self] in
+        let required = generator.poolVersions(for: sites)
+        Task.detached(priority: .userInitiated) { [nginx, pools, backends, self] in
+            guard nginx.isRunningNow else {
+                await MainActor.run { self.isBusy = false }
+                return
+            }
+            _ = try? pools.reconcile(required: required)
+            await MainActor.run {
+                self.recomputeStatus()
+                self.refreshWatches()
+            }
             await backends.reconcile(sites: sites)
             await MainActor.run { self.isBusy = false }
         }
+    }
+
+    func deferIfBusy(_ action: @escaping @MainActor (LocalServerController) -> Void) -> Bool {
+        guard isBusy else { return false }
+        queuedAction = action
+        return true
     }
 
     public var isRunning: Bool {
@@ -116,7 +130,7 @@ public final class LocalServerController: ObservableObject {
     }
 
     public var availableVersions: [String] {
-        let v = BundledPHP.availableVersions(php: paths.phpRuntimesRoot)
+        let v = BundledPHP.cachedAvailableVersions(php: paths.phpRuntimesRoot)
         return v.isEmpty ? [BundledPHP.defaultVersion] : v
     }
 

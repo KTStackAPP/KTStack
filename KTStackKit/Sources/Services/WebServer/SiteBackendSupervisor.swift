@@ -65,7 +65,7 @@ public struct SiteBackendSupervisor: Sendable {
     // backend that won't start only 502s its own host, it must not block the front or its
     // siblings from coming up. Run before the front (re)loads so healthy hosts never route to a
     // not-yet-listening backend.
-    public func reconcile(sites: [Site]) async {
+    public func reconcile(sites: [Site], reloading: Set<UUID>? = nil) async {
         let managed = Self.managed(sites)
         // One launchctl read for the whole pass; per-site isLoadedNow would be N launchctl calls
         // and makes every reconcile (e.g. a site toggle) stutter once there are many sites.
@@ -80,7 +80,7 @@ public struct SiteBackendSupervisor: Sendable {
             do {
                 let ctrl = controller(for: site)
                 if loaded.contains(label(for: site)) {
-                    try ctrl.reload() // already listening; graceful reload needs no readiness wait
+                    if reloading?.contains(site.id) ?? true { try ctrl.reload() }
                 } else {
                     try ctrl.start()
                     try await Self.waitForListen(port: port)
@@ -89,6 +89,19 @@ public struct SiteBackendSupervisor: Sendable {
                 NSLog("KTStack: backend for \(site.domain) did not come up: \(error.localizedDescription)")
             }
         }
+    }
+
+    public func confSnapshot(for sites: [Site]) -> [UUID: String] {
+        var snapshot: [UUID: String] = [:]
+        for site in Self.managed(sites) {
+            snapshot[site.id] = try? String(contentsOf: paths.siteBackendConf(site.id.uuidString), encoding: .utf8)
+        }
+        return snapshot
+    }
+
+    public func changedConfs(since snapshot: [UUID: String], sites: [Site]) -> Set<UUID> {
+        let current = confSnapshot(for: sites)
+        return Set(Self.managed(sites).map(\.id).filter { snapshot[$0] != current[$0] })
     }
 
     public func stopAll() {

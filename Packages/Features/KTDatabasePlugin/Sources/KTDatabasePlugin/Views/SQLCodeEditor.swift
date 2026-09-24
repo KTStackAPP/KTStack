@@ -57,8 +57,10 @@ struct SQLCodeEditor: NSViewRepresentable {
         context.coordinator.parent = self
         guard let textView = scroll.documentView as? CompletingTextView else { return }
         textView.catalog = catalog
-        textView.keywords = keywords
-        textView.highlighter.keywords = Set(keywords.map { $0.uppercased() })
+        if textView.keywords != keywords {
+            textView.keywords = keywords
+            textView.highlighter.keywords = Set(keywords.map { $0.uppercased() })
+        }
         if textView.string != text {
             let selected = textView.selectedRange()
             textView.string = text

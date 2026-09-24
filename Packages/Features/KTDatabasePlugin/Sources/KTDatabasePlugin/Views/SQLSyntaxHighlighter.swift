@@ -17,25 +17,51 @@ final class SQLSyntaxHighlighter: NSObject, NSTextStorageDelegate {
         pattern: "--[^\\n]*|/\\*[\\s\\S]*?\\*/"
     )
 
+    private static let delimiters = CharacterSet(charactersIn: "'\"`/")
+
     func textStorage(
         _ textStorage: NSTextStorage,
         didProcessEditing editedMask: NSTextStorageEditActions,
-        range _: NSRange,
+        range editedRange: NSRange,
         changeInLength _: Int
     ) {
         guard editedMask.contains(.editedCharacters) else { return }
-        highlight(textStorage)
+        let text = textStorage.string as NSString
+        let paragraph = text.paragraphRange(for: editedRange)
+        if isSelfContained(paragraph, in: text, storage: textStorage) {
+            highlight(textStorage, in: paragraph)
+        } else {
+            highlight(textStorage)
+        }
     }
 
     func highlight(_ storage: NSTextStorage) {
-        let text = storage.string as NSString
-        let full = NSRange(location: 0, length: text.length)
-        storage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: full)
+        highlight(storage, in: NSRange(location: 0, length: storage.length))
+    }
 
-        applyKeywords(in: text, storage: storage, range: full)
-        apply(Self.numberPattern, color: numberColor, in: text, storage: storage, range: full)
-        apply(Self.stringPattern, color: stringColor, in: text, storage: storage, range: full)
-        apply(Self.commentPattern, color: commentColor, in: text, storage: storage, range: full)
+    func highlight(_ storage: NSTextStorage, in range: NSRange) {
+        let text = storage.string as NSString
+        storage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: range)
+
+        applyKeywords(in: text, storage: storage, range: range)
+        apply(Self.numberPattern, color: numberColor, in: text, storage: storage, range: range)
+        apply(Self.stringPattern, color: stringColor, in: text, storage: storage, range: range)
+        apply(Self.commentPattern, color: commentColor, in: text, storage: storage, range: range)
+    }
+
+    private func isSelfContained(_ paragraph: NSRange, in text: NSString, storage: NSTextStorage) -> Bool {
+        guard text.rangeOfCharacter(from: Self.delimiters, options: [], range: paragraph).location == NSNotFound else {
+            return false
+        }
+        let start = max(paragraph.location - 1, 0)
+        let end = min(NSMaxRange(paragraph) + 1, text.length)
+        var touchesToken = false
+        storage.enumerateAttribute(.foregroundColor, in: NSRange(location: start, length: end - start)) { value, _, stop in
+            guard let color = value as? NSColor, color == stringColor || color == commentColor else { return }
+            touchesToken = true
+            stop.pointee = true
+        }
+        return !touchesToken
     }
 
     private func applyKeywords(in text: NSString, storage: NSTextStorage, range: NSRange) {
