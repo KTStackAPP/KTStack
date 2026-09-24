@@ -82,6 +82,28 @@ final class ProcessRunnerTests: XCTestCase {
         XCTAssertEqual(result.interruption, .cancelled)
     }
 
+    func testBlockingRunsFromEveryCooperativeThreadStillComplete() async throws {
+        let runner = runner
+        let width = ProcessInfo.processInfo.activeProcessorCount * 2
+        let outputs = try await withThrowingTaskGroup(of: String.self) { group in
+            for index in 0 ..< width {
+                group.addTask { try runner.run("/bin/echo", ["\(index)"], timeout: 10).stdoutText }
+            }
+            return try await group.reduce(into: [String]()) { $0.append($1) }
+        }
+        XCTAssertEqual(outputs.count, width)
+    }
+
+    func testBackgroundChildHoldingThePipeDoesNotBlockPastTheDrainGrace() throws {
+        let exe = try FakeExecutable.make(named: "forker", script: "/bin/sleep 30 &\necho parent")
+        defer { exe.remove() }
+        let started = Date()
+        let result = try runner.run(exe.path, timeout: 10)
+        XCTAssertEqual(result.status, 0)
+        XCTAssertTrue(result.stdoutText.hasPrefix("parent"))
+        XCTAssertLessThan(Date().timeIntervalSince(started), 10)
+    }
+
     func testRepeatedRunsDoNotLeakDescriptors() throws {
         _ = try runner.run("/usr/bin/true")
         let delta = try FileDescriptorCounter.delta {
