@@ -53,10 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor lazy var updater = UpdaterController()
 
-    @MainActor lazy var uninstaller = UninstallService(
-        paths: AppSupportPaths(), dns: dns,
-        mkcertBinary: Self.bundleBinDir.appendingPathComponent("mkcert")
-    )
+    @MainActor lazy var uninstaller = makeUninstaller()
 
     @MainActor lazy var caTrust = CATrustService(
         paths: AppSupportPaths(), mkcertBinary: Self.bundleBinDir.appendingPathComponent("mkcert")
@@ -178,7 +175,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .first { $0.processIdentifier != current.processIdentifier }
     }
 
-    private static var bundleBinDir: URL {
+    static var bundleBinDir: URL {
         Bundle.main.resourceURL?.appendingPathComponent("bin", isDirectory: true)
             ?? Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/bin", isDirectory: true)
     }

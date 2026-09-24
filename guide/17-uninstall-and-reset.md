@@ -37,18 +37,19 @@ The easiest way to completely remove KTStack is through the app itself:
 3. Scroll to the **Maintenance** section.
 4. Click **Uninstall…** next to "Reset & Uninstall".
 5. A confirmation dialog appears:
-   - "Uninstall KTStack and remove all data? This stops all services and permanently deletes app data, runtimes and databases. This cannot be undone."
+   - "Uninstall KTStack and remove all data? This stops all services, removes DNS, CA trust and the helper, and moves app data, runtimes and databases to the Trash."
 6. Click **Uninstall / Reset** to proceed (or **Cancel** to abort).
 7. KTStack performs the uninstall steps automatically:
-   - Stops all running services
-   - Disables local DNS and removes `/etc/resolver/.test` (or your custom TLD)
+   - Stops background polling and the `kt` CLI socket
+   - Disables local DNS and removes `/etc/resolver/.test` (or your custom TLD), waiting until this finishes
    - Removes shell PATH integration from your `.zshrc` or `.bashrc`
    - Untrusts the local CA from your System Keychain
-   - Unregisters the privileged helper (smappservice)
-   - Deletes `~/Library/Application Support/KTStack/` (all app data, runtimes, databases)
+   - Stops all running services
+   - Moves `~/Library/Application Support/KTStack/` (all app data, runtimes, databases) to the Trash
+   - Unregisters the privileged helper last, after everything that needs it is done
 
-8. A log window shows the progress of each step. Wait for it to complete and show a final status ("Done" or "Failed").
-9. Once complete, you can delete the KTStack app:
+8. A progress sheet shows each step. When everything succeeds, KTStack quits on its own. If a step fails, the sheet stays open and shows what went wrong.
+9. Your data stays in the Trash until you empty it, so you can still recover a database. Once you are sure, you can delete the KTStack app:
    - Open **Finder** and go to **Applications**.
    - Find **KTStack** and drag it to the **Trash**.
    - Empty the Trash.
