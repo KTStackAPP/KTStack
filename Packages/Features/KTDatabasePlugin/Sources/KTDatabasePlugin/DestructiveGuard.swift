@@ -25,8 +25,9 @@ public enum DestructiveGuard {
     }
 
     private static func reason(for statement: String) -> String? {
+        let skeleton = SQLSkeleton.scan(statement).text
         func matches(_ pattern: String) -> Bool {
-            statement.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+            skeleton.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
         }
         if matches(#"^\s*(DROP|TRUNCATE)\b"#) {
             return "DROP/TRUNCATE permanently removes data or schema objects."
