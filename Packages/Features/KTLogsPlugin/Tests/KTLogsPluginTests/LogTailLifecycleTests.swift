@@ -1,6 +1,6 @@
-@testable import KTStackCore
 import XCTest
 @testable import KTLogsPlugin
+@testable import KTStackCore
 
 final class LogTailLifecycleTests: XCTestCase {
     private var dir: URL!
