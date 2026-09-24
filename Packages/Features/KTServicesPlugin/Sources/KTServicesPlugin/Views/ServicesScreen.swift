@@ -53,7 +53,7 @@ struct ServicesScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(KTColor.contentBg)
         .sheet(item: $editingNginxConf) { _ in
-            NginxIncludeEditorSheet(model: NginxIncludeEditorModel(nginxInclude: nginxInclude))
+            NginxIncludeEditorSheet(nginxInclude: nginxInclude)
         }
         .task { await vm.refreshCATrust() }
         // Quay lại sau khi approve helper trong System Settings: re-check để banner approve tự clear.
