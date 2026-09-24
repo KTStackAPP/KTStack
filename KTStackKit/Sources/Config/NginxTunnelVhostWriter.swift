@@ -76,7 +76,7 @@ public struct NginxTunnelVhostWriter {
         let prependParam = prependFile.map {
             "\n                fastcgi_param PHP_VALUE                \(NginxConfigWriter.q("auto_prepend_file=" + $0.path));"
         } ?? ""
-        let envParams = SiteEnvVars.sorted(env)
+        let envParams = SiteEnvVars.renderable(env)
             .map { "\n                fastcgi_param \($0.key) \(NginxConfigWriter.q($0.value));" }
             .joined()
         return """

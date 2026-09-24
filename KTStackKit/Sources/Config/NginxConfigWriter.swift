@@ -220,7 +220,7 @@ public struct NginxConfigWriter {
     }
 
     public static func isSafePath(_ path: String) -> Bool {
-        !path.isEmpty && path.rangeOfCharacter(from: CharacterSet(charactersIn: ";{}\n\r")) == nil
+        !path.isEmpty && path.rangeOfCharacter(from: CharacterSet(charactersIn: ";{}\n\r\0\"$\\")) == nil
     }
 
     @discardableResult

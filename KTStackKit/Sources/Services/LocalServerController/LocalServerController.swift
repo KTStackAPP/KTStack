@@ -127,6 +127,7 @@ public final class LocalServerController: ObservableObject {
     func finish(missing: [String], error: String?) {
         isBusy = false
         if let error { lastError = error }
+        else if let warning = skippedEnvWarning { lastError = warning }
         else if !missing.isEmpty {
             let pins = missing.joined(separator: ", ")
             let installed = BundledPHP.availableVersions(php: paths.phpRuntimesRoot)
