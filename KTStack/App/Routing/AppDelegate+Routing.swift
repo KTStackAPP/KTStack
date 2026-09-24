@@ -11,8 +11,7 @@ extension AppDelegate {
         // "Cài trong Runtimes ›" từ trang kết nối: về Dashboard, chọn tab Runtimes.
         if case .runtimes = route {
             navigation.selection = "runtimes"
-            AppActivationPolicy.activateRegular()
-            AppActivationPolicy.focusExistingWindow(titled: "KTStack Dashboard")
+            showDashboard()
             return
         }
         databaseWindows.handle(route)

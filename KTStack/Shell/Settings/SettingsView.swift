@@ -324,8 +324,7 @@ struct SettingsView: View {
     }
 
     private func relaunchApp() {
-        let config = NSWorkspace.OpenConfiguration()
-        config.createsNewApplicationInstance = true
+        let config = AppRelaunch.configuration()
         NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: config) { _, error in
             DispatchQueue.main.async {
                 if let error {

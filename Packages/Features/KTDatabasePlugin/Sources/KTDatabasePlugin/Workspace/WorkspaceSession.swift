@@ -37,6 +37,7 @@ public final class WorkspaceSession: ObservableObject, Identifiable {
         store.onSelectDatabase = { [weak self] name in
             self?.selectDatabase(name)
         }
+        WorkspaceSessionRegistry.shared.register(self)
     }
 
     public var connectedProfileID: UUID? { store.selectedProfileID }

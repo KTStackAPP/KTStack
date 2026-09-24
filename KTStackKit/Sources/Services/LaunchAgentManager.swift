@@ -89,7 +89,7 @@ public struct LaunchAgentManager: Sendable {
     }
 
     public func bootstrap(_ spec: LaunchAgentSpec) throws {
-        let plist = try writePlist(for: spec)
+        let plist = try writeBootstrapPlist(for: spec)
         if Self.loadedCache.containsNow(spec.label) { return }
         try run("bootstrap", [Self.guiDomain, plist.path])
         Self.loadedCache.invalidate()
