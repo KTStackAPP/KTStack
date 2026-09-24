@@ -17,7 +17,6 @@ public extension MongoDriver {
         json: String
     ) async throws {
         try ensureWritable()
-        if let refusal = record.saveRefusal { throw DatabaseError.syntax(refusal) }
         let document = try MongoJSONMapper.document(fromJSON: json)
         if let editedID = document["_id"],
            let editedIDJSON = MongoJSONMapper.identifierJSON(for: editedID),
@@ -27,7 +26,12 @@ public extension MongoDriver {
         }
         let filter = try matchFilter(for: record)
         try await withPool { pool in
-            _ = try await pool[database][collection].updateOne(where: filter, to: document)
+            let target = pool[database][collection]
+            guard let original = try await target.find(filter).limit(1).drain().first else {
+                throw DatabaseError.unexpectedResponse("This document no longer exists; reload and try again.")
+            }
+            guard let update = try MongoDocumentDiff.plan(original: original, editedJSON: json).updateDocument else { return }
+            _ = try await target.updateOne(where: filter, to: update)
         }
     }
 

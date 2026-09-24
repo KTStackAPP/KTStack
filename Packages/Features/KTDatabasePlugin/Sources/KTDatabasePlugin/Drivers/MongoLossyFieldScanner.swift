@@ -31,11 +31,4 @@ enum MongoLossyFieldScanner {
         default: return nil
         }
     }
-
-    static func saveRefusal(_ fields: [MongoLossyField]) -> String? {
-        guard let first = fields.first else { return nil }
-        let more = fields.count > 1 ? " (and \(fields.count - 1) more field(s))" : ""
-        return "Can't save this document: field “\(first.path)” holds a \(first.typeName) value\(more) "
-            + "that the editor can't write back unchanged. Edit it with mongosh or MongoDB Compass."
-    }
 }

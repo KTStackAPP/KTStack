@@ -129,8 +129,7 @@ public struct MongoDriver: DocumentDriver {
         return try DocumentRecord(
             id: MongoJSONMapper.displayString(for: identifier),
             json: MongoJSONMapper.encodedJSON(from: document, pretty: true),
-            identifierJSON: MongoJSONMapper.identifierJSON(for: identifier),
-            saveRefusal: MongoLossyFieldScanner.saveRefusal(MongoLossyFieldScanner.scan(document))
+            identifierJSON: MongoJSONMapper.identifierJSON(for: identifier)
         )
     }
 

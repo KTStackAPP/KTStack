@@ -22,33 +22,10 @@ final class MongoLossyFieldScannerTests: XCTestCase {
         XCTAssertEqual(Set(fields.map(\.path)), ["token", "meta.pattern", "hook"])
     }
 
-    func testPlainDocumentIsSavable() {
+    func testPlainDocumentHasNoLossyFields() {
         var doc = Document()
         doc["_id"] = 1
         doc["tags"] = ["a", "b"] as Document
-        XCTAssertNil(MongoLossyFieldScanner.saveRefusal(MongoLossyFieldScanner.scan(doc)))
-    }
-
-    func testRecordCarriesRefusalNamingTheField() throws {
-        var doc = Document()
-        doc["_id"] = 7
-        doc["hook"] = JavaScriptCode("return 1")
-        let record = try MongoDriver.record(from: doc)
-        XCTAssertTrue(record.saveRefusal?.contains("“hook”") == true, record.saveRefusal ?? "")
-    }
-
-    func testUpdateRefusesLossyDocumentBeforeWriting() async throws {
-        var doc = Document()
-        doc["_id"] = 7
-        doc["token"] = Binary(subType: .uuid, buffer: ByteBuffer(bytes: [1]))
-        let record = try MongoDriver.record(from: doc)
-        let driver = MongoDriver(profile: .managedMongo, password: nil, tools: FakeDatabaseTools.allInstalled)
-        do {
-            try await driver.update(database: "db", collection: "c", record: record, json: record.json)
-            XCTFail("a document with a non-generic binary must not be saved")
-        } catch {
-            guard case let .syntax(message) = error as? DatabaseError else { return XCTFail("\(error)") }
-            XCTAssertTrue(message.contains("“token”"), message)
-        }
+        XCTAssertTrue(MongoLossyFieldScanner.scan(doc).isEmpty)
     }
 }
