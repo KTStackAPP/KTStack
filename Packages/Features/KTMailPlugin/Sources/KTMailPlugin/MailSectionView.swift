@@ -41,9 +41,15 @@ struct MailSectionView: View {
         if !mail.isReachable, mail.messages.isEmpty {
             offlineState
         } else {
-            HStack(spacing: 14) {
-                messageList
-                detailPane
+            VStack(alignment: .leading, spacing: 8) {
+                if !mail.isReachable, let error = mail.lastError {
+                    Text("Mailpit is unreachable (\(error)). Showing the last messages received.")
+                        .font(.jbMono(12)).foregroundStyle(KTColor.muted)
+                }
+                HStack(spacing: 14) {
+                    messageList
+                    detailPane
+                }
             }
         }
     }

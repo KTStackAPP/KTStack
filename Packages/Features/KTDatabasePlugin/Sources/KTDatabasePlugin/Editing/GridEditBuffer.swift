@@ -4,13 +4,13 @@ import Foundation
 /// inserts, plus an undo/redo history. Snapshots the whole staged state per change so undo/redo
 /// stay correct without per-operation inverses; the state is small (only pending edits, not data).
 public final class GridEditBuffer {
-    private struct DraftRow: Equatable {
+    struct DraftRow: Equatable {
         let id: DraftRowID
         var values: [String: Cell]
         var defaultColumns: Set<String> = []
     }
 
-    private struct State: Equatable {
+    struct State: Equatable {
         var updates: [RowIdentity: [String: Cell]] = [:]
         var updateDefaults: [RowIdentity: Set<String>] = [:]
         var deletes: Set<RowIdentity> = []
@@ -21,9 +21,10 @@ public final class GridEditBuffer {
         }
     }
 
-    private var state = State()
-    private var undoStack: [State] = []
-    private var redoStack: [State] = []
+    var state = State()
+    var undoStack: [State] = []
+    var redoStack: [State] = []
+    var version = 0
     private var draftCounter = 0
 
     public init() {}
@@ -119,12 +120,14 @@ public final class GridEditBuffer {
         guard let previous = undoStack.popLast() else { return }
         redoStack.append(state)
         state = previous
+        version += 1
     }
 
     public func redo() {
         guard let next = redoStack.popLast() else { return }
         undoStack.append(state)
         state = next
+        version += 1
     }
 
     public func discardAll() {
@@ -132,13 +135,14 @@ public final class GridEditBuffer {
         undoStack.append(state)
         redoStack.removeAll()
         state = State()
+        version += 1
     }
 
-    // Sau commit, staged đã thành sự thật: xóa cả undo/redo (thay đổi đã commit không nằm trong undo).
     public func markCommitted() {
         state = State()
         undoStack.removeAll()
         redoStack.removeAll()
+        version += 1
     }
 
     /// Deterministic commit order: deletes free key slots first, then updates, then inserts.
@@ -176,5 +180,6 @@ public final class GridEditBuffer {
         undoStack.append(state)
         redoStack.removeAll()
         state = next
+        version += 1
     }
 }

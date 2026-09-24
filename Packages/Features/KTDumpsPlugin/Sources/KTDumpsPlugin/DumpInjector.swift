@@ -29,6 +29,14 @@ final class DumpInjector: Sendable {
         try? FileManager.default.removeItem(at: paths.dumpsPrependFile)
     }
 
+    static func reconcileLeftover(injector: DumpInjector, php: any PHPRuntimeConfiguring) async {
+        for version in php.installedPHPVersions where injector.isEnabled(version: version) {
+            try? injector.disable(version: version)
+            try? await php.reloadPHPPool(version: version)
+        }
+        injector.cleanupPrependFile()
+    }
+
     private func writePrependFile(port: UInt16) throws {
         let dir = paths.dumpsPrependFile.deletingLastPathComponent()
         try FileManager.default.createDirectory(
@@ -49,7 +57,12 @@ final class DumpInjector: Sendable {
             if (is_bool($v))   return ['type' => 'bool',  'value' => $v];
             if (is_int($v))    return ['type' => 'int',   'value' => $v];
             if (is_float($v))  return ['type' => 'float', 'value' => $v];
-            if (is_string($v)) return ['type' => 'string','value' => $v,'length' => strlen($v)];
+            if (is_string($v)) {
+                $len = strlen($v);
+                if ($len <= 65536) return ['type' => 'string', 'value' => $v, 'length' => $len];
+                $cut = function_exists('mb_strcut') ? mb_strcut($v, 0, 65536, 'UTF-8') : substr($v, 0, 65536);
+                return ['type' => 'string', 'value' => $cut, 'length' => $len, 'truncated' => true];
+            }
             if (is_array($v)) {
                 $items = [];
                 foreach (array_slice($v, 0, 50, true) as $k => $i)
@@ -82,7 +95,7 @@ final class DumpInjector: Sendable {
                 'file'      => $caller['file'] ?? '',
                 'line'      => $caller['line'] ?? 0,
                 'value'     => __ktstack_serialize($var),
-            ], JSON_UNESCAPED_UNICODE);
+            ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
             $fp = @fsockopen('127.0.0.1', KTSTACK_PORT, $errno, $errstr, 1);
             if ($fp) { fwrite($fp, $payload . "\n"); fclose($fp); }
         }

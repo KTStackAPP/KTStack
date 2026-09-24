@@ -11,6 +11,7 @@ public final class LogTailReader: @unchecked Sendable {
     private var offset: UInt64 = 0
     private var partial = ""
     private var reopenTimer: DispatchSourceTimer?
+    private var stopped = false
 
     public init(url: URL, backfillBytes: Int = 256 * 1024) {
         self.url = url
@@ -22,11 +23,20 @@ public final class LogTailReader: @unchecked Sendable {
     }
 
     public func stop() {
-        queue.async { [weak self] in self?.teardown() }
+        queue.async {
+            self.stopped = true
+            self.teardown()
+        }
+    }
+
+    deinit {
+        reopenTimer?.cancel()
+        source?.cancel()
     }
 
     private func open() {
         teardown()
+        guard !stopped else { return }
 
         let fd = Darwin.open(url.path, O_RDONLY)
         guard fd >= 0 else {
@@ -51,7 +61,10 @@ public final class LogTailReader: @unchecked Sendable {
         let src = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: fd, eventMask: [.write, .extend, .delete, .rename, .link], queue: queue
         )
-        src.setEventHandler { [weak self] in self?.handleEvent(src.data) }
+        src.setEventHandler { [weak self, weak src] in
+            guard let src else { return }
+            self?.handleEvent(src.data)
+        }
         src.setCancelHandler { close(fd) }
         source = src
         src.resume()

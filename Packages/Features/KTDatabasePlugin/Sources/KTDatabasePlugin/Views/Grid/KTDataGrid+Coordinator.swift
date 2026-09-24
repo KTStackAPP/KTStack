@@ -16,6 +16,10 @@ extension KTDataGrid {
         var onSortColumn: ((String) -> Void)?
         var editableColumns: Set<String> = []
         var onCommitEdit: ((Int, Int, String) -> Void)?
+        var rowRef: ((Int) -> GridRowRef?)?
+        var onCommitRowEdit: ((GridRowRef, String, String) -> Void)?
+        var editingRef: (ref: GridRowRef, column: String)?
+        var deferCommits = false
         var foreignKeyColumns: Set<String> = []
         var onNavigateFK: ((Int, Int) -> Void)?
         var onPaste: (([PastedCell]) -> Void)?

@@ -74,12 +74,7 @@ struct SettingsView: View {
             Button("Change & Relaunch", role: .destructive) { applyTLDChange() }
             Button("Cancel", role: .cancel) { selectedTLD = preferences.tld; tldDraft = preferences.tld }
         } message: { Text(tldChangeMessage) }
-        .confirmationDialog("Uninstall KTStack and remove all data?", isPresented: $confirmUninstall) {
-            Button("Uninstall / Reset", role: .destructive) { uninstaller.uninstall() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This stops all services and permanently deletes app data, runtimes and databases. This cannot be undone.")
-        }
+        .uninstallFlow(isConfirming: $confirmUninstall, uninstaller: uninstaller)
     }
 
     private var generalGroup: some View {
@@ -116,9 +111,7 @@ struct SettingsView: View {
             KTSettingsRow(title: "Local TLD", subtitle: localTLDSubtitle) {
                 localTLDField
             }
-            KTSettingsRow(title: "Serve over HTTPS", subtitle: "Issue trusted local certificates per site.", showDivider: false) {
-                KTToggle("Serve over HTTPS", isOn: preferences.serveHTTPSByDefault) { preferences.serveHTTPSByDefault.toggle() }
-            }
+            NetworkAccessRows(preferences: preferences, server: server)
         }
     }
 
@@ -231,7 +224,7 @@ struct SettingsView: View {
             }
             KTSettingsRow(
                 title: "Reset & Uninstall",
-                subtitle: "Remove all services, DNS resolver, CA trust, app data, runtimes and databases.",
+                subtitle: "Remove services, DNS resolver, CA trust and helper; move app data, runtimes and databases to the Trash.",
                 showDivider: false
             ) {
                 KTSettingsTextButton(title: "Uninstall…", danger: true) { confirmUninstall = true }

@@ -44,7 +44,8 @@ extension LocalServerController: SiteCatalogManaging {
 
     public func editDomain(_ id: UUID, _ domain: String) throws {
         guard let site = registry.sites.first(where: { $0.id == id }) else { return }
-        try registry.editDomain(site, to: domain)
+        guard site.secure else { return try registry.editDomain(site, to: domain) }
+        try renameSecureSite(site, to: domain)
     }
 
     public func validateDomain(_ domain: String, excluding id: UUID?) throws {

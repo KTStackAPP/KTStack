@@ -1,4 +1,5 @@
 import KTPluginKit
+import KTStackCore
 import SwiftUI
 
 struct KTLogSourcePicker: View {

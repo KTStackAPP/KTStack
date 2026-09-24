@@ -92,9 +92,11 @@ schemes:
       targets:
         KTStackKit: all
         KTStackKitTests: [test]
+        KTCLITests: [test]
     test:
       targets:
         - KTStackKitTests
+        - KTCLITests
 
 targets:
   # Shared framework: models, services, drivers. Linked by the app and the tests; the
@@ -294,4 +296,21 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ktstack.kit.tests
+        GENERATE_INFOPLIST_FILE: "YES"
+
+  # Logic tests for the kt CLI and stdio MCP server. Compiles the CLI sources directly (main.swift
+  # stays out: it is top-level code) so the handler, tool catalog and commands run under XCTest.
+  KTCLITests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: KTCLI/MCP
+      - path: KTCLI/Commands
+      - path: KTCLITests
+    dependencies:
+      - package: KTStackCore
+        product: KTStackCoreStatic
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ktstack.cli.tests
         GENERATE_INFOPLIST_FILE: "YES"

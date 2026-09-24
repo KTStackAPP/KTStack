@@ -59,6 +59,10 @@ public protocol ServiceEngineVersionManaging: AnyObject {
     @MainActor func install(_ release: ServiceEngineRelease)
     @MainActor func cancelInstall(_ release: ServiceEngineRelease)
     @MainActor func setActiveVersion(_ engine: ServiceEngine, version: String) throws
-    @MainActor func uninstall(_ engine: ServiceEngine, version: String) throws
+    @MainActor func dataFootprint(_ engine: ServiceEngine, version: String) async -> ServiceEngineDataFootprint?
+    @MainActor func uninstall(_ engine: ServiceEngine, version: String) async throws -> String?
+    @MainActor func retiredData(_ engine: ServiceEngine) async -> [ServiceEngineRetiredData]
+    @MainActor func restoreRetiredData(_ item: ServiceEngineRetiredData) async throws
+    @MainActor func trashRetiredData(_ item: ServiceEngineRetiredData) async throws
     @MainActor func toggle(_ engine: ServiceEngine)
 }

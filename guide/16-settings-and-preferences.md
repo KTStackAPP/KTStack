@@ -102,6 +102,15 @@ The default location is `~/Sites/WWW`. KTStack scans this folder for site direct
 
 **Note**: You can still toggle HTTPS per site after creation. See [05 — HTTPS & Certificates](05-https-and-certificates.md).
 
+### Allow devices on your network
+
+**What it does**: Controls whether other devices (a phone, another computer) on your network can open your local sites.
+
+- **Off (default)**: the web server answers only requests from this Mac. Requests from other devices are refused.
+- **On**: any device on your network that can reach this Mac can open your sites by IP address.
+
+The change applies immediately. **Doctor** shows a *Network exposure* warning while this is on. Sharing a site over the internet with **Share** (Cloudflare Tunnel) works either way.
+
 ## Updates Settings
 
 These options control how KTStack stays up to date.
@@ -167,24 +176,24 @@ For more details, see [15 — Shell integration](15-shell-integration.md).
 
 ### Reset & Uninstall
 
-**What it does**: Completely removes KTStack, all services, DNS configuration, CA trust, app data, runtimes, and databases from your Mac.
+**What it does**: Removes KTStack's services, DNS configuration, CA trust and helper, and moves app data, runtimes and databases to the Trash.
 
 1. Click **Uninstall…** to start the uninstall process.
 2. A confirmation dialog appears:
-   - "Uninstall KTStack and remove all data? This stops all services and permanently deletes app data, runtimes and databases. This cannot be undone."
+   - "Uninstall KTStack and remove all data? This stops all services, removes DNS, CA trust and the helper, and moves app data, runtimes and databases to the Trash."
 3. Click **Uninstall / Reset** to proceed (or **Cancel** to abort).
 4. KTStack performs the following steps automatically:
    - Stops all running services
    - Removes DNS resolver configuration
    - Untrusts the local CA from your System Keychain
    - Unregisters the privileged helper
-   - Deletes all app data in `~/Library/Application Support/KTStack/`
+   - Moves all app data in `~/Library/Application Support/KTStack/` to the Trash
    - Removes shell integration
 
-5. A log window shows the progress. Wait for it to complete.
+5. A progress sheet shows each step. When everything succeeds, KTStack quits on its own.
 6. Once done, you can safely delete the KTStack app from your Applications folder.
 
-**Warning**: This is irreversible. All databases, project runtimes, and configuration are permanently deleted.
+**Warning**: Services, DNS, CA trust and the helper are removed right away. Databases, runtimes and configuration go to the Trash and are permanently gone once you empty it.
 
 For complete uninstall instructions, see [17 — Uninstall & reset](17-uninstall-and-reset.md).
 

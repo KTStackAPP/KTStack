@@ -198,7 +198,7 @@ public extension LocalServerController {
     }
 
     internal func ensureSeed() {
-        guard !didSeed, registry.sites.isEmpty else { didSeed = true; return }
+        guard !didSeed, registry.sites.isEmpty, registry.loadFailure == nil else { didSeed = true; return }
         didSeed = true
         let demo = AppSupportPaths.defaultSitesRoot.appendingPathComponent("demo", isDirectory: true)
         try? Self.provisionSampleSite(at: demo.appendingPathComponent("public", isDirectory: true), domain: "demo.\(tld)")

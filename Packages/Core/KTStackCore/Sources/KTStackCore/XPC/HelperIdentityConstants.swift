@@ -4,7 +4,7 @@ import Security
 public enum HelperIdentity {
     /// Version the helper reports over XPC. Single-sourced here so the app can tell a stale
     /// registered helper from the one this build ships; bump it when the helper's behavior changes.
-    public static let bundleVersion = "0.2.0"
+    public static let bundleVersion = "0.3.0"
 
     public static let machServiceName = "com.ktstack.helper"
     public static let helperBundleID = "com.ktstack.helper"
@@ -25,7 +25,22 @@ public enum HelperIdentity {
         requirement(for: helperBundleID, team: resolvedTeamID())
     }
 
+    public static let teamID: String? = computeTeamID()
+
+    public static var teamRequirement: String? {
+        teamRequirement(for: teamID)
+    }
+
     public static func resolvedTeamID() -> String? {
+        teamID
+    }
+
+    public static func teamRequirement(for team: String?) -> String? {
+        guard let team = normalizedTeam(team) else { return nil }
+        return "anchor apple generic and certificate leaf[subject.OU] = \"\(team)\""
+    }
+
+    private static func computeTeamID() -> String? {
         var selfCode: SecCode?
         guard SecCodeCopySelf([], &selfCode) == errSecSuccess, let selfCode else { return nil }
 

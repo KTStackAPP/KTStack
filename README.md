@@ -45,7 +45,7 @@ Everything in KTStack is built-in, 100% free, and open-source (MIT)—no Pro tie
 - **Built-in Database Engines**: One-click supervision for MySQL 9.6, MariaDB 10.11/11.4, PostgreSQL 17, Redis 7.4, Memcached 1.6, and MongoDB 7.
 - **Full Database Management Workspace**: Browse and edit rows, execute SQL, inspect DDL/schemas, navigate foreign keys, and explain plans (MySQL, MariaDB, Postgres, SQLite, Mongo).
 - **1-Click Database Backup & Restore**: Snapshot dumps and restores for MySQL, PostgreSQL, and SQLite without external tools.
-- **AI Coding Agent MCP Server (`kt mcp`)**: Built-in Model Context Protocol server over stdio for Cursor, Claude Code, and Windsurf to manage sites, switch PHP versions, trigger backups, and query logs.
+- **AI Coding Agent MCP Server (`kt mcp`)**: Built-in Model Context Protocol server over stdio for Cursor, Claude Code, and Windsurf to list sites and services, restart services, and read logs.
 - **Unified Developer CLI (`kt`)**: Fast terminal tool communicating via private Unix domain socket (`kt sites`, `kt services`, `kt db`, `kt doctor`).
 - **1-Click IDE Quick Launch**: Instantly open projects from Site Cards into Cursor, VS Code, PhpStorm, Zed, or Sublime Text.
 - **Mail Testing (Mailpit)**: Embedded SMTP server and HTML email inspector.
@@ -55,7 +55,7 @@ Everything in KTStack is built-in, 100% free, and open-source (MIT)—no Pro tie
 - **`dd()` / `dump()` Stream Viewer**: Laravel and Symfony dumps stream straight into the app with zero code setup.
 - **Cloudflare Tunnel Sharing**: Expose local sites over temporary public HTTPS URLs for client reviews and mobile testing.
 - **Configurable TLD**: Customize your local top-level domain beyond `.test`.
-- **Apple Silicon & Intel Mac Support**: Native universal builds for both `arm64` and `x86_64` on macOS 13+.
+- **Apple Silicon & Intel Mac Support**: Native builds for `arm64` and `x86_64` on macOS 13+, shipped as one DMG per architecture (the bundled runtimes are architecture-specific).
 - **Native macOS Liquid Glass UI**: Modern SwiftUI interface supporting macOS 27+ Liquid Glass with macOS 13+ material fallback, and Sparkle auto-updates.
 ## Screenshots
 
@@ -73,7 +73,7 @@ Everything in KTStack is built-in, 100% free, and open-source (MIT)—no Pro tie
 2. Drag **KTStack** to Applications and launch it.
 3. Approve the privileged helper when prompted (needed only for local DNS, the `/etc/resolver` entry, and installing the local HTTPS CA).
 4. Add a site, open `https://<name>.test`. Done.
-5. *(Optional)* Install the CLI helper: Open **Settings → General → Install CLI Helper** to make `kt` globally available in your terminal.
+5. *(Optional)* Install the CLI helper: open **Settings → Maintenance → Terminal shell integration** and click **Install kt Command in /usr/local/bin**. KTStack never replaces an existing `/usr/local/bin/kt` it did not create.
 
 Requires **macOS 13 (Ventura) or newer**, on Apple Silicon (`arm64`) or Intel (`x86_64`).
 
@@ -107,13 +107,14 @@ KTStack includes a built-in **Model Context Protocol (MCP)** server (`kt mcp`) t
 ```
 
 ### Exposed MCP Tools
-- `ktstack_list_sites`: List all local sites, domains, PHP/Node versions, backend ports, and TLS statuses.
-- `ktstack_create_site`: Provision a new local site with automatic `.test` domain and TLS.
-- `ktstack_switch_php_version`: Change the assigned PHP runtime (7.4 through 8.5) for any site.
-- `ktstack_inspect_db_schema`: Inspect tables, columns, indexes, and primary keys across MySQL, Postgres, and SQLite.
-- `ktstack_backup_db`: Export a compressed snapshot dump of a site's database.
-- `ktstack_restore_db`: Restore a SQL dump into a database.
-- `ktstack_get_recent_logs`: Fetch recent access/error log entries for instant troubleshooting.
+- `ktstack_list_sites`: List local sites with their domains, PHP versions, backend ports and TLS status.
+- `ktstack_list_services`: List background services and whether each is running.
+- `ktstack_restart_service`: Restart a background service (starts it if it is stopped).
+- `ktstack_get_recent_logs`: Fetch the last lines of a KTStack log source (`nginx-error`, `php-<version>`, `mysql`, `site-<domain>-error`, …).
+- `ktstack_backup_database`: Back up one database of a managed engine (`mysql`, `postgres`, `mongodb`) and return the backup file path.
+- `ktstack_create_site`: Register a project folder as a local site.
+- `ktstack_switch_php_version`: Switch a site to another installed PHP version.
+- `ktstack_doctor`: Check that the KTStack app is reachable.
 
 ---
 
@@ -126,17 +127,11 @@ KTStack ships with a lightweight, native command-line tool `kt` communicating di
 kt sites list
 kt sites list --json
 
-# Register a new local site
-kt sites create --name my-app --path ~/Sites/my-app --php 8.4
-
 # Manage database & cache services
-kt services status
+kt services list
 kt services start mysql
 kt services stop redis
-
-# Trigger a database backup
-kt db backup my-app
-kt db backup my-app --out ~/Backups/my-app.sql
+kt services restart nginx
 
 # Run environment health diagnostics
 kt doctor

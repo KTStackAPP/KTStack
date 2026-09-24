@@ -110,19 +110,15 @@ extension ServiceManager {
         let paths = paths
         let version = Self.dbCacheKinds.contains(kind) ? versionStore.activeVersion(kind) : nil
         perform(kind) {
-            try? await svc.stop()
-            Self.removeServiceData(kind, version: version, paths: paths)
+            try await svc.stop()
+            guard let version else { return }
+            try await Task.detached { try Self.retireServiceData(kind, version: version, paths: paths) }.value
         }
     }
 
-    public nonisolated static func removeServiceData(_ kind: ServiceKind, version: String?, paths: AppSupportPaths) {
-        let target: URL
-        if let v = version, dbCacheKinds.contains(kind) {
-            target = paths.serviceData(kind.rawValue, version: v)
-        } else {
-            target = paths.serviceData(kind.rawValue)
-        }
-        try? FileManager.default.removeItem(at: target)
+    @discardableResult
+    public nonisolated static func retireServiceData(_ kind: ServiceKind, version: String, paths: AppSupportPaths) throws -> URL? {
+        try EngineDataVault(paths: paths).retire(service: kind.rawValue, version: version)
     }
 
     func perform(_ kind: ServiceKind, _ action: @escaping @Sendable () async throws -> Void) {

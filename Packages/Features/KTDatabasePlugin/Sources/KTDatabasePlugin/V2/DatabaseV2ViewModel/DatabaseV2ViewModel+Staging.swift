@@ -8,7 +8,8 @@ public extension DatabaseV2ViewModel {
     var editableColumns: Set<String> {
         guard canEdit else { return [] }
         let pkNames = Set(columns.primaryKeyColumns.map(\.name))
-        return Set(columns.map(\.name)).subtracting(pkNames)
+        let binaryNames = Set(columns.filter { CellEditorKind.forColumn($0) == .binary }.map(\.name))
+        return Set(columns.map(\.name)).subtracting(pkNames).subtracting(binaryNames)
     }
 
     /// Rows with staged updates applied, so inline edits show before commit. Index-aligned with `rows`.
@@ -37,6 +38,7 @@ public extension DatabaseV2ViewModel {
     }
 
     func rebuildStagedEditor() {
+        if keepsPendingEditor() { return }
         guard let driver, let database = selectedDatabase, let table = selectedTable, !columns.isEmpty else {
             staged = nil
             refreshStagedState()
@@ -99,24 +101,6 @@ public extension DatabaseV2ViewModel {
         guard let editor = staged else { return }
         editor.stageInsert(values: values)
         refreshStagedState()
-    }
-
-    func commitStaged() async {
-        guard let editor = staged, editor.hasPendingChanges else { return }
-        await ensureConnected()
-        let token = generation
-        isCommitting = true
-        editError = nil
-        do {
-            try await editor.commit()
-            guard token == generation else { isCommitting = false; return }
-            await reloadLoaded()
-            refreshStagedState()
-        } catch {
-            guard token == generation else { isCommitting = false; return }
-            editError = error.localizedDescription
-        }
-        isCommitting = false
     }
 
     func discardStaged() {
@@ -182,7 +166,7 @@ public extension DatabaseV2ViewModel {
         canRedoStaged = staged?.canRedo ?? false
     }
 
-    private func rowDict(_ result: QueryResult, _ row: Int) -> [String: Cell] {
+    internal func rowDict(_ result: QueryResult, _ row: Int) -> [String: Cell] {
         var dict: [String: Cell] = [:]
         let names = result.columns.map(\.name)
         for (index, name) in names.enumerated() where index < result.rows[row].count {

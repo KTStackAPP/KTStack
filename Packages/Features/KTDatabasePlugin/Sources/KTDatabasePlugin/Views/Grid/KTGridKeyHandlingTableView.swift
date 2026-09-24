@@ -2,11 +2,12 @@ import AppKit
 
 open class KTGridKeyHandlingTableView: NSTableView {
     public let overlayEditor = KTCellOverlayEditor()
-    public private(set) var activeCell: (row: Int, column: Int)?
+    public internal(set) var activeCell: (row: Int, column: Int)?
 
     public var canEditCell: ((Int, Int) -> Bool)?
     public var cellTextValue: ((Int, Int) -> String)?
     public var onCommitCell: ((Int, Int, String) -> Void)?
+    public var onBeginEditing: ((Int, Int) -> Void)?
     public var onStageDeleteRow: ((Int) -> Void)?
     public var onStageNewRecord: (() -> Void)?
     public var onUndoStaged: (() -> Void)?
@@ -60,6 +61,8 @@ open class KTGridKeyHandlingTableView: NSTableView {
 
     public func startEditing(row: Int, column: Int, selectAll: Bool = true, initialCharacter: Character? = nil) {
         guard canEditCell?(row, column) != false else { return }
+        if overlayEditor.isEditing { overlayEditor.dismiss(commit: true) }
+        onBeginEditing?(row, column)
         let text = cellTextValue?(row, column) ?? ""
         scrollRowToVisible(row)
         overlayEditor.show(

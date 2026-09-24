@@ -52,8 +52,12 @@ public struct BackupSession: Sendable {
         database: String,
         profile: ConnectionProfile,
         password: String?,
-        target: RestoreTarget
+        target: RestoreTarget,
+        confirmedTarget: Bool = false
     ) async throws {
+        if !confirmedTarget, let warning = set.targetWarning(for: profile) {
+            throw DatabaseError.connection(warning)
+        }
         guard set.kind == profile.kind else {
             throw DatabaseError.connection(
                 "Backup engine (\(set.kind.rawValue)) doesn't match the active connection (\(profile.kind.rawValue))."

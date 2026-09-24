@@ -1,5 +1,6 @@
 import KTPlatformContracts
 import KTPluginKit
+import KTStackCore
 import SwiftUI
 
 public final class KTLogsPlugin: KTStackPlugin, SectionActivationObserving {

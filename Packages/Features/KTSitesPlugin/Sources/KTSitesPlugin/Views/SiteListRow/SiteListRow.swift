@@ -183,12 +183,7 @@ struct SiteListRow: View, Equatable {
                 .ktTip("Serve over HTTPS with a locally-trusted certificate")
                 .accessibilityLabel("Serve \(site.domain) over HTTPS")
 
-            SiteShareControls(
-                shareStarting: share?.starting ?? false,
-                shareURL: share?.publicURL,
-                shareExpiresAt: share?.expiresAt,
-                onToggleShare: onToggleShare
-            )
+            SiteShareControls(share: share, onToggleShare: onToggleShare)
 
             KTButton(title: "Open", kind: .secondary, action: onOpen)
                 .disabled(!openEnabled)
