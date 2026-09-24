@@ -1,5 +1,6 @@
-# Mirrors scripts/ci-local.sh --quick minus lint (see lint.yml): architecture-check → package tests →
-# KTStackKit-Tests. Change one, change the other.
+# Mirrors scripts/ci-local.sh minus lint (see lint.yml): the `tests` job is the --quick gate
+# (architecture-check → package tests → KTStackKit-Tests); `release-build` and `thread-sanitizer`
+# mirror the full gate. Change one, change the other.
 name: Tests
 on:
   push:
@@ -33,3 +34,33 @@ jobs:
       - run: xcodegen generate
       - name: KTStackKit-Tests
         run: xcodebuild -project KTStack.xcodeproj -scheme KTStackKit-Tests -destination 'platform=macOS' -derivedDataPath .build-ci test
+
+  release-build:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - run: mkdir -p KTStack/Resources/bin
+      - run: xcodegen generate
+      - name: Release build (KTStack)
+        run: >
+          xcodebuild -project KTStack.xcodeproj -scheme KTStack -destination 'platform=macOS'
+          -configuration Release -derivedDataPath .build-release build
+          CODE_SIGNING_ALLOWED=NO
+
+  # Reporting-only until the strict-concurrency pass (plan 3.1) clears the existing races; flip
+  # continue-on-error off once it is green.
+  thread-sanitizer:
+    runs-on: macos-26
+    timeout-minutes: 60
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - run: mkdir -p KTStack/Resources/bin
+      - run: xcodegen generate
+      - name: KTStackKit-Tests (TSan)
+        run: >
+          xcodebuild -project KTStack.xcodeproj -scheme KTStackKit-Tests -destination 'platform=macOS'
+          -derivedDataPath .build-tsan -enableThreadSanitizer YES test
