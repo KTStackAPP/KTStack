@@ -1,4 +1,5 @@
 import Foundation
+import KTPlatformContracts
 
 extension PostgresDriver {
     init(profile: ConnectionProfile, password: String?, tools: any DatabaseToolsProviding, session: ConnectionSession) {
