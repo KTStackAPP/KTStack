@@ -26,7 +26,7 @@ BREW="$(brew_for_arch)"
 MODULES=(
     mod_mpm_event mod_authz_core mod_authz_host mod_access_compat mod_unixd mod_log_config
     mod_mime mod_dir mod_autoindex mod_negotiation mod_env mod_setenvif mod_filter mod_deflate
-    mod_expires mod_headers mod_alias mod_rewrite mod_proxy mod_proxy_fcgi
+    mod_expires mod_headers mod_alias mod_rewrite mod_proxy mod_proxy_fcgi mod_remoteip
 )
 
 echo "=== Apache build (${ARCH}) from Homebrew bottle ==="

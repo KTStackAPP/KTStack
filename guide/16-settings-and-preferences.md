@@ -94,6 +94,15 @@ The default location is `~/Sites/WWW`. KTStack scans this folder for site direct
 
 **Note**: You can still toggle HTTPS per site after creation. See [05 — HTTPS & Certificates](05-https-and-certificates.md).
 
+### Allow devices on your network
+
+**What it does**: Controls whether other devices (a phone, another computer) on your network can open your local sites.
+
+- **Off (default)**: the web server answers only requests from this Mac. Requests from other devices are refused.
+- **On**: any device on your network that can reach this Mac can open your sites by IP address.
+
+The change applies immediately. **Doctor** shows a *Network exposure* warning while this is on. Sharing a site over the internet with **Share** (Cloudflare Tunnel) works either way.
+
 ## Updates Settings
 
 These options control how KTStack stays up to date.
