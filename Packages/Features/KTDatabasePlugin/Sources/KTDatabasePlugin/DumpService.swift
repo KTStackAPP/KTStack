@@ -141,33 +141,6 @@ public struct DumpService: Sendable {
         )
     }
 
-    public func importFullDump(profile: ConnectionProfile, password: String?, from input: URL) async throws {
-        let mysql = try resolveBinary("bin/mysql")
-        let emitSSL = !DumpService.isMariaDBClient(mysql)
-        guard FileManager.default.fileExists(atPath: input.path) else {
-            throw DatabaseError.connection("Dump file not found: \(input.lastPathComponent)")
-        }
-
-        let defaults = try DumpService.writeDefaultsFile(
-            content: DumpService.defaultsContent(
-                user: profile.user, host: profile.host, port: profile.port, password: password,
-                tlsMode: profile.tlsMode, emitSSLMode: emitSSL
-            )
-        )
-        defer { try? FileManager.default.removeItem(at: defaults) }
-
-        guard let inHandle = try? FileHandle(forReadingFrom: input) else {
-            throw DatabaseError.connection("Couldn't open the dump file for reading.")
-        }
-        defer { try? inHandle.close() }
-        try await runProcess(
-            mysql,
-            args: ["--defaults-extra-file=\(defaults.path)"],
-            stdin: inHandle,
-            stdout: nil
-        )
-    }
-
     public func createDatabase(
         profile: ConnectionProfile,
         password: String?,

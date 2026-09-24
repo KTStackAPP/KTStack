@@ -164,7 +164,7 @@ if #available(macOS 27, *) {
 Built clean-room under MIT license, replacing default AppKit table limitations:
 - **`KTCellOverlayEditor`**: A floating `NSTextView` positioned dynamically over the edited cell, bypassing `NSTextFieldDelegate` focus trapping and preserving full keyboard navigation (`Tab`, `Shift+Tab`, `Return`, `Esc`).
 - **`KTGridKeyHandlingTableView`**: Custom `NSTableView` intercepting key events prior to standard dispatch, unlocking instant type-to-edit, row insertion (`⌘N`), deletion, and staging commits (`⌘S`).
-- **`KTGridStagingState`**: Changes, dirty cells, and draft rows are indexed strictly by **primary key (PK)** rather than volatile row indexes, guaranteeing consistency during virtual scrolling, sorting, and pagination.
+- **`StagedTableEditor`**: Changes, dirty cells, and draft rows are indexed strictly by **primary key (PK)** rather than volatile row indexes, guaranteeing consistency during virtual scrolling, sorting, and pagination.
 - **Driver Transaction Parity**: Atomic transaction support across MySQL, PostgreSQL (`$1, $2` parameterized queries), and SQLite (`BEGIN IMMEDIATE TRANSACTION`).
 
 ### 5.2 Local TLS & macOS Root CA Trust Subsystem

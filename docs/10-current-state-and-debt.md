@@ -14,7 +14,7 @@ The working tree of KTStack represents a stable, modular native macOS applicatio
 | **Package Layering** | **Stable** | Tiered SPM packages (`KTStackCore` → `KTPlatformContracts` → `KTPluginKit` → Feature Plugins) enforced by CI gate. |
 | **Network & DNS** | **Stable** | Privileged helper manages `/etc/resolver/test` and `dnsmasq` on port 53. Root CA installed with `-p ssl -p basic`. |
 | **Reverse Proxy** | **Stable** | Dual-tier Front Nginx (:80/:443) and per-site Loopback Backend Nginx (:4000-4999). |
-| **Database Editor** | **Stable (Clean-Room)**| 100% MIT implementation. AppKit floating `KTCellOverlayEditor`, `KTGridKeyHandlingTableView`, PK-indexed `KTGridStagingState`. |
+| **Database Editor** | **Stable (Clean-Room)**| 100% MIT implementation. AppKit floating `KTCellOverlayEditor`, `KTGridKeyHandlingTableView`, PK-indexed `StagedTableEditor`. |
 | **UI Design System** | **In Transition** | Standards locked to **`SwiftUI + Liquid Glass + Apple HIG`** with availability fallbacks (`#available(macOS 27, *)`). |
 
 ---

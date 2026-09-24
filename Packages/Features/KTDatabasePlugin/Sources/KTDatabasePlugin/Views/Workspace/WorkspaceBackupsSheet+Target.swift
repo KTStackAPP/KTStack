@@ -2,17 +2,17 @@ import Foundation
 
 extension WorkspaceBackupsSheet {
     var visibleSets: [BackupSet] {
-        guard !showAllConnections, let profile = vm.selectedProfile else { return backupSets }
+        guard !showAllConnections, let profile = admin.selectedProfile else { return backupSets }
         return backupSets.filter { $0.belongs(to: profile) }
     }
 
     var targetName: String {
-        guard let profile = vm.selectedProfile else { return "the connected server" }
+        guard let profile = admin.selectedProfile else { return "the connected server" }
         return "\(profile.name) (\(profile.host))"
     }
 
     func requestRestore(_ set: BackupSet) {
-        guard let profile = vm.selectedProfile, let warning = set.targetWarning(for: profile) else {
+        guard let profile = admin.selectedProfile, let warning = set.targetWarning(for: profile) else {
             restoringSet = set
             return
         }
@@ -28,7 +28,7 @@ extension WorkspaceBackupsSheet {
     }
 
     func reportFailure(unless succeeded: Bool) {
-        guard !succeeded, case let .failed(message) = vm.backupStatus else { return }
+        guard !succeeded, case let .failed(message) = admin.backupStatus else { return }
         feedback.toast(message)
     }
 }

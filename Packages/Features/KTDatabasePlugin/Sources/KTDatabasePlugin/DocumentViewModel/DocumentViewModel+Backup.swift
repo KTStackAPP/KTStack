@@ -1,8 +1,6 @@
 import Foundation
 
 public extension DocumentViewModel {
-    typealias BackupStatus = DatabaseViewModel.BackupStatus
-
     var canBackup: Bool {
         guard selectedProfile?.kind == .mongodb else { return false }
         if case .available = BackupProviderFactory.make(for: .mongodb, tools: tools) { return true }

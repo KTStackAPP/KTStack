@@ -63,7 +63,7 @@ flowchart LR
     end
 
     subgraph Logic["Staging & State Tier"]
-        StagingState["KTGridStagingState\n(PK-Indexed Edits)"]
+        StagingState["StagedTableEditor\n(PK-Indexed Edits)"]
     end
 
     subgraph Drivers["Pure-Swift Drivers Tier"]

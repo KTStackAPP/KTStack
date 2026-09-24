@@ -36,7 +36,7 @@ xcodebuild -project KTStack.xcodeproj -scheme KTStackKit-Tests -destination 'pla
 
 Key test coverage areas:
 - `SiteRegistryTests`: Verifies atomic JSON reading, writing, and domain duplicate rejection.
-- `KTGridStagingStateTests`: Asserts PK-indexed cell mutation, draft row insertion, and rollback tracking across virtual sorting.
+- `StagedTableEditorTests` / `GridEditBufferTests`: Assert row-identity-indexed cell mutation, draft row insertion, undo/redo, and rollback tracking across virtual sorting.
 - `DatabaseDriverTransactionTests`: Verifies transactional atomicity (`$N` parameter mapping in Postgres, `BEGIN IMMEDIATE` in SQLite).
 - `NginxConfigGeneratorTests`: Verifies correct directives, proxy headers, and port allocation in candidate `.conf` strings.
 

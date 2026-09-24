@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 
 struct AddConnectionSheet: View {
     @EnvironmentObject private var store: ConnectionStore
-    @EnvironmentObject private var vm: DatabaseViewModel
+    @EnvironmentObject private var admin: DatabaseAdminModel
     @Environment(\.dismiss) private var dismiss
 
     let editing: ConnectionProfile?
@@ -226,10 +226,10 @@ struct AddConnectionSheet: View {
         let pwd = effectivePassword
         test = .testing
         Task { @MainActor in
-            let tools = vm.tools
+            let tools = admin.tools
             let driver: DatabaseDriver? = profile.kind == .mongodb
                 ? DocumentViewModel.defaultDriver(tools: tools)(profile, pwd)
-                : DatabaseViewModel.defaultDriver(tools: tools)(profile, pwd)
+                : RelationalDrivers.factory(tools: tools)(profile, pwd)
             guard let driver else {
                 test = .failed("Unsupported engine")
                 return

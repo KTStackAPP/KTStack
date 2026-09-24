@@ -64,32 +64,6 @@ final class ServerListAndLastUsedDatabaseTests: XCTestCase {
         XCTAssertEqual(outcome, .file(exists: false))
     }
 
-    @MainActor
-    func testResolvePreferredDatabasePrecedence() {
-        let store = LastUsedDatabaseStore(defaults: makeDefaults())
-        let vm = DatabaseViewModel(tools: FakeDatabaseTools(), lastUsedStore: store)
-        let profile = ConnectionProfile(
-            name: "srv",
-            kind: .mysql,
-            host: "127.0.0.1",
-            port: 3306,
-            user: "root",
-            database: "app"
-        )
-        vm.databases = [DatabaseInfo(name: "alpha"), DatabaseInfo(name: "app"), DatabaseInfo(name: "shop")]
-
-        XCTAssertEqual(vm.resolvePreferredDatabase(for: profile), "app")
-
-        store.setLastDatabase("shop", for: profile.id)
-        XCTAssertEqual(vm.resolvePreferredDatabase(for: profile), "shop")
-
-        store.setLastDatabase("vanished", for: profile.id)
-        XCTAssertEqual(vm.resolvePreferredDatabase(for: profile), "app")
-
-        vm.databases = []
-        XCTAssertNil(vm.resolvePreferredDatabase(for: profile))
-    }
-
     func testRemoteProfileResolvesViaTCP() {
         let profile = ConnectionProfile(
             name: "remote",

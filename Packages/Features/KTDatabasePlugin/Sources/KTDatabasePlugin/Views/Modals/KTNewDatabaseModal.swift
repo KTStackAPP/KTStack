@@ -2,7 +2,7 @@ import KTPluginKit
 import SwiftUI
 
 struct KTNewDatabaseModal: View {
-    @EnvironmentObject private var vm: DatabaseViewModel
+    @EnvironmentObject private var admin: DatabaseAdminModel
     let onClose: () -> Void
     let onCreated: (String) -> Void
 
@@ -10,7 +10,7 @@ struct KTNewDatabaseModal: View {
     @State private var submitting = false
 
     private var engineKind: DatabaseKind {
-        vm.selectedProfile?.kind ?? .mysql
+        admin.selectedProfile?.kind ?? .mysql
     }
 
     private var canSubmit: Bool {
@@ -88,7 +88,7 @@ struct KTNewDatabaseModal: View {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         submitting = true
         Task {
-            let created = await vm.createDatabase(named: trimmed)
+            let created = await admin.createDatabase(named: trimmed)
             submitting = false
             if created { onCreated(trimmed) }
         }

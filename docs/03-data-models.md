@@ -65,11 +65,11 @@ Entries are decoded one by one: an unreadable entry is set aside in `sites.rejec
 
 ## 3. Database Editor Staging Model (`KTDatabasePlugin`)
 
-The database editor does not mutate database records directly on keystroke. It utilizes a **PK-indexed staging model** (`KTGridStagingState`) that prevents corruption during virtualized scrolling:
+The database editor does not mutate database records directly on keystroke. It utilizes a **PK-indexed staging model** (`StagedTableEditor`) that prevents corruption during virtualized scrolling:
 
 ```mermaid
 classDiagram
-    class KTGridStagingState {
+    class StagedTableEditor {
         +Dictionary~PrimaryKey, StagedRow~ dirtyRows
         +Set~PrimaryKey~ deletedRowKeys
         +Array~DraftRow~ insertedRows
@@ -93,7 +93,7 @@ classDiagram
         +Bool isDirty
     }
 
-    KTGridStagingState --> StagedRow : tracks
+    StagedTableEditor --> StagedRow : tracks
     StagedRow --> StagedCell : contains
 ```
 
