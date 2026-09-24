@@ -78,18 +78,11 @@ public final class ApacheController: @unchecked Sendable {
     }
 
     private func runControlCommand(_ extra: [String]) throws {
-        let proc = Process()
-        proc.executableURL = paths.apacheBinary
-        proc.arguments = ["-d", paths.apacheRoot.path, "-f", conf.path] + extra
-        proc.standardOutput = FileHandle.nullDevice
-        let pipe = Pipe()
-        proc.standardError = pipe
-        try proc.run()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        proc.waitUntilExit()
-        guard proc.terminationStatus == 0 else {
-            let output = String(data: data, encoding: .utf8) ?? ""
-            throw ControlError.commandFailed(extra, proc.terminationStatus, output)
+        let args = ["-d", paths.apacheRoot.path, "-f", conf.path] + extra
+        let res = try ProcessRunner().run(paths.apacheBinary.path, args, timeout: ToolTimeout.configTest)
+        guard res.succeeded else {
+            let output = res.interruption == .timedOut ? "timed out" : res.stderrText
+            throw ControlError.commandFailed(extra, res.status, output)
         }
     }
 }

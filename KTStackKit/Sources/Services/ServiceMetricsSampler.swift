@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 public struct ServiceMetricsSample: Sendable, Hashable {
     public let cpuPercent: Double
@@ -123,22 +124,9 @@ final class ServiceMetricsSampler {
     }
 
     private static func runPS() async -> String {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .utility).async {
-                let process = Process()
-                process.executableURL = URL(fileURLWithPath: "/bin/ps")
-                process.arguments = ["-axo", "pid=,rss=,cputime=,comm="]
-                let pipe = Pipe()
-                process.standardOutput = pipe
-                process.standardError = Pipe()
-                do { try process.run() } catch {
-                    continuation.resume(returning: "")
-                    return
-                }
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                process.waitUntilExit()
-                continuation.resume(returning: String(data: data, encoding: .utf8) ?? "")
-            }
-        }
+        let args = ["-axo", "pid=,rss=,cputime=,comm="]
+        guard let res = try? await ProcessRunner().runAsync("/bin/ps", args, timeout: ToolTimeout.processQuery),
+              res.interruption == nil else { return "" }
+        return res.stdoutText
     }
 }

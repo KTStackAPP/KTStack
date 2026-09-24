@@ -62,15 +62,8 @@ public struct Port53ConflictDetector {
     }
 
     private static func run(_ tool: String, _ args: [String]) -> String {
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: tool)
-        proc.arguments = args
-        let pipe = Pipe()
-        proc.standardOutput = pipe
-        proc.standardError = FileHandle.nullDevice
-        do { try proc.run() } catch { return "" }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        proc.waitUntilExit()
-        return String(data: data, encoding: .utf8) ?? ""
+        guard let res = try? ProcessRunner().run(tool, args, timeout: ToolTimeout.processQuery),
+              res.interruption == nil else { return "" }
+        return res.stdoutText
     }
 }
