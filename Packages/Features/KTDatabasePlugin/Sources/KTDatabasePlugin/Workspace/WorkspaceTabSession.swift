@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 /// Một tab = một DatabaseV2ViewModel + một connection riêng. Ngắt idle sau `idleInterval` (mặc định 5
@@ -12,12 +13,21 @@ public final class WorkspaceTabSession: Identifiable, ObservableObject {
 
     private let idleInterval: TimeInterval
     private var idleTask: Task<Void, Never>?
+    private var activity: AnyCancellable?
     public private(set) var lastActivity = Date()
 
     public init(kind: WorkspaceTab, vm: DatabaseV2ViewModel, idleInterval: TimeInterval = 300) {
         self.kind = kind
         self.vm = vm
         self.idleInterval = idleInterval
+        activity = vm.objectWillChange.sink { [weak self] _ in
+            Task { @MainActor [weak self] in self?.noteActivity() }
+        }
+    }
+
+    private func noteActivity() {
+        guard !vm.isSuspended, Date().timeIntervalSince(lastActivity) > 1 else { return }
+        touch()
     }
 
     func retarget(_ kind: WorkspaceTab) {

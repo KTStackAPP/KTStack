@@ -211,7 +211,7 @@ public final class DatabaseV2ViewModel: ObservableObject {
         await oldDriver?.closeSession()
     }
     public func reloadDatabases() async {
-        guard let driver else { return }
+        guard let driver = await connectedDriver() else { return }
         if let dbs = try? await driver.listDatabases() {
             databases = dbs
         }

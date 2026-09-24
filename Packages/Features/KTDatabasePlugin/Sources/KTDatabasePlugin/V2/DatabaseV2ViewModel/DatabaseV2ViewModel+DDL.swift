@@ -69,7 +69,7 @@ public extension DatabaseV2ViewModel {
     }
 
     func runDDL(_ sql: String) async {
-        guard !sql.isEmpty, let driver else { return }
+        guard !sql.isEmpty, let driver = await connectedDriver() else { return }
         guard ddlAllowed() else { return }
         let token = generation
         isDDLBusy = true
@@ -159,7 +159,7 @@ public extension DatabaseV2ViewModel {
 
     // Chạy tuần tự, dừng ở lỗi đầu tiên, báo số câu đã chạy rồi refresh schema thật.
     func applyStatements(_ statements: [DDLStatement]) async {
-        guard !statements.isEmpty, let driver else { return }
+        guard !statements.isEmpty, let driver = await connectedDriver() else { return }
         guard ddlAllowed() else { return }
         let token = generation
         isDDLBusy = true
@@ -228,7 +228,7 @@ public extension DatabaseV2ViewModel {
 
     // Nguồn DDL chuẩn từ server (SHOW CREATE), không phải draft; refresh sau apply.
     func loadCreateTableDDL() async {
-        guard let driver, let database = selectedDatabase, let table = selectedTable else {
+        guard let driver = await connectedDriver(), let database = selectedDatabase, let table = selectedTable else {
             createTableDDL = nil
             return
         }
