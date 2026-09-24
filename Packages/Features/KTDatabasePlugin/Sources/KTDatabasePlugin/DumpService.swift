@@ -77,8 +77,7 @@ public struct DumpService: Sendable {
         }
         defer { try? outHandle.close() }
 
-        var args = ["--defaults-extra-file=\(defaults.path)", "--single-transaction", "--", database]
-        if let table { args.append(table) }
+        let args = DumpService.dumpArguments(defaultsPath: defaults.path, database: database, table: table, isMariaDB: !emitSSL)
         do {
             try await runProcess(dump, args: args, stdin: nil, stdout: outHandle)
             try outHandle.close()

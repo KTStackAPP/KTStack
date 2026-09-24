@@ -59,8 +59,8 @@ scripts/lint.sh >"$LOG" 2>&1 || fail "lint" "$LOG"
 ok "lint"
 
 begin "package tests"
-# Feature packages (M04+) ship tests next to the code; run each with SPM's own build dir.
-for pkg in Packages/Features/*/; do
+# Every local package that ships tests next to its code runs with SPM's own build dir.
+for pkg in Packages/Core/*/ Packages/Contracts/*/ Packages/Plugin/*/ Packages/Features/*/; do
     [ -d "${pkg}Tests" ] || continue
     name=$(basename "$pkg")
     LOG="$LOG_DIR/package-$name.log"

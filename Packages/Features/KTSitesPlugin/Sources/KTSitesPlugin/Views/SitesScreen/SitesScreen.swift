@@ -20,6 +20,7 @@ struct SitesScreen: View {
     @State var restoreSite: SiteSummary?
     @State var settingsSite: SiteSummary?
     @State var removingSiteID: UUID?
+    @State var removeSite: SiteSummary?
     @State var actionError: String?
 
     var filteredSites: [SiteSummary] {
@@ -78,6 +79,9 @@ struct SitesScreen: View {
         }
         .sheet(item: $settingsSite) {
             SiteSettingsSheet(site: $0, vm: vm)
+        }
+        .sheet(item: $removeSite) { site in
+            RemoveSiteSheet(site: site) { remove(site, options: $0) }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             vm.refreshDNS()

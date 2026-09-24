@@ -151,14 +151,14 @@ Click **Restart All** at the top of the Services section. All services stop and 
 
 ### Save space by uninstalling a database
 
-If you installed MySQL but no longer use it, you can uninstall it:
+If you installed a database version you no longer use, you can uninstall it from **Runtimes**:
 
-1. Stop the service (toggle off).
-2. Click the menu button (three dots) or right-click.
-3. Select **Uninstall** (if available).
-4. The service is removed from disk, freeing up space.
+1. Stop the service (toggle off). Uninstall is refused while the engine is running or still loaded.
+2. Open the engine in **Runtimes**, expand the version and click **Uninstall…**.
+3. The confirmation shows where that version's data lives and how big it is.
+4. The binaries are removed. The data is **kept**: it moves to `data/[service-name]/.removed/[version]-[timestamp]` and is listed under **Kept data**.
 
-You can always reinstall it later by clicking **Install**.
+After reinstalling that version, click **Restore** on its kept data to move it back into place. To free the space, click **Delete data…** and confirm twice; the folder goes to the Trash.
 
 ## Tips and notes
 

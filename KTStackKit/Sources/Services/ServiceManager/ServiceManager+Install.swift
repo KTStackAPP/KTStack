@@ -109,23 +109,6 @@ extension ServiceManager {
         versionStore.setActiveVersion(kind, version)
     }
 
-    public func uninstall(kind: ServiceKind, version: String) throws {
-        if version == activeVersion(kind) {
-            throw ServiceVersionError(message: "Set a different active version before uninstalling \(kind.displayName) \(version).")
-        }
-        if snapshot(kind)?.status == .running {
-            throw ServiceVersionError(message: "Stop \(kind.displayName) before uninstalling a version.")
-        }
-        objectWillChange.send()
-        let fm = FileManager.default
-        try fm.removeItem(at: paths.runtimeDir(kind.rawValue, version))
-        try? fm.removeItem(at: paths.serviceData(kind.rawValue, version: version))
-        let remaining = catalog.installedVersions(kind)
-        if let newActive = Self.repointedVersion(remaining: remaining, currentActive: activeVersion(kind)) {
-            versionStore.setActiveVersion(kind, newActive)
-        }
-    }
-
     nonisolated static func repointedVersion(remaining: [String], currentActive: String?) -> String? {
         guard let currentActive, !remaining.contains(currentActive) else { return nil }
         return remaining.max { $0.compare($1, options: .numeric) == .orderedAscending }

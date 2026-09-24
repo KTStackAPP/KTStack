@@ -269,10 +269,7 @@ public final class DatabaseV2ViewModel: ObservableObject {
         columns = []
         indexes = []
         checks = []
-        staged = nil
-        pendingChangeCount = 0
-        canUndoStaged = false
-        canRedoStaged = false
+        resetStagingUnlessEditing(entry.table)
         editError = nil
         loadError = nil
         cellEditor = nil
