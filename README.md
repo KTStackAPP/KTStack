@@ -111,7 +111,9 @@ KTStack includes a built-in **Model Context Protocol (MCP)** server (`kt mcp`) t
 - `ktstack_list_services`: List background services and whether each is running.
 - `ktstack_restart_service`: Restart a background service (starts it if it is stopped).
 - `ktstack_get_recent_logs`: Fetch the last lines of a KTStack log source (`nginx-error`, `php-<version>`, `mysql`, `site-<domain>-error`, …).
-- `ktstack_backup_database`: Not available yet; returns an error. Back up from KTStack › Database › Backups.
+- `ktstack_backup_database`: Back up one database of a managed engine (`mysql`, `postgres`, `mongodb`) and return the backup file path.
+- `ktstack_create_site`: Register a project folder as a local site.
+- `ktstack_switch_php_version`: Switch a site to another installed PHP version.
 - `ktstack_doctor`: Check that the KTStack app is reachable.
 
 ---

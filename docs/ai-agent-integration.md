@@ -31,7 +31,7 @@ claude mcp add ktstack -- /Applications/KTStack.app/Contents/MacOS/kt mcp
 
 ## 2. Available MCP Tools
 
-KTStack exposes 6 AI tools over the MCP stdio protocol:
+KTStack exposes 8 AI tools over the MCP stdio protocol. None of them restores or deletes data:
 
 | Tool | Parameters | Description |
 |---|---|---|
@@ -39,7 +39,9 @@ KTStack exposes 6 AI tools over the MCP stdio protocol:
 | `ktstack_list_services` | none | Returns each background service and whether it is running. |
 | `ktstack_restart_service` | `service` (string, required) | Restarts a service (`nginx`, `phpFpm`, `mysql`, `postgres`, `redis`, …); a stopped service is started. |
 | `ktstack_get_recent_logs` | `source` (string), `lines` (integer, max 2000) | Returns the last lines of a log source: `nginx-error` (default), `nginx-access`, `php-<version>`, a service such as `mysql`, `diagnostics`, or `site-<domain>-error` / `site-<domain>-access`. An unknown source returns the list of available ids. |
-| `ktstack_backup_database` | `database` (string, required) | Not available yet: returns an error. Back up from KTStack › Database › Backups. |
+| `ktstack_backup_database` | `database` (string, required), `engine` (string) | Backs up one database of a managed engine (`mysql`, `postgres` or `mongodb`; default: the first installed) into KTStack's backup library and returns the file path. Fails if the dump is missing or empty. |
+| `ktstack_create_site` | `path` (string, required), `php` (string) | Registers a project folder as a site. |
+| `ktstack_switch_php_version` | `domain` (string, required), `version` (string, required) | Switches a site to another installed PHP version. |
 | `ktstack_doctor` | none | Reports whether the KTStack app answers on the local IPC socket. |
 
 Notifications (JSON-RPC messages without an `id`) are processed but never answered.

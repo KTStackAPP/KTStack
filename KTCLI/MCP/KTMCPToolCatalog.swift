@@ -41,11 +41,32 @@ public struct KTMCPToolCatalog: Sendable {
             ),
             tool(
                 name: "ktstack_backup_database",
-                description: "Database backup from MCP is not available yet; the call returns an error. Use KTStack › Database › Backups.",
+                description: "Back up one database of a KTStack-managed engine and return the path of the backup file.",
                 properties: [
-                    "database": ["type": AnyCodable("string"), "description": AnyCodable("Name of the database")]
+                    "database": ["type": AnyCodable("string"), "description": AnyCodable("Name of the database")],
+                    "engine": ["type": AnyCodable("string"), "description": AnyCodable(
+                        "Managed engine: 'mysql', 'postgres' or 'mongodb' (default: the first installed)"
+                    )]
                 ],
                 required: ["database"]
+            ),
+            tool(
+                name: "ktstack_create_site",
+                description: "Register a project folder as a KTStack site served at <folder>.<tld>.",
+                properties: [
+                    "path": ["type": AnyCodable("string"), "description": AnyCodable("Absolute path of the project folder")],
+                    "php": ["type": AnyCodable("string"), "description": AnyCodable("PHP version, e.g. '8.3' (default: 8.3)")]
+                ],
+                required: ["path"]
+            ),
+            tool(
+                name: "ktstack_switch_php_version",
+                description: "Switch a site to another installed PHP version.",
+                properties: [
+                    "domain": ["type": AnyCodable("string"), "description": AnyCodable("Site domain or name")],
+                    "version": ["type": AnyCodable("string"), "description": AnyCodable("Installed PHP version, e.g. '8.4'")]
+                ],
+                required: ["domain", "version"]
             ),
             tool(
                 name: "ktstack_doctor",
@@ -69,8 +90,15 @@ public struct KTMCPToolCatalog: Sendable {
         case "ktstack_get_recent_logs":
             return try client.call(method: "logs.recent", params: logParams(arguments))
         case "ktstack_backup_database":
-            let db = arguments?["database"]?.value as? String ?? ""
-            return try client.call(method: "db.backup", params: ["database": db])
+            var params = try requiredParams(arguments, ["database"])
+            if let engine = arguments?["engine"]?.value as? String { params["engine"] = engine }
+            return try client.call(method: "db.backup", params: params)
+        case "ktstack_create_site":
+            var params = try requiredParams(arguments, ["path"])
+            if let php = arguments?["php"]?.value as? String { params["php"] = php }
+            return try client.call(method: "sites.create", params: params)
+        case "ktstack_switch_php_version":
+            return try client.call(method: "sites.switch_php", params: requiredParams(arguments, ["domain", "version"]))
         case "ktstack_doctor":
             let paths = AppSupportPaths()
             let online = (try? client.call(method: "ping")) != nil
@@ -78,6 +106,17 @@ public struct KTMCPToolCatalog: Sendable {
         default:
             throw KTCLIError.serverError("Unknown tool: \(name)")
         }
+    }
+
+    private func requiredParams(_ arguments: [String: AnyCodable]?, _ names: [String]) throws -> [String: String] {
+        var params: [String: String] = [:]
+        for name in names {
+            guard let value = arguments?[name]?.value as? String, !value.isEmpty else {
+                throw KTCLIError.serverError("Missing required parameter '\(name)'")
+            }
+            params[name] = value
+        }
+        return params
     }
 
     private func logParams(_ arguments: [String: AnyCodable]?) -> [String: String] {
