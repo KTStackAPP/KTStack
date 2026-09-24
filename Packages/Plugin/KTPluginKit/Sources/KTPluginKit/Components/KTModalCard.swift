@@ -75,6 +75,7 @@ public struct KTModalCard<Content: View>: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Close")
         .padding(14)
     }
 

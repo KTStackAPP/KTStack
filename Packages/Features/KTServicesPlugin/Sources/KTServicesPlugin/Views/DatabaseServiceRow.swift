@@ -81,7 +81,7 @@ struct DatabaseServiceRow: View, Equatable {
         if state.isBusy {
             ProgressView().controlSize(.small).frame(width: 40)
         } else {
-            KTToggle(isOn: isRunning, action: onToggle)
+            KTToggle("Run \(state.displayName)", isOn: isRunning, action: onToggle)
         }
     }
 
@@ -98,6 +98,7 @@ struct DatabaseServiceRow: View, Equatable {
         .disabled(!canRestart)
         .opacity(canRestart ? 1 : 0.4)
         .help("Restart \(state.displayName)")
+        .accessibilityLabel("Restart \(state.displayName)")
     }
 
     private var overflowMenu: some View {
@@ -119,6 +120,7 @@ struct DatabaseServiceRow: View, Equatable {
         } message: {
             Text(ServiceID.resetDataMessage(state.displayName))
         }
+        .accessibilityLabel("More actions for \(state.displayName)")
     }
 
     private var canRestart: Bool {

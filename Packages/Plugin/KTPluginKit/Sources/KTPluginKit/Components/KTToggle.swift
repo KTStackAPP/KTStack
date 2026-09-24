@@ -1,12 +1,18 @@
 import SwiftUI
 
 public struct KTToggle: View {
+    public let label: String
     public let isOn: Bool
     public let action: () -> Void
 
-    public init(isOn: Bool, action: @escaping () -> Void) {
+    public init(_ label: String, isOn: Bool, action: @escaping () -> Void) {
+        self.label = label
         self.isOn = isOn
         self.action = action
+    }
+
+    public static func accessibilityValue(isOn: Bool) -> String {
+        isOn ? "On" : "Off"
     }
 
     /// Knob slides between the 3pt insets on each side: width - knob - 2*inset.
@@ -32,6 +38,8 @@ public struct KTToggle: View {
                 .animation(.easeInOut(duration: 0.18), value: isOn)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityValue(Self.accessibilityValue(isOn: isOn))
         .accessibilityAddTraits(isOn ? [.isButton, .isSelected] : .isButton)
     }
 }
