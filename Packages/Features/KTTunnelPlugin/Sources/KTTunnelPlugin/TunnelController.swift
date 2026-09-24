@@ -53,7 +53,7 @@ public actor TunnelController {
         try? fm.removeItem(at: logURL)
         fm.createFile(atPath: logURL.path, contents: nil)
         let arguments = TunnelOrigin.cloudflaredArguments(port: originPort)
-        let launch = watchdog?.wrap(binary: binary, arguments: arguments) ?? (binary, arguments)
+        let launch = watchdog?.wrap(binary: binary, arguments: arguments) ?? (binary: binary, arguments: arguments)
         do {
             try jobs.bootstrapTunnelJob(label: label, binary: launch.binary, arguments: launch.arguments, logPath: logURL.path)
         } catch {
