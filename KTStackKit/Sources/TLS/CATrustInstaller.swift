@@ -54,6 +54,12 @@ public enum CATrustInstaller {
         try removeViaHelper(helper, certSHA1: sha1)
     }
     private static func generateCA(_ runner: MkcertRunner) throws {
+        if RestrictedRootCA.isEnabled() {
+            return try RestrictedRootCA.generate(
+                caDir: runner.caroot,
+                tlds: RestrictedRootCA.permittedTLDs(including: RestrictedRootCA.currentTLD())
+            )
+        }
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tmp) }

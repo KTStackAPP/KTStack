@@ -20,6 +20,11 @@ extension LocalServerController {
         }
     }
 
+    public func renewCertificatesAfterCAChange() {
+        didCheckCertRenewal = false
+        renewCertificatesIfNeeded()
+    }
+
     func renewCertificatesIfNeeded() {
         guard !didCheckCertRenewal, registry.loadFailure == nil else { return }
         didCheckCertRenewal = true

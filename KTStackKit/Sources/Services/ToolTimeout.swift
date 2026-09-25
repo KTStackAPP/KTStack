@@ -5,4 +5,5 @@ enum ToolTimeout {
     static let processQuery: TimeInterval = 5
     static let codesign: TimeInterval = 30
     static let configTest: TimeInterval = 10
+    static let keyGeneration: TimeInterval = 60
 }

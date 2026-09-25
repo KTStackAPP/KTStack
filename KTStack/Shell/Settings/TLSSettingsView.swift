@@ -4,6 +4,7 @@ import SwiftUI
 
 struct TLSSettingsView: View {
     @ObservedObject var caTrust: CATrustService
+    let server: LocalServerController
 
     var body: some View {
         Form {
@@ -23,6 +24,8 @@ struct TLSSettingsView: View {
                 Text("Installing a local root CA lets your browser trust *.test certificates. It only affects this Mac and can be removed any time. Note: once a site has been served over HTTPS, browsers may remember it (HSTS) and refuse plain http until that expires.")
                     .font(.caption2).foregroundStyle(.secondary)
             }
+
+            CANameConstraintSection(caTrust: caTrust, server: server)
 
             Section {
                 HStack {

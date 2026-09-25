@@ -68,7 +68,7 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(KTColor.contentBg)
         .overlay { if awaitingRelaunch { relaunchOverlay } }
-        .sheet(isPresented: $showTLS) { sheetWrapper("HTTPS Certificates", { showTLS = false }) { TLSSettingsView(caTrust: caTrust) } }
+        .sheet(isPresented: $showTLS) { sheetWrapper("HTTPS Certificates", { showTLS = false }) { TLSSettingsView(caTrust: caTrust, server: server) } }
         .sheet(isPresented: $showShell) { sheetWrapper("Shell Integration", { showShell = false }) { ShellIntegrationSheetBody() } }
         .confirmationDialog("Change the dev TLD to .\(pendingTLD ?? "")?", isPresented: $confirmTLDChange) {
             Button("Change & Relaunch", role: .destructive) { applyTLDChange() }
