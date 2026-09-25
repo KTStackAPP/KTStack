@@ -30,6 +30,13 @@ These options control how KTStack behaves on your Mac.
 2. If you turn it on, KTStack remembers which services you had running and starts them automatically next time.
 3. If you turn it off, all services start stopped, and you must toggle them on manually.
 
+### Queue actions while busy
+
+**What it does**: Remembers a server start, stop or restart you click while KTStack is still finishing another server operation, and runs it as soon as that operation ends.
+
+1. Toggle **Queue actions while busy** on (default) to have the latest click run once the server is free. Only the most recent click is kept.
+2. Toggle it off to ignore clicks made while the server is busy, as in earlier versions.
+
 ### Show in menu bar
 
 **What it does**: Displays the KTStack icon in your menu bar for quick access.

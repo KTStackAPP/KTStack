@@ -46,6 +46,10 @@ public final class AppPreferences: ObservableObject {
         didSet { defaults.set(allowLANAccess, forKey: FrontAccessPolicy.defaultsKey) }
     }
 
+    @Published public var queueServerActions: Bool {
+        didSet { defaults.set(queueServerActions, forKey: ServerActionQueuePolicy.defaultsKey) }
+    }
+
     @Published public var serveHTTPSByDefault: Bool {
         didSet { defaults.set(serveHTTPSByDefault, forKey: Key.serveHTTPS) }
     }
@@ -99,6 +103,7 @@ public final class AppPreferences: ObservableObject {
         showInMenuBar = defaults.object(forKey: Key.showInMenuBar) as? Bool ?? true
         monochromeMenuBarIcon = defaults.bool(forKey: Key.monochromeMenuBarIcon)
         allowLANAccess = FrontAccessPolicy.allowsLAN(defaults: defaults)
+        queueServerActions = ServerActionQueuePolicy.isEnabled(defaults: defaults)
         serveHTTPSByDefault = defaults.object(forKey: Key.serveHTTPS) as? Bool ?? true
         automaticUpdates = defaults.object(forKey: Key.automaticUpdates) as? Bool ?? true
         releaseChannel = ReleaseChannel(rawValue: defaults.string(forKey: Key.releaseChannel) ?? "") ?? .stable
