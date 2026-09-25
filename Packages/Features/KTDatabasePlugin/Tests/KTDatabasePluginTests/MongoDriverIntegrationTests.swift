@@ -87,6 +87,31 @@ final class MongoDriverIntegrationTests: XCTestCase {
         try await driver.dropCollection(database: database, collection: collection)
     }
 
+    func testDecimal128SurvivesAnEditOfAnotherField() async throws {
+        let driver = try makeDriver()
+        try await driver.dropCollection(database: database, collection: collection)
+        try await driver.insert(
+            database: database,
+            collection: collection,
+            json: #"{"_id":1,"name":"alice","total":{"$numberDecimal":"19.90"}}"#
+        )
+        let inserted = try await driver.find(database: database, collection: collection, filterJSON: nil, limit: 1, skip: 0)
+        let record = try XCTUnwrap(inserted.first)
+        XCTAssertTrue(record.json.contains("19.90"), record.json)
+        try await driver.update(
+            database: database,
+            collection: collection,
+            record: record,
+            json: #"{"_id":1,"name":"bob","total":{"$numberDecimal":"19.90"}}"#
+        )
+        let updated = try await driver.find(
+            database: database, collection: collection, filterJSON: #"{"total":{"$numberDecimal":"19.90"}}"#, limit: 1, skip: 0
+        )
+        XCTAssertEqual(updated.count, 1)
+        XCTAssertTrue(updated.first?.json.contains("bob") ?? false)
+        try await driver.dropCollection(database: database, collection: collection)
+    }
+
     func testUpdateRejectsChangedID() async {
         let driver = MongoDriver(profile: .managedMongo, password: nil, tools: FakeDatabaseTools.allInstalled)
         let record = DocumentRecord(id: "1", json: "{\"_id\":1}", identifierJSON: "1")

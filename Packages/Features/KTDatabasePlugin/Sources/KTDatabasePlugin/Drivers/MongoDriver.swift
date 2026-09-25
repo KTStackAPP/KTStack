@@ -125,11 +125,10 @@ public struct MongoDriver: DocumentDriver {
     }
 
     static func record(from document: Document) throws -> DocumentRecord {
-        let identifier = document["_id"]
-        return try DocumentRecord(
-            id: MongoJSONMapper.displayString(for: identifier),
+        try DocumentRecord(
+            id: MongoJSONMapper.displayID(in: document),
             json: MongoJSONMapper.encodedJSON(from: document, pretty: true),
-            identifierJSON: MongoJSONMapper.identifierJSON(for: identifier)
+            identifierJSON: MongoJSONMapper.identifierJSON(in: document)
         )
     }
 
@@ -141,8 +140,9 @@ public struct MongoDriver: DocumentDriver {
     }
 
     private func aggregateStages(_ json: String) throws -> [AggregateBuilderStage] {
-        let value = try MongoJSONMapper.value(fromJSON: json)
-        guard let array = value as? Document, array.isArray else {
+        guard case let .value(value) = try MongoJSONMapper.element(fromJSON: json),
+              let array = value as? Document, array.isArray
+        else {
             throw DatabaseError.syntax("An aggregation pipeline must be a JSON array of stages.")
         }
         return try array.values.map { element in

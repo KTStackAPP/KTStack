@@ -7,28 +7,14 @@ struct MongoLossyField: Equatable, Sendable {
 }
 
 enum MongoLossyFieldScanner {
-    static func scan(_ document: Document, prefix: String = "") -> [MongoLossyField] {
-        var found: [MongoLossyField] = []
-        for (key, value) in document {
-            let path = prefix.isEmpty ? key : "\(prefix).\(key)"
-            if let nested = value as? Document {
-                found += scan(nested, prefix: path)
-            } else if let typeName = lossyTypeName(value) {
-                found.append(MongoLossyField(path: path, typeName: typeName))
-            }
-        }
-        return found
-    }
+    private static let deprecatedTypeNames: [UInt8: String] = [0x06: "undefined", 0x0C: "DBPointer", 0x0E: "symbol"]
 
-    static func lossyTypeName(_ value: Primitive) -> String? {
-        switch value {
-        case is Decimal128: return "Decimal128"
-        case is RegularExpression: return "regular expression"
-        case is JavaScriptCode, is JavaScriptCodeWithScope: return "JavaScript code"
-        case let binary as Binary:
-            if case .generic = binary.subType { return nil }
-            return "binary (non-generic subtype)"
-        default: return nil
+    static func scan(_ document: Document, prefix: String = "") -> [MongoLossyField] {
+        MongoRawBSON.fields(of: document).flatMap { field -> [MongoLossyField] in
+            let path = prefix.isEmpty ? field.key : "\(prefix).\(field.key)"
+            if let name = deprecatedTypeNames[field.type] { return [MongoLossyField(path: path, typeName: name)] }
+            guard field.type == 0x03 || field.type == 0x04 else { return [] }
+            return scan(Document(bytes: Array(field.value)), prefix: path)
         }
     }
 }

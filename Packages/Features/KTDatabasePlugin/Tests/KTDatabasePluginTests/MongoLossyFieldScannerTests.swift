@@ -4,28 +4,30 @@ import XCTest
 @testable import KTDatabasePlugin
 
 final class MongoLossyFieldScannerTests: XCTestCase {
-    private func document() -> Document {
-        var nested = Document()
-        nested["pattern"] = RegularExpression(pattern: "^a", options: "i")
-        var doc = Document()
-        doc["_id"] = 1
-        doc["name"] = "plain"
-        doc["token"] = Binary(subType: .uuid, buffer: ByteBuffer(bytes: [1, 2, 3, 4]))
-        doc["blob"] = Binary(subType: .generic, buffer: ByteBuffer(bytes: [9]))
-        doc["meta"] = nested
-        doc["hook"] = JavaScriptCode("return 1")
-        return doc
+    static func documentWithSymbol() -> Document {
+        let symbol: [UInt8] = [0x0E] + Array("legacy".utf8) + [0, 3, 0, 0, 0, 0x61, 0x62, 0]
+        let nested = Document(bytes: [UInt8(symbol.count + 5), 0, 0, 0] + symbol + [0])
+        var document = Document()
+        document["_id"] = 1
+        document["name"] = "plain"
+        document["meta"] = nested
+        return document
     }
 
-    func testFindsLossyTypesWithDottedPaths() {
-        let fields = MongoLossyFieldScanner.scan(document())
-        XCTAssertEqual(Set(fields.map(\.path)), ["token", "meta.pattern", "hook"])
+    func testFindsDeprecatedTypesWithDottedPaths() {
+        XCTAssertEqual(
+            MongoLossyFieldScanner.scan(Self.documentWithSymbol()),
+            [MongoLossyField(path: "meta.legacy", typeName: "symbol")]
+        )
     }
 
-    func testPlainDocumentHasNoLossyFields() {
+    func testTypesExtendedJSONCanCarryAreNotFlagged() {
         var doc = Document()
         doc["_id"] = 1
         doc["tags"] = ["a", "b"] as Document
+        doc["token"] = Binary(subType: .uuid, buffer: ByteBuffer(bytes: [1, 2, 3, 4]))
+        doc["pattern"] = RegularExpression(pattern: "^a", options: "i")
+        doc["hook"] = JavaScriptCode("return 1")
         XCTAssertTrue(MongoLossyFieldScanner.scan(doc).isEmpty)
     }
 }
