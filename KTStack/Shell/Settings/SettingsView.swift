@@ -82,9 +82,7 @@ struct SettingsView: View {
             KTSettingsRow(title: "Launch at login", subtitle: "Start KTStack when you log in to macOS.") {
                 KTToggle("Launch at login", isOn: preferences.launchAtLogin, action: toggleLaunchAtLogin)
             }
-            KTSettingsRow(title: "Auto-start server", subtitle: "Bring the server up automatically on launch.") {
-                KTToggle("Auto-start server", isOn: preferences.autoStartServer) { preferences.autoStartServer.toggle() }
-            }
+            ServerBehaviorRows(preferences: preferences)
             KTSettingsRow(title: "Show in menu bar", subtitle: "Quick-access icon. If hidden, reopen KTStack from Finder.") {
                 KTToggle("Show in menu bar", isOn: preferences.showInMenuBar) { preferences.showInMenuBar.toggle() }
             }

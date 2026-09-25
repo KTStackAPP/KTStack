@@ -121,7 +121,7 @@ public final class LocalServerController: ObservableObject {
 
     func deferIfBusy(_ action: @escaping @MainActor (LocalServerController) -> Void) -> Bool {
         guard isBusy else { return false }
-        queuedAction = action
+        if ServerActionQueuePolicy.isEnabled() { queuedAction = action }
         return true
     }
 
