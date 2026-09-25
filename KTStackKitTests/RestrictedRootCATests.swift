@@ -25,6 +25,7 @@ final class RestrictedRootCATests: XCTestCase {
         XCTAssertTrue(config.contains("CA:TRUE, pathlen:0"))
     }
 
+    @MainActor
     func testPermittedTLDsAddCustomTLDOnlyOnce() {
         XCTAssertEqual(RestrictedRootCA.permittedTLDs(including: "test"), AppPreferences.safeTLDs)
         XCTAssertEqual(RestrictedRootCA.permittedTLDs(including: "lan"), AppPreferences.safeTLDs + ["lan"])
