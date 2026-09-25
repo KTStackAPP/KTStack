@@ -61,17 +61,9 @@ public struct MongoToolsInstaller: Sendable {
     }
 
     private static func runCodesign(_ path: String) throws {
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
-        proc.arguments = ["--force", "--sign", "-", path]
-        let errPipe = Pipe()
-        proc.standardError = errPipe
-        proc.standardOutput = FileHandle.nullDevice
-        try proc.run()
-        let err = errPipe.fileHandleForReading.readDataToEndOfFile()
-        proc.waitUntilExit()
-        guard proc.terminationStatus == 0 else {
-            let msg = String(data: err, encoding: .utf8) ?? ""
+        let res = try ProcessRunner().run("/usr/bin/codesign", ["--force", "--sign", "-", path], timeout: ToolTimeout.codesign)
+        guard res.succeeded else {
+            let msg = res.interruption == .timedOut ? "codesign timed out" : res.stderrText
             throw MongoToolsError.signFailed("\(path): \(msg)")
         }
     }

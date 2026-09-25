@@ -1,19 +1,13 @@
 import Darwin
 import Foundation
+import KTStackCore
 
 enum PortOwnership {
     static func listenerPIDs(port: Int) -> [pid_t]? {
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
-        proc.arguments = ["-nP", "-iTCP:\(port)", "-sTCP:LISTEN", "-F", "p"]
-        let pipe = Pipe()
-        proc.standardOutput = pipe
-        proc.standardError = FileHandle.nullDevice
-        do { try proc.run() } catch { return nil }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        proc.waitUntilExit()
-        let text = String(decoding: data, as: UTF8.self)
-        return text.split(separator: "\n").compactMap { line in
+        let args = ["-nP", "-iTCP:\(port)", "-sTCP:LISTEN", "-F", "p"]
+        guard let res = try? ProcessRunner().run("/usr/sbin/lsof", args, timeout: ToolTimeout.processQuery),
+              res.interruption == nil else { return nil }
+        return res.stdoutText.split(separator: "\n").compactMap { line in
             line.hasPrefix("p") ? pid_t(line.dropFirst()) : nil
         }
     }

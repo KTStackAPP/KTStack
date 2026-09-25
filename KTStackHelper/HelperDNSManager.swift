@@ -111,7 +111,7 @@ final class HelperDNSManager {
 
     @discardableResult
     private func launchctl(_ args: [String]) -> (status: Int32, output: String) {
-        run("/bin/launchctl", args)
+        run("/bin/launchctl", args, timeout: 15)
     }
 
     private struct PortOwner {
@@ -144,16 +144,13 @@ final class HelperDNSManager {
         return out.isEmpty ? nil : out
     }
 
-    private func run(_ tool: String, _ args: [String]) -> (status: Int32, output: String) {
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: tool)
-        proc.arguments = args
-        let pipe = Pipe()
-        proc.standardOutput = pipe
-        proc.standardError = pipe
-        do { try proc.run() } catch { return (-1, error.localizedDescription) }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        proc.waitUntilExit()
-        return (proc.terminationStatus, String(data: data, encoding: .utf8) ?? "")
+    private func run(_ tool: String, _ args: [String], timeout: TimeInterval = 5) -> (status: Int32, output: String) {
+        do {
+            let res = try ProcessRunner().run(tool, args, timeout: timeout)
+            if res.interruption == .timedOut { return (-1, "\(tool) timed out") }
+            return (res.status, res.stdoutText + res.stderrText)
+        } catch {
+            return (-1, error.localizedDescription)
+        }
     }
 }
