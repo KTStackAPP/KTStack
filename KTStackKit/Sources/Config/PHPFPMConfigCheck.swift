@@ -25,20 +25,17 @@ public struct PHPFPMConfigCheck: Sendable {
             args += ["-c", ini.path]
         }
 
-        let proc = Process()
-        proc.executableURL = binary
-        proc.arguments = args
-        proc.environment = ["PHP_INI_SCAN_DIR": paths.phpExtConfDir(version: version).path]
-        let errPipe = Pipe()
-        proc.standardError = errPipe
-        proc.standardOutput = Pipe()
-        do { try proc.run() } catch { return .couldNotRun }
-        let data = errPipe.fileHandleForReading.readDataToEndOfFile()
-        proc.waitUntilExit()
+        let request = ProcessRequest(
+            executable: binary.path,
+            arguments: args,
+            environment: ["PHP_INI_SCAN_DIR": paths.phpExtConfDir(version: version).path],
+            timeout: ToolTimeout.configTest
+        )
+        guard let res = try? ProcessRunner().run(request) else { return .couldNotRun }
+        if res.interruption == .timedOut { return .invalid("php-fpm -t timed out") }
         // php-fpm -t ghi cả "test is successful" ra stderr, nên chỉ xét exit code.
-        if proc.terminationStatus != 0 {
-            let msg = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            return .invalid(msg)
+        if res.status != 0 {
+            return .invalid(res.stderrText.trimmingCharacters(in: .whitespacesAndNewlines))
         }
         return .valid
     }

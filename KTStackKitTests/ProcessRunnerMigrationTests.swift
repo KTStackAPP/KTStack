@@ -42,5 +42,6 @@ final class ProcessRunnerMigrationTests: XCTestCase {
         }
         let port = Int(UInt16(bigEndian: assigned.sin_port))
         XCTAssertNotNil(PortPreflight.listeningProcess(onPort: port))
+        XCTAssertEqual(PortOwnership.listenerPIDs(port: port), [getpid()])
     }
 }
