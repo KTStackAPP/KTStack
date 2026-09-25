@@ -55,12 +55,14 @@ final class MongoJSONMapperTests: XCTestCase {
         XCTAssertEqual((dictionary["ts"] as? NSNumber)?.int64Value, 1_700_000_000_000)
     }
 
-    func testBinaryHintRoundTrips() throws {
+    func testLegacyBinaryHintIsReadAndShownInCanonicalForm() throws {
         let base64 = Data([0x01, 0x02, 0x03]).base64EncodedString()
         let result = try roundTrip(#"{"blob":{"$binary":"\#(base64)"}}"#)
         let dictionary = try XCTUnwrap(result as? [String: Any])
         let blob = try XCTUnwrap(dictionary["blob"] as? [String: Any])
-        XCTAssertEqual(blob["$binary"] as? String, base64)
+        let inner = try XCTUnwrap(blob["$binary"] as? [String: Any])
+        XCTAssertEqual(inner["base64"] as? String, base64)
+        XCTAssertEqual(inner["subType"] as? String, "00")
     }
 
     func testTimestampHintRoundTrips() throws {

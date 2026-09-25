@@ -210,6 +210,20 @@ To add a new record:
 
 The new row is added to the table immediately.
 
+### Edit a MongoDB document
+
+MongoDB documents open as [Extended JSON](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/). Plain strings, numbers, booleans, arrays and objects look like ordinary JSON. Types that JSON can't express are shown as wrappers, for example:
+
+- `{"$oid": "507f1f77bcf86cd799439011"}` for an ObjectId
+- `{"$date": "2026-01-02T03:04:05.000Z"}` for a date
+- `{"$numberDecimal": "19.90"}` for a Decimal128
+- `{"$binary": {"base64": "…", "subType": "04"}}` for binary data
+- `{"$regularExpression": {"pattern": "^a", "options": "i"}}`, `{"$code": "…"}`, `{"$timestamp": {"t": 1, "i": 1}}`, `{"$minKey": 1}` and `{"$maxKey": 1}`
+
+When you save, KTStack only writes the fields you changed. A number you edit keeps its original type (a 32-bit integer stays one, a Decimal128 stays a Decimal128). To choose a type yourself, use `{"$numberInt": "5"}`, `{"$numberLong": "5"}`, `{"$numberDouble": "5"}` or `{"$numberDecimal": "5"}`.
+
+Documents that still contain deprecated BSON types (`undefined`, `symbol`, `DBPointer`) can't be saved from KTStack. Edit those with `mongosh` or MongoDB Compass.
+
 ## Understanding data safety
 
 KTStack protects you from accidental data loss:

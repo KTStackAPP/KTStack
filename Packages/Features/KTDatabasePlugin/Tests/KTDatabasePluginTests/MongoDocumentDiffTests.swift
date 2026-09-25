@@ -8,19 +8,20 @@ final class MongoDocumentDiffTests: XCTestCase {
         var address = Document()
         address["city"] = "Hanoi"
         address["zip"] = Int32(10000)
-        var doc = Document()
-        doc["_id"] = 1
-        doc["name"] = "shop"
-        doc["count"] = Int32(5)
-        doc["price"] = 2.0
-        doc["address"] = address
-        doc["token"] = Binary(subType: .uuid, buffer: ByteBuffer(bytes: [1, 2, 3]))
-        doc["hook"] = JavaScriptCode("return 1")
-        return doc
+        return MongoRawBSON.document([
+            ("_id", .value(1)),
+            ("name", .value("shop")),
+            ("count", .value(Int32(5))),
+            ("price", .value(2.0)),
+            ("total", .decimal(MongoDecimal128(string: "19.90")!)),
+            ("address", .value(address)),
+            ("token", .value(Binary(subType: .uuid, buffer: ByteBuffer(bytes: [1, 2, 3])))),
+            ("hook", .value(JavaScriptCode("return 1"))),
+        ], isArray: false)
     }
 
-    private func editedJSON(_ mutate: (inout [String: Any]) -> Void) throws -> String {
-        let json = try MongoJSONMapper.encodedJSON(from: original(), pretty: false)
+    private func editedJSON(from document: Document? = nil, _ mutate: (inout [String: Any]) -> Void) throws -> String {
+        let json = try MongoJSONMapper.encodedJSON(from: document ?? original(), pretty: false)
         var object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
         mutate(&object)
         return String(decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
@@ -31,10 +32,10 @@ final class MongoDocumentDiffTests: XCTestCase {
         XCTAssertNil(plan.updateDocument)
     }
 
-    func testOnlyChangedPathsAreSetAndLossyFieldsAreLeftAlone() throws {
+    func testOnlyChangedPathsAreSet() throws {
         let plan = try MongoDocumentDiff.plan(original: original(), editedJSON: editedJSON { $0["name"] = "store" })
-        XCTAssertEqual(plan.set.keys, ["name"])
-        XCTAssertEqual(plan.set["name"] as? String, "store")
+        XCTAssertEqual(plan.set.map { $0.path }, ["name"])
+        XCTAssertEqual(plan.element(at: "name")?.asPrimitive as? String, "store")
         XCTAssertTrue(plan.unset.isEmpty)
     }
 
@@ -44,17 +45,36 @@ final class MongoDocumentDiffTests: XCTestCase {
             address["zip"] = 10001
             $0["address"] = address
         })
-        XCTAssertEqual(plan.set.keys, ["address.zip"])
-        XCTAssertEqual(plan.set["address.zip"] as? Int32, 10001)
+        XCTAssertEqual(plan.set.map { $0.path }, ["address.zip"])
+        XCTAssertEqual(plan.element(at: "address.zip")?.asPrimitive as? Int32, 10001)
     }
 
     func testChangedNumbersKeepTheirOriginalType() throws {
         let plan = try MongoDocumentDiff.plan(original: original(), editedJSON: editedJSON {
             $0["count"] = 6
             $0["price"] = 3
+            $0["total"] = 25.5
         })
-        XCTAssertEqual(plan.set["count"] as? Int32, 6)
-        XCTAssertEqual(plan.set["price"] as? Double, 3.0)
+        XCTAssertEqual(plan.element(at: "count")?.asPrimitive as? Int32, 6)
+        XCTAssertEqual(plan.element(at: "price")?.asPrimitive as? Double, 3.0)
+        XCTAssertEqual(plan.element(at: "total")?.asDecimal?.description, "25.5")
+    }
+
+    func testDecimalEditIsWrittenAsDecimal128() throws {
+        let plan = try MongoDocumentDiff.plan(original: original(), editedJSON: editedJSON {
+            $0["total"] = ["$numberDecimal": "20.00"]
+        })
+        let set = try XCTUnwrap(plan.updateDocument?["$set"] as? Document)
+        XCTAssertEqual(MongoRawBSON.decimals(in: set)["total"]?.description, "20.00")
+    }
+
+    func testFieldsThatUsedToBeRefusedCanNowBeEdited() throws {
+        let plan = try MongoDocumentDiff.plan(original: original(), editedJSON: editedJSON {
+            $0["hook"] = ["$code": "return 2"]
+            $0["token"] = nil
+        })
+        XCTAssertEqual((plan.element(at: "hook")?.asPrimitive as? JavaScriptCode)?.code, "return 2")
+        XCTAssertEqual(plan.unset, ["token"])
     }
 
     func testRemovedFieldIsUnset() throws {
@@ -63,19 +83,19 @@ final class MongoDocumentDiffTests: XCTestCase {
         XCTAssertNotNil(plan.updateDocument?["$unset"])
     }
 
-    func testEditingALossyFieldIsRefusedWithItsName() throws {
-        XCTAssertThrowsError(try MongoDocumentDiff.plan(original: original(), editedJSON: editedJSON {
-            $0["hook"] = "return 2"
+    func testDocumentWithADeprecatedTypeIsRefusedWithItsName() throws {
+        let legacy = MongoLossyFieldScannerTests.documentWithSymbol()
+        XCTAssertThrowsError(try MongoDocumentDiff.plan(original: legacy, editedJSON: editedJSON(from: legacy) {
+            $0["name"] = "changed"
         })) { error in
             guard case let .syntax(message) = error as? DatabaseError else { return XCTFail("\(error)") }
-            XCTAssertTrue(message.contains("“hook”"), message)
+            XCTAssertTrue(message.contains("“meta.legacy”"), message)
         }
-        XCTAssertThrowsError(try MongoDocumentDiff.plan(original: original(), editedJSON: editedJSON { $0["token"] = nil }))
     }
 
     func testIdIsNeverSetOrUnset() throws {
         let plan = try MongoDocumentDiff.plan(original: original(), editedJSON: editedJSON { $0["_id"] = nil })
         XCTAssertFalse(plan.unset.contains("_id"))
-        XCTAssertNil(plan.set["_id"])
+        XCTAssertNil(plan.element(at: "_id"))
     }
 }
