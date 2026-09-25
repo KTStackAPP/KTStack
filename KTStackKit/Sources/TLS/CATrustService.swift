@@ -14,12 +14,13 @@ public final class CATrustService: ObservableObject {
     @Published public private(set) var status: Status = .notInstalled
     @Published public private(set) var isBusy = false
     @Published public private(set) var lastError: String?
+    @Published public private(set) var coverage: RestrictedRootCA.Coverage = .none
 
     public let usesHelper = HelperIdentity.hasSigningIdentity
 
     public nonisolated let runner: MkcertRunner
-    private nonisolated let paths: AppSupportPaths
-    private nonisolated let helper = HelperConnection()
+    nonisolated let paths: AppSupportPaths
+    nonisolated let helper = HelperConnection()
 
     public init(paths: AppSupportPaths, mkcertBinary: URL) {
         self.paths = paths
@@ -33,11 +34,13 @@ public final class CATrustService: ObservableObject {
     }
 
     public func refresh() {
+        coverage = RestrictedRootCA.coverage(caDir: paths.caDir)
         guard runner.caExists else { status = .notInstalled; return }
         status = Self.isTrustedInSystemKeychain(caCert: paths.caRootCert) ? .trusted : .untrusted
     }
 
     public func refreshAsync() async {
+        coverage = RestrictedRootCA.coverage(caDir: paths.caDir)
         guard runner.caExists else { status = .notInstalled; return }
         let caCert = paths.caRootCert
         let trusted = await Task.detached { Self.isTrustedInSystemKeychain(caCert: caCert) }.value
@@ -67,7 +70,7 @@ public final class CATrustService: ObservableObject {
         try CATrustInstaller.trust(caCert: paths.caRootCert, runner: runner, helper: helper, usesHelper: usesHelper)
     }
 
-    private func run(_ work: @escaping @Sendable () throws -> Void, completion: (@Sendable @MainActor (Bool) -> Void)? = nil) {
+    func run(_ work: @escaping @Sendable () throws -> Void, completion: (@Sendable @MainActor (Bool) -> Void)? = nil) {
         guard !isBusy else { return }
         isBusy = true; lastError = nil
         Task.detached(priority: .userInitiated) {

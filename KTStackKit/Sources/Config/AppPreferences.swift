@@ -5,6 +5,7 @@ import KTStackCore
 @MainActor
 public final class AppPreferences: ObservableObject {
     public static let defaultTLD = "test"
+    public static let tldDefaultsKey = "KTStack.tld"
 
     public static let safeTLDs = ["test", "home.arpa", "internal"]
 
@@ -80,7 +81,7 @@ public final class AppPreferences: ObservableObject {
     private let defaults: UserDefaults
     private enum Key {
         static let sitesRoot = "KTStack.sitesRootPath"
-        static let tld = "KTStack.tld"
+        static let tld = AppPreferences.tldDefaultsKey
         static let launchAtLogin = "KTStack.launchAtLogin"
         static let autoStartServer = "KTStack.autoStartServer"
         static let showInMenuBar = "KTStack.showInMenuBar"

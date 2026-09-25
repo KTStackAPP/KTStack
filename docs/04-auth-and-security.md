@@ -77,6 +77,9 @@ To prevent malicious local processes from exploiting the XPC listener, `KTStackH
 
 KTStack mints internal TLS certificates via an embedded `mkcert` engine. To ensure modern browsers (Safari, Chrome) trust local sites without security warnings, the Root CA must be properly configured.
 
+### 3.0 Name-Constrained Root CA
+When `KTStack.restrictLocalCA` is on (the default), `RestrictedRootCA` generates the root CA with `/usr/bin/openssl` instead of letting mkcert create it. The CA carries a critical `nameConstraints` extension that permits only the safe dev TLDs (`test`, `home.arpa`, `internal`), the configured TLD, and the loopback ranges `127.0.0.0/8` and `::1`. It also has `pathlen:0`. The subject organization stays `mkcert development CA`, so the helper's `RootCAConstraint` check accepts it without a helper change. mkcert keeps minting leaf certificates from this CA as before. A sidecar `ktstack-ca-constraints.json` records the CA's SHA-256 fingerprint and permitted TLDs, and any CA without a matching sidecar counts as unrestricted. Regeneration stages the new CA first, then untrusts the old one, moves the old files to `ca/retired/<timestamp>/`, and trusts the new one. The site certificates are then re-issued through `CertRenewalPolicy`, which re-mints any leaf not issued by the current CA.
+
 ### 3.1 Policy Configuration Flags
 When the helper installs the certificate into `/Library/Keychains/System.keychain`, it invokes:
 ```bash

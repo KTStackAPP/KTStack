@@ -22,6 +22,16 @@ KTStack's local HTTPS is **not** internet-grade security. It is meant to test fe
 
 This is the same approach used by Valet, Herd, and Laragon.
 
+### Restricting the CA to your dev domains
+
+By default, KTStack creates the local CA with **name constraints**: it can only sign certificates for `.test`, `.home.arpa`, `.internal`, your current dev TLD, and the loopback addresses `127.0.0.0/8` and `::1`. If the CA's private key ever leaked, it could not be used to impersonate real websites such as your bank.
+
+- The setting is **Restrict CA to dev domains** in the **HTTPS Certificates** sheet, under **Name constraints**. It is on by default.
+- A CA created by an earlier version of KTStack is not restricted. The sheet shows **Can sign any domain** and a **Regenerate CA** button.
+- **Regenerate CA** creates a new restricted CA, removes trust from the old one, and asks you to approve trusting the new one. It then re-issues the certificates of your HTTPS sites. The old CA files are moved to a `retired` folder inside the CA folder, not deleted.
+- If you switch to a custom dev TLD that the current CA does not cover, the sheet shows **Does not cover .yourtld**. Click **Regenerate CA** so browsers accept certificates for the new TLD.
+- With the setting off, new CAs are created by mkcert without restrictions, as in earlier versions.
+
 ## Trusting the certificate authority
 
 When you create your first HTTPS site, KTStack asks to install the CA into your System Keychain. You may need to enter your admin password.
