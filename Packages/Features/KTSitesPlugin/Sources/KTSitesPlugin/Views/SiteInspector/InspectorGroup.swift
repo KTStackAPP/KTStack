@@ -39,8 +39,8 @@ struct InspectorField<Content: View>: View {
 
 struct InspectorValue: View {
     let text: String
-    var muted = false
-    var truncation: Text.TruncationMode = .tail
+    let muted: Bool
+    let truncation: Text.TruncationMode
 
     init(_ text: String, muted: Bool = false, truncation: Text.TruncationMode = .tail) {
         self.text = text

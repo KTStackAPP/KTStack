@@ -8,5 +8,4 @@ struct SiteInspectorActions {
     let configureVSCode: (SiteSummary) -> Void
     let restore: (SiteSummary) -> Void
     let remove: (SiteSummary) -> Void
-    let reportError: (String) -> Void
 }

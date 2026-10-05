@@ -101,7 +101,7 @@ private struct NodePortEditor: View {
     init(site: SiteSummary, save: @escaping (Int?) throws -> Void) {
         self.site = site
         self.save = save
-        _draft = State(initialValue: site.nodePort.map(String.init) ?? "")
+        _draft = State(initialValue: Self.display(site.nodePort))
     }
 
     var body: some View {
@@ -118,7 +118,7 @@ private struct NodePortEditor: View {
             }
             if let error { InspectorError(error) }
         }
-        .onChange(of: site.nodePort) { new in draft = new.map(String.init) ?? "" }
+        .onChange(of: site.nodePort) { new in draft = Self.display(new) }
     }
 
     private func commit() {
@@ -139,8 +139,12 @@ private struct NodePortEditor: View {
     }
 
     private func restore(_ message: String) {
-        draft = site.nodePort.map(String.init) ?? ""
+        draft = Self.display(site.nodePort)
         error = message
+    }
+
+    private static func display(_ port: Int?) -> String {
+        port.map(String.init) ?? ""
     }
 }
 

@@ -115,8 +115,7 @@ struct SitesScreen: View {
             recheckType: recheckType,
             configureVSCode: configureVSCode,
             restore: { restoreSite = $0 },
-            remove: confirmRemove,
-            reportError: { actionError = $0 }
+            remove: confirmRemove
         )
     }
 
