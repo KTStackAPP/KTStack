@@ -51,6 +51,24 @@ final class SiteWorkerManagingConformanceTests: XCTestCase {
         XCTAssertEqual(server.workersState.status(of: queue.id).state, .stopped)
     }
 
+    func testDetachedServerNeverDrivesTheLiveLaunchdStack() throws {
+        let (server, site) = try makeServerWithSite()
+        XCTAssertFalse(server.ownsRunningStack)
+        XCTAssertFalse(server.isRunning, "a test instance must not adopt a KTStack stack running on this Mac")
+        XCTAssertFalse(server.phpRunning)
+
+        let queue = SiteWorkerPreset.laravelQueue.makeWorker()
+        try server.setWorkers(site.id, [queue])
+        server.startWorker(siteID: site.id, workerID: queue.id)
+        server.setPHPVersion(site.id, site.phpVersion)
+        XCTAssertFalse(server.isBusy, "registry changes on a detached instance never reconcile launchd")
+
+        server.start()
+        server.restartWorker(siteID: site.id, workerID: queue.id)
+        XCTAssertFalse(server.isBusy)
+        XCTAssertFalse(server.isRunning)
+    }
+
     func testLogSourceIDMatchesTheCatalogFormat() throws {
         let (server, site) = try makeServerWithSite()
         let queue = SiteWorkerPreset.laravelQueue.makeWorker()

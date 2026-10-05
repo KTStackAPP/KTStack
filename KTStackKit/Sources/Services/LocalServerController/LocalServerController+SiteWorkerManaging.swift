@@ -42,7 +42,7 @@ extension LocalServerController: SiteWorkerManaging {
     }
 
     public func restartWorker(siteID: UUID, workerID: UUID) {
-        guard let site = registry.sites.first(where: { $0.id == siteID }),
+        guard isRunning, let site = registry.sites.first(where: { $0.id == siteID }),
               let worker = site.workers.first(where: { $0.id == workerID }) else { return }
         let supervisor = self.workers
         Task.detached(priority: .userInitiated) { supervisor.restart(site: site, worker: worker) }

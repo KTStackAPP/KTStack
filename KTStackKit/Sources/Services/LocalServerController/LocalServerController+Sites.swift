@@ -201,6 +201,7 @@ public extension LocalServerController {
     }
 
     internal func reconcile() {
+        guard ownsRunningStack else { return }
         isBusy = true
         let sites = registry.sites
         let port = httpPort

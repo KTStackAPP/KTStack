@@ -95,3 +95,14 @@ Sites section is visible.
 - Commands: at most 1024 characters, no control characters, balanced quotes. Words are split like
   a shell (quotes and backslashes) but nothing is expanded; there is no shell.
 - At most 10 workers per site.
+
+## Tests and the live stack
+
+launchd labels are global to the Mac, not to an `AppSupportPaths` root. A `LocalServerController`
+created without `adoptRunningStack` (every instance in the test suite) therefore never treats the
+launchd stack as its own: `isRunning` and `phpRunning` stay false, and start, stop, restart,
+reconcile, quit teardown and worker restart do nothing. Only the app's controller
+(`adoptRunningStack: true`) drives launchd. Without this, a test that edits its temporary registry
+on a Mac where KTStack is running would see the real front as running, reconcile, and boot out
+every real `com.ktstack.site.*` backend and `com.ktstack.worker.*` job.
+`SiteWorkerManagingConformanceTests.testDetachedServerNeverDrivesTheLiveLaunchdStack` guards it.

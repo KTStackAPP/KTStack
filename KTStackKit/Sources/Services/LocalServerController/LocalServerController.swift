@@ -50,6 +50,7 @@ public final class LocalServerController: ObservableObject {
     var pendingReconcile = false
     var queuedAction: (@MainActor (LocalServerController) -> Void)?
     var didCheckCertRenewal = false
+    nonisolated let ownsRunningStack: Bool
 
     public init(
         bundleBinDir: URL,
@@ -59,6 +60,7 @@ public final class LocalServerController: ObservableObject {
     ) {
         self.paths = paths
         self.tld = tld
+        ownsRunningStack = adoptRunningStack
         agents = LaunchAgentManager(paths: paths)
         registry = SiteRegistry(
             storeURL: paths.sitesRegistryFile,
@@ -138,6 +140,7 @@ public final class LocalServerController: ObservableObject {
     }
 
     public var phpRunning: Bool {
+        guard ownsRunningStack else { return false }
         let active = pools.activeVersions
         return !active.isEmpty && active.allSatisfy { pools.isRunning(version: $0) }
     }
@@ -165,10 +168,10 @@ public final class LocalServerController: ObservableObject {
     }
 
     func recomputeStatus() {
-        let nginxRunning = nginx.isRunning
+        let nginxRunning = ownsRunningStack && nginx.isRunning
         let newNginx: ServiceStatus = nginxRunning ? .running : .stopped
         let active = pools.activeVersions
-        let allUp = !active.isEmpty && active.allSatisfy { pools.isRunning(version: $0) }
+        let allUp = ownsRunningStack && !active.isEmpty && active.allSatisfy { pools.isRunning(version: $0) }
         let newPhp: ServiceStatus = allUp ? .running : .stopped
         if newNginx != nginxStatus { nginxStatus = newNginx }
         if newPhp != phpStatus { phpStatus = newPhp }
