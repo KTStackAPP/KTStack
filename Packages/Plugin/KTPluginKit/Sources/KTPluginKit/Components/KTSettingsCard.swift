@@ -1,12 +1,15 @@
-import KTPluginKit
-import KTStackKit
 import SwiftUI
 
-struct KTSettingsGroup<Content: View>: View {
-    let title: String
-    @ViewBuilder var content: () -> Content
+public struct KTSettingsGroup<Content: View>: View {
+    public let title: String
+    @ViewBuilder public var content: () -> Content
 
-    var body: some View {
+    public init(title: String, @ViewBuilder content: @escaping () -> Content) {
+        self.title = title
+        self.content = content
+    }
+
+    public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title.uppercased())
                 .font(.jbMono(12, .bold)).tracking(0.5)
@@ -19,13 +22,25 @@ struct KTSettingsGroup<Content: View>: View {
     }
 }
 
-struct KTSettingsRow<Trailing: View>: View {
-    let title: String
-    var subtitle: String?
-    var showDivider = true
-    @ViewBuilder var trailing: () -> Trailing
+public struct KTSettingsRow<Trailing: View>: View {
+    public let title: String
+    public var subtitle: String?
+    public var showDivider = true
+    @ViewBuilder public var trailing: () -> Trailing
 
-    var body: some View {
+    public init(
+        title: String,
+        subtitle: String? = nil,
+        showDivider: Bool = true,
+        @ViewBuilder trailing: @escaping () -> Trailing
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.showDivider = showDivider
+        self.trailing = trailing
+    }
+
+    public var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.jbMono(14, .regular)).foregroundStyle(KTColor.ink)
@@ -43,11 +58,16 @@ struct KTSettingsRow<Trailing: View>: View {
     }
 }
 
-struct KTSettingsMenuValue: View {
-    let text: String
-    var mono = false
+public struct KTSettingsMenuValue: View {
+    public let text: String
+    public var mono = false
 
-    var body: some View {
+    public init(text: String, mono: Bool = false) {
+        self.text = text
+        self.mono = mono
+    }
+
+    public var body: some View {
         HStack(spacing: 7) {
             Text(text)
                 .font(.jbMono(13, mono ? .regular : .medium))
@@ -60,11 +80,16 @@ struct KTSettingsMenuValue: View {
     }
 }
 
-struct KTSettingsValuePill: View {
-    let text: String
-    var mono = true
+public struct KTSettingsValuePill: View {
+    public let text: String
+    public var mono = true
 
-    var body: some View {
+    public init(text: String, mono: Bool = true) {
+        self.text = text
+        self.mono = mono
+    }
+
+    public var body: some View {
         Text(text)
             .font(.jbMono(13, .regular))
             .foregroundStyle(KTColor.ink2)
@@ -74,14 +99,20 @@ struct KTSettingsValuePill: View {
     }
 }
 
-struct KTSettingsTextButton: View {
-    let title: String
-    var danger = false
-    let action: () -> Void
+public struct KTSettingsTextButton: View {
+    public let title: String
+    public var danger = false
+    public let action: () -> Void
 
     @State private var hovering = false
 
-    var body: some View {
+    public init(title: String, danger: Bool = false, action: @escaping () -> Void) {
+        self.title = title
+        self.danger = danger
+        self.action = action
+    }
+
+    public var body: some View {
         Button(action: action) {
             Text(title).font(.jbMono(13, .medium))
                 .foregroundStyle(danger ? KTColor.danger : KTColor.ink)
