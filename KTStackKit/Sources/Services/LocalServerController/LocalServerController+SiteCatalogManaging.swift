@@ -20,6 +20,7 @@ extension SiteSummary {
             backendPort: site.backendPort,
             proxyTarget: site.proxyTarget,
             aliases: site.aliases,
+            wildcardSubdomains: site.wildcardSubdomains,
             envVars: site.envVars,
             frontDirectives: site.frontDirectives
         )
@@ -86,6 +87,11 @@ extension LocalServerController: SiteCatalogManaging {
     public func validateAliases(_ aliases: [String], for id: UUID) throws {
         guard let site = registry.sites.first(where: { $0.id == id }) else { return }
         try registry.validateAliases(aliases, for: site)
+    }
+
+    public func setWildcardSubdomains(_ id: UUID, _ enabled: Bool) throws {
+        guard let site = registry.sites.first(where: { $0.id == id }) else { return }
+        try setSiteWildcardSubdomains(site, enabled)
     }
 
     public func setEnvVars(_ id: UUID, _ env: [String: String]) throws {

@@ -13,6 +13,8 @@ final class SiteSettingsModelTests: XCTestCase {
     private final class Recorder {
         var validated: [[String]] = []
         var setAliases: [[String]] = []
+        var setWildcard: [Bool] = []
+        var setWildcardError: Error?
         var setEnv: [[String: String]] = []
         var savedDirectives: [String] = []
         var validateError: Error?
@@ -25,6 +27,7 @@ final class SiteSettingsModelTests: XCTestCase {
             site: site,
             validateAliases: { rec.validated.append($0); if let e = rec.validateError { throw e } },
             setAliases: { rec.setAliases.append($0); if let e = rec.setAliasesError { throw e } },
+            setWildcardSubdomains: { rec.setWildcard.append($0); if let e = rec.setWildcardError { throw e } },
             setEnvVars: { rec.setEnv.append($0) },
             saveDirectives: { rec.savedDirectives.append($0); if let e = rec.directivesError { throw e } }
         )
@@ -54,6 +57,27 @@ final class SiteSettingsModelTests: XCTestCase {
         XCTAssertTrue(model.aliases.isEmpty)
         XCTAssertEqual(model.aliasDraft, "bad.local")
         XCTAssertEqual(model.aliasError, "must end in .test")
+    }
+
+    func testToggleWildcardSetsAndFlips() {
+        let rec = Recorder()
+        let model = makeModel(makeSite(wildcardSubdomains: false), rec)
+        model.toggleWildcard()
+
+        XCTAssertEqual(rec.setWildcard, [true])
+        XCTAssertTrue(model.wildcardSubdomains)
+        XCTAssertNil(model.wildcardError)
+    }
+
+    func testToggleWildcardFailureKeepsStateAndShowsError() {
+        let rec = Recorder()
+        rec.setWildcardError = TestError(message: "The server is busy, try again in a moment.")
+        let model = makeModel(makeSite(wildcardSubdomains: true), rec)
+        model.toggleWildcard()
+
+        XCTAssertEqual(rec.setWildcard, [false])
+        XCTAssertTrue(model.wildcardSubdomains)
+        XCTAssertEqual(model.wildcardError, "The server is busy, try again in a moment.")
     }
 
     func testRemoveAliasSetsRemaining() {

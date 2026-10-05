@@ -19,9 +19,11 @@ public struct CertMinter {
 
     public enum CertError: LocalizedError {
         case nonLocalDomain(String, tld: String)
+        case wildcardTooBroad(String)
         public var errorDescription: String? {
             switch self {
             case let .nonLocalDomain(d, t): "Refusing to mint a certificate for “\(d)” — only .\(t) domains are allowed."
+            case let .wildcardTooBroad(d): "Refusing to mint a certificate for “\(d)” — a wildcard must sit under a site domain, not the TLD."
             }
         }
     }
@@ -31,6 +33,10 @@ public struct CertMinter {
         guard domain.hasSuffix(".\(tld)") else { throw CertError.nonLocalDomain(domain, tld: tld) }
         for alias in aliases where !alias.hasSuffix(".\(tld)") {
             throw CertError.nonLocalDomain(alias, tld: tld)
+        }
+        // `*.test` would cover every site and browsers reject it anyway; only `*.<site>.<tld>`.
+        for alias in aliases where alias.hasPrefix("*.") && alias.dropFirst(2).split(separator: ".").count < 2 {
+            throw CertError.wildcardTooBroad(alias)
         }
         let cert = paths.siteCert(name), key = paths.siteKey(name)
         try runner.mint(domain: domain, aliases: aliases, certFile: cert, keyFile: key)
@@ -137,6 +143,6 @@ public struct SiteHTTPSProvisioner: Sendable {
         if !trustQuery(caCert) {
             try installCA()
         }
-        try mintLeaf(site.domain, site.aliases, tld)
+        try mintLeaf(site.domain, site.routedAliases, tld)
     }
 }

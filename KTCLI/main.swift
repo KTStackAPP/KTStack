@@ -99,7 +99,7 @@ case "mcp":
           }
 
         AVAILABLE TOOLS:
-          • ktstack_list_sites: List local sites, domains, PHP versions and ports
+          • ktstack_list_sites: List local sites, domains, PHP versions, ports and wildcard flag
           • ktstack_list_services: List background services and whether they run
           • ktstack_restart_service: Restart a background service
           • ktstack_get_recent_logs: Fetch the last lines of a KTStack log source

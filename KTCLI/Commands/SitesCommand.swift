@@ -24,16 +24,17 @@ struct SitesCommand {
             return
         }
 
-        print(String(format: "%-20@ %-25@ %-8@ %-6@ %-6@ %@", "NAME", "DOMAIN", "PHP", "HTTPS", "PORT", "PATH"))
-        print(String(repeating: "-", count: 85))
+        print(String(format: "%-20@ %-25@ %-8@ %-6@ %-9@ %-6@ %@", "NAME", "DOMAIN", "PHP", "HTTPS", "WILDCARD", "PORT", "PATH"))
+        print(String(repeating: "-", count: 95))
 
         for site in sites {
             print(String(
-                format: "%-20@ %-25@ %-8@ %-6@ %-6d %@",
+                format: "%-20@ %-25@ %-8@ %-6@ %-9@ %-6d %@",
                 site.name,
                 site.domain,
                 site.phpVersion,
                 site.secure ? "yes" : "no",
+                site.wildcardSubdomains ? "yes" : "no",
                 site.backendPort,
                 site.path
             ))

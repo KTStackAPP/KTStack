@@ -3,8 +3,10 @@ import KTStackCore
 
 // Standalone Apache config for one PHP site's loopback backend. Plain HTTP on 127.0.0.1:<port>,
 // PHP via mod_proxy_fcgi to the existing PHP-FPM unix socket (never mod_php, never mod_ssl: the
-// front terminates TLS). SERVER_PORT/HTTPS are pinned from the front-terminated state via
-// UseCanonicalName + ServerName, so framework redirect URLs are not built from the loopback port.
+// front terminates TLS). SERVER_PORT/HTTPS are pinned from the front-terminated state: the port
+// comes from `ServerName <domain>:<443|80>` (UseCanonicalPhysicalPort Off), so redirect URLs are not
+// built from the loopback port. UseCanonicalName Off keeps the host from the request, so an alias or
+// wildcard subdomain is not redirected to the main domain (e.g. mod_dir's trailing-slash redirect).
 //
 // ServerRoot points at the on-demand relocated Apache install; modules load from <root>/modules.
 public struct ApacheBackend: WebServerBackend {
@@ -30,7 +32,7 @@ public struct ApacheBackend: WebServerBackend {
         PidFile \(q(context.pidFile.path))
         Listen 127.0.0.1:\(context.backendPort)
         ServerName \(context.domain)
-        UseCanonicalName On
+        UseCanonicalName Off
         UseCanonicalPhysicalPort Off
         TypesConfig \(q(serverRoot.appendingPathComponent("conf/mime.types").path))
 

@@ -42,6 +42,7 @@ public struct KTIPCSiteInfo: Codable, Sendable {
     public let phpVersion: String
     public let secure: Bool
     public let backendPort: Int
+    public let wildcardSubdomains: Bool
 
     public init(
         id: String,
@@ -50,7 +51,8 @@ public struct KTIPCSiteInfo: Codable, Sendable {
         path: String,
         phpVersion: String,
         secure: Bool,
-        backendPort: Int
+        backendPort: Int,
+        wildcardSubdomains: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -59,6 +61,24 @@ public struct KTIPCSiteInfo: Codable, Sendable {
         self.phpVersion = phpVersion
         self.secure = secure
         self.backendPort = backendPort
+        self.wildcardSubdomains = wildcardSubdomains
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, domain, path, phpVersion, secure, backendPort, wildcardSubdomains
+    }
+
+    // A `kt` newer than the running app reads a payload without wildcardSubdomains; default false.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        domain = try c.decode(String.self, forKey: .domain)
+        path = try c.decode(String.self, forKey: .path)
+        phpVersion = try c.decode(String.self, forKey: .phpVersion)
+        secure = try c.decode(Bool.self, forKey: .secure)
+        backendPort = try c.decode(Int.self, forKey: .backendPort)
+        wildcardSubdomains = try c.decodeIfPresent(Bool.self, forKey: .wildcardSubdomains) ?? false
     }
 }
 

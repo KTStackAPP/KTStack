@@ -141,6 +141,10 @@ struct SiteListRow: View, Equatable {
                         KTPill(text: "+\(site.aliases.count)")
                             .ktTip(site.aliases.joined(separator: ", "))
                     }
+                    if site.wildcardSubdomains {
+                        KTPill(text: "*.")
+                            .ktTip("Also answers on *.\(site.domain)")
+                    }
                 }
             }
             .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)

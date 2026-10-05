@@ -19,6 +19,7 @@ func makeSite(
     backendPort: Int? = 9001,
     proxyTarget: String? = nil,
     aliases: [String] = [],
+    wildcardSubdomains: Bool = false,
     envVars: [String: String] = [:],
     frontDirectives: String? = nil
 ) -> SiteSummary {
@@ -26,7 +27,8 @@ func makeSite(
         id: id, name: name, path: path, docroot: docroot, domain: domain, phpVersion: phpVersion,
         kind: kind, databaseName: databaseName, secure: secure, nodePort: nodePort,
         nodeCommand: nodeCommand, engine: engine, backendPort: backendPort, proxyTarget: proxyTarget,
-        aliases: aliases, envVars: envVars, frontDirectives: frontDirectives
+        aliases: aliases, wildcardSubdomains: wildcardSubdomains, envVars: envVars,
+        frontDirectives: frontDirectives
     )
 }
 
@@ -43,6 +45,8 @@ final class FakeSiteCatalog: SiteCatalogManaging {
     private(set) var setAliasesCalls: [(UUID, [String])] = []
     var setAliasesShouldThrow: Error?
     var validateAliasesShouldThrow: Error?
+    private(set) var setWildcardCalls: [(UUID, Bool)] = []
+    var setWildcardShouldThrow: Error?
     private(set) var setEnvVarsCalls: [(UUID, [String: String])] = []
     var setEnvVarsShouldThrow: Error?
     private(set) var saveFrontDirectivesCalls: [(UUID, String)] = []
@@ -90,6 +94,11 @@ final class FakeSiteCatalog: SiteCatalogManaging {
 
     func validateAliases(_: [String], for _: UUID) throws {
         if let validateAliasesShouldThrow { throw validateAliasesShouldThrow }
+    }
+
+    func setWildcardSubdomains(_ id: UUID, _ enabled: Bool) throws {
+        if let setWildcardShouldThrow { throw setWildcardShouldThrow }
+        setWildcardCalls.append((id, enabled))
     }
 
     func setEnvVars(_ id: UUID, _ env: [String: String]) throws {
