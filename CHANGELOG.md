@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+- Scheduled backups in **Settings → Scheduled Backups**. A plan backs up the databases you pick, and optionally site source code and KTStack settings, into one archive every day or every week, and keeps the last N archives. A missed time (Mac asleep or KTStack closed) runs once as soon as possible; plans can skip runs on battery power.
+- Backup destinations in **Settings → Backup Destinations**: a local folder (external drive, network share, synced folder), any S3-compatible storage (Amazon S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, DigitalOcean Spaces or a custom endpoint) or a Google Drive folder. Each plan uploads to one destination and can keep a copy on this Mac. Secrets are stored in the Keychain, and **Test Connection** checks a destination before you use it.
+- Google Drive sign-in uses your browser and only asks for access to files KTStack creates or that you pick. Choose a folder KTStack created, create a new one, or pick any existing folder with Google's picker.
+- **Restore…** on a plan downloads an archive, verifies its checksum, adds its database dumps to **Database → Backups** and copies site folders and settings into Downloads.
+
 ### Changed
 
 - MongoDB documents are now shown and saved as Extended JSON. Decimal128 values show their real value instead of an unreadable placeholder, and documents containing Decimal128, binary subtypes, regular expressions or JavaScript code can now be edited without losing those types. Binary data is shown in the canonical `{"$binary": {"base64", "subType"}}` form.

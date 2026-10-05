@@ -81,7 +81,8 @@ Packages/
     ├── KTLogsPlugin           # Unified log viewer
     ├── KTTunnelPlugin         # Cloudflare Tunnel sharing
     ├── KTDoctorPlugin         # System & port diagnostic probes
-    └── KTDatabasePlugin       # Pure-Swift drivers (MySQL, PG, SQLite, Mongo) & editor
+    ├── KTDatabasePlugin       # Pure-Swift drivers (MySQL, PG, SQLite, Mongo) & editor
+    └── KTBackupPlugin         # Scheduled backups to a local folder, S3 or Google Drive
 ```
 
 ### Invariants:

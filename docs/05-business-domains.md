@@ -112,6 +112,11 @@ flowchart LR
 - Spawns a supervised `cloudflared` process binding to a specific site's local port.
 - Emits a temporary public HTTPS URL (`https://<random>.trycloudflare.com`) for remote testing, webhooks, or client previews.
 
+### 5.6 Scheduled Backups (`KTBackupPlugin`)
+- Plans back up selected databases, optional site folders and a settings snapshot into one `.ktbackup` archive, daily or weekly, keeping the last N archives.
+- Each plan delivers to one destination: this Mac, a local folder, an S3-compatible bucket or a Google Drive folder. Credentials stay in the Keychain.
+- Restore downloads and verifies an archive, adds the database dumps to Database › Backups and copies files to Downloads. Details in [Scheduled Backups](scheduled-backups.md).
+
 ---
 
 [Previous: Authentication & Security](04-auth-and-security.md) · [Index](README.md) · [Next: Integration & Background](06-integration-and-background.md)

@@ -106,6 +106,7 @@ flowchart TD
 | **KTLogsPlugin** | Real-time multi-source log stream viewer for Nginx, PHP-FPM, MySQL, and system daemons. | `Packages/Features/KTLogsPlugin/` |
 | **KTDoctorPlugin** | Diagnostic subsystem probing network ports, helper status, config validity, and filesystem permissions. | `Packages/Features/KTDoctorPlugin/` |
 | **KTTunnelPlugin** | Cloudflare Tunnel controller creating temporary secure public ingress to local sites. | `Packages/Features/KTTunnelPlugin/` |
+| **KTBackupPlugin** | Scheduled backups of databases, optional site folders and settings to a local folder, S3-compatible storage or Google Drive, with restore. See [Scheduled Backups](scheduled-backups.md). | `Packages/Features/KTBackupPlugin/` |
 
 ---
 

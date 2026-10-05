@@ -26,3 +26,10 @@ public struct DatabaseBackupArtifact: Sendable, Equatable {
 public protocol DatabaseBackupProviding: Sendable {
     func backup(database: String, engine: DatabaseEngine?) async throws -> DatabaseBackupArtifact
 }
+
+public protocol ScheduledDatabaseBackupProviding: Sendable {
+    func installedEngines() -> [DatabaseEngine]
+    func userDatabases(_ engine: DatabaseEngine) async throws -> [String]
+    func stageBackup(engine: DatabaseEngine, databases: [String], into directory: URL) async throws -> URL
+    func importStagedBackup(at directory: URL) throws -> [String]
+}
