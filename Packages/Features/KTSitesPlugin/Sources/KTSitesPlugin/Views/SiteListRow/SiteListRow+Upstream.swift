@@ -25,17 +25,19 @@ extension SiteListRow {
     }
 
     var nodePortField: some View {
-        TextField("port", text: $nodePortDraft)
-            .textFieldStyle(.plain)
-            .font(.jbMono(12.5))
-            .foregroundStyle(KTColor.ink)
-            .frame(width: 46)
-            .multilineTextAlignment(.center)
-            .padding(.vertical, 2).padding(.horizontal, 6)
-            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(KTColor.pillBg))
-            .onSubmit(saveNodePort)
-            .ktTip("Port your Node app listens on; KTStack proxies this site to it")
-            .accessibilityLabel("Node port for \(site.domain)")
+        InlineEditField(
+            placeholder: "port",
+            text: $nodePortDraft,
+            alignment: .center,
+            onSubmit: saveNodePort,
+            onCancel: { nodePortDraft = site.nodePort.map(String.init) ?? "" }
+        )
+        .frame(width: 46)
+        .multilineTextAlignment(.center)
+        .padding(.vertical, 2).padding(.horizontal, 6)
+        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(KTColor.pillBg))
+        .ktTip("Port your Node app listens on; KTStack proxies this site to it")
+        .accessibilityLabel("Node port for \(site.domain)")
     }
 
     func saveNodePort() {
@@ -77,17 +79,17 @@ extension SiteListRow {
     }
 
     var proxyTargetField: some View {
-        TextField("http://127.0.0.1:8000", text: $proxyTargetDraft)
-            .textFieldStyle(.plain)
-            .font(.jbMono(12.5))
-            .foregroundStyle(KTColor.ink)
-            .frame(maxWidth: 200)
-            .lineLimit(1)
-            .padding(.vertical, 2).padding(.horizontal, 6)
-            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(KTColor.pillBg))
-            .onSubmit(saveProxyTarget)
-            .ktTip("Upstream KTStack proxies this site to; KTStack does not run it")
-            .accessibilityLabel("Proxy target for \(site.domain)")
+        InlineEditField(
+            placeholder: "http://127.0.0.1:8000",
+            text: $proxyTargetDraft,
+            onSubmit: saveProxyTarget,
+            onCancel: { proxyTargetDraft = SiteListRow.proxyDisplay(site) }
+        )
+        .frame(maxWidth: 200)
+        .padding(.vertical, 2).padding(.horizontal, 6)
+        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(KTColor.pillBg))
+        .ktTip("Upstream KTStack proxies this site to; KTStack does not run it")
+        .accessibilityLabel("Proxy target for \(site.domain)")
     }
 
     func saveProxyTarget() {

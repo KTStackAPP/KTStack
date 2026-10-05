@@ -141,12 +141,13 @@ struct SiteListRow: View, Equatable {
             VStack(alignment: .leading, spacing: 2) {
                 Text(site.name).font(KTType.rowName).foregroundStyle(KTColor.ink).lineLimit(1)
                 HStack(spacing: 6) {
-                    TextField("domain", text: $domainDraft)
-                        .textFieldStyle(.plain)
-                        .font(.jbMono(12.5))
-                        .foregroundStyle(domainError ? KTColor.danger : KTColor.ink2)
-                        .lineLimit(1)
-                        .onSubmit(commitDomain)
+                    InlineEditField(
+                        placeholder: "domain",
+                        text: $domainDraft,
+                        color: domainError ? KTColor.danger : KTColor.ink2,
+                        onSubmit: commitDomain,
+                        onCancel: { domainDraft = site.domain; domainError = false }
+                    )
                     if !site.aliases.isEmpty {
                         KTPill(text: "+\(site.aliases.count)")
                             .ktTip(site.aliases.joined(separator: ", "))
