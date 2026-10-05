@@ -17,6 +17,7 @@ extension LocalFolderClient {
             options: [.skipsHiddenFiles]
         )
         .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+        .map { base.appendingPathComponent($0.lastPathComponent, isDirectory: true) }
         .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
     }
 
