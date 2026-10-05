@@ -209,6 +209,10 @@ public struct AppSupportPaths: Sendable {
         siteWorkerStatusDir.appendingPathComponent("\(label).json")
     }
 
+    public func siteWorkerSpec(_ label: String) -> URL {
+        siteWorkerStatusDir.appendingPathComponent("\(label).spec.json")
+    }
+
     public func binary(_ name: String) -> URL {
         bin.appendingPathComponent(name)
     }

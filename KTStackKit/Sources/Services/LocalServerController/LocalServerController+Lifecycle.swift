@@ -22,7 +22,7 @@ extension LocalServerController {
                 await finish(missing: missing, error: nil)
             } catch {
                 ServiceDiagnostics(paths: paths).log(.error, "server start failed: \(error.localizedDescription)")
-                pools.stopAll(); backends.stopAll(); nginx.stop()
+                workers.stopAll(); pools.stopAll(); backends.stopAll(); nginx.stop()
                 await finish(missing: [], error: error.localizedDescription)
             }
         }
@@ -31,7 +31,8 @@ extension LocalServerController {
     public func stop() {
         guard !deferIfBusy({ $0.stop() }) else { return }
         isBusy = true; nginxStatus = .stopping; phpStatus = .stopping
-        Task.detached(priority: .userInitiated) { [nginx, backends, pools, self] in
+        Task.detached(priority: .userInitiated) { [nginx, backends, pools, workers, self] in
+            workers.stopAll()
             nginx.stop()
             backends.stopAll()
             pools.stopAll()
@@ -50,14 +51,14 @@ extension LocalServerController {
         let sites = registry.sites
         let port = httpPort
         Task.detached(priority: .userInitiated) { [self] in
-            nginx.stop(); backends.stopAll(); pools.stopAll()
+            workers.stopAll(); nginx.stop(); backends.stopAll(); pools.stopAll()
             do {
                 try stager.stageIfNeeded()
                 await ensureDefaultPHPInstalled(sites: sites)
                 let missing = try await applyConfiguration(sites: sites, port: port, startNginx: true)
                 await finish(missing: missing, error: nil)
             } catch {
-                pools.stopAll(); backends.stopAll(); nginx.stop()
+                workers.stopAll(); pools.stopAll(); backends.stopAll(); nginx.stop()
                 await finish(missing: [], error: error.localizedDescription)
             }
         }
@@ -94,10 +95,11 @@ extension LocalServerController {
                 }
                 try nginx.start()
                 try await Self.waitForListening(frontPorts(for: sites, httpPort: port))
+                workers.reconcile(sites: sites)
                 await finish(missing: [], error: nil)
             } catch {
                 ServiceDiagnostics(paths: paths).log(.error, "nginx start failed: \(error.localizedDescription)")
-                backends.stopAll(); nginx.stop()
+                workers.stopAll(); backends.stopAll(); nginx.stop()
                 await finish(missing: [], error: error.localizedDescription)
             }
         }
@@ -106,7 +108,8 @@ extension LocalServerController {
     public func stopNginx() {
         guard !deferIfBusy({ $0.stopNginx() }) else { return }
         isBusy = true; nginxStatus = .stopping
-        Task.detached(priority: .userInitiated) { [nginx, backends, self] in
+        Task.detached(priority: .userInitiated) { [nginx, backends, workers, self] in
+            workers.stopAll()
             nginx.stop()
             backends.stopAll()
             await MainActor.run { self.isBusy = false; self.recomputeStatus() }
@@ -165,10 +168,11 @@ extension LocalServerController {
                 }
                 try nginx.start()
                 try await Self.waitForListening(frontPorts(for: sites, httpPort: port))
+                workers.reconcile(sites: sites)
                 await finish(missing: [], error: nil)
             } catch {
                 ServiceDiagnostics(paths: paths).log(.error, "nginx start failed: \(error.localizedDescription)")
-                backends.stopAll(); nginx.stop()
+                workers.stopAll(); backends.stopAll(); nginx.stop()
                 await finish(missing: [], error: error.localizedDescription)
             }
         }

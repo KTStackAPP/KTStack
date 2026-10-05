@@ -36,6 +36,7 @@ public final class LocalServerController: ObservableObject {
     nonisolated let agents: LaunchAgentManager
     nonisolated let nginx: NginxController
     nonisolated let backends: SiteBackendSupervisor
+    nonisolated let workers: SiteWorkerSupervisor
     nonisolated let pools: PHPFPMPoolManager
     nonisolated let upstreamProbe: UpstreamProbe
     nonisolated let generator: SiteConfigGenerator
@@ -66,6 +67,7 @@ public final class LocalServerController: ObservableObject {
         )
         nginx = NginxController(paths: paths, agents: agents)
         backends = SiteBackendSupervisor(paths: paths, agents: agents)
+        workers = SiteWorkerSupervisor(paths: paths, agents: agents)
         pools = PHPFPMPoolManager(paths: paths, agents: agents)
         upstreamProbe = UpstreamProbe()
         generator = SiteConfigGenerator(paths: paths)
@@ -104,7 +106,7 @@ public final class LocalServerController: ObservableObject {
         isBusy = true
         let sites = registry.sites
         let required = generator.poolVersions(for: sites)
-        Task.detached(priority: .userInitiated) { [nginx, pools, backends, self] in
+        Task.detached(priority: .userInitiated) { [nginx, pools, backends, workers, self] in
             guard nginx.isRunningNow else {
                 await MainActor.run { self.isBusy = false }
                 return
@@ -115,6 +117,7 @@ public final class LocalServerController: ObservableObject {
                 self.refreshWatches()
             }
             await backends.reconcile(sites: sites)
+            workers.reconcile(sites: sites)
             await MainActor.run { self.isBusy = false }
         }
     }

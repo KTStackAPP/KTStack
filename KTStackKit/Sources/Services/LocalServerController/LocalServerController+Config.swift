@@ -112,6 +112,7 @@ extension LocalServerController {
             do { try nginx.reload() }
             catch { NSLog("KTStack: nginx reload failed: \(error.localizedDescription)") }
         }
+        if startNginx || nginx.isRunning { workers.reconcile(sites: sites) }
         return missing
     }
 
