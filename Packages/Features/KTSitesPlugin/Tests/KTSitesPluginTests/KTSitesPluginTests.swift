@@ -16,6 +16,7 @@ final class KTSitesPluginTests: XCTestCase {
             dns: FakeDNSResolving(state: DNSResolverState(status: .enabled, isBusy: false, lastError: nil, usesHelper: false, helperNeedsApproval: false)),
             runtimes: FakeRuntimeManaging(state: RuntimeState()),
             sharing: FakeSiteSharing(),
+            workers: FakeSiteWorkers(),
             modals: KTModalPresenter(),
             sitesRoot: { URL(fileURLWithPath: "/sites") },
             httpsByDefault: { true },

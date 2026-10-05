@@ -28,6 +28,7 @@ struct SiteListRow: View, Equatable {
     var onSettings: () -> Void = {}
     var onRecheckType: () -> Void = {}
     var onError: (String) -> Void = { _ in }
+    let workersSummary: SiteWorkersSummary?
 
     // Held as plain value props (not @ObservedObject) so one site's toggle doesn't re-lay-out the
     // whole list; `.equatable()` skips rows whose visible inputs are unchanged.
@@ -61,7 +62,8 @@ struct SiteListRow: View, Equatable {
         onRestore: @escaping () -> Void = {},
         onSettings: @escaping () -> Void = {},
         onRecheckType: @escaping () -> Void = {},
-        onError: @escaping (String) -> Void = { _ in }
+        onError: @escaping (String) -> Void = { _ in },
+        workersSummary: SiteWorkersSummary? = nil
     ) {
         self.site = site
         self.availableVersions = availableVersions
@@ -87,6 +89,7 @@ struct SiteListRow: View, Equatable {
         self.onSettings = onSettings
         self.onRecheckType = onRecheckType
         self.onError = onError
+        self.workersSummary = workersSummary
         _domainDraft = State(initialValue: site.domain)
         _nodePortDraft = State(initialValue: site.nodePort.map(String.init) ?? "")
         _proxyTargetDraft = State(initialValue: SiteListRow.proxyDisplay(site))
@@ -101,6 +104,7 @@ struct SiteListRow: View, Equatable {
             && a.framework == b.framework
             && a.apacheInstalled == b.apacheInstalled
             && a.apacheInstalling == b.apacheInstalling
+            && a.workersSummary == b.workersSummary
     }
 
     var body: some View {
@@ -151,6 +155,9 @@ struct SiteListRow: View, Equatable {
             .layoutPriority(-1)
 
             if site.kind == .php {
+                if let workersSummary, !workersSummary.isEmpty {
+                    SiteWorkersBadge(summary: workersSummary, action: onSettings)
+                }
                 KTBadge(text: framework.label, tint: SiteVisuals.tint(for: framework), radius: 8)
                 PhpMenu(current: site.phpVersion, versions: availableVersions, onSelect: onSetVersion)
                 EngineMenu(

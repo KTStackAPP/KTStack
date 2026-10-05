@@ -37,6 +37,7 @@ final class SitesViewModelTests: XCTestCase {
             sharing: sharing,
             dns: dns,
             provisioning: provisioning,
+            workers: FakeSiteWorkers(),
             route: { _ in }
         )
         return Harness(vm: vm, catalog: catalogFake, server: serverFake, sharing: sharing, dns: dns, provisioning: provisioning)
@@ -107,6 +108,7 @@ final class SitesViewModelTests: XCTestCase {
             sharing: FakeSiteSharing(),
             dns: FakeDNSResolving(state: DNSResolverState(status: .enabled, isBusy: false, lastError: nil, usesHelper: false, helperNeedsApproval: false)),
             provisioning: FakeSiteProvisioning(),
+            workers: FakeSiteWorkers(),
             route: { routed = $0 }
         )
         vm.openLogs(site)

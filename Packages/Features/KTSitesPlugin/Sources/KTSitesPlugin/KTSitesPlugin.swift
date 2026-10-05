@@ -15,6 +15,7 @@ public final class KTSitesPlugin: KTStackPlugin, SectionActivationObserving {
     private let dns: any DNSResolverManaging
     private let runtimes: any RuntimeManaging
     private let sharing: any SiteSharing
+    private let workers: any SiteWorkerManaging
     private let modals: KTModalPresenter
     private let sitesRoot: @MainActor () -> URL
     private let httpsByDefault: @MainActor () -> Bool
@@ -28,6 +29,7 @@ public final class KTSitesPlugin: KTStackPlugin, SectionActivationObserving {
         sharing: sharing,
         dns: dns,
         provisioning: provisioning,
+        workers: workers,
         route: route
     )
 
@@ -43,6 +45,7 @@ public final class KTSitesPlugin: KTStackPlugin, SectionActivationObserving {
         dns: any DNSResolverManaging,
         runtimes: any RuntimeManaging,
         sharing: any SiteSharing,
+        workers: any SiteWorkerManaging,
         modals: KTModalPresenter,
         sitesRoot: @escaping @MainActor () -> URL,
         httpsByDefault: @escaping @MainActor () -> Bool,
@@ -57,6 +60,7 @@ public final class KTSitesPlugin: KTStackPlugin, SectionActivationObserving {
         self.dns = dns
         self.runtimes = runtimes
         self.sharing = sharing
+        self.workers = workers
         self.modals = modals
         self.sitesRoot = sitesRoot
         self.httpsByDefault = httpsByDefault
@@ -82,10 +86,12 @@ public final class KTSitesPlugin: KTStackPlugin, SectionActivationObserving {
     @MainActor
     public func sectionDidActivate() {
         vm.startUpstreamProbing()
+        vm.startWorkerUpdates()
     }
 
     @MainActor
     public func sectionDidDeactivate() {
         vm.stopUpstreamProbing()
+        vm.stopWorkerUpdates()
     }
 }

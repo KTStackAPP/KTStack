@@ -21,14 +21,15 @@ func makeSite(
     aliases: [String] = [],
     wildcardSubdomains: Bool = false,
     envVars: [String: String] = [:],
-    frontDirectives: String? = nil
+    frontDirectives: String? = nil,
+    workers: [SiteWorker] = []
 ) -> SiteSummary {
     SiteSummary(
         id: id, name: name, path: path, docroot: docroot, domain: domain, phpVersion: phpVersion,
         kind: kind, databaseName: databaseName, secure: secure, nodePort: nodePort,
         nodeCommand: nodeCommand, engine: engine, backendPort: backendPort, proxyTarget: proxyTarget,
         aliases: aliases, wildcardSubdomains: wildcardSubdomains, envVars: envVars,
-        frontDirectives: frontDirectives
+        frontDirectives: frontDirectives, workers: workers
     )
 }
 
@@ -241,6 +242,46 @@ final class FakeSiteSharing: SiteSharing {
 
     func startShare(_ target: TunnelSiteTarget) { startShareCalls.append(target) }
     func stopShare(siteID: UUID) { stopShareCalls.append(siteID) }
+}
+
+@MainActor
+final class FakeSiteWorkers: SiteWorkerManaging {
+    var workersState: SiteWorkersState
+    private(set) var setWorkersCalls: [(UUID, [SiteWorker])] = []
+    var setWorkersShouldThrow: Error?
+    private(set) var startCalls: [UUID] = []
+    private(set) var stopCalls: [UUID] = []
+    private(set) var restartCalls: [UUID] = []
+    private var continuation: AsyncStream<SiteWorkersState>.Continuation?
+
+    nonisolated init(state: SiteWorkersState = SiteWorkersState()) {
+        workersState = state
+    }
+
+    func workersStateStream() -> AsyncStream<SiteWorkersState> {
+        AsyncStream { continuation in
+            self.continuation = continuation
+            continuation.yield(self.workersState)
+        }
+    }
+
+    func emit(_ next: SiteWorkersState) {
+        workersState = next
+        continuation?.yield(next)
+    }
+
+    func setWorkers(_ siteID: UUID, _ workers: [SiteWorker]) throws {
+        if let setWorkersShouldThrow { throw setWorkersShouldThrow }
+        setWorkersCalls.append((siteID, workers))
+    }
+
+    func startWorker(siteID _: UUID, workerID: UUID) { startCalls.append(workerID) }
+    func stopWorker(siteID _: UUID, workerID: UUID) { stopCalls.append(workerID) }
+    func restartWorker(siteID _: UUID, workerID: UUID) { restartCalls.append(workerID) }
+
+    func workerLogSourceID(siteID _: UUID, workerID: UUID) -> String? {
+        "worker-\(workerID.uuidString)"
+    }
 }
 
 @MainActor
