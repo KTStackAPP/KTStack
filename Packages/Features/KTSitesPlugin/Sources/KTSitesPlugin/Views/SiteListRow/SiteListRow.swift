@@ -29,12 +29,13 @@ struct SiteListRow: View, Equatable {
     var onRecheckType: () -> Void = {}
     var onError: (String) -> Void = { _ in }
     let workersSummary: SiteWorkersSummary?
+    let editors: CodeEditorCatalog
+    let preferredEditor: CodeEditor?
 
     // Held as plain value props (not @ObservedObject) so one site's toggle doesn't re-lay-out the
     // whole list; `.equatable()` skips rows whose visible inputs are unchanged.
     @State var domainDraft: String
     @State var domainError = false
-    @State var hovering = false
     @State var nodePortDraft: String
     @State var proxyTargetDraft: String
 
@@ -63,7 +64,9 @@ struct SiteListRow: View, Equatable {
         onSettings: @escaping () -> Void = {},
         onRecheckType: @escaping () -> Void = {},
         onError: @escaping (String) -> Void = { _ in },
-        workersSummary: SiteWorkersSummary? = nil
+        workersSummary: SiteWorkersSummary? = nil,
+        editors: CodeEditorCatalog,
+        preferredEditor: CodeEditor?
     ) {
         self.site = site
         self.availableVersions = availableVersions
@@ -90,6 +93,8 @@ struct SiteListRow: View, Equatable {
         self.onRecheckType = onRecheckType
         self.onError = onError
         self.workersSummary = workersSummary
+        self.editors = editors
+        self.preferredEditor = preferredEditor
         _domainDraft = State(initialValue: site.domain)
         _nodePortDraft = State(initialValue: site.nodePort.map(String.init) ?? "")
         _proxyTargetDraft = State(initialValue: SiteListRow.proxyDisplay(site))
@@ -105,13 +110,14 @@ struct SiteListRow: View, Equatable {
             && a.apacheInstalled == b.apacheInstalled
             && a.apacheInstalling == b.apacheInstalling
             && a.workersSummary == b.workersSummary
+            && a.editors.installed == b.editors.installed
+            && a.preferredEditor == b.preferredEditor
     }
 
     var body: some View {
         mainRow
-            .background(hovering ? KTColor.rowHover : Color.clear)
+            .modifier(RowHoverHighlight())
             .contentShape(Rectangle())
-            .onHover { hovering = $0 }
             .onChange(of: site.domain) { new in domainDraft = new; domainError = false }
             .onChange(of: site.nodePort) { new in nodePortDraft = new.map(String.init) ?? "" }
             .onChange(of: site.proxyTarget) { _ in proxyTargetDraft = SiteListRow.proxyDisplay(site) }
@@ -200,7 +206,7 @@ struct SiteListRow: View, Equatable {
                 .disabled(!openEnabled)
                 .ktTip("Open \(site.domain) in your browser")
 
-            SiteQuickEditorButton(site: site)
+            SiteQuickEditorButton(site: site, catalog: editors, preferred: preferredEditor)
             SiteActionsMenu(
                 site: site,
                 canOpen: canOpen,
@@ -232,5 +238,17 @@ struct SiteListRow: View, Equatable {
             domainDraft = site.domain
             onError(error.localizedDescription)
         }
+    }
+}
+
+// Hover state lives in its own modifier so entering/leaving a row re-renders only the highlight,
+// not the whole row body (`.equatable()` cannot skip a row's own @State changes).
+private struct RowHoverHighlight: ViewModifier {
+    @State private var hovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .background(hovering ? KTColor.rowHover : Color.clear)
+            .onHover { hovering = $0 }
     }
 }

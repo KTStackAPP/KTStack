@@ -28,6 +28,8 @@ final class SitesViewModel: ObservableObject {
     @Published var upstreamRunning: [UUID: Bool] = [:]
     @Published var frameworks: [UUID: PHPFramework] = [:]
     @Published var workers = SiteWorkersState()
+    @Published var editors = CodeEditorCatalog(locate: { _ in nil })
+    @Published var preferredEditor: CodeEditor?
 
     let catalog: any SiteCatalogManaging
     let serverControl: any SiteServerControlling
@@ -75,6 +77,7 @@ final class SitesViewModel: ObservableObject {
         self.runtimes = runtimes.state
         shares = sharing.shareStates
         self.dns = dns.dnsState
+        refreshEditors()
 
         tasks.append(Task { [weak self] in
             for await next in catalog.catalogStream() {

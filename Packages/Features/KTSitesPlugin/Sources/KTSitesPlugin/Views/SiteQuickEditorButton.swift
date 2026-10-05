@@ -1,22 +1,16 @@
-import AppKit
 import KTPlatformContracts
 import KTPluginKit
 import SwiftUI
 
 struct SiteQuickEditorButton: View {
     let site: SiteSummary
+    let catalog: CodeEditorCatalog
+    let preferred: CodeEditor?
 
-    @State private var catalog = CodeEditorCatalog(locate: { _ in nil })
     @State private var hovering = false
 
     var body: some View {
-        ZStack { editorButton }
-            .onAppear { refreshCatalog() }
-    }
-
-    @ViewBuilder
-    private var editorButton: some View {
-        if !site.path.isEmpty, let preferred = catalog.preferred() {
+        if !site.path.isEmpty, let preferred {
             Button {
                 SiteActions.openInEditor(site, editor: preferred, catalog: catalog)
             } label: {
@@ -50,11 +44,5 @@ struct SiteQuickEditorButton: View {
                 }
             }
         }
-    }
-
-    private func refreshCatalog() {
-        catalog = CodeEditorCatalog(locate: {
-            NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0)
-        })
     }
 }

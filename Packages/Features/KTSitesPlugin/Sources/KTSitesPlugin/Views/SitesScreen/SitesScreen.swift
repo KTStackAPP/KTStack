@@ -85,6 +85,10 @@ struct SitesScreen: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             vm.refreshDNS()
+            vm.refreshEditors()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification).receive(on: DispatchQueue.main)) { _ in
+            vm.syncPreferredEditor()
         }
     }
 

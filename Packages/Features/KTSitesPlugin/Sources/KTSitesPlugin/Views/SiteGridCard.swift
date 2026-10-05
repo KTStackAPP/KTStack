@@ -25,6 +25,8 @@ struct SiteGridCard: View {
     var onSettings: () -> Void = {}
     var onRecheckType: () -> Void = {}
     var workersSummary: SiteWorkersSummary?
+    let editors: CodeEditorCatalog
+    let preferredEditor: CodeEditor?
 
     private var proxyDisplay: String? {
         guard let raw = site.proxyTarget else { return nil }
@@ -90,7 +92,7 @@ struct SiteGridCard: View {
                     .disabled(!canOpen)
                     .frame(maxWidth: .infinity)
                 SiteShareControls(share: share, onToggleShare: onToggleShare)
-                SiteQuickEditorButton(site: site)
+                SiteQuickEditorButton(site: site, catalog: editors, preferred: preferredEditor)
                 SiteActionsMenu(
                     site: site,
                     canOpen: canOpen,

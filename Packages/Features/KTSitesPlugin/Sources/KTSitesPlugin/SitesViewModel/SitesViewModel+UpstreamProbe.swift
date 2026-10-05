@@ -49,8 +49,12 @@ extension SitesViewModel {
     func refreshFrameworks() async {
         let targets = sites.filter { $0.kind == .php }
         guard !targets.isEmpty else { return }
+        // Gom vào map cục bộ rồi publish một lần: gán từng key bắn objectWillChange N lần,
+        // mỗi lần re-render cả SitesScreen.
+        var next = frameworks
         for site in targets {
-            frameworks[site.id] = await PHPFrameworkCache.shared.framework(path: site.path, docroot: site.docroot)
+            next[site.id] = await PHPFrameworkCache.shared.framework(path: site.path, docroot: site.docroot)
         }
+        if next != frameworks { frameworks = next }
     }
 }

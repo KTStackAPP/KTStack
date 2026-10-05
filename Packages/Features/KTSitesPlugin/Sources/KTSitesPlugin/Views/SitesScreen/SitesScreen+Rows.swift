@@ -4,8 +4,11 @@ import SwiftUI
 
 extension SitesScreen {
     var list: some View {
-        LazyVStack(spacing: 0) {
-            ForEach(Array(filteredSites.enumerated()), id: \.element.id) { index, site in
+        // Lọc một lần cho cả list: `filteredSites` là computed, gọi trong từng row thành O(n²) khi search.
+        let sites = filteredSites
+        let lastID = sites.last?.id
+        return LazyVStack(spacing: 0) {
+            ForEach(sites) { site in
                 SiteListRow(
                     site: site,
                     availableVersions: vm.server.phpVersions,
@@ -31,10 +34,12 @@ extension SitesScreen {
                     onSettings: { settingsSite = site },
                     onRecheckType: { recheckType(site) },
                     onError: { actionError = $0 },
-                    workersSummary: vm.workersSummary(for: site)
+                    workersSummary: vm.workersSummary(for: site),
+                    editors: vm.editors,
+                    preferredEditor: vm.preferredEditor
                 )
                 .equatable()
-                if index < filteredSites.count - 1 {
+                if site.id != lastID {
                     Rectangle().fill(KTColor.sepFaint).frame(height: 0.5).padding(.leading, 16)
                 }
             }
@@ -65,7 +70,9 @@ extension SitesScreen {
                     onRestore: { restoreSite = site },
                     onSettings: { settingsSite = site },
                     onRecheckType: { recheckType(site) },
-                    workersSummary: vm.workersSummary(for: site)
+                    workersSummary: vm.workersSummary(for: site),
+                    editors: vm.editors,
+                    preferredEditor: vm.preferredEditor
                 )
             }
         }
