@@ -39,15 +39,33 @@ struct SiteInspector: View {
             )
             Divider()
             ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    domainGroup(site)
-                    runtimeGroup(site)
-                    securityGroup(site)
+                SiteSettingsHost(site: site, vm: vm) { settings in
+                    VStack(alignment: .leading, spacing: 22) {
+                        domainGroup(site, settings: settings)
+                        runtimeGroup(site)
+                        securityGroup(site)
+                        SiteAdvancedSection(site: site, model: settings, onOpenLogs: { actions.openLogs(site) })
+                    }
+                    .padding(18)
                 }
-                .padding(18)
             }
+            Divider()
+            footer(site)
         }
         .id(site.id)
+    }
+
+    private func footer(_ site: SiteSummary) -> some View {
+        HStack(spacing: 8) {
+            if site.kind == .php {
+                KTButton(title: "Restore Backup…", kind: .secondary) { actions.restore(site) }
+                KTButton(title: "Configure VS Code", kind: .secondary) { actions.configureVSCode(site) }
+            }
+            Spacer()
+            KTButton(title: "Remove Site…", kind: .danger) { actions.remove(site) }
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
     }
 
     func framework(_ site: SiteSummary) -> PHPFramework {

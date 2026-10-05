@@ -15,21 +15,11 @@ struct SitesScreen: View {
 
     @EnvironmentObject var feedback: KTFeedbackCenter
 
-    @State var gridView = false
     @State var showScan = false
     @State var restoreSite: SiteSummary?
-    @State var settingsSite: SiteSummary?
     @State var removingSiteID: UUID?
     @State var removeSite: SiteSummary?
     @State var actionError: String?
-
-    var filteredSites: [SiteSummary] {
-        let q = pane.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { return vm.sites }
-        return vm.sites.filter {
-            $0.name.localizedCaseInsensitiveContains(q) || $0.domain.localizedCaseInsensitiveContains(q)
-        }
-    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -82,9 +72,6 @@ struct SitesScreen: View {
         }
         .sheet(item: $restoreSite) {
             RestoreBackupSheet(site: $0, restoring: restore, availableVersions: vm.server.phpVersions, isEndOfLife: vm.isEndOfLife)
-        }
-        .sheet(item: $settingsSite) {
-            SiteSettingsSheet(site: $0, vm: vm)
         }
         .sheet(item: $removeSite) { site in
             RemoveSiteSheet(site: site) { remove(site, options: $0) }
