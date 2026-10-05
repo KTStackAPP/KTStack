@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.4 — 2026-10-05
+
+### Fixed
+
+- The server and database engines start again. 0.3.2 and 0.3.3 rejected their own signed binaries (nginx, MySQL, PostgreSQL, Redis, MongoDB, Mailpit, Memcached) with "Code signature check failed", so nothing could start.
+
 ## 0.3.3 — 2026-10-05
 
 ### Added
