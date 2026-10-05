@@ -10,8 +10,6 @@ final class DashboardNavigation: ObservableObject {
         didSet { UserDefaults.standard.set(selection, forKey: Self.selectionKey) }
     }
 
-    @Published var activeItem: String?
-
     // AppDelegate nối vào KTLogsPlugin.show(sourceID:). Gọi trước khi đổi selection để
     // pendingTarget đặt xong trước khi activation của tab Logs chạy.
     var openLogsHandler: ((String?) -> Void)?
