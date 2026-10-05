@@ -48,6 +48,8 @@ struct SiteInspector: View {
                     }
                     .padding(18)
                 }
+                // Model giữ kind lúc tạo, nên dựng lại khi Re-detect đổi loại site.
+                .id(site.kind)
             }
             Divider()
             footer(site)

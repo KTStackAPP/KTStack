@@ -67,6 +67,14 @@ struct SiteInspectorHeader: View {
 
     private var moreMenu: some View {
         Menu {
+            if !site.path.isEmpty, editors.installed.count >= 2 {
+                Menu("Open in") {
+                    ForEach(editors.installed) { editor in
+                        Button(editor.displayName) { SiteActions.openInEditor(site, editor: editor, catalog: editors) }
+                    }
+                }
+                Divider()
+            }
             Button("Open Logs", action: onOpenLogs)
             if !site.path.isEmpty {
                 Button("Re-detect Site Type", action: onRecheckType)
