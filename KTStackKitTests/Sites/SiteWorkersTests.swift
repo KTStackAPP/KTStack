@@ -93,6 +93,15 @@ final class SiteWorkersRegistryTests: XCTestCase {
         XCTAssertEqual(decoded.workers, [])
     }
 
+    func testMalformedWorkerIsDroppedWithoutLosingTheSite() throws {
+        let json = """
+        {"name":"shop","path":"/s","docroot":"/s","domain":"shop.test","phpVersion":"8.4","type":"php",
+         "workers":[{"name":"queue","command":"php artisan queue:work"},{"name":"broken"}]}
+        """
+        let decoded = try JSONDecoder().decode(Site.self, from: Data(json.utf8))
+        XCTAssertEqual(decoded.workers.map(\.name), ["queue"])
+    }
+
     func testWorkerWithoutEnabledFlagDecodesDisabled() throws {
         let json = #"{"name":"queue","command":"php artisan queue:work"}"#
         XCTAssertFalse(try JSONDecoder().decode(SiteWorker.self, from: Data(json.utf8)).enabled)

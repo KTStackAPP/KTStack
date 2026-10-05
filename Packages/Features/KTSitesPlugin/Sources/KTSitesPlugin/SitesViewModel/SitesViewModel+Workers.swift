@@ -34,10 +34,12 @@ extension SitesViewModel {
 
     func workerStatus(_ worker: SiteWorker) -> SiteWorkerStatus {
         guard worker.enabled else { return .stopped }
-        return workers.statuses[worker.id] ?? SiteWorkerStatus(state: server.isRunning ? .starting : .waitingForServer)
+        if let status = workers.statuses[worker.id], status.state != .stopped { return status }
+        return SiteWorkerStatus(state: server.isRunning ? .starting : .waitingForServer)
     }
 
     func workersSummary(for site: SiteSummary) -> SiteWorkersSummary {
+        guard site.kind == .php, !site.path.isEmpty else { return SiteWorkersSummary(total: 0, active: 0, crashed: 0) }
         let statuses = site.workers.map(workerStatus)
         return SiteWorkersSummary(
             total: site.workers.count,

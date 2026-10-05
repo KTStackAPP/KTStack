@@ -54,6 +54,14 @@ public enum SiteType: String, Codable, CaseIterable, Sendable {
     }
 }
 
+private struct LossySiteWorker: Decodable {
+    let worker: SiteWorker?
+
+    init(from decoder: Decoder) throws {
+        worker = try? SiteWorker(from: decoder)
+    }
+}
+
 public struct Site: Identifiable, Hashable, Codable, Sendable {
     public let id: UUID
     public var name: String
@@ -157,7 +165,7 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         wildcardSubdomains = try c.decodeIfPresent(Bool.self, forKey: .wildcardSubdomains) ?? false
         envVars = try c.decodeIfPresent([String: String].self, forKey: .envVars) ?? [:]
         frontDirectives = try c.decodeIfPresent(String.self, forKey: .frontDirectives)
-        workers = try c.decodeIfPresent([SiteWorker].self, forKey: .workers) ?? []
+        workers = (try? c.decodeIfPresent([LossySiteWorker].self, forKey: .workers))?.compactMap(\.worker) ?? []
     }
 
     // Có thư mục trên đĩa; proxy site không có nên mọi thao tác folder phải gate cái này.
