@@ -12,10 +12,15 @@
 #     scripts/release/update-appcast.sh <releases-dir>
 # Then upload appcast.xml AND the .dmg to that release; SUFeedURL reads
 #   https://github.com/KTStackAPP/KTStack/releases/latest/download/appcast.xml
+#
+# Release notes: each item embeds the "## <version>" section of CHANGELOG.md as HTML, which is what
+# Sparkle shows in its update dialog. Set RELEASE_NOTES=<file.md> to use another markdown file, or
+# drop KTStack-<ver>-<arch>.html next to the DMG to supply the HTML yourself.
 set -euo pipefail
 # shellcheck source=scripts/release/lib-appcast.sh
 source "$(dirname "$0")/lib-appcast.sh"
 RELEASES="${1:?usage: update-appcast.sh <releases-dir-with-dmgs>}"
+NOTES_SOURCE="${RELEASE_NOTES:-$(cd "$(dirname "$0")/../.." && pwd)/CHANGELOG.md}"
 DD="${DERIVED_DATA:-$HOME/Library/Developer/Xcode/DerivedData}"
 PREFIX_ARGS=()
 [[ -n "${DOWNLOAD_URL_PREFIX:-}" ]] && PREFIX_ARGS=(--download-url-prefix "$DOWNLOAD_URL_PREFIX")
@@ -32,12 +37,16 @@ shopt -u nullglob
 
 if [[ ${#DMGS[@]} -le 1 ]]; then
     echo "=== generate_appcast over $RELEASES ==="
+    for d in ${DMGS[@]+"${DMGS[@]}"}; do write_release_notes "$d" "$NOTES_SOURCE"; done
     "$GEN_APPCAST" ${PREFIX_ARGS[@]+"${PREFIX_ARGS[@]}"} "$RELEASES"
 else
     echo "=== per-arch appcast: generating ${#DMGS[@]} archives separately then merging ==="
     ITEMS=""
     for d in "${DMGS[@]}"; do
         sub="$(mktemp -d)"; cp "$d" "$sub/"
+        stem="${d%.*}"
+        for ext in html md markdown txt; do [[ -f "$stem.$ext" ]] && cp "$stem.$ext" "$sub/"; done
+        write_release_notes "$sub/$(basename "$d")" "$NOTES_SOURCE"
         "$GEN_APPCAST" ${PREFIX_ARGS[@]+"${PREFIX_ARGS[@]}"} "$sub" >/dev/null
         ITEMS+="$(sed -n '/<item>/,/<\/item>/p' "$sub/appcast.xml")"$'\n'
         rm -rf "$sub"
@@ -53,5 +62,5 @@ else
     } > "$RELEASES/appcast.xml"
 fi
 tag_arm64_items "$RELEASES/appcast.xml"
-echo "appcast: $RELEASES/appcast.xml ($(grep -cE '<item>' "$RELEASES/appcast.xml") item(s))"
+echo "appcast: $RELEASES/appcast.xml ($(grep -cE '<item>' "$RELEASES/appcast.xml") item(s), $(grep -c '<description>' "$RELEASES/appcast.xml") with release notes)"
 echo "Next: upload appcast.xml AND every .dmg to the matching GitHub Release (gh release upload <tag> …)."

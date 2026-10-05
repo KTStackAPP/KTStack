@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Runs update-appcast.sh against a stub generate_appcast and checks the arch tagging the DMG smoke
 # test requires: the -arm64 item carries sparkle:hardwareRequirements, the -x86_64 item does not.
+# Also checks every item embeds the CHANGELOG section for its version as its release notes.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 WORK="$(mktemp -d)"
@@ -15,6 +16,8 @@ dir="${@: -1}"
     echo '    <channel>'
     for f in "$dir"/*.dmg; do
         echo '        <item>'
+        notes="${f%.dmg}.html"
+        [[ -f "$notes" ]] && echo "            <description><![CDATA[$(cat "$notes")]]></description>"
         echo "            <enclosure url=\"https://example.invalid/$(basename "$f")\" length=\"1\" type=\"application/octet-stream\"/>"
         echo '        </item>'
     done
@@ -35,19 +38,66 @@ check() {
     [[ -z "$x86" || "$x86" != *hardwareRequirements* ]] || fail "x86_64 item must not be tagged"
 }
 
+cat > "$WORK/CHANGELOG.md" <<'MD'
+# Changelog
+
+## 1.0.1 — 2026-01-02
+
+### Fixed
+
+- Not this one.
+
+## 1.0 — 2026-01-01
+
+### Added
+
+- **Backups** run `nightly` & keep <N> archives,
+  wrapped onto a second line.
+
+Plain paragraph.
+
+## 0.9 — 2025-12-01
+
+- Older.
+MD
+
+export RELEASE_NOTES="$WORK/CHANGELOG.md"
 mkdir -p "$WORK/both"
 touch "$WORK/both/KTStack-1.0-arm64.dmg" "$WORK/both/KTStack-1.0-x86_64.dmg"
 GENERATE_APPCAST="$WORK/generate_appcast" "$ROOT/scripts/release/update-appcast.sh" "$WORK/both" >/dev/null
 check "$WORK/both/appcast.xml"
 [[ "$(grep -c '<item>' "$WORK/both/appcast.xml")" == 2 ]] || fail "expected two items"
+[[ "$(grep -c '<description>' "$WORK/both/appcast.xml")" == 2 ]] || fail "every item must embed release notes"
+expected='<h3>Added</h3>
+<ul>
+<li><b>Backups</b> run <code>nightly</code> &amp; keep &lt;N&gt; archives, wrapped onto a second line.</li>
+</ul>
+<p>Plain paragraph.</p>'
+source "$ROOT/scripts/release/lib-appcast.sh"
+[[ "$(changelog_section 1.0 "$WORK/CHANGELOG.md" | markdown_to_html)" == "$expected" ]] || fail "unexpected release notes HTML"
+grep -q 'Not this one\|Older' "$WORK/both/appcast.xml" && fail "notes leaked from another version"
+[[ ! -e "$WORK/both/KTStack-1.0-arm64.html" ]] || fail "per-arch run must not leave notes in the releases dir"
 
 mkdir -p "$WORK/single"
 touch "$WORK/single/KTStack-1.0-arm64.dmg"
 GENERATE_APPCAST="$WORK/generate_appcast" "$ROOT/scripts/release/update-appcast.sh" "$WORK/single" >/dev/null
 check "$WORK/single/appcast.xml"
+grep -q '<h3>Added</h3>' "$WORK/single/appcast.xml" || fail "single archive must embed release notes"
 
-source "$ROOT/scripts/release/lib-appcast.sh"
+mkdir -p "$WORK/custom"
+touch "$WORK/custom/KTStack-1.0-arm64.dmg" "$WORK/custom/KTStack-1.0-x86_64.dmg"
+echo '<p>Hand-written.</p>' > "$WORK/custom/KTStack-1.0-x86_64.html"
+GENERATE_APPCAST="$WORK/generate_appcast" "$ROOT/scripts/release/update-appcast.sh" "$WORK/custom" >/dev/null
+[[ "$(grep -c 'Hand-written' "$WORK/custom/appcast.xml")" == 1 ]] || fail "a hand-written .html must win"
+[[ "$(grep -c '<h3>Added</h3>' "$WORK/custom/appcast.xml")" == 1 ]] || fail "the other item still gets CHANGELOG notes"
+
+mkdir -p "$WORK/missing"
+touch "$WORK/missing/KTStack-2.0-arm64.dmg" "$WORK/missing/KTStack-2.0-x86_64.dmg"
+GENERATE_APPCAST="$WORK/generate_appcast" "$ROOT/scripts/release/update-appcast.sh" "$WORK/missing" >/dev/null 2>&1 \
+    || fail "a version without a CHANGELOG section must still produce an appcast"
+! grep -q '<description>' "$WORK/missing/appcast.xml" || fail "no notes expected for an unknown version"
+
 tag_arm64_items "$WORK/both/appcast.xml"
 [[ "$(grep -c hardwareRequirements "$WORK/both/appcast.xml")" == 1 ]] || fail "tagging must be idempotent"
 
-echo "update-appcast arch tagging: ok"
+echo "update-appcast arch tagging and release notes: ok"
