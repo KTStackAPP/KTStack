@@ -82,4 +82,7 @@ public protocol ServiceManaging: AnyObject {
     @MainActor func install(_ id: ServiceID)
     @MainActor func cancelInstall(_ id: ServiceID)
     @MainActor func resetData(_ id: ServiceID)
+    // Ref-counted: while any client is live the manager polls fast and samples CPU/memory.
+    @MainActor func beginLiveUpdates()
+    @MainActor func endLiveUpdates()
 }

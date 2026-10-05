@@ -37,6 +37,7 @@ final class FakeServiceManaging: ServiceManaging {
     private(set) var resetDataCalls: [ServiceID] = []
     private(set) var startAllCalls = 0
     private(set) var restartAllCalls = 0
+    private(set) var liveUpdateClients = 0
     private var continuation: AsyncStream<[ServiceState]>.Continuation?
 
     nonisolated init(states: [ServiceState] = []) {
@@ -62,6 +63,8 @@ final class FakeServiceManaging: ServiceManaging {
     func install(_ id: ServiceID) { installCalls.append(id) }
     func cancelInstall(_ id: ServiceID) { cancelInstallCalls.append(id) }
     func resetData(_ id: ServiceID) { resetDataCalls.append(id) }
+    func beginLiveUpdates() { liveUpdateClients += 1 }
+    func endLiveUpdates() { liveUpdateClients -= 1 }
 }
 
 @MainActor

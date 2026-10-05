@@ -3,8 +3,9 @@ import KTPluginKit
 import SwiftUI
 
 // Sidebar plugin sở hữu màn Services. Stream subscribe lazy khi VM khởi tạo (makeContentView đầu
-// tiên); không lifecycle/activation. beginLiveUpdates vẫn do DashboardWindow gọi theo window.
-public final class KTServicesPlugin: KTStackPlugin {
+// tiên). Poll nhanh + sample metrics (`ps` mỗi 0.9s) chỉ khi tab Services đang active, không phải
+// suốt lúc window dashboard mở.
+public final class KTServicesPlugin: KTStackPlugin, SectionActivationObserving {
     public let descriptor = PluginDescriptor(id: "services", title: "Services", systemImage: "server.rack")
 
     private let services: any ServiceManaging
@@ -34,6 +35,9 @@ public final class KTServicesPlugin: KTStackPlugin {
         self.nginxInclude = nginxInclude
         self.route = route
     }
+
+    @MainActor public func sectionDidActivate() { services.beginLiveUpdates() }
+    @MainActor public func sectionDidDeactivate() { services.endLiveUpdates() }
 
     @MainActor public func makeContentView() -> AnyView {
         AnyView(
