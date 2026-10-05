@@ -76,14 +76,14 @@ The status file holds `running`, `backoff` (with the next attempt time), `crashe
 `failedToStart` (with a message), the restart count and the last exit status. `SiteWorkerSupervisor.statuses` maps it, together with
 the enabled flag and whether the server and the job are up, to `SiteWorkerRunState`
 (`stopped`, `waitingForServer`, `starting`, `running`, `backoff`, `crashed`, `failed`). A
-`failed` worker shows its reason in Site Settings, `kt workers` and `ktstack_list_workers`.
+`failed` worker shows its reason in the Sites inspector, `kt workers` and `ktstack_list_workers`.
 `LocalServerController.workersStateStream()` polls it every 2 s off the main actor while the
 Sites section is visible.
 
 ## Interfaces
 
-- **UI**: Site Settings → Workers (add, edit, remove, Laravel presets, start, stop, restart, logs).
-  Cards and rows show a worker badge.
+- **UI**: Sites inspector → Runtime → Workers (add, edit, remove, Laravel presets, start, stop, restart, logs).
+  The list row shows a worker status icon.
 - **IPC**: `workers.list` (`site` optional), `workers.start`, `workers.stop`, `workers.restart`
   (`site`, `worker`). The site is matched by domain or name, the worker by name.
 - **CLI**: `kt workers [list] [site] [--json]`, `kt workers start|stop|restart <site> <worker>`.

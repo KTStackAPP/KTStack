@@ -12,36 +12,34 @@ struct SitesDNSFooter: View {
     private var isEnabled: Bool { dns.status == .enabled }
 
     var body: some View {
-        HStack(spacing: 12) {
-            KTIconTile(tint: KTIconTint.globe, size: 30, radius: 9) {
-                Image(systemName: "checkmark.shield").font(.system(size: 14, weight: .medium))
-            }
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.jbMono(13, .regular)).foregroundStyle(KTColor.ink)
-                Text(subtitle).font(.jbMono(12)).foregroundStyle(KTColor.ink2)
-            }
+        HStack(spacing: 8) {
+            KTDot(color: isEnabled ? KTColor.runDot : KTColor.stopDot)
+            Text(status)
+                .font(.jbMono(11.5))
+                .foregroundStyle(KTColor.ink2)
+                .lineLimit(1)
+                .truncationMode(.middle)
             Spacer()
-            if dns.isBusy {
-                ProgressView().controlSize(.small)
-            } else {
-                KTButton(title: "Reset", kind: .secondary, action: onReset)
-                if isEnabled {
-                    KTButton(title: "Disable DNS", kind: .danger, action: onDisable)
+            Group {
+                if dns.isBusy {
+                    ProgressView().controlSize(.small)
                 } else {
-                    KTButton(title: "Enable DNS", kind: .secondary, action: onEnable)
+                    KTButton(title: "Reset", kind: .secondary, action: onReset)
+                    if isEnabled {
+                        KTButton(title: "Disable DNS", kind: .danger, action: onDisable)
+                    } else {
+                        KTButton(title: "Enable DNS", kind: .secondary, action: onEnable)
+                    }
                 }
             }
+            .controlSize(.small)
         }
-        .padding(.horizontal, KTSpacing.screenGutter)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
         .overlay(alignment: .top) { Rectangle().fill(KTColor.sep).frame(height: 0.5) }
     }
 
-    private var title: String {
-        isEnabled ? "Automatic DNS is on" : "Automatic DNS is off"
-    }
-
-    private var subtitle: String {
-        isEnabled ? "*.\(tld) resolves to this machine." : "Enable DNS to resolve *.\(tld) domains."
+    private var status: String {
+        isEnabled ? "DNS on · *.\(tld) → this Mac" : "DNS off · *.\(tld) will not resolve"
     }
 }

@@ -23,13 +23,22 @@ struct SitesScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SitesHeader(siteCount: vm.sites.count, onScan: { showScan = true }, onNewSite: openNewSite)
+            SitesHeader(
+                siteCount: vm.sites.count,
+                isRunning: vm.server.isRunning,
+                isBusy: vm.server.isBusy,
+                onToggleServer: vm.toggleServer,
+                onScan: { showScan = true },
+                onNewSite: openNewSite
+            )
                 .padding(.horizontal, KTSpacing.screenGutter)
                 .padding(.top, 18)
 
-            serverStatusRow
-                .padding(.horizontal, KTSpacing.screenGutter)
-                .padding(.top, 14)
+            if !vm.server.isRunning, !vm.sites.isEmpty {
+                stoppedBanner
+                    .padding(.horizontal, KTSpacing.screenGutter)
+                    .padding(.top, 14)
+            }
 
             if let actionError = vm.server.lastError ?? actionError {
                 Text(actionError)
@@ -85,22 +94,18 @@ struct SitesScreen: View {
         }
     }
 
-    private var serverStatusRow: some View {
-        HStack(spacing: 10) {
-            HStack(spacing: 8) {
-                KTDot(color: vm.server.isRunning ? KTColor.runDot : KTColor.stopDot)
-                Text("Server: \(vm.server.isRunning ? "Running" : "Stopped")")
-                    .font(.jbMono(13, .medium))
-                    .foregroundStyle(vm.server.isRunning ? KTColor.online : KTColor.ink2)
-            }
-            .padding(.vertical, 6)
-            .padding(.horizontal, 12)
-            .background(Capsule().fill((vm.server.isRunning ? KTColor.runDot : KTColor.stopDot).opacity(0.12)))
-
-            KTButton(title: vm.server.isRunning ? "Stop Server" : "Start Server", kind: .secondary) { vm.toggleServer() }
-                .disabled(vm.server.isBusy)
+    private var stoppedBanner: some View {
+        HStack(spacing: 12) {
+            Text("The web server is stopped. Sites will not open until you start it.")
+                .font(.jbMono(12.5))
+                .foregroundStyle(KTColor.ink)
             Spacer()
+            KTButton(title: "Start Server", kind: .primary) { vm.toggleServer() }
+                .disabled(vm.server.isBusy)
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .systemOrange).opacity(0.12)))
     }
 
     private var inspectorActions: SiteInspectorActions {
