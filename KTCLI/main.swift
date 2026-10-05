@@ -30,6 +30,13 @@ if args.first == ProcessWatchdog.command {
     }
     exit(parsed.watchdog.run(executable: parsed.executable, arguments: parsed.arguments))
 }
+if args.first == WorkerSupervisor.command {
+    guard let parsed = WorkerSupervisor.parse(Array(args.dropFirst())) else {
+        fputs("usage: kt worker-supervise --parent-pid <pid> --status <file> -- <program> [args]\n", stderr)
+        exit(64)
+    }
+    exit(parsed.supervisor.run(executable: parsed.executable, arguments: parsed.arguments))
+}
 let client = KTIPCClient()
 let resolver = ShellToolResolver()
 guard resolver.isToolEnabled("kt") else {
