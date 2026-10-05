@@ -42,6 +42,7 @@ struct KTStackApp: App {
 
     private var settingsPanes: [AnyView] {
         appDelegate.plugins.compactMap { ($0 as? any SettingsProviding)?.makeSettingsPane() }
+            + appDelegate.standaloneSettings.map { $0.makeSettingsPane() }
     }
 
     private var menuBarContent: MenuBarContentView {

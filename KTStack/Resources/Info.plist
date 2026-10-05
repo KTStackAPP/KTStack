@@ -22,6 +22,14 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>KTGoogleOAuthClientID</key>
+	<string>$(KT_GOOGLE_OAUTH_CLIENT_ID)</string>
+	<key>KTGoogleOAuthClientSecret</key>
+	<string>$(KT_GOOGLE_OAUTH_CLIENT_SECRET)</string>
+	<key>KTGooglePickerAPIKey</key>
+	<string>$(KT_GOOGLE_PICKER_API_KEY)</string>
+	<key>KTGoogleProjectNumber</key>
+	<string>$(KT_GOOGLE_PROJECT_NUMBER)</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSPrincipalClass</key>

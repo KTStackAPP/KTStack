@@ -13,6 +13,7 @@ struct DashboardEnv {
     let updater: UpdaterController
     let uninstaller: UninstallService
     let modals: KTModalPresenter
+    let standaloneSettings: [any SettingsProviding]
 
     func inject(_ view: some View) -> some View {
         view
@@ -227,6 +228,7 @@ final class DetailContainerViewController: NSViewController {
 
     private var settingsPanes: [AnyView] {
         plugins.compactMap { ($0 as? any SettingsProviding)?.makeSettingsPane() }
+            + env.standaloneSettings.map { $0.makeSettingsPane() }
     }
 
     @ViewBuilder

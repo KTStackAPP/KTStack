@@ -1,4 +1,5 @@
 import AppKit
+import KTBackupPlugin
 import KTDatabasePlugin
 import KTDoctorPlugin
 import KTDumpsPlugin
@@ -82,6 +83,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         binaries: CloudflaredBinaryProvisioner(paths: AppSupportPaths())
     )
 
+    @MainActor lazy var backupPlugin = KTBackupPlugin(
+        databases: ManagedDatabaseBackupService(tools: DatabaseToolsService(paths: AppSupportPaths())),
+        engines: services,
+        siteCatalog: server
+    )
+
+    @MainActor var standaloneSettings: [any SettingsProviding] { [backupPlugin] }
+
+    @MainActor var standaloneVetoes: [any TerminationVetoing] { [backupPlugin] }
+
     @MainActor lazy var modals = KTModalPresenter()
 
     @MainActor lazy var siteProvisioning = makeSiteProvisioning()
@@ -149,7 +160,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor lazy var pluginLifecycle = PluginLifecycleCoordinator(
         plugins: plugins,
-        standalone: [tunnelPlugin]
+        standalone: [tunnelPlugin, backupPlugin]
     )
 
     @MainActor lazy var platformLifecycle = PlatformLifecycle(server: server)
@@ -163,7 +174,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         caTrust: caTrust,
         updater: updater,
         uninstaller: uninstaller,
-        modals: modals
+        modals: modals,
+        standaloneSettings: standaloneSettings
     )
 
     @MainActor lazy var ipcListener = KTLocalIPCSocketListener(dispatcher: makeIPCDispatcher())

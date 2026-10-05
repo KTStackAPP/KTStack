@@ -6,6 +6,7 @@ extension AppDelegate {
     func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
         MainActor.assumeIsolated {
             let reasons = plugins.compactMap { ($0 as? TerminationVetoing)?.pendingWorkDescription() }
+                + standaloneVetoes.compactMap { $0.pendingWorkDescription() }
             if !reasons.isEmpty, !Self.confirmQuit(reasons) { return .terminateCancel }
             AppTermination.begin()
             return .terminateNow
