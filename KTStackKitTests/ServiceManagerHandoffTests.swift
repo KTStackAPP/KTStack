@@ -36,7 +36,8 @@ final class ServiceManagerHandoffTests: XCTestCase {
         try paths.ensureDirectoryTree()
         let dns = DNSAutomationService(bundledDnsmasq: URL(fileURLWithPath: "/dev/null"), tld: "test")
         let server = LocalServerController(bundleBinDir: URL(fileURLWithPath: "/dev/null"), paths: paths)
-        return (ServiceManager(server: server, dns: dns, paths: paths), paths)
+        let agents = FakeLaunchAgentManager(paths: paths)
+        return (ServiceManager(server: server, dns: dns, paths: paths, agents: agents), paths)
     }
 
     private func setStatus(_ sut: ServiceManager, _ kind: ServiceKind, _ status: ServiceStatus) {
