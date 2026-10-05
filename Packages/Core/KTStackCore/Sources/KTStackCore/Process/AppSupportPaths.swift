@@ -191,6 +191,24 @@ public struct AppSupportPaths: Sendable {
         logs.appendingPathComponent("tunnel-\(siteID).log")
     }
 
+    public static let siteWorkerLabelPrefix = "com.ktstack.worker."
+
+    public func siteWorkerLabel(siteID: String, workerID: String) -> String {
+        "\(Self.siteWorkerLabelPrefix)\(siteID).\(workerID)"
+    }
+
+    public func siteWorkerLog(_ domain: String, worker: String) -> URL {
+        logsSites.appendingPathComponent("\(domain).worker-\(worker).log")
+    }
+
+    public var siteWorkerStatusDir: URL {
+        run.appendingPathComponent("workers", isDirectory: true)
+    }
+
+    public func siteWorkerStatus(_ label: String) -> URL {
+        siteWorkerStatusDir.appendingPathComponent("\(label).json")
+    }
+
     public func binary(_ name: String) -> URL {
         bin.appendingPathComponent(name)
     }

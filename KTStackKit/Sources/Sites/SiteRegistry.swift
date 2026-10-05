@@ -70,6 +70,7 @@ public final class SiteRegistry: ObservableObject {
         case aliasTaken(String, by: String)
         case aliasEqualsDomain(String)
         case invalidEnv(String)
+        case invalidWorkers(String)
         case serverBusy
 
         public var errorDescription: String? {
@@ -86,6 +87,7 @@ public final class SiteRegistry: ObservableObject {
             case let .aliasTaken(a, owner): "“\(a)” is already used by “\(owner)”."
             case let .aliasEqualsDomain(a): "“\(a)” is already the site's main domain."
             case let .invalidEnv(k): "“\(k)” is not a valid environment variable."
+            case let .invalidWorkers(message): message
             case .serverBusy: "The server is busy, try again in a moment."
             }
         }
@@ -339,7 +341,7 @@ public final class SiteRegistry: ObservableObject {
         }
     }
 
-    private func update(_ id: UUID, _ mutate: (inout Site) -> Void) {
+    func update(_ id: UUID, _ mutate: (inout Site) -> Void) {
         guard let idx = sites.firstIndex(where: { $0.id == id }) else { return }
         mutate(&sites[idx])
         persist()
