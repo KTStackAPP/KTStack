@@ -3,7 +3,7 @@ import KTStackCore
 
 public struct BackupLibrary: Sendable {
     private let paths: AppSupportPaths
-    private let fileManager: FileManager
+    let fileManager: FileManager
 
     public init(paths: AppSupportPaths = AppSupportPaths(), fileManager: FileManager = .default) {
         self.paths = paths
@@ -263,7 +263,7 @@ public struct BackupLibrary: Sendable {
         }
     }
 
-    private func writeMeta(_ set: BackupSet, in setDir: URL) throws {
+    func writeMeta(_ set: BackupSet, in setDir: URL) throws {
         let data = try Self.encoder.encode(set)
         try data.write(to: setDir.appendingPathComponent("meta.json"), options: .atomic)
     }
@@ -290,7 +290,7 @@ public struct BackupLibrary: Sendable {
         return candidate
     }
 
-    private static func directorySize(_ url: URL, fileManager: FileManager) -> Int64 {
+    static func directorySize(_ url: URL, fileManager: FileManager) -> Int64 {
         guard let enumerator = fileManager.enumerator(
             at: url, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey]
         ) else { return 0 }

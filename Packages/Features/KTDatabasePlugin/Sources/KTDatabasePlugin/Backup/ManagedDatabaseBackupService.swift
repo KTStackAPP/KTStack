@@ -3,9 +3,9 @@ import KTPlatformContracts
 import KTStackCore
 
 public struct ManagedDatabaseBackupService: DatabaseBackupProviding {
-    private let tools: any DatabaseToolsProviding
-    private let session: BackupSession
-    private let providerFor: @Sendable (DatabaseKind) -> BackupProvider?
+    let tools: any DatabaseToolsProviding
+    let session: BackupSession
+    let providerFor: @Sendable (DatabaseKind) -> BackupProvider?
 
     public init(tools: any DatabaseToolsProviding, paths: AppSupportPaths = AppSupportPaths()) {
         self.init(
