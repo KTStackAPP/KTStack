@@ -35,6 +35,7 @@ Site configuration is stored in `~/Library/Application Support/KTStack/config/si
     "backendPort": 4012,
     "nodeEnabled": false,
     "aliases": ["admin.my-laravel-app.test"],
+    "wildcardSubdomains": false,
     "envVars": { "APP_ENV": "local" },
     "frontDirectives": "client_max_body_size 64M;"
   }
@@ -56,6 +57,7 @@ Site configuration is stored in `~/Library/Application Support/KTStack/config/si
 - `databaseName` (String, optional): Database provisioned with the site.
 - `proxyTarget` (String, optional): Upstream URL for proxy sites.
 - `aliases` ([String]): Extra hostnames in `server_name` and the certificate SAN.
+- `wildcardSubdomains` (Bool, default `false`): Also answer on `*.<domain>`. Not stored in `aliases`: `Site.routedAliases` adds `*.<domain>` to `server_name` (front and backend) and the certificate SAN at render time, so TLD migration and alias conflict checks only see concrete hostnames.
 - `envVars` ([String: String]): Environment passed to the PHP backend (`fastcgi_param` / `SetEnv`).
 - `frontDirectives` (String, optional): Verbatim nginx directives included in the site's front server block.
 

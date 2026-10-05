@@ -35,7 +35,7 @@ KTStack exposes 8 AI tools over the MCP stdio protocol. None of them restores or
 
 | Tool | Parameters | Description |
 |---|---|---|
-| `ktstack_list_sites` | none | Returns all registered `.test` sites, domains, PHP versions, loopback backend ports, and disk paths. |
+| `ktstack_list_sites` | none | Returns all registered `.test` sites, domains, PHP versions, loopback backend ports, disk paths, and whether each answers on `*.<domain>` (`wildcardSubdomains`). |
 | `ktstack_list_services` | none | Returns each background service and whether it is running. |
 | `ktstack_restart_service` | `service` (string, required) | Restarts a service (`nginx`, `phpFpm`, `mysql`, `postgres`, `redis`, …); a stopped service is started. |
 | `ktstack_get_recent_logs` | `source` (string), `lines` (integer, max 2000) | Returns the last lines of a log source: `nginx-error` (default), `nginx-access`, `php-<version>`, a service such as `mysql`, `diagnostics`, or `site-<domain>-error` / `site-<domain>-access`. An unknown source returns the list of available ids. |

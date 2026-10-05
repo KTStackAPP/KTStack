@@ -97,6 +97,7 @@ KTStack automatically issues a certificate when you:
 
 - Create a new HTTPS site.
 - Add a new domain alias to an HTTPS site.
+- Turn **Wildcard subdomains** on or off for an HTTPS site (the certificate gains or drops `*.<domain>`).
 - Enable HTTPS for a site that had it disabled.
 
 If you want to regenerate the certificate for an existing site (for example, if it was corrupted), you can:

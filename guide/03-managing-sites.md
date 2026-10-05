@@ -148,6 +148,20 @@ For PHP sites only:
 2. Click the **lock icon** (🔒) to toggle HTTPS on/off.
 3. Green lock = HTTPS enabled. Gray lock = HTTP only.
 
+### Wildcard Subdomains
+
+Let a site answer on every subdomain of its domain, so `anything.shop.test` opens the `shop.test` site. Use it for WordPress multisite in subdomain mode or multi-tenant apps (one subdomain per tenant).
+
+1. Open the site's actions menu and choose **Site Settings…**.
+2. Under **Subdomains**, turn on **Wildcard subdomains**.
+
+The site list shows a `*.` pill on sites with the wildcard on.
+
+- **Nothing to add to DNS.** KTStack's DNS already resolves every name under your dev TLD.
+- **A specific site wins.** If another site or alias uses `api.shop.test`, that name goes to that site; every other `*.shop.test` name goes to `shop.test`.
+- **HTTPS covers one level.** On an HTTPS site the certificate is re-issued with `*.shop.test`, which covers `tenant.shop.test` but not `a.b.shop.test`. Deeper names still route to the site, but browsers show a certificate warning for them.
+- **Read the host from the request.** Your app should use the `Host` header (`$_SERVER['HTTP_HOST']`, Laravel's `$request->getHost()`) to tell tenants apart. With the nginx backend, `SERVER_NAME` stays the site's main domain.
+
 ## Enable Node for a Site
 
 If you have a Node.js app running alongside PHP (or a pure Node site), you can enable Node serving:
