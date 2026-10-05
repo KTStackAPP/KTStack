@@ -50,7 +50,8 @@ struct SitesListPane: View {
                     SiteCompactRow(
                         site: site,
                         upstreamRunning: vm.upstreamRunning[site.id] ?? false,
-                        shared: vm.shares[site.id]?.publicURL != nil
+                        shared: vm.shares[site.id]?.publicURL != nil,
+                        workers: vm.workersSummary(for: site)
                     )
                     .equatable()
                     .tag(site.id)

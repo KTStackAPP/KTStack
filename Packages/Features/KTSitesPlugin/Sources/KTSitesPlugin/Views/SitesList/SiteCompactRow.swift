@@ -6,6 +6,7 @@ struct SiteCompactRow: View, Equatable {
     let site: SiteSummary
     let upstreamRunning: Bool
     let shared: Bool
+    let workers: SiteWorkersSummary
 
     var body: some View {
         HStack(spacing: 10) {
@@ -19,6 +20,7 @@ struct SiteCompactRow: View, Equatable {
                 .font(.jbMono(11.5))
                 .foregroundStyle(KTColor.ink3)
                 .lineLimit(1)
+            workersSlot.frame(width: 14)
             shareSlot.frame(width: 14)
             Image(systemName: site.secure ? "lock.fill" : "lock.open")
                 .font(.system(size: 11))
@@ -28,6 +30,24 @@ struct SiteCompactRow: View, Equatable {
             liveSlot.frame(width: 14)
         }
         .frame(height: 44)
+    }
+
+    @ViewBuilder
+    private var workersSlot: some View {
+        if workers.isEmpty {
+            Color.clear
+        } else {
+            Image(systemName: "gearshape.2")
+                .font(.system(size: 11))
+                .foregroundStyle(workersColor)
+                .help(workers.label)
+                .accessibilityLabel(workers.label)
+        }
+    }
+
+    private var workersColor: Color {
+        if workers.failing > 0 { return Color.KDStatus.error }
+        return workers.active > 0 ? Color.KDStatus.running : Color.KDStatus.stopped
     }
 
     @ViewBuilder
