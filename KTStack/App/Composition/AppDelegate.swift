@@ -107,6 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         dns: dns,
         runtimes: runtimes,
         sharing: tunnelPlugin.manager,
+        workers: server,
         modals: modals,
         sitesRoot: { [preferences] in preferences.sitesRootURL },
         httpsByDefault: { [preferences] in preferences.serveHTTPSByDefault },

@@ -93,3 +93,31 @@ public struct KTIPCServiceInfo: Codable, Sendable {
         self.detail = detail
     }
 }
+
+public struct KTIPCWorkerInfo: Codable, Sendable, Equatable {
+    public let site: String
+    public let name: String
+    public let command: String
+    public let enabled: Bool
+    public let state: String
+    public let restarts: Int
+    public let lastExitStatus: Int32?
+
+    public init(
+        site: String,
+        name: String,
+        command: String,
+        enabled: Bool,
+        state: String,
+        restarts: Int = 0,
+        lastExitStatus: Int32? = nil
+    ) {
+        self.site = site
+        self.name = name
+        self.command = command
+        self.enabled = enabled
+        self.state = state
+        self.restarts = restarts
+        self.lastExitStatus = lastExitStatus
+    }
+}

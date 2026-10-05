@@ -14,6 +14,12 @@ func printUsage() {
       services start <service>      Start a background service
       services stop <service>       Stop a background service
       services restart <service>    Restart a background service
+      workers [list] [site] [--json]
+                                    List site workers and their state
+      workers start <site> <worker> Start a site worker
+      workers stop <site> <worker>  Stop a site worker
+      workers restart <site> <worker>
+                                    Restart a running site worker
       db backup <name>              Not available yet (use KTStack › Database › Backups)
       doctor                        Run diagnostic probes
       mcp                           Start stdio Model Context Protocol server
@@ -69,6 +75,15 @@ case "services":
         exit(1)
     }
 
+case "workers":
+    do {
+        let cmd = WorkersCommand(client: client)
+        try cmd.run(arguments: Array(args.dropFirst()))
+    } catch {
+        fputs("Error: \(error.localizedDescription)\n", stderr)
+        exit(1)
+    }
+
 case "doctor":
     let cmd = DoctorCommand(client: client)
     cmd.run()
@@ -109,6 +124,8 @@ case "mcp":
           • ktstack_list_sites: List local sites, domains, PHP versions, ports and wildcard flag
           • ktstack_list_services: List background services and whether they run
           • ktstack_restart_service: Restart a background service
+          • ktstack_list_workers: List site workers (queue, scheduler…) and their state
+          • ktstack_start_worker / ktstack_stop_worker: Start or stop a site worker
           • ktstack_get_recent_logs: Fetch the last lines of a KTStack log source
           • ktstack_backup_database: Not available yet (returns an error)
           • ktstack_doctor: Check that the KTStack app is reachable

@@ -23,7 +23,8 @@ public struct KTMCPToolCatalog: Sendable {
                     "lines": ["type": AnyCodable("integer"), "description": AnyCodable("Number of trailing log lines to fetch (default: 50, max: 2000)")],
                     "source": ["type": AnyCodable("string"), "description": AnyCodable(
                         "Log source id: 'nginx-error' (default), 'nginx-access', 'php-<version>', a service such as 'mysql', "
-                            + "'diagnostics', or 'site-<domain>-error' / 'site-<domain>-access'"
+                            + "'diagnostics', 'site-<domain>-error' / 'site-<domain>-access', or a site worker as "
+                            + "'site-<domain>-worker-<name>'"
                     )]
                 ]
             ),
@@ -40,6 +41,16 @@ public struct KTMCPToolCatalog: Sendable {
                 ],
                 required: ["service"]
             ),
+            tool(
+                name: "ktstack_list_workers",
+                description: "List the background workers of KTStack sites (e.g. Laravel queue:work, schedule:work) "
+                    + "with their command, whether they are started, and their state.",
+                properties: [
+                    "site": ["type": AnyCodable("string"), "description": AnyCodable("Site domain or name (default: all sites)")]
+                ]
+            ),
+            workerTool(name: "ktstack_start_worker", verb: "Start"),
+            workerTool(name: "ktstack_stop_worker", verb: "Stop"),
             tool(
                 name: "ktstack_backup_database",
                 description: "Back up one database of a KTStack-managed engine and return the path of the backup file.",
@@ -88,6 +99,13 @@ public struct KTMCPToolCatalog: Sendable {
                 throw KTCLIError.serverError("Missing required parameter 'service'")
             }
             return try client.call(method: "services.restart", params: ["service": service])
+        case "ktstack_list_workers":
+            let site = (arguments?["site"]?.value as? String).flatMap { $0.isEmpty ? nil : $0 }
+            return try client.call(method: "workers.list", params: site.map { ["site": $0] })
+        case "ktstack_start_worker":
+            return try client.call(method: "workers.start", params: requiredParams(arguments, ["site", "worker"]))
+        case "ktstack_stop_worker":
+            return try client.call(method: "workers.stop", params: requiredParams(arguments, ["site", "worker"]))
         case "ktstack_get_recent_logs":
             return try client.call(method: "logs.recent", params: logParams(arguments))
         case "ktstack_backup_database":
@@ -126,6 +144,18 @@ public struct KTMCPToolCatalog: Sendable {
         if let lines = arguments?["lines"]?.value as? Int { params["lines"] = String(lines) }
         if let lines = arguments?["lines"]?.value as? String { params["lines"] = lines }
         return params
+    }
+
+    private func workerTool(name: String, verb: String) -> [String: AnyCodable] {
+        tool(
+            name: name,
+            description: "\(verb) a background worker of a KTStack site. Started workers run while the KTStack server runs.",
+            properties: [
+                "site": ["type": AnyCodable("string"), "description": AnyCodable("Site domain or name")],
+                "worker": ["type": AnyCodable("string"), "description": AnyCodable("Worker name, e.g. 'queue'")]
+            ],
+            required: ["site", "worker"]
+        )
     }
 
     private func tool(

@@ -79,6 +79,34 @@ final class KTMCPToolCallTests: XCTestCase {
         XCTAssertFalse(names.contains { $0.contains("restore") })
     }
 
+    func testWorkerToolsGoThroughIPC() async throws {
+        let names = KTMCPToolCatalog(client: server.client).listTools().compactMap { $0["name"]?.value as? String }
+        XCTAssertTrue(names.contains("ktstack_list_workers"))
+        XCTAssertTrue(names.contains("ktstack_start_worker"))
+        XCTAssertTrue(names.contains("ktstack_stop_worker"))
+
+        _ = try await call(
+            #"{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"ktstack_list_workers","arguments":{"site":"shop.test"}}}"#
+        )
+        XCTAssertEqual(server.requests.last?.method, "workers.list")
+        XCTAssertEqual(server.requests.last?.params?["site"], "shop.test")
+
+        let response = try await call(
+            #"{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"ktstack_start_worker","arguments":{"site":"shop.test","worker":"queue"}}}"#
+        )
+        XCTAssertEqual(isError(response), false)
+        XCTAssertEqual(server.requests.last?.method, "workers.start")
+        XCTAssertEqual(server.requests.last?.params?["worker"], "queue")
+    }
+
+    func testStopWorkerToolRequiresAWorkerName() async throws {
+        let response = try await call(
+            #"{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"ktstack_stop_worker","arguments":{"site":"shop.test"}}}"#
+        )
+        XCTAssertEqual(isError(response), true)
+        XCTAssertTrue(server.requests.isEmpty)
+    }
+
     func testNotificationsAreNeverAnswered() async throws {
         let response = try await call(#"{"jsonrpc":"2.0","method":"tools/list"}"#)
         XCTAssertNil(response)

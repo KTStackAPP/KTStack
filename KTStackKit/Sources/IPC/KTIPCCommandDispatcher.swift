@@ -31,6 +31,10 @@ public final class KTIPCCommandDispatcher: Sendable {
             return await handleServicesList(id: request.id)
         case "services.restart", "services.start", "services.stop":
             return await handleServiceAction(request: request)
+        case "workers.list":
+            return await handleWorkersList(request: request)
+        case "workers.start", "workers.stop", "workers.restart":
+            return await handleWorkerAction(request: request)
         case "logs.recent":
             return await handleRecentLogs(request: request)
         case "db.backup":
