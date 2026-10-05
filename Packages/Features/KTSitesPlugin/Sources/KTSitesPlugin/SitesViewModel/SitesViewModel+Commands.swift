@@ -46,6 +46,10 @@ extension SitesViewModel {
         try catalog.validateAliases(aliases, for: id)
     }
 
+    func setWildcardSubdomains(_ id: UUID, _ enabled: Bool) throws {
+        try catalog.setWildcardSubdomains(id, enabled)
+    }
+
     func setEnvVars(_ id: UUID, _ env: [String: String]) throws {
         try catalog.setEnvVars(id, env)
     }

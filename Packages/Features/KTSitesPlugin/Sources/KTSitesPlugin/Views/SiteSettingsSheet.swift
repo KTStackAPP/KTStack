@@ -13,6 +13,7 @@ struct SiteSettingsSheet: View {
             site: site,
             validateAliases: { try vm.validateAliases($0, for: site.id) },
             setAliases: { try vm.setAliases(site.id, $0) },
+            setWildcardSubdomains: { try vm.setWildcardSubdomains(site.id, $0) },
             setEnvVars: { try vm.setEnvVars(site.id, $0) },
             saveDirectives: { try await vm.saveFrontDirectives(site.id, $0) }
         ))
@@ -25,6 +26,7 @@ struct SiteSettingsSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     aliasesSection
+                    wildcardSection
                     if model.showsEnv { envSection }
                     directivesSection
                 }
@@ -101,6 +103,28 @@ struct SiteSettingsSheet: View {
                     .font(.jbMono(11.5)).foregroundStyle(KTColor.faint)
             }
         }
+    }
+
+    private var wildcardSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("Subdomains")
+            SiteFormControls.advancedToggle(
+                "Wildcard subdomains",
+                "Answer on *.\(site.domain) too",
+                Binding(get: { model.wildcardSubdomains }, set: { _ in model.toggleWildcard() })
+            )
+            if let error = model.wildcardError { errorText(error) }
+            Text(wildcardHint)
+                .font(.jbMono(11.5)).foregroundStyle(KTColor.faint)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var wildcardHint: String {
+        let base = "For WordPress multisite (subdomain mode) and multi-tenant apps. A site or alias with its own domain still wins over the wildcard."
+        return site.secure
+            ? base + " HTTPS covers one level (tenant.\(site.domain)), not deeper names."
+            : base
     }
 
     private var tld: String {

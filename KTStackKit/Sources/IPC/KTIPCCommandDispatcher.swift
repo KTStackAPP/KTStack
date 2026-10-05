@@ -53,7 +53,8 @@ public final class KTIPCCommandDispatcher: Sendable {
                     path: site.path,
                     phpVersion: site.phpVersion,
                     secure: site.secure,
-                    backendPort: site.backendPort ?? 0
+                    backendPort: site.backendPort ?? 0,
+                    wildcardSubdomains: site.wildcardSubdomains
                 )
             }
         }

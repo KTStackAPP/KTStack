@@ -42,7 +42,8 @@ final class ApacheConfigWriterTests: XCTestCase {
 
     func testSecurePinsCanonicalPort443AndHTTPSEnv() {
         let c = config(secure: true)
-        XCTAssertTrue(c.contains("UseCanonicalName On"))
+        XCTAssertTrue(c.contains("UseCanonicalName Off"), "host comes from the request; only the port is pinned")
+        XCTAssertTrue(c.contains("UseCanonicalPhysicalPort Off"))
         XCTAssertTrue(c.contains("ServerName demo.test:443"))
         XCTAssertTrue(c.contains("SetEnv HTTPS on"))
     }

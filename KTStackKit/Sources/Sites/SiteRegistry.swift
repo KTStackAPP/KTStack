@@ -319,6 +319,10 @@ public final class SiteRegistry: ObservableObject {
         update(site.id) { $0.aliases = normalized }
     }
 
+    public func setWildcardSubdomains(_ site: Site, _ enabled: Bool) {
+        update(site.id) { $0.wildcardSubdomains = enabled }
+    }
+
     public func setEnvVars(_ site: Site, _ env: [String: String]) throws {
         if let err = SiteEnvVars.validate(env) { throw RegistryError.invalidEnv(Self.envErrorKey(err)) }
         update(site.id) { $0.envVars = env }

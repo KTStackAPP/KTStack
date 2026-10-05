@@ -19,6 +19,9 @@ final class SiteSettingsModel: ObservableObject {
     @Published var aliasDraft = ""
     @Published var aliasError: String?
 
+    @Published var wildcardSubdomains: Bool
+    @Published var wildcardError: String?
+
     @Published var envRows: [EnvRow]
     @Published var envError: String?
     @Published var envSaved = false
@@ -30,6 +33,7 @@ final class SiteSettingsModel: ObservableObject {
 
     private let validateAliasesFn: ([String]) throws -> Void
     private let setAliasesFn: ([String]) throws -> Void
+    private let setWildcardFn: (Bool) throws -> Void
     private let setEnvVarsFn: ([String: String]) throws -> Void
     private let saveDirectivesFn: (String) async throws -> Void
 
@@ -39,6 +43,7 @@ final class SiteSettingsModel: ObservableObject {
         site: SiteSummary,
         validateAliases: @escaping ([String]) throws -> Void,
         setAliases: @escaping ([String]) throws -> Void,
+        setWildcardSubdomains: @escaping (Bool) throws -> Void,
         setEnvVars: @escaping ([String: String]) throws -> Void,
         saveDirectives: @escaping (String) async throws -> Void
     ) {
@@ -47,10 +52,12 @@ final class SiteSettingsModel: ObservableObject {
         kind = site.kind
         secure = site.secure
         aliases = site.aliases
+        wildcardSubdomains = site.wildcardSubdomains
         envRows = SiteEnvVars.sorted(site.envVars).map { EnvRow(key: $0.key, value: $0.value) }
         directives = site.frontDirectives ?? ""
         validateAliasesFn = validateAliases
         setAliasesFn = setAliases
+        setWildcardFn = setWildcardSubdomains
         setEnvVarsFn = setEnvVars
         saveDirectivesFn = saveDirectives
     }
@@ -78,6 +85,17 @@ final class SiteSettingsModel: ObservableObject {
             aliasError = nil
         } catch {
             aliasError = error.localizedDescription
+        }
+    }
+
+    func toggleWildcard() {
+        let next = !wildcardSubdomains
+        do {
+            try setWildcardFn(next)
+            wildcardSubdomains = next
+            wildcardError = nil
+        } catch {
+            wildcardError = error.localizedDescription
         }
     }
 

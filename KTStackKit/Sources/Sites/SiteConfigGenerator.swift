@@ -26,7 +26,7 @@ public struct SiteConfigGenerator {
                 secure: secure,
                 certFile: secure ? paths.siteCert(site.domain) : nil,
                 keyFile: secure ? paths.siteKey(site.domain) : nil,
-                aliases: site.aliases,
+                aliases: site.routedAliases,
                 directivesInclude: directivesInclude
             )
         }
@@ -38,7 +38,7 @@ public struct SiteConfigGenerator {
         }
         let root: URL? = site.hasFolder ? URL(fileURLWithPath: site.docroot) : nil
         if secure {
-            return tls.redirectVhost(domain: site.domain, aliases: site.aliases) + "\n\n"
+            return tls.redirectVhost(domain: site.domain, aliases: site.routedAliases) + "\n\n"
                 + tls.secureVhost(
                     domain: site.domain,
                     root: root,
@@ -46,7 +46,7 @@ public struct SiteConfigGenerator {
                     keyFile: paths.siteKey(site.domain),
                     phpFpmSocket: nil,
                     proxyUpstream: upstream,
-                    aliases: site.aliases,
+                    aliases: site.routedAliases,
                     directivesInclude: directivesInclude,
                     accessLog: access,
                     errorLog: error
@@ -56,7 +56,7 @@ public struct SiteConfigGenerator {
             return writer.vhostProxy(
                 domain: site.domain,
                 upstream: upstream,
-                aliases: site.aliases,
+                aliases: site.routedAliases,
                 directivesInclude: directivesInclude,
                 accessLog: access,
                 errorLog: error
@@ -65,7 +65,7 @@ public struct SiteConfigGenerator {
         return writer.vhostStatic(
             domain: site.domain,
             root: URL(fileURLWithPath: site.docroot),
-            aliases: site.aliases,
+            aliases: site.routedAliases,
             directivesInclude: directivesInclude,
             accessLog: access,
             errorLog: error
@@ -91,7 +91,7 @@ public struct SiteConfigGenerator {
             pidFile: paths.siteBackendPid(site.id.uuidString, engine: engine.rawValue),
             accessLog: paths.siteAccessLog(site.domain),
             errorLog: paths.siteErrorLog(site.domain),
-            aliases: site.aliases,
+            aliases: site.routedAliases,
             env: site.envVars
         )
         return backend.backendConfig(context: context)

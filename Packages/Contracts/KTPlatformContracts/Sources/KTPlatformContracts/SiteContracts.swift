@@ -10,7 +10,7 @@ public enum SiteServerEngine: String, Sendable, CaseIterable {
     case nginx, apache
 }
 
-// Projection của Site theo capability Sites: 17 field UI đọc. Không phải snapshot chung (Tunnel dùng
+// Projection của Site theo capability Sites: 18 field UI đọc. Không phải snapshot chung (Tunnel dùng
 // TunnelSiteTarget, Logs dùng siteDomains).
 public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
     public let id: UUID
@@ -28,6 +28,7 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
     public let backendPort: Int?
     public let proxyTarget: String?
     public let aliases: [String]
+    public let wildcardSubdomains: Bool
     public let envVars: [String: String]
     public let frontDirectives: String?
 
@@ -47,6 +48,7 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
         backendPort: Int?,
         proxyTarget: String? = nil,
         aliases: [String] = [],
+        wildcardSubdomains: Bool = false,
         envVars: [String: String] = [:],
         frontDirectives: String? = nil
     ) {
@@ -65,6 +67,7 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
         self.backendPort = backendPort
         self.proxyTarget = proxyTarget
         self.aliases = aliases
+        self.wildcardSubdomains = wildcardSubdomains
         self.envVars = envVars
         self.frontDirectives = frontDirectives
     }
@@ -92,6 +95,8 @@ public protocol SiteCatalogManaging: AnyObject {
     @MainActor func setProxyTarget(_ id: UUID, _ target: String) throws
     @MainActor func setAliases(_ id: UUID, _ aliases: [String]) throws
     @MainActor func validateAliases(_ aliases: [String], for id: UUID) throws
+    // Bật/tắt `*.<domain>`; site secure re-mint cert trước khi persist (serverBusy khi đang bận).
+    @MainActor func setWildcardSubdomains(_ id: UUID, _ enabled: Bool) throws
     @MainActor func setEnvVars(_ id: UUID, _ env: [String: String]) throws
     // Fail-closed: nginx -t trước khi persist; tái dùng NginxIncludeSaveError.
     @MainActor func saveFrontDirectives(_ id: UUID, _ text: String) async throws

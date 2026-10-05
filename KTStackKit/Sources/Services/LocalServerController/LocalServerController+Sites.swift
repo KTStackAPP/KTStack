@@ -79,6 +79,33 @@ public extension LocalServerController {
         }
     }
 
+    // `*.<domain>` vào server_name + SAN cert. Secure: re-mint trước, chỉ persist khi mint xong
+    // (fail-closed như setSiteAliases), nên cert cũ không bao giờ đứng sau server_name có wildcard.
+    func setSiteWildcardSubdomains(_ site: Site, _ enabled: Bool) throws {
+        guard site.wildcardSubdomains != enabled else { return }
+        guard site.secure else {
+            registry.setWildcardSubdomains(site, enabled) // → onRegistryChanged → reconcile server_name
+            return
+        }
+        guard !isBusy else { throw SiteRegistry.RegistryError.serverBusy }
+        isBusy = true; lastError = nil
+        var updated = site; updated.wildcardSubdomains = enabled
+        let provisioner = httpsProvisioner
+        Task.detached(priority: .userInitiated) {
+            var failure: String?
+            do {
+                try provisioner.enableHTTPS(for: updated) // re-mint cert, thêm/bỏ SAN *.<domain>
+            } catch {
+                failure = error.localizedDescription
+            }
+            await MainActor.run {
+                self.isBusy = false
+                if let failure { self.lastError = failure }
+                else { self.registry.setWildcardSubdomains(site, enabled) } // → reconcile: server_name + cert mới
+            }
+        }
+    }
+
     /// Switch a site's engine with a zero-downtime handoff: bring the requested engine up on a
     /// fresh backendPort, repoint the front to it, then reap the old backend. No Web Server restart.
     /// Falls back to a plain persist when nothing is running (the next start applies it) or when the

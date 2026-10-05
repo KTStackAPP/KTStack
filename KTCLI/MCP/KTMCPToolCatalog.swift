@@ -12,7 +12,8 @@ public struct KTMCPToolCatalog: Sendable {
         [
             tool(
                 name: "ktstack_list_sites",
-                description: "List all local development sites registered in KTStack with domains, PHP versions, ports, and paths.",
+                description: "List all local development sites registered in KTStack with domains, PHP versions, ports, paths, "
+                    + "and whether each answers on wildcard subdomains (wildcardSubdomains).",
                 properties: [:]
             ),
             tool(

@@ -75,6 +75,9 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
     public var proxyTarget: String?
     // Extra .tld domains served alongside `domain`; they join server_name and the cert SANs.
     public var aliases: [String]
+    // Also answer on every `*.<domain>` subdomain (front server_name + cert SAN). Kept as a flag,
+    // not an alias, so TLD migration and alias conflict checks only ever see concrete hostnames.
+    public var wildcardSubdomains: Bool
     // Per-site env vars for the PHP backend (fastcgi_param/SetEnv) and Node start (export).
     public var envVars: [String: String]
     // Verbatim nginx directives spliced into this site's front server block; scope in the name so a backend variant can follow.
@@ -97,6 +100,7 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         backendPort: Int? = nil,
         proxyTarget: String? = nil,
         aliases: [String] = [],
+        wildcardSubdomains: Bool = false,
         envVars: [String: String] = [:],
         frontDirectives: String? = nil
     ) {
@@ -116,6 +120,7 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         self.backendPort = backendPort
         self.proxyTarget = proxyTarget
         self.aliases = aliases
+        self.wildcardSubdomains = wildcardSubdomains
         self.envVars = envVars
         self.frontDirectives = frontDirectives
     }
@@ -123,7 +128,7 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case id, name, path, docroot, domain, phpVersion, type, databaseName, secure
         case nodePort, nodeCommand, nodeEnabled, serverEngine, backendPort, proxyTarget
-        case aliases, envVars, frontDirectives
+        case aliases, wildcardSubdomains, envVars, frontDirectives
     }
 
     public init(from decoder: Decoder) throws {
@@ -146,6 +151,7 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         backendPort = try c.decodeIfPresent(Int.self, forKey: .backendPort)
         proxyTarget = try c.decodeIfPresent(String.self, forKey: .proxyTarget)
         aliases = try c.decodeIfPresent([String].self, forKey: .aliases) ?? []
+        wildcardSubdomains = try c.decodeIfPresent(Bool.self, forKey: .wildcardSubdomains) ?? false
         envVars = try c.decodeIfPresent([String: String].self, forKey: .envVars) ?? [:]
         frontDirectives = try c.decodeIfPresent(String.self, forKey: .frontDirectives)
     }
@@ -153,8 +159,14 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
     // Có thư mục trên đĩa; proxy site không có nên mọi thao tác folder phải gate cái này.
     public var hasFolder: Bool { !path.isEmpty }
 
-    // domain chính + alias, dùng cho server_name và cert SAN.
-    public var serverNames: [String] { [domain] + aliases }
+    // `*.<domain>` khi bật wildcard; nil khi tắt.
+    public var wildcardName: String? { wildcardSubdomains ? "*.\(domain)" : nil }
+
+    // Alias + wildcard: mọi tên ngoài domain chính mà server_name và cert SAN phải mang.
+    public var routedAliases: [String] { aliases + (wildcardName.map { [$0] } ?? []) }
+
+    // domain chính + alias (+ wildcard), dùng cho server_name và cert SAN.
+    public var serverNames: [String] { [domain] + routedAliases }
 
     // Có directives không rỗng sau trim; generator chỉ ghi file + include khi true.
     public var hasFrontDirectives: Bool {

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Wildcard subdomains** in **Site Settings…**: a site can answer on every subdomain of its domain, so `tenant.shop.test` reaches the `shop.test` site without adding each one as an alias. Useful for WordPress multisite in subdomain mode and multi-tenant apps. It is off by default. On an HTTPS site the certificate is re-issued with `*.shop.test`. A site or alias with its own domain (for example `api.shop.test`) still wins over the wildcard. `kt sites` and the MCP `ktstack_list_sites` tool show the flag.
+
+### Fixed
+
+- Apache backends no longer redirect an alias domain to the site's main domain (for example when adding a trailing slash to a folder URL). Apache now keeps the host from the request and only pins the port.
+
 ## 0.3.2 — 2026-10-05
 
 ### Added

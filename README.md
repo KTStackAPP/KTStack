@@ -107,7 +107,7 @@ KTStack includes a built-in **Model Context Protocol (MCP)** server (`kt mcp`) t
 ```
 
 ### Exposed MCP Tools
-- `ktstack_list_sites`: List local sites with their domains, PHP versions, backend ports and TLS status.
+- `ktstack_list_sites`: List local sites with their domains, PHP versions, backend ports, TLS status and wildcard-subdomain flag.
 - `ktstack_list_services`: List background services and whether each is running.
 - `ktstack_restart_service`: Restart a background service (starts it if it is stopped).
 - `ktstack_get_recent_logs`: Fetch the last lines of a KTStack log source (`nginx-error`, `php-<version>`, `mysql`, `site-<domain>-error`, …).
