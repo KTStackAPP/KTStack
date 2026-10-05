@@ -52,6 +52,9 @@ final class ServiceControlSemanticsTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: dir) }
         let mysqld = dir.appendingPathComponent("mysqld")
         try FileManager.default.copyItem(atPath: "/bin/sleep", toPath: mysqld.path)
+        // macOS 27 kill bản copy của binary hệ thống ở đường dẫn khác, ký lại ad-hoc để chạy được.
+        let resign = try Process.run(URL(fileURLWithPath: "/usr/bin/codesign"), arguments: ["-f", "-s", "-", mysqld.path])
+        resign.waitUntilExit()
 
         let lookalike = Process()
         lookalike.executableURL = URL(fileURLWithPath: "/bin/sh")
