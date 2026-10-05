@@ -24,6 +24,7 @@ struct SiteGridCard: View {
     var onRestore: () -> Void = {}
     var onSettings: () -> Void = {}
     var onRecheckType: () -> Void = {}
+    var workersSummary: SiteWorkersSummary?
 
     private var proxyDisplay: String? {
         guard let raw = site.proxyTarget else { return nil }
@@ -54,6 +55,9 @@ struct SiteGridCard: View {
 
             HStack(spacing: 7) {
                 KTStatusLabel(running: canOpen)
+                if let workersSummary, !workersSummary.isEmpty {
+                    SiteWorkersBadge(summary: workersSummary, action: onSettings)
+                }
                 Spacer()
                 if site.kind == .php {
                     KTBadge(text: framework.label, tint: SiteVisuals.tint(for: framework), radius: 7)

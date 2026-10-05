@@ -22,7 +22,8 @@ extension SiteSummary {
             aliases: site.aliases,
             wildcardSubdomains: site.wildcardSubdomains,
             envVars: site.envVars,
-            frontDirectives: site.frontDirectives
+            frontDirectives: site.frontDirectives,
+            workers: site.workers
         )
     }
 }

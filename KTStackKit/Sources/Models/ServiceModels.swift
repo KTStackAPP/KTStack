@@ -54,6 +54,14 @@ public enum SiteType: String, Codable, CaseIterable, Sendable {
     }
 }
 
+private struct LossySiteWorker: Decodable {
+    let worker: SiteWorker?
+
+    init(from decoder: Decoder) throws {
+        worker = try? SiteWorker(from: decoder)
+    }
+}
+
 public struct Site: Identifiable, Hashable, Codable, Sendable {
     public let id: UUID
     public var name: String
@@ -82,6 +90,7 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
     public var envVars: [String: String]
     // Verbatim nginx directives spliced into this site's front server block; scope in the name so a backend variant can follow.
     public var frontDirectives: String?
+    public var workers: [SiteWorker]
 
     public init(
         id: UUID = UUID(),
@@ -102,7 +111,8 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         aliases: [String] = [],
         wildcardSubdomains: Bool = false,
         envVars: [String: String] = [:],
-        frontDirectives: String? = nil
+        frontDirectives: String? = nil,
+        workers: [SiteWorker] = []
     ) {
         self.id = id
         self.name = name
@@ -123,12 +133,13 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         self.wildcardSubdomains = wildcardSubdomains
         self.envVars = envVars
         self.frontDirectives = frontDirectives
+        self.workers = workers
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, name, path, docroot, domain, phpVersion, type, databaseName, secure
         case nodePort, nodeCommand, nodeEnabled, serverEngine, backendPort, proxyTarget
-        case aliases, wildcardSubdomains, envVars, frontDirectives
+        case aliases, wildcardSubdomains, envVars, frontDirectives, workers
     }
 
     public init(from decoder: Decoder) throws {
@@ -154,10 +165,13 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         wildcardSubdomains = try c.decodeIfPresent(Bool.self, forKey: .wildcardSubdomains) ?? false
         envVars = try c.decodeIfPresent([String: String].self, forKey: .envVars) ?? [:]
         frontDirectives = try c.decodeIfPresent(String.self, forKey: .frontDirectives)
+        workers = (try? c.decodeIfPresent([LossySiteWorker].self, forKey: .workers))?.compactMap(\.worker) ?? []
     }
 
     // Có thư mục trên đĩa; proxy site không có nên mọi thao tác folder phải gate cái này.
     public var hasFolder: Bool { !path.isEmpty }
+
+    public var supportsWorkers: Bool { type == .php && hasFolder }
 
     // `*.<domain>` khi bật wildcard; nil khi tắt.
     public var wildcardName: String? { wildcardSubdomains ? "*.\(domain)" : nil }

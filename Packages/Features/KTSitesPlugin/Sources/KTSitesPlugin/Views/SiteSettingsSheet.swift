@@ -4,11 +4,13 @@ import SwiftUI
 
 struct SiteSettingsSheet: View {
     let site: SiteSummary
+    private let vm: SitesViewModel
     @StateObject private var model: SiteSettingsModel
     @Environment(\.dismiss) private var dismiss
 
     init(site: SiteSummary, vm: SitesViewModel) {
         self.site = site
+        self.vm = vm
         _model = StateObject(wrappedValue: SiteSettingsModel(
             site: site,
             validateAliases: { try vm.validateAliases($0, for: site.id) },
@@ -28,6 +30,9 @@ struct SiteSettingsSheet: View {
                     aliasesSection
                     wildcardSection
                     if model.showsEnv { envSection }
+                    if site.kind == .php, !site.path.isEmpty {
+                        SiteWorkersSection(siteID: site.id, vm: vm)
+                    }
                     directivesSection
                 }
                 .padding(20)

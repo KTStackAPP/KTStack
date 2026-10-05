@@ -6,7 +6,7 @@ extension LocalServerController {
     }
 
     public func start() {
-        guard !deferIfBusy({ $0.start() }), !isRunning else { return }
+        guard ownsRunningStack, !deferIfBusy({ $0.start() }), !isRunning else { return }
         isBusy = true; lastError = nil
         nginxStatus = .starting; phpStatus = .starting
         ensureSeed()
@@ -22,16 +22,17 @@ extension LocalServerController {
                 await finish(missing: missing, error: nil)
             } catch {
                 ServiceDiagnostics(paths: paths).log(.error, "server start failed: \(error.localizedDescription)")
-                pools.stopAll(); backends.stopAll(); nginx.stop()
+                workers.stopAll(); pools.stopAll(); backends.stopAll(); nginx.stop()
                 await finish(missing: [], error: error.localizedDescription)
             }
         }
     }
 
     public func stop() {
-        guard !deferIfBusy({ $0.stop() }) else { return }
+        guard ownsRunningStack, !deferIfBusy({ $0.stop() }) else { return }
         isBusy = true; nginxStatus = .stopping; phpStatus = .stopping
-        Task.detached(priority: .userInitiated) { [nginx, backends, pools, self] in
+        Task.detached(priority: .userInitiated) { [nginx, backends, pools, workers, self] in
+            workers.stopAll()
             nginx.stop()
             backends.stopAll()
             pools.stopAll()
@@ -43,21 +44,21 @@ extension LocalServerController {
     }
 
     public func restart() {
-        guard !deferIfBusy({ $0.restart() }) else { return }
+        guard ownsRunningStack, !deferIfBusy({ $0.restart() }) else { return }
         isBusy = true; lastError = nil
         nginxStatus = .starting; phpStatus = .starting
         ensureSeed()
         let sites = registry.sites
         let port = httpPort
         Task.detached(priority: .userInitiated) { [self] in
-            nginx.stop(); backends.stopAll(); pools.stopAll()
+            workers.stopAll(); nginx.stop(); backends.stopAll(); pools.stopAll()
             do {
                 try stager.stageIfNeeded()
                 await ensureDefaultPHPInstalled(sites: sites)
                 let missing = try await applyConfiguration(sites: sites, port: port, startNginx: true)
                 await finish(missing: missing, error: nil)
             } catch {
-                pools.stopAll(); backends.stopAll(); nginx.stop()
+                workers.stopAll(); pools.stopAll(); backends.stopAll(); nginx.stop()
                 await finish(missing: [], error: error.localizedDescription)
             }
         }
@@ -65,6 +66,7 @@ extension LocalServerController {
 
     public func shutdownForQuit() {
         watcher.stop()
+        guard ownsRunningStack else { return }
         agents.bootoutAll()
     }
 
@@ -77,7 +79,7 @@ extension LocalServerController {
     }
 
     public func startNginx() {
-        guard !deferIfBusy({ $0.startNginx() }), !isRunning else { return }
+        guard ownsRunningStack, !deferIfBusy({ $0.startNginx() }), !isRunning else { return }
         isBusy = true; lastError = nil; nginxStatus = .starting
         ensureSeed()
         let sites = registry.sites
@@ -94,19 +96,21 @@ extension LocalServerController {
                 }
                 try nginx.start()
                 try await Self.waitForListening(frontPorts(for: sites, httpPort: port))
+                workers.reconcile(sites: sites)
                 await finish(missing: [], error: nil)
             } catch {
                 ServiceDiagnostics(paths: paths).log(.error, "nginx start failed: \(error.localizedDescription)")
-                backends.stopAll(); nginx.stop()
+                workers.stopAll(); backends.stopAll(); nginx.stop()
                 await finish(missing: [], error: error.localizedDescription)
             }
         }
     }
 
     public func stopNginx() {
-        guard !deferIfBusy({ $0.stopNginx() }) else { return }
+        guard ownsRunningStack, !deferIfBusy({ $0.stopNginx() }) else { return }
         isBusy = true; nginxStatus = .stopping
-        Task.detached(priority: .userInitiated) { [nginx, backends, self] in
+        Task.detached(priority: .userInitiated) { [nginx, backends, workers, self] in
+            workers.stopAll()
             nginx.stop()
             backends.stopAll()
             await MainActor.run { self.isBusy = false; self.recomputeStatus() }
@@ -114,7 +118,7 @@ extension LocalServerController {
     }
 
     public func startPHP() {
-        guard !deferIfBusy({ $0.startPHP() }), !phpRunning else { return }
+        guard ownsRunningStack, !deferIfBusy({ $0.startPHP() }), !phpRunning else { return }
         isBusy = true; lastError = nil; phpStatus = .starting
         ensureSeed()
         let sites = registry.sites
@@ -138,7 +142,7 @@ extension LocalServerController {
     }
 
     public func stopPHP() {
-        guard !deferIfBusy({ $0.stopPHP() }) else { return }
+        guard ownsRunningStack, !deferIfBusy({ $0.stopPHP() }) else { return }
         isBusy = true; phpStatus = .stopping
         Task.detached(priority: .userInitiated) { [pools, self] in
             pools.stopAll()
@@ -147,7 +151,7 @@ extension LocalServerController {
     }
 
     public func restartNginx() {
-        guard !deferIfBusy({ $0.restartNginx() }) else { return }
+        guard ownsRunningStack, !deferIfBusy({ $0.restartNginx() }) else { return }
         isBusy = true; lastError = nil; nginxStatus = .starting
         ensureSeed()
         let sites = registry.sites
@@ -165,17 +169,18 @@ extension LocalServerController {
                 }
                 try nginx.start()
                 try await Self.waitForListening(frontPorts(for: sites, httpPort: port))
+                workers.reconcile(sites: sites)
                 await finish(missing: [], error: nil)
             } catch {
                 ServiceDiagnostics(paths: paths).log(.error, "nginx start failed: \(error.localizedDescription)")
-                backends.stopAll(); nginx.stop()
+                workers.stopAll(); backends.stopAll(); nginx.stop()
                 await finish(missing: [], error: error.localizedDescription)
             }
         }
     }
 
     public func restartPHP() {
-        guard !deferIfBusy({ $0.restartPHP() }) else { return }
+        guard ownsRunningStack, !deferIfBusy({ $0.restartPHP() }) else { return }
         isBusy = true; lastError = nil; phpStatus = .starting
         ensureSeed()
         let sites = registry.sites

@@ -27,6 +27,7 @@ final class SitesViewModel: ObservableObject {
     @Published private(set) var dns: DNSResolverState
     @Published var upstreamRunning: [UUID: Bool] = [:]
     @Published var frameworks: [UUID: PHPFramework] = [:]
+    @Published var workers = SiteWorkersState()
 
     let catalog: any SiteCatalogManaging
     let serverControl: any SiteServerControlling
@@ -35,10 +36,12 @@ final class SitesViewModel: ObservableObject {
     let sharingManager: any SiteSharing
     let dnsManager: any DNSResolverManaging
     let provisioning: any SiteProvisioning
+    let workerManager: any SiteWorkerManaging
     let route: @MainActor (SitesRoute) -> Void
 
     private var tasks: [Task<Void, Never>] = []
     var probeTask: Task<Void, Never>?
+    var workerTask: Task<Void, Never>?
 
     var defaultPHP: String {
         runtimes.defaults[.php] ?? server.phpVersions.last ?? "8.4"
@@ -52,6 +55,7 @@ final class SitesViewModel: ObservableObject {
         sharing: any SiteSharing,
         dns: any DNSResolverManaging,
         provisioning: any SiteProvisioning,
+        workers: any SiteWorkerManaging,
         route: @escaping @MainActor (SitesRoute) -> Void
     ) {
         self.catalog = catalog
@@ -61,6 +65,7 @@ final class SitesViewModel: ObservableObject {
         sharingManager = sharing
         dnsManager = dns
         self.provisioning = provisioning
+        workerManager = workers
         self.route = route
 
         sites = catalog.catalog.sites
@@ -99,5 +104,6 @@ final class SitesViewModel: ObservableObject {
     deinit {
         for task in tasks { task.cancel() }
         probeTask?.cancel()
+        workerTask?.cancel()
     }
 }

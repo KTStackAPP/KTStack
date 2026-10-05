@@ -36,6 +36,7 @@ public final class LocalServerController: ObservableObject {
     nonisolated let agents: LaunchAgentManager
     nonisolated let nginx: NginxController
     nonisolated let backends: SiteBackendSupervisor
+    nonisolated let workers: SiteWorkerSupervisor
     nonisolated let pools: PHPFPMPoolManager
     nonisolated let upstreamProbe: UpstreamProbe
     nonisolated let generator: SiteConfigGenerator
@@ -49,6 +50,7 @@ public final class LocalServerController: ObservableObject {
     var pendingReconcile = false
     var queuedAction: (@MainActor (LocalServerController) -> Void)?
     var didCheckCertRenewal = false
+    nonisolated let ownsRunningStack: Bool
 
     public init(
         bundleBinDir: URL,
@@ -58,6 +60,7 @@ public final class LocalServerController: ObservableObject {
     ) {
         self.paths = paths
         self.tld = tld
+        ownsRunningStack = adoptRunningStack
         agents = LaunchAgentManager(paths: paths)
         registry = SiteRegistry(
             storeURL: paths.sitesRegistryFile,
@@ -66,6 +69,7 @@ public final class LocalServerController: ObservableObject {
         )
         nginx = NginxController(paths: paths, agents: agents)
         backends = SiteBackendSupervisor(paths: paths, agents: agents)
+        workers = SiteWorkerSupervisor(paths: paths, agents: agents)
         pools = PHPFPMPoolManager(paths: paths, agents: agents)
         upstreamProbe = UpstreamProbe()
         generator = SiteConfigGenerator(paths: paths)
@@ -104,7 +108,7 @@ public final class LocalServerController: ObservableObject {
         isBusy = true
         let sites = registry.sites
         let required = generator.poolVersions(for: sites)
-        Task.detached(priority: .userInitiated) { [nginx, pools, backends, self] in
+        Task.detached(priority: .userInitiated) { [nginx, pools, backends, workers, self] in
             guard nginx.isRunningNow else {
                 await MainActor.run { self.isBusy = false }
                 return
@@ -115,6 +119,7 @@ public final class LocalServerController: ObservableObject {
                 self.refreshWatches()
             }
             await backends.reconcile(sites: sites)
+            workers.reconcile(sites: sites)
             await MainActor.run { self.isBusy = false }
         }
     }
@@ -135,6 +140,7 @@ public final class LocalServerController: ObservableObject {
     }
 
     public var phpRunning: Bool {
+        guard ownsRunningStack else { return false }
         let active = pools.activeVersions
         return !active.isEmpty && active.allSatisfy { pools.isRunning(version: $0) }
     }
@@ -162,10 +168,10 @@ public final class LocalServerController: ObservableObject {
     }
 
     func recomputeStatus() {
-        let nginxRunning = nginx.isRunning
+        let nginxRunning = ownsRunningStack && nginx.isRunning
         let newNginx: ServiceStatus = nginxRunning ? .running : .stopped
         let active = pools.activeVersions
-        let allUp = !active.isEmpty && active.allSatisfy { pools.isRunning(version: $0) }
+        let allUp = ownsRunningStack && !active.isEmpty && active.allSatisfy { pools.isRunning(version: $0) }
         let newPhp: ServiceStatus = allUp ? .running : .stopped
         if newNginx != nginxStatus { nginxStatus = newNginx }
         if newPhp != phpStatus { phpStatus = newPhp }

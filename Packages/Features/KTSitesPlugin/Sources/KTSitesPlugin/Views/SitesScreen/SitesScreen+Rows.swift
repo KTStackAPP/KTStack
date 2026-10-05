@@ -30,7 +30,8 @@ extension SitesScreen {
                     onRestore: { restoreSite = site },
                     onSettings: { settingsSite = site },
                     onRecheckType: { recheckType(site) },
-                    onError: { actionError = $0 }
+                    onError: { actionError = $0 },
+                    workersSummary: vm.workersSummary(for: site)
                 )
                 .equatable()
                 if index < filteredSites.count - 1 {
@@ -63,7 +64,8 @@ extension SitesScreen {
                     onConfigureVSCode: { configureVSCode(site) },
                     onRestore: { restoreSite = site },
                     onSettings: { settingsSite = site },
-                    onRecheckType: { recheckType(site) }
+                    onRecheckType: { recheckType(site) },
+                    workersSummary: vm.workersSummary(for: site)
                 )
             }
         }
