@@ -82,8 +82,8 @@ settings:
     SWIFT_VERSION: "5.0"
     SWIFT_STRICT_CONCURRENCY: targeted
     MACOSX_DEPLOYMENT_TARGET: "13.0"
-    MARKETING_VERSION: "0.3.4"
-    CURRENT_PROJECT_VERSION: "40"
+    MARKETING_VERSION: "0.3.5"
+    CURRENT_PROJECT_VERSION: "41"
     # Local builds sign ad-hoc; real Developer ID + notarization arrives in Phase 9.
     CODE_SIGN_STYLE: Manual
     CODE_SIGN_IDENTITY: "-"

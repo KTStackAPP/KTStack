@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.5 — 2026-10-05
+
+### Changed
+
+- Release builds are now checked for a working server start before they ship: the release smoke test launches the app and fails unless nginx comes up and no binary is rejected. No app behavior changes in this version.
+
 ## 0.3.4 — 2026-10-05
 
 ### Fixed
