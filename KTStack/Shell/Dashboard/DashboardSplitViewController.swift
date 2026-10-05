@@ -96,7 +96,7 @@ final class DashboardSplitViewController: NSSplitViewController {
         self.nav = nav
         self.env = env
         self.sections = sections
-        detailContainer = DetailContainerViewController(nav: nav, env: env, plugins: sections.flatMap(\.plugins))
+        detailContainer = DetailContainerViewController(env: env, plugins: sections.flatMap(\.plugins))
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -135,15 +135,21 @@ final class DashboardSplitViewController: NSSplitViewController {
 }
 
 final class DetailContainerViewController: NSViewController {
-    private let nav: DashboardNavigation
     private let env: DashboardEnv
     private let plugins: [any KTStackPlugin]
     private var cache: [String: NSHostingController<AnyView>] = [:]
     private var current: String?
     private var isSectionVisible = false
+    // Section whose sectionDidActivate has run; activation is deferred, so it can lag `current`.
+    private var activatedID: String?
+    private var pendingActivation: Task<Void, Never>?
 
-    init(nav: DashboardNavigation, env: DashboardEnv, plugins: [any KTStackPlugin]) {
-        self.nav = nav
+    // Let the newly shown section paint before its activation work (log tail load, upstream probes,
+    // polling) lands on the main thread. A short sleep rather than main.async: an async block can run
+    // in the same run-loop pass, before the display commit.
+    private static let activationDelay: UInt64 = 50_000_000
+
+    init(env: DashboardEnv, plugins: [any KTStackPlugin]) {
         self.env = env
         self.plugins = plugins
         super.init(nibName: nil, bundle: nil)
@@ -162,7 +168,6 @@ final class DetailContainerViewController: NSViewController {
 
     func show(_ id: String) {
         if current == id { return }
-        let previous = current
 
         let controller = cache[id] ?? makeController(id)
         cache[id] = controller
@@ -186,27 +191,40 @@ final class DetailContainerViewController: NSViewController {
 
         controller.view.isHidden = false
         current = id
-        if isSectionVisible { notifyActivation(from: previous, to: id) }
-        DispatchQueue.main.async { [nav] in nav.activeItem = id }
+        if isSectionVisible { activateSection(id) }
     }
 
     override func viewWillAppear() {
         super.viewWillAppear()
         guard !isSectionVisible else { return }
         isSectionVisible = true
-        notifyActivation(from: nil, to: current)
+        activateSection(current)
     }
 
     override func viewDidDisappear() {
         super.viewDidDisappear()
         guard isSectionVisible else { return }
         isSectionVisible = false
-        notifyActivation(from: current, to: nil)
+        activateSection(nil)
     }
 
-    private func notifyActivation(from oldID: String?, to newID: String?) {
-        plugin(for: oldID)?.sectionDidDeactivate()
-        plugin(for: newID)?.sectionDidActivate()
+    // Deactivates the previous section now and activates `id` after the delay, unless the user has
+    // moved on by then. A section skipped by a quick switch is never activated, so never deactivated.
+    private func activateSection(_ id: String?) {
+        pendingActivation?.cancel()
+        pendingActivation = nil
+        if let activatedID, activatedID != id {
+            plugin(for: activatedID)?.sectionDidDeactivate()
+            self.activatedID = nil
+        }
+        guard let id, activatedID != id else { return }
+        pendingActivation = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: Self.activationDelay)
+            guard let self, !Task.isCancelled, current == id, isSectionVisible else { return }
+            pendingActivation = nil
+            activatedID = id
+            plugin(for: id)?.sectionDidActivate()
+        }
     }
 
     private func plugin(for id: String?) -> (any SectionActivationObserving)? {

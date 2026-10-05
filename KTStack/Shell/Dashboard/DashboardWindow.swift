@@ -5,7 +5,9 @@ import SwiftUI
 struct DashboardWindow: View {
     static let windowID = "dashboard"
 
-    @ObservedObject var nav: DashboardNavigation
+    // Not observed: the body only hands nav down; DashboardSplitRepresentable and the sidebar observe
+    // it, so a tab switch does not also re-render this window body.
+    let nav: DashboardNavigation
     let env: DashboardEnv
     let pluginSections: [PluginSection]
 
