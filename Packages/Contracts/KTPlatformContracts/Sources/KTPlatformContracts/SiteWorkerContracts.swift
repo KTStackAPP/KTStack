@@ -8,6 +8,7 @@ public enum SiteWorkerRunState: String, Sendable, Equatable, CaseIterable {
     case running
     case backoff
     case crashed
+    case failed
 
     public var label: String {
         switch self {
@@ -17,13 +18,14 @@ public enum SiteWorkerRunState: String, Sendable, Equatable, CaseIterable {
         case .running: "Running"
         case .backoff: "Restarting"
         case .crashed: "Crashed"
+        case .failed: "Failed to start"
         }
     }
 
     public var isActive: Bool {
         switch self {
         case .starting, .running, .backoff: true
-        case .stopped, .waitingForServer, .crashed: false
+        case .stopped, .waitingForServer, .crashed, .failed: false
         }
     }
 }
@@ -33,12 +35,24 @@ public struct SiteWorkerStatus: Sendable, Equatable, Hashable {
     public var restarts: Int
     public var lastExitStatus: Int32?
     public var nextAttemptAt: Date?
+    public var message: String?
 
-    public init(state: SiteWorkerRunState, restarts: Int = 0, lastExitStatus: Int32? = nil, nextAttemptAt: Date? = nil) {
+    public init(
+        state: SiteWorkerRunState,
+        restarts: Int = 0,
+        lastExitStatus: Int32? = nil,
+        nextAttemptAt: Date? = nil,
+        message: String? = nil
+    ) {
         self.state = state
         self.restarts = restarts
         self.lastExitStatus = lastExitStatus
         self.nextAttemptAt = nextAttemptAt
+        self.message = message
+    }
+
+    public var needsAttention: Bool {
+        state == .crashed || state == .failed
     }
 
     public static let stopped = SiteWorkerStatus(state: .stopped)

@@ -5,12 +5,12 @@ import KTStackCore
 struct SiteWorkersSummary: Equatable {
     let total: Int
     let active: Int
-    let crashed: Int
+    let failing: Int
 
     var isEmpty: Bool { total == 0 }
 
     var label: String {
-        if crashed > 0 { return crashed == 1 ? "1 worker crashed" : "\(crashed) workers crashed" }
+        if failing > 0 { return failing == 1 ? "1 worker failing" : "\(failing) workers failing" }
         return total == 1 ? "\(active)/1 worker" : "\(active)/\(total) workers"
     }
 }
@@ -39,12 +39,12 @@ extension SitesViewModel {
     }
 
     func workersSummary(for site: SiteSummary) -> SiteWorkersSummary {
-        guard site.kind == .php, !site.path.isEmpty else { return SiteWorkersSummary(total: 0, active: 0, crashed: 0) }
+        guard site.kind == .php, !site.path.isEmpty else { return SiteWorkersSummary(total: 0, active: 0, failing: 0) }
         let statuses = site.workers.map(workerStatus)
         return SiteWorkersSummary(
             total: site.workers.count,
             active: statuses.filter(\.state.isActive).count,
-            crashed: statuses.filter { $0.state == .crashed }.count
+            failing: statuses.filter(\.needsAttention).count
         )
     }
 

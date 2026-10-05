@@ -176,10 +176,11 @@ How workers run:
 - **Site folder and environment.** Workers start in the site folder with the site's environment variables from Site Settings. Your `.env` file is read by Laravel as usual.
 - **With the server.** Started workers run while the KTStack server runs. Stopping the server, or quitting KTStack, stops them; starting it again starts them again. A worker started while the server is stopped shows **Starts with the server**.
 - **Restart on crash.** A worker that exits is restarted after 1 s, then 2 s, 4 s… up to 60 s. After 8 exits in a row within a minute of starting, KTStack stops retrying and shows **Crashed (exit N)**. Fix the cause and click **Restart** (↻).
+- **Failed to start.** If launchd can't start a worker, it shows **Failed to start** with the reason (for example a damaged KTStack install). Fix the cause and click **Restart** (↻).
 - **Code changes.** `queue:work` keeps your code in memory. Click **Restart** after changing jobs, or use `php artisan queue:listen` while developing.
 - **Off by default.** Adding a worker never starts it. Only workers you start run, and they keep their started state across restarts of KTStack.
 
-The site card and list row show a worker badge (for example `2/2 workers`, or `1 worker crashed` in red). Click it to open Site Settings.
+The site card and list row show a worker badge (for example `2/2 workers`, or `1 worker failing` in red). Click it to open Site Settings.
 
 Each worker's output goes to **Logs** as `<domain> · worker <name>` (log file `~/Library/Application Support/KTStack/logs/sites/<domain>.worker-<name>.log`). Click the log button on a worker to jump there.
 

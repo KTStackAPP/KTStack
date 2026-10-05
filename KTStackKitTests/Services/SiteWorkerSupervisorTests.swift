@@ -140,10 +140,60 @@ final class SiteWorkerSupervisorTests: XCTestCase {
         XCTAssertTrue(agents.loadedLabels.isEmpty)
     }
 
-    func testMissingSupervisorStartsNothing() {
-        let shop = site(workers: [SiteWorker(name: "queue", command: "php artisan queue:work", enabled: true)])
-        supervisor(executable: nil).reconcile(sites: [shop])
+    func testMissingSupervisorReportsAFailureInsteadOfStarting() {
+        let worker = SiteWorker(name: "queue", command: "php artisan queue:work", enabled: true)
+        let shop = site(workers: [worker])
+        let runner = supervisor(executable: nil)
+        runner.reconcile(sites: [shop])
         XCTAssertTrue(bootstrapped.isEmpty)
+        let status = runner.statuses(sites: [shop], serverRunning: true).status(of: worker.id)
+        XCTAssertEqual(status.state, .failed)
+        XCTAssertTrue(status.message?.contains("kt helper") == true, status.message ?? "")
+    }
+
+    func testJobThatLaunchdDoesNotLoadIsRetriedThenReportedAndRetriedOnNextReconcile() {
+        let worker = SiteWorker(name: "queue", command: "php artisan queue:work", enabled: true)
+        let shop = site(workers: [worker])
+        let label = paths.siteWorkerLabel(siteID: shop.id.uuidString, workerID: worker.id.uuidString)
+        let runner = supervisor()
+        agents.dropBootstraps(true)
+        runner.reconcile(sites: [shop])
+
+        XCTAssertEqual(bootstrapped, [label, label])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: paths.siteWorkerSpec(label).path))
+        let failed = runner.statuses(sites: [shop], serverRunning: true).status(of: worker.id)
+        XCTAssertEqual(failed.state, .failed)
+        XCTAssertNotNil(failed.message)
+
+        agents.dropBootstraps(false)
+        runner.reconcile(sites: [shop])
+        XCTAssertTrue(agents.loadedLabels.contains(label))
+        XCTAssertEqual(runner.statuses(sites: [shop], serverRunning: true).status(of: worker.id).state, .starting)
+    }
+
+    func testBootstrapErrorIsReported() {
+        let worker = SiteWorker(name: "queue", command: "php artisan queue:work", enabled: true)
+        let shop = site(workers: [worker])
+        let runner = supervisor()
+        agents.fail(.bootstrap, with: LaunchAgentManager.LaunchError.commandFailed("bootstrap", 37, "Operation already in progress"))
+        runner.reconcile(sites: [shop])
+        let status = runner.statuses(sites: [shop], serverRunning: true).status(of: worker.id)
+        XCTAssertEqual(status.state, .failed)
+        XCTAssertTrue(status.message?.contains("Operation already in progress") == true, status.message ?? "")
+    }
+
+    func testRestartStartsAFailedWorkerAgain() {
+        let worker = SiteWorker(name: "queue", command: "php artisan queue:work", enabled: true)
+        let shop = site(workers: [worker])
+        let label = paths.siteWorkerLabel(siteID: shop.id.uuidString, workerID: worker.id.uuidString)
+        let runner = supervisor()
+        agents.dropBootstraps(true)
+        runner.reconcile(sites: [shop])
+        agents.dropBootstraps(false)
+
+        runner.restart(site: shop, worker: worker)
+        XCTAssertTrue(agents.loadedLabels.contains(label))
+        XCTAssertEqual(runner.statuses(sites: [shop], serverRunning: true).status(of: worker.id).state, .starting)
     }
 
     func testStatusesFollowEnabledServerAndSupervisorState() {

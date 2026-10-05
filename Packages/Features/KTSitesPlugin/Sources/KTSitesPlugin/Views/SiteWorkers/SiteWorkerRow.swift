@@ -28,6 +28,10 @@ struct SiteWorkerRow: View {
                 Text(worker.command).font(.jbMono(11.5)).foregroundStyle(KTColor.ink2)
                     .lineLimit(1).truncationMode(.middle)
                     .help(worker.command)
+                if status.state == .failed, let message = status.message {
+                    Text(message).font(.jbMono(11.5)).foregroundStyle(KTColor.danger)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: 8)
             controls
@@ -76,7 +80,7 @@ enum SiteWorkerVisuals {
         switch state {
         case .running: Color.KDStatus.running
         case .starting, .backoff: Color.KDStatus.warning
-        case .crashed: Color.KDStatus.error
+        case .crashed, .failed: Color.KDStatus.error
         case .stopped, .waitingForServer: Color.KDStatus.stopped
         }
     }

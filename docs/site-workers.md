@@ -51,6 +51,11 @@ Each enabled worker is a launchd user agent labelled
 - `reconcile` compares a fingerprint of the spec (arguments, environment, folder, log) with the
   one written at bootstrap. A changed command, PHP version, env var or app pid reloads the job;
   an unchanged one is left alone.
+- After `bootstrap` the supervisor asks launchd again (`isLoadedNow`), because `launchctl` can
+  report success (rc 5) for a job it did not load. It tries once more after 0.5 s. If the job is
+  still not loaded, if `bootstrap` fails, if `kt` is missing from the app bundle, or if the command
+  can't be split, it writes `failedToStart` with the reason to the status file and does not write
+  the fingerprint, so the next reconcile (or **Restart**) tries again.
 
 ## Supervisor and restart policy
 
@@ -67,10 +72,11 @@ Each enabled worker is a launchd user agent labelled
   never leaves workers behind. The next launch reloads the jobs because the parent pid in the
   fingerprint changed.
 
-The status file holds `running`, `backoff` (with the next attempt time), `crashed` or `stopped`,
-the restart count and the last exit status. `SiteWorkerSupervisor.statuses` maps it, together with
+The status file holds `running`, `backoff` (with the next attempt time), `crashed`, `stopped` or
+`failedToStart` (with a message), the restart count and the last exit status. `SiteWorkerSupervisor.statuses` maps it, together with
 the enabled flag and whether the server and the job are up, to `SiteWorkerRunState`
-(`stopped`, `waitingForServer`, `starting`, `running`, `backoff`, `crashed`).
+(`stopped`, `waitingForServer`, `starting`, `running`, `backoff`, `crashed`, `failed`). A
+`failed` worker shows its reason in Site Settings, `kt workers` and `ktstack_list_workers`.
 `LocalServerController.workersStateStream()` polls it every 2 s off the main actor while the
 Sites section is visible.
 

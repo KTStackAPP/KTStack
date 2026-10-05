@@ -102,6 +102,7 @@ public struct KTIPCWorkerInfo: Codable, Sendable, Equatable {
     public let state: String
     public let restarts: Int
     public let lastExitStatus: Int32?
+    public let message: String?
 
     public init(
         site: String,
@@ -110,7 +111,8 @@ public struct KTIPCWorkerInfo: Codable, Sendable, Equatable {
         enabled: Bool,
         state: String,
         restarts: Int = 0,
-        lastExitStatus: Int32? = nil
+        lastExitStatus: Int32? = nil,
+        message: String? = nil
     ) {
         self.site = site
         self.name = name
@@ -119,5 +121,6 @@ public struct KTIPCWorkerInfo: Codable, Sendable, Equatable {
         self.state = state
         self.restarts = restarts
         self.lastExitStatus = lastExitStatus
+        self.message = message
     }
 }

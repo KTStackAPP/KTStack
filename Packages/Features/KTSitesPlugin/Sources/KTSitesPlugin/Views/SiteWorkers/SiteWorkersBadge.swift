@@ -6,7 +6,7 @@ struct SiteWorkersBadge: View {
     let action: () -> Void
 
     private var color: Color {
-        if summary.crashed > 0 { return Color.KDStatus.error }
+        if summary.failing > 0 { return Color.KDStatus.error }
         return summary.active > 0 ? Color.KDStatus.running : Color.KDStatus.stopped
     }
 

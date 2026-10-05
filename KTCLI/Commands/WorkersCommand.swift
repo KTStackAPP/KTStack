@@ -40,6 +40,7 @@ struct WorkersCommand {
         print(String(repeating: "-", count: 90))
         for worker in workers {
             print(String(format: "%-24@ %-14@ %-18@ %@", worker.site, worker.name, worker.state, worker.command))
+            if let message = worker.message { print("  ↳ \(message)") }
         }
     }
 }

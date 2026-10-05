@@ -108,9 +108,18 @@ final class SitesViewModelWorkerTests: XCTestCase {
             scheduler.id: SiteWorkerStatus(state: .crashed, lastExitStatus: 1),
         ])
         let summary = vm.workersSummary(for: site)
-        XCTAssertEqual(summary, SiteWorkersSummary(total: 3, active: 1, crashed: 1))
-        XCTAssertEqual(summary.label, "1 worker crashed")
+        XCTAssertEqual(summary, SiteWorkersSummary(total: 3, active: 1, failing: 1))
+        XCTAssertEqual(summary.label, "1 worker failing")
         XCTAssertEqual(vm.workerStatus(idle).state, .stopped)
+    }
+
+    func testWorkerThatFailedToStartCountsAsFailing() {
+        let queue = SiteWorker(name: "queue", command: "php artisan queue:work", enabled: true)
+        let site = makeSite(workers: [queue])
+        let vm = makeVM(sites: [site], workers: FakeSiteWorkers())
+        vm.workers = SiteWorkersState(statuses: [queue.id: SiteWorkerStatus(state: .failed, message: "kt is missing")])
+        XCTAssertEqual(vm.workersSummary(for: site), SiteWorkersSummary(total: 1, active: 0, failing: 1))
+        XCTAssertEqual(vm.workerStatus(queue).message, "kt is missing")
     }
 
     func testEnabledWorkerWithoutStatusFollowsTheServer() {

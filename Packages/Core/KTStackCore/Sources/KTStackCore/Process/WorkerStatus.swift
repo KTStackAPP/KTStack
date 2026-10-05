@@ -6,6 +6,7 @@ public struct WorkerStatus: Codable, Equatable, Sendable {
         case backoff
         case crashed
         case stopped
+        case failedToStart
     }
 
     public var state: State
@@ -13,6 +14,7 @@ public struct WorkerStatus: Codable, Equatable, Sendable {
     public var restarts: Int
     public var lastExitStatus: Int32?
     public var nextAttemptAt: Date?
+    public var message: String?
     public var updatedAt: Date
 
     public init(
@@ -21,6 +23,7 @@ public struct WorkerStatus: Codable, Equatable, Sendable {
         restarts: Int = 0,
         lastExitStatus: Int32? = nil,
         nextAttemptAt: Date? = nil,
+        message: String? = nil,
         updatedAt: Date = Date()
     ) {
         self.state = state
@@ -28,6 +31,7 @@ public struct WorkerStatus: Codable, Equatable, Sendable {
         self.restarts = restarts
         self.lastExitStatus = lastExitStatus
         self.nextAttemptAt = nextAttemptAt
+        self.message = message
         self.updatedAt = updatedAt
     }
 

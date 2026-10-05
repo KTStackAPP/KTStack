@@ -21,6 +21,7 @@ final class FakeLaunchAgentManager: LaunchAgentManaging, @unchecked Sendable {
     private var failures: [Operation: Error] = [:]
     private var pids: [String: pid_t] = [:]
     private var arguments: [String: [String]] = [:]
+    private var dropsBootstraps = false
 
     init(paths: AppSupportPaths, loaded: Set<String> = []) {
         self.paths = paths
@@ -37,6 +38,10 @@ final class FakeLaunchAgentManager: LaunchAgentManaging, @unchecked Sendable {
 
     func fail(_ operation: Operation, with error: Error) {
         locked { failures[operation] = error }
+    }
+
+    func dropBootstraps(_ drop: Bool) {
+        locked { dropsBootstraps = drop }
     }
 
     func setJobPID(_ pid: pid_t?, for label: String) {
@@ -67,6 +72,7 @@ final class FakeLaunchAgentManager: LaunchAgentManaging, @unchecked Sendable {
 
     func bootstrap(_ spec: LaunchAgentSpec) throws {
         try perform(.bootstrap, call: .bootstrap(spec.label)) {
+            guard !dropsBootstraps else { return }
             loaded.insert(spec.label)
             arguments[spec.label] = spec.programArguments
         }

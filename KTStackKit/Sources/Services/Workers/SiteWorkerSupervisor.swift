@@ -1,7 +1,20 @@
 import Foundation
 import KTStackCore
 
+enum SiteWorkerStartError: LocalizedError {
+    case notLoaded
+
+    var errorDescription: String? {
+        "the job was not loaded after bootstrap"
+    }
+}
+
 public struct SiteWorkerSupervisor: Sendable {
+    static let missingSupervisorMessage =
+        "KTStack's kt helper is missing from the app bundle, so workers can't run. Reinstall KTStack."
+    static let bootstrapAttempts = 2
+    static let bootstrapRetryDelay: TimeInterval = 0.5
+
     let paths: AppSupportPaths
     let agents: any LaunchAgentManaging
     let listLoaded: @Sendable (String) -> [String]
@@ -65,16 +78,20 @@ public struct SiteWorkerSupervisor: Sendable {
 
     public func reconcile(sites: [Site]) {
         let loaded = Set(loadedLabels())
+        let desired = Self.desired(sites)
         guard let launch = launch() else {
             loaded.forEach(tearDown)
-            if !Self.desired(sites).isEmpty {
-                ServiceDiagnostics(paths: paths).log(.error, "site workers: the kt supervisor is missing from the app bundle")
+            for (site, worker) in desired {
+                recordFailure(label(site: site, worker: worker), Self.missingSupervisorMessage)
             }
             return
         }
         var specs: [String: LaunchAgentSpec] = [:]
-        for (site, worker) in Self.desired(sites) {
-            guard let spec = launch.spec(site: site, worker: worker, phpVersion: effectivePHPVersion(site.phpVersion)) else { continue }
+        for (site, worker) in desired {
+            guard let spec = launch.spec(site: site, worker: worker, phpVersion: effectivePHPVersion(site.phpVersion)) else {
+                recordFailure(label(site: site, worker: worker), "The command of \(worker.name) can't be read. Edit it in Site Settings.")
+                continue
+            }
             specs[spec.label] = spec
         }
         for label in loaded where specs[label] == nil {
@@ -91,28 +108,56 @@ public struct SiteWorkerSupervisor: Sendable {
 
     public func restart(site: Site, worker: SiteWorker) {
         let label = self.label(site: site, worker: worker)
-        guard agents.isLoadedNow(label) else { return }
+        guard agents.isLoadedNow(label) else {
+            startFresh(site: site, worker: worker)
+            return
+        }
         try? FileManager.default.removeItem(at: paths.siteWorkerStatus(label))
         do {
             try agents.kickstart(label)
         } catch {
-            ServiceDiagnostics(paths: paths).log(.error, "site worker \(worker.name) restart failed: \(error.localizedDescription)")
+            recordFailure(label, "Restart failed: \(error.localizedDescription)")
         }
+    }
+
+    private func startFresh(site: Site, worker: SiteWorker) {
+        guard worker.enabled, site.supportsWorkers else { return }
+        let label = self.label(site: site, worker: worker)
+        guard let launch = launch() else { return recordFailure(label, Self.missingSupervisorMessage) }
+        guard let spec = launch.spec(site: site, worker: worker, phpVersion: effectivePHPVersion(site.phpVersion)) else {
+            return recordFailure(label, "The command of \(worker.name) can't be read. Edit it in Site Settings.")
+        }
+        start(spec, alreadyLoaded: false)
     }
 
     private func start(_ spec: LaunchAgentSpec, alreadyLoaded: Bool) {
         let fingerprint = paths.siteWorkerSpec(spec.label)
         let data = Self.fingerprint(of: spec)
         if alreadyLoaded, (try? Data(contentsOf: fingerprint)) == data { return }
+        try? FileManager.default.removeItem(at: fingerprint)
         do {
             if alreadyLoaded { try agents.bootout(spec.label) }
             try? FileManager.default.removeItem(at: paths.siteWorkerStatus(spec.label))
-            try agents.bootstrap(spec)
+            try bootstrapVerified(spec)
             try FileManager.default.createDirectory(at: paths.siteWorkerStatusDir, withIntermediateDirectories: true)
             try data.write(to: fingerprint, options: .atomic)
         } catch {
-            ServiceDiagnostics(paths: paths).log(.error, "site worker \(spec.label) did not start: \(error.localizedDescription)")
+            recordFailure(spec.label, "launchd did not start the worker: \(error.localizedDescription)")
         }
+    }
+
+    private func bootstrapVerified(_ spec: LaunchAgentSpec) throws {
+        for attempt in 0..<Self.bootstrapAttempts {
+            if attempt > 0 { Thread.sleep(forTimeInterval: Self.bootstrapRetryDelay) }
+            try agents.bootstrap(spec)
+            if agents.isLoadedNow(spec.label) { return }
+        }
+        throw SiteWorkerStartError.notLoaded
+    }
+
+    func recordFailure(_ label: String, _ message: String) {
+        ServiceDiagnostics(paths: paths).log(.error, "site worker \(label): \(message)")
+        WorkerStatus(state: .failedToStart, message: message).write(to: paths.siteWorkerStatus(label))
     }
 
     private func tearDown(_ label: String) {

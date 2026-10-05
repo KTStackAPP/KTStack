@@ -18,14 +18,19 @@ extension SiteWorkerSupervisor {
         guard worker.enabled else { return .stopped }
         guard serverRunning else { return SiteWorkerStatus(state: .waitingForServer) }
         let label = self.label(site: site, worker: worker)
-        guard loaded.contains(label), let recorded = WorkerStatus.read(from: statusURL(label)) else {
+        let recorded = WorkerStatus.read(from: statusURL(label))
+        if let recorded, recorded.state == .failedToStart {
+            return SiteWorkerStatus(state: .failed, message: recorded.message)
+        }
+        guard loaded.contains(label), let recorded else {
             return SiteWorkerStatus(state: .starting)
         }
         return SiteWorkerStatus(
             state: Self.runState(recorded.state),
             restarts: recorded.restarts,
             lastExitStatus: recorded.lastExitStatus,
-            nextAttemptAt: recorded.nextAttemptAt
+            nextAttemptAt: recorded.nextAttemptAt,
+            message: recorded.message
         )
     }
 
@@ -35,6 +40,7 @@ extension SiteWorkerSupervisor {
         case .backoff: .backoff
         case .crashed: .crashed
         case .stopped: .starting
+        case .failedToStart: .failed
         }
     }
 }

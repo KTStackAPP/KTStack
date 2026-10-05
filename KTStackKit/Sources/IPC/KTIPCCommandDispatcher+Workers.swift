@@ -26,7 +26,8 @@ extension KTIPCCommandDispatcher {
                     enabled: worker.enabled,
                     state: status.state.rawValue,
                     restarts: status.restarts,
-                    lastExitStatus: status.lastExitStatus
+                    lastExitStatus: status.lastExitStatus,
+                    message: status.message
                 )
             }
         }
