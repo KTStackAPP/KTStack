@@ -1,4 +1,5 @@
 import Foundation
+import KTStackCore
 
 // rawValue frozen == SiteType.rawValue (platform map theo raw value, test enforce).
 public enum SiteKind: String, Sendable, CaseIterable {
@@ -31,6 +32,7 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
     public let wildcardSubdomains: Bool
     public let envVars: [String: String]
     public let frontDirectives: String?
+    public let workers: [SiteWorker]
 
     public init(
         id: UUID,
@@ -50,7 +52,8 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
         aliases: [String] = [],
         wildcardSubdomains: Bool = false,
         envVars: [String: String] = [:],
-        frontDirectives: String? = nil
+        frontDirectives: String? = nil,
+        workers: [SiteWorker] = []
     ) {
         self.id = id
         self.name = name
@@ -70,6 +73,7 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
         self.wildcardSubdomains = wildcardSubdomains
         self.envVars = envVars
         self.frontDirectives = frontDirectives
+        self.workers = workers
     }
 }
 

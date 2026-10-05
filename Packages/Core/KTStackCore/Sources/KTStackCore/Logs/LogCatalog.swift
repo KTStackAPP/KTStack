@@ -47,7 +47,27 @@ public struct LogCatalog: Sendable {
                     ))
                 }
             }
+            out += workerSources(domain: domain)
         }
         return out
+    }
+
+    public static func siteWorkerSourceID(domain: String, worker: String) -> String {
+        "site-\(domain)-worker-\(worker)"
+    }
+
+    private func workerSources(domain: String) -> [LogSource] {
+        let prefix = "\(domain).worker-"
+        let files = (try? FileManager.default.contentsOfDirectory(atPath: paths.logsSites.path)) ?? []
+        return files.filter { $0.hasPrefix(prefix) && $0.hasSuffix(".log") }.sorted().compactMap { file in
+            let worker = String(file.dropFirst(prefix.count).dropLast(".log".count))
+            guard SiteWorkers.isValidName(worker) else { return nil }
+            return LogSource(
+                id: Self.siteWorkerSourceID(domain: domain, worker: worker),
+                displayName: "\(domain) · worker \(worker)",
+                kind: .site,
+                url: paths.siteWorkerLog(domain, worker: worker)
+            )
+        }
     }
 }

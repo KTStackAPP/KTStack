@@ -4,7 +4,7 @@ import KTStackCore
 
 extension SiteWorkerSupervisor {
     public func statuses(sites: [Site], serverRunning: Bool) -> SiteWorkersState {
-        let loaded = serverRunning ? Set(loadedLabels()) : []
+        let loaded = serverRunning && !Self.desired(sites).isEmpty ? Set(loadedLabels()) : []
         var statuses: [UUID: SiteWorkerStatus] = [:]
         for site in sites where site.supportsWorkers {
             for worker in site.workers {

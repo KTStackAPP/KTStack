@@ -47,6 +47,20 @@ final class LogsTests: XCTestCase {
         XCTAssertFalse(ids.contains("mysql")) // never ran → absent
     }
 
+    func testCatalogListsSiteWorkerLogs() throws {
+        let root = try tempDir(); defer { try? FileManager.default.removeItem(at: root) }
+        let paths = AppSupportPaths(root: root)
+        try paths.ensureDirectoryTree()
+        try FileManager.default.createDirectory(at: paths.logsSites, withIntermediateDirectories: true)
+        try Data().write(to: paths.siteWorkerLog("demo.test", worker: "queue"))
+        try Data().write(to: paths.siteWorkerLog("other.test", worker: "scheduler"))
+        let sources = LogCatalog(paths: paths).sources(siteDomains: ["demo.test"], phpVersions: [])
+        let worker = try XCTUnwrap(sources.first { $0.id == "site-demo.test-worker-queue" })
+        XCTAssertEqual(worker.kind, .site)
+        XCTAssertEqual(worker.url, paths.siteWorkerLog("demo.test", worker: "queue"))
+        XCTAssertFalse(sources.contains { $0.id.contains("scheduler") })
+    }
+
     /// Deterministic backfill coverage: on open, the reader emits the file's existing lines. The
     /// live-append path is driven by OS file-system events (flaky to unit-test) and is covered by
     /// real app usage instead.
