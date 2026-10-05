@@ -1,11 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.3.3 — 2026-10-05
 
 ### Added
 
 - **Background workers** in **Site Settings… → Workers**: run long-lived commands such as `php artisan queue:work` and `php artisan schedule:work` for a PHP site, supervised by KTStack. Laravel sites get one-click queue and scheduler presets. Workers use the site's PHP version, folder and environment variables, run while the server runs, restart with backoff when they crash (and stop retrying after repeated quick crashes), and stop with the server or when KTStack quits. Start, stop and restart each worker; the site card shows how many are running. Output goes to **Logs** as `<domain> · worker <name>`. Workers are off until you press **Start**. `kt workers` and the MCP `ktstack_list_workers`, `ktstack_start_worker` and `ktstack_stop_worker` tools list, start and stop them.
 - **Wildcard subdomains** in **Site Settings…**: a site can answer on every subdomain of its domain, so `tenant.shop.test` reaches the `shop.test` site without adding each one as an alias. Useful for WordPress multisite in subdomain mode and multi-tenant apps. It is off by default. On an HTTPS site the certificate is re-issued with `*.shop.test`. A site or alias with its own domain (for example `api.shop.test`) still wins over the wildcard. `kt sites` and the MCP `ktstack_list_sites` tool show the flag.
+
+### Changed
+
+- The update window now shows what changed in the new version.
 
 ### Fixed
 
