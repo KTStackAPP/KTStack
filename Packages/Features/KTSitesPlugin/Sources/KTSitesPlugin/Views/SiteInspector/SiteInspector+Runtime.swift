@@ -53,15 +53,15 @@ extension SiteInspector {
     @ViewBuilder
     private func nodeFields(_ site: SiteSummary) -> some View {
         InspectorField("Port") {
-            NodePortEditor(site: site, save: { try vm.setNodePort(site.id, $0) }, reportError: actions.reportError)
+            NodePortEditor(site: site, save: { try vm.setNodePort(site.id, $0) })
         }
         InspectorField("Status") { UpstreamStatus(running: upstreamRunning(site)) }
-        InspectorField("Start") {
-            if site.nodePort != nil {
+        if site.nodePort == nil {
+            InspectorField("Start") { InspectorValue("Set a port to route this site", muted: true) }
+        } else if !upstreamRunning(site) {
+            InspectorField("Start") {
                 KTButton(title: "Start in Terminal", kind: .secondary) { SiteActions.startNodeInTerminal(site) }
                     .ktTip("Open Terminal at the project with PORT set; run your dev server there")
-            } else {
-                InspectorValue("Set a port to route this site", muted: true)
             }
         }
         InspectorField("Start command") {
@@ -72,7 +72,7 @@ extension SiteInspector {
     @ViewBuilder
     private func proxyFields(_ site: SiteSummary) -> some View {
         InspectorField("Upstream") {
-            ProxyTargetEditor(site: site, save: { try vm.setProxyTarget(site.id, $0) }, reportError: actions.reportError)
+            ProxyTargetEditor(site: site, save: { try vm.setProxyTarget(site.id, $0) })
         }
         InspectorField("Status") { UpstreamStatus(running: upstreamRunning(site)) }
     }
@@ -94,15 +94,13 @@ private struct UpstreamStatus: View {
 private struct NodePortEditor: View {
     let site: SiteSummary
     let save: (Int?) throws -> Void
-    let reportError: (String) -> Void
 
     @State private var draft: String
     @State private var error: String?
 
-    init(site: SiteSummary, save: @escaping (Int?) throws -> Void, reportError: @escaping (String) -> Void) {
+    init(site: SiteSummary, save: @escaping (Int?) throws -> Void) {
         self.site = site
         self.save = save
-        self.reportError = reportError
         _draft = State(initialValue: site.nodePort.map(String.init) ?? "")
     }
 
@@ -143,22 +141,19 @@ private struct NodePortEditor: View {
     private func restore(_ message: String) {
         draft = site.nodePort.map(String.init) ?? ""
         error = message
-        reportError(message)
     }
 }
 
 private struct ProxyTargetEditor: View {
     let site: SiteSummary
     let save: (String) throws -> Void
-    let reportError: (String) -> Void
 
     @State private var draft: String
     @State private var error: String?
 
-    init(site: SiteSummary, save: @escaping (String) throws -> Void, reportError: @escaping (String) -> Void) {
+    init(site: SiteSummary, save: @escaping (String) throws -> Void) {
         self.site = site
         self.save = save
-        self.reportError = reportError
         _draft = State(initialValue: SiteInspectorInput.proxyDisplay(site.proxyTarget))
     }
 
@@ -185,7 +180,6 @@ private struct ProxyTargetEditor: View {
         } catch {
             draft = current
             self.error = error.localizedDescription
-            reportError(error.localizedDescription)
         }
     }
 }
