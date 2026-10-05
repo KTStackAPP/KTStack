@@ -50,7 +50,15 @@ struct SitesScreen: View {
                     .padding(.top, 6)
             }
 
-            SitesSplitRepresentable(pane: pane, list: AnyView(listPane), inspector: AnyView(inspectorPlaceholder))
+            SitesSplitRepresentable(
+                pane: pane,
+                list: AnyView(
+                    SitesListPane(vm: vm, pane: pane, sitesRoot: sitesRoot)
+                        .environmentObject(feedback)
+                        .ktTooltipHost()
+                ),
+                inspector: AnyView(inspectorPlaceholder)
+            )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.top, 14)
         }
@@ -104,22 +112,6 @@ struct SitesScreen: View {
         }
     }
 
-    private var listPane: some View {
-        VStack(spacing: 0) {
-            toolbar
-                .padding(.horizontal, KTSpacing.screenGutter)
-            content
-                .padding(.horizontal, KTSpacing.screenGutter)
-                .padding(.top, 14)
-            SitesDNSFooter(dns: vm.dns, tld: vm.tld, onEnable: vm.enableDNS, onDisable: vm.disableDNS, onReset: vm.resetDNS)
-                .padding(.top, 14)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(KTColor.contentBg)
-        .environmentObject(feedback)
-        .ktTooltipHost()
-    }
-
     private var inspectorPlaceholder: some View {
         Text("Select a site")
             .foregroundStyle(KTColor.muted)
@@ -136,55 +128,6 @@ struct SitesScreen: View {
         .opacity(0)
         .frame(width: 0, height: 0)
         .accessibilityHidden(true)
-    }
-
-    private var toolbar: some View {
-        HStack(spacing: 10) {
-            KTSearchField(text: $pane.searchText, placeholder: "Search sites by name or domain…")
-            HStack(spacing: 2) {
-                viewToggle(systemImage: "square.grid.2x2", active: gridView) { gridView = true }
-                viewToggle(systemImage: "list.bullet", active: !gridView) { gridView = false }
-            }
-            .padding(3)
-            .background(RoundedRectangle(cornerRadius: KTRadius.segment, style: .continuous).fill(KTColor.segmentBg))
-        }
-    }
-
-    private func viewToggle(systemImage: String, active: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(active ? KTColor.ink : KTColor.ink3)
-                .frame(width: 30, height: 26)
-                .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(active ? KTColor.cardBg : Color.clear)
-                        .shadow(color: active ? .black.opacity(0.10) : .clear, radius: 1.5, y: 1)
-                )
-        }
-        .buttonStyle(.plain)
-    }
-
-    @ViewBuilder
-    var content: some View {
-        if vm.sites.isEmpty {
-            emptyState(title: "No sites yet", message: "Add a folder under \(sitesRoot.path) to serve it at <name>.\(vm.tld).")
-        } else if filteredSites.isEmpty {
-            emptyState(title: "No matching sites", message: "No site matches “\(pane.searchText)”.")
-        } else if gridView {
-            ScrollView { grid.padding(.top, 2).padding(.horizontal, 2).padding(.bottom, 4) }
-        } else {
-            KTListContainer { ScrollView { list } }
-        }
-    }
-
-    private func emptyState(title: String, message: String) -> some View {
-        VStack(spacing: 6) {
-            Image(systemName: "globe").font(.system(size: 46, weight: .light)).foregroundStyle(KTColor.faint)
-            Text(title).font(.jbMono(17, .regular)).foregroundStyle(KTColor.ink3)
-            Text(message).font(.jbMono(13)).foregroundStyle(KTColor.muted).multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func openNewSite() {
