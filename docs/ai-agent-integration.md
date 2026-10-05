@@ -38,7 +38,10 @@ KTStack exposes 8 AI tools over the MCP stdio protocol. None of them restores or
 | `ktstack_list_sites` | none | Returns all registered `.test` sites, domains, PHP versions, loopback backend ports, disk paths, and whether each answers on `*.<domain>` (`wildcardSubdomains`). |
 | `ktstack_list_services` | none | Returns each background service and whether it is running. |
 | `ktstack_restart_service` | `service` (string, required) | Restarts a service (`nginx`, `phpFpm`, `mysql`, `postgres`, `redis`, …); a stopped service is started. |
-| `ktstack_get_recent_logs` | `source` (string), `lines` (integer, max 2000) | Returns the last lines of a log source: `nginx-error` (default), `nginx-access`, `php-<version>`, a service such as `mysql`, `diagnostics`, or `site-<domain>-error` / `site-<domain>-access`. An unknown source returns the list of available ids. |
+| `ktstack_get_recent_logs` | `source` (string), `lines` (integer, max 2000) | Returns the last lines of a log source: `nginx-error` (default), `nginx-access`, `php-<version>`, a service such as `mysql`, `diagnostics`, `site-<domain>-error` / `site-<domain>-access`, or a site worker as `site-<domain>-worker-<name>`. An unknown source returns the list of available ids. |
+| `ktstack_list_workers` | `site` (string) | Lists site workers (for example Laravel `queue:work` and `schedule:work`) with their command, whether they are started and their state (`stopped`, `waitingForServer`, `starting`, `running`, `backoff`, `crashed`). |
+| `ktstack_start_worker` | `site` (string, required), `worker` (string, required) | Starts a site worker. Started workers run while the KTStack server runs. |
+| `ktstack_stop_worker` | `site` (string, required), `worker` (string, required) | Stops a site worker. |
 | `ktstack_backup_database` | `database` (string, required), `engine` (string) | Backs up one database of a managed engine (`mysql`, `postgres` or `mongodb`; default: the first installed) into KTStack's backup library and returns the file path. Fails if the dump is missing or empty. |
 | `ktstack_create_site` | `path` (string, required), `php` (string) | Registers a project folder as a site. |
 | `ktstack_switch_php_version` | `domain` (string, required), `version` (string, required) | Switches a site to another installed PHP version. |

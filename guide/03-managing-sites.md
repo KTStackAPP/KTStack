@@ -162,6 +162,37 @@ The site list shows a `*.` pill on sites with the wildcard on.
 - **HTTPS covers one level.** On an HTTPS site the certificate is re-issued with `*.shop.test`, which covers `tenant.shop.test` but not `a.b.shop.test`. Deeper names still route to the site, but browsers show a certificate warning for them.
 - **Read the host from the request.** Your app should use the `Host` header (`$_SERVER['HTTP_HOST']`, Laravel's `$request->getHost()`) to tell tenants apart. With the nginx backend, `SERVER_NAME` stays the site's main domain.
 
+## Background Workers (Queue and Scheduler)
+
+Laravel apps need a queue worker and the scheduler running to behave like production. KTStack can run them for you instead of keeping extra terminal tabs open.
+
+1. Open the site's actions menu and choose **Site Settings…**.
+2. Under **Workers**, click **Laravel queue worker** or **Laravel scheduler** (shown on Laravel sites), or **Add worker** for any other command, such as `php artisan horizon`.
+3. Click **▶ Start** on the worker.
+
+How workers run:
+
+- **Same PHP as the site.** A command that starts with `php` runs the site's PHP version with its `php.ini` and extensions. Other commands (for example `vendor/bin/rr serve`) run as-is from the site folder.
+- **Site folder and environment.** Workers start in the site folder with the site's environment variables from Site Settings. Your `.env` file is read by Laravel as usual.
+- **With the server.** Started workers run while the KTStack server runs. Stopping the server, or quitting KTStack, stops them; starting it again starts them again. A worker started while the server is stopped shows **Starts with the server**.
+- **Restart on crash.** A worker that exits is restarted after 1 s, then 2 s, 4 s… up to 60 s. After 8 exits in a row within a minute of starting, KTStack stops retrying and shows **Crashed (exit N)**. Fix the cause and click **Restart** (↻).
+- **Code changes.** `queue:work` keeps your code in memory. Click **Restart** after changing jobs, or use `php artisan queue:listen` while developing.
+- **Off by default.** Adding a worker never starts it. Only workers you start run, and they keep their started state across restarts of KTStack.
+
+The site card and list row show a worker badge (for example `2/2 workers`, or `1 worker crashed` in red). Click it to open Site Settings.
+
+Each worker's output goes to **Logs** as `<domain> · worker <name>` (log file `~/Library/Application Support/KTStack/logs/sites/<domain>.worker-<name>.log`). Click the log button on a worker to jump there.
+
+From the terminal:
+
+```bash
+kt workers                         # all workers and their state
+kt workers shop.test               # one site
+kt workers start shop.test queue
+kt workers stop shop.test queue
+kt workers restart shop.test queue
+```
+
 ## Enable Node for a Site
 
 If you have a Node.js app running alongside PHP (or a pure Node site), you can enable Node serving:
