@@ -29,10 +29,14 @@ fail() { printf '  ❌ %s\n' "$1"; FAILURES+=("$1"); }
 MOUNT="$(cd "$(mktemp -d /tmp/ktstack-smoke-mnt.XXXXXX)" && pwd -P)"
 LAUNCH_DIR=""
 LAUNCH_PID=""
+BUNDLE_ID=""
 MOUNTED=0
 cleanup() {
     # Kill before the rm: an app left running out of a deleted bundle keeps holding launchd jobs.
     if [[ -n "$LAUNCH_PID" ]] && kill -0 "$LAUNCH_PID" 2>/dev/null; then
+        # Quit first so the app boots out the jobs it started; SIGTERM skips that teardown.
+        osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1 || true
+        for _ in $(seq 1 30); do kill -0 "$LAUNCH_PID" 2>/dev/null || break; sleep 0.5; done
         kill -TERM "$LAUNCH_PID" 2>/dev/null || true
         for _ in $(seq 1 10); do kill -0 "$LAUNCH_PID" 2>/dev/null || break; sleep 0.5; done
         kill -0 "$LAUNCH_PID" 2>/dev/null && kill -KILL "$LAUNCH_PID" 2>/dev/null || true
@@ -161,6 +165,31 @@ runnable_here() { # a thin DMG for the other arch only runs through Rosetta
     [[ " $APP_ARCHS " == *" $(uname -m) "* ]] && return 0
     [[ "$(uname -m)" == "arm64" ]] && pgrep -q oahd
 }
+nginx_running() {
+    launchctl print "gui/$(id -u)/com.ktstack.nginx" 2>/dev/null | grep -qE '^[[:space:]]*state = running$'
+}
+new_diagnostics() { tail -c +"$((DIAG_OFFSET + 1))" "$DIAG_LOG" 2>/dev/null; }
+# 0.3.2/0.3.3 stayed up 8s yet refused every signed binary, so prove the server really starts.
+check_server_start() {
+    if [[ "$AUTOSTART" != "1" ]]; then
+        warn "server start not exercised: auto-start is off (defaults write $BUNDLE_ID KTStack.autoStartServer -bool true)"
+        return
+    fi
+    if [[ "$NGINX_BEFORE" == "1" ]]; then
+        warn "server start not exercised: com.ktstack.nginx was already running before launch"
+        return
+    fi
+    for _ in $(seq 1 60); do
+        nginx_running && {
+            pass "server started (com.ktstack.nginx running)"
+            return
+        }
+        new_diagnostics | grep -q 'server start failed' && break
+        kill -0 "$LAUNCH_PID" 2>/dev/null || break
+        sleep 1
+    done
+    fail "server did not start within 60s (see $DIAG_LOG)"
+}
 if [[ $LAUNCH -eq 0 ]]; then
     warn "launch skipped (--no-launch)"
 elif ! runnable_here; then
@@ -173,6 +202,10 @@ else
     LAUNCH_DIR="$(cd "$(mktemp -d /tmp/ktstack-smoke-run.XXXXXX)" && pwd -P)"
     ditto "$APP" "$LAUNCH_DIR/$(basename "$APP")"
     EXEC="$LAUNCH_DIR/$(basename "$APP")/Contents/MacOS/$(basename "$APP" .app)"
+    DIAG_LOG="$HOME/Library/Application Support/KTStack/logs/diagnostics.log"
+    DIAG_OFFSET="$(stat -f %z "$DIAG_LOG" 2>/dev/null || echo 0)"
+    AUTOSTART="$(defaults read "$BUNDLE_ID" KTStack.autoStartServer 2>/dev/null || echo 0)"
+    NGINX_BEFORE=0; nginx_running && NGINX_BEFORE=1
     if open -n "$LAUNCH_DIR/$(basename "$APP")" 2>/dev/null; then
         for _ in $(seq 1 20); do
             LAUNCH_PID="$(pgrep -f "^$EXEC$" | head -1)"
@@ -187,6 +220,11 @@ else
                 pass "app stayed up 8s (pid $LAUNCH_PID${BUNDLE_ID:+, $BUNDLE_ID})"
             else
                 fail "app exited within 8s of launch"
+            fi
+            check_server_start
+            START_ERRORS="$(new_diagnostics | grep -E 'refusing to run|server start failed|code-signature check failed' | head -3)"
+            if [[ -n "$START_ERRORS" ]]; then
+                fail "server start rejected: $(printf '%s' "$START_ERRORS" | head -1 | cut -c1-200)"
             fi
         fi
     else

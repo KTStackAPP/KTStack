@@ -14,7 +14,7 @@ public final class ServiceManager: ObservableObject {
     let server: LocalServerController
     let dns: DNSAutomationService
     let paths: AppSupportPaths
-    let agents: LaunchAgentManager
+    let agents: any LaunchAgentManaging
     var jobLoadedProbe: @Sendable (String) -> Bool
 
     var services: [ServiceKind: ManagedService] = [:]
@@ -36,15 +36,26 @@ public final class ServiceManager: ObservableObject {
     var cancellables = Set<AnyCancellable>()
     var versionStore: ServiceVersionStore
 
-    public init(
+    public convenience init(
         server: LocalServerController,
         dns: DNSAutomationService,
         paths: AppSupportPaths = AppSupportPaths()
     ) {
+        self.init(server: server, dns: dns, paths: paths, agents: nil)
+    }
+
+    // Test truyền agents giả để toggle/poll không đọc job launchd thật của máy.
+    init(
+        server: LocalServerController,
+        dns: DNSAutomationService,
+        paths: AppSupportPaths,
+        agents injected: (any LaunchAgentManaging)?
+    ) {
         self.server = server
         self.dns = dns
         self.paths = paths
-        let agents = LaunchAgentManager(paths: paths)
+        let launchd = LaunchAgentManager(paths: paths)
+        let agents: any LaunchAgentManaging = injected ?? launchd
         self.agents = agents
         jobLoadedProbe = { agents.isLoadedNow($0) }
         let cat = ServiceBinaryCatalog(paths: paths)
@@ -73,13 +84,13 @@ public final class ServiceManager: ObservableObject {
         }
         services = [
             .dnsmasq: DnsmasqProxyService(dns: dns),
-            .mysql: MySQLController(paths: paths, agents: agents, activeVersion: mysqlProvider),
-            .mariadb: MySQLController(paths: paths, agents: agents, activeVersion: mariadbProvider, flavor: .mariadb),
-            .postgres: PostgreSQLController(paths: paths, agents: agents, activeVersion: postgresProvider),
-            .redis: RedisController(paths: paths, agents: agents, activeVersion: redisProvider),
-            .memcached: MemcachedController(paths: paths, agents: agents, activeVersion: memcachedProvider),
-            .mongodb: MongoDBController(paths: paths, agents: agents, activeVersion: mongoProvider),
-            .mailpit: MailpitController(paths: paths, agents: agents),
+            .mysql: MySQLController(paths: paths, agents: launchd, activeVersion: mysqlProvider),
+            .mariadb: MySQLController(paths: paths, agents: launchd, activeVersion: mariadbProvider, flavor: .mariadb),
+            .postgres: PostgreSQLController(paths: paths, agents: launchd, activeVersion: postgresProvider),
+            .redis: RedisController(paths: paths, agents: launchd, activeVersion: redisProvider),
+            .memcached: MemcachedController(paths: paths, agents: launchd, activeVersion: memcachedProvider),
+            .mongodb: MongoDBController(paths: paths, agents: launchd, activeVersion: mongoProvider),
+            .mailpit: MailpitController(paths: paths, agents: launchd),
         ]
         snapshots = Self.order.map { ServiceSnapshot(kind: $0, status: .stopped, detail: "", isInstalled: true) }
 
