@@ -46,7 +46,7 @@ enum GooglePickerPage {
 
     static func script(_ values: [String: String]) -> String {
         let data = (try? JSONSerialization.data(withJSONObject: values, options: [.sortedKeys])) ?? Data("{}".utf8)
-        return String(decoding: data, as: UTF8.self)
+        return (String(data: data, encoding: .utf8) ?? "{}")
             .replacingOccurrences(of: "<", with: "\\u003c")
             .replacingOccurrences(of: ">", with: "\\u003e")
             .replacingOccurrences(of: "&", with: "\\u0026")

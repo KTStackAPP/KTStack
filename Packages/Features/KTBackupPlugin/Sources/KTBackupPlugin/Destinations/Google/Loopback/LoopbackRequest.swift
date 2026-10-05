@@ -79,6 +79,6 @@ public final class LoopbackRequest: @unchecked Sendable {
             data.append(contentsOf: buffer[0..<count])
             if data.range(of: terminator) != nil { break }
         }
-        return data.isEmpty ? nil : String(decoding: data, as: UTF8.self)
+        return data.isEmpty ? nil : String(data: data, encoding: .utf8)
     }
 }

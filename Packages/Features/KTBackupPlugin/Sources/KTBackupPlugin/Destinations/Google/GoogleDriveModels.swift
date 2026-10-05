@@ -41,15 +41,15 @@ struct DriveAbout: Decodable {
     var user: User?
 }
 
+struct DriveErrorReason: Decodable {
+    var reason: String?
+}
+
 struct DriveErrorEnvelope: Decodable {
     struct Body: Decodable {
-        struct Reason: Decodable {
-            var reason: String?
-        }
-
         var code: Int?
         var message: String?
-        var errors: [Reason]?
+        var errors: [DriveErrorReason]?
     }
 
     var error: Body

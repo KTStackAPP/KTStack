@@ -1,15 +1,21 @@
 import Foundation
 
+struct S3PartRange: Equatable {
+    let number: Int
+    let offset: Int64
+    let length: Int
+}
+
 extension S3Client {
     static let partAttempts = 3
 
-    static func partRanges(size: Int64, partSize: Int) -> [(number: Int, offset: Int64, length: Int)] {
+    static func partRanges(size: Int64, partSize: Int) -> [S3PartRange] {
         guard size > 0, partSize > 0 else { return [] }
-        var ranges: [(Int, Int64, Int)] = []
+        var ranges: [S3PartRange] = []
         var offset: Int64 = 0
         while offset < size {
             let length = Int(min(Int64(partSize), size - offset))
-            ranges.append((ranges.count + 1, offset, length))
+            ranges.append(S3PartRange(number: ranges.count + 1, offset: offset, length: length))
             offset += Int64(length)
         }
         return ranges

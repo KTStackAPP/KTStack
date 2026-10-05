@@ -26,7 +26,7 @@ enum ArchiveTool {
         let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         guard process.terminationStatus == 0 else {
-            let detail = String(decoding: errorData, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+            let detail = (String(data: errorData, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             let name = URL(fileURLWithPath: executable).lastPathComponent
             throw BackupPipelineError.toolFailed("\(name) failed: \(detail.isEmpty ? "exit \(process.terminationStatus)" : detail)")
         }
