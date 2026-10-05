@@ -28,8 +28,8 @@ final class SitesViewModel: ObservableObject {
     @Published var upstreamRunning: [UUID: Bool] = [:]
     @Published var frameworks: [UUID: PHPFramework] = [:]
     @Published var workers = SiteWorkersState()
-    @Published private(set) var editors = CodeEditorCatalog(locate: { _ in nil })
-    @Published private(set) var preferredEditor: CodeEditor?
+    @Published var editors = CodeEditorCatalog(locate: { _ in nil })
+    @Published var preferredEditor: CodeEditor?
 
     let catalog: any SiteCatalogManaging
     let serverControl: any SiteServerControlling
