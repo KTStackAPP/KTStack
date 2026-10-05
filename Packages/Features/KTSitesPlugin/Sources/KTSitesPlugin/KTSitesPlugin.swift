@@ -33,6 +33,8 @@ public final class KTSitesPlugin: KTStackPlugin, SectionActivationObserving {
         route: route
     )
 
+    @MainActor private lazy var pane = SitesPaneModel()
+
     @MainActor private let feedback = KTFeedbackCenter()
 
     public init(
@@ -72,6 +74,7 @@ public final class KTSitesPlugin: KTStackPlugin, SectionActivationObserving {
         AnyView(
             SitesScreen(
                 vm: vm,
+                pane: pane,
                 provisioning: provisioning,
                 restore: restore,
                 ide: ide,
@@ -85,12 +88,14 @@ public final class KTSitesPlugin: KTStackPlugin, SectionActivationObserving {
 
     @MainActor
     public func sectionDidActivate() {
+        pane.isActive = true
         vm.startUpstreamProbing()
         vm.startWorkerUpdates()
     }
 
     @MainActor
     public func sectionDidDeactivate() {
+        pane.isActive = false
         vm.stopUpstreamProbing()
         vm.stopWorkerUpdates()
     }

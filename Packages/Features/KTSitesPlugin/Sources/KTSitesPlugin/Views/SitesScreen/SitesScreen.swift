@@ -5,6 +5,7 @@ import SwiftUI
 
 struct SitesScreen: View {
     @ObservedObject var vm: SitesViewModel
+    @ObservedObject var pane: SitesPaneModel
     let provisioning: any SiteProvisioning
     let restore: any WordPressRestoring
     let ide: any SiteIDEConfiguring
@@ -14,7 +15,6 @@ struct SitesScreen: View {
 
     @EnvironmentObject var feedback: KTFeedbackCenter
 
-    @State var searchText = ""
     @State var gridView = false
     @State var showScan = false
     @State var restoreSite: SiteSummary?
@@ -24,7 +24,7 @@ struct SitesScreen: View {
     @State var actionError: String?
 
     var filteredSites: [SiteSummary] {
-        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let q = pane.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return vm.sites }
         return vm.sites.filter {
             $0.name.localizedCaseInsensitiveContains(q) || $0.domain.localizedCaseInsensitiveContains(q)
@@ -41,14 +41,6 @@ struct SitesScreen: View {
                 .padding(.horizontal, KTSpacing.screenGutter)
                 .padding(.top, 14)
 
-            toolbar
-                .padding(.horizontal, KTSpacing.screenGutter)
-                .padding(.top, 16)
-
-            content
-                .padding(.horizontal, KTSpacing.screenGutter)
-                .padding(.top, 14)
-
             if let actionError = vm.server.lastError ?? actionError {
                 Text(actionError)
                     .font(.jbMono(12))
@@ -58,10 +50,12 @@ struct SitesScreen: View {
                     .padding(.top, 6)
             }
 
-            SitesDNSFooter(dns: vm.dns, tld: vm.tld, onEnable: vm.enableDNS, onDisable: vm.disableDNS, onReset: vm.resetDNS)
+            SitesSplitRepresentable(pane: pane, list: AnyView(listPane), inspector: AnyView(inspectorPlaceholder))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.top, 14)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(shortcuts)
         .ktTooltipHost()
         .ktFeedbackHost(feedback)
         .background(KTColor.contentBg)
@@ -110,9 +104,43 @@ struct SitesScreen: View {
         }
     }
 
+    private var listPane: some View {
+        VStack(spacing: 0) {
+            toolbar
+                .padding(.horizontal, KTSpacing.screenGutter)
+            content
+                .padding(.horizontal, KTSpacing.screenGutter)
+                .padding(.top, 14)
+            SitesDNSFooter(dns: vm.dns, tld: vm.tld, onEnable: vm.enableDNS, onDisable: vm.disableDNS, onReset: vm.resetDNS)
+                .padding(.top, 14)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(KTColor.contentBg)
+        .environmentObject(feedback)
+        .ktTooltipHost()
+    }
+
+    private var inspectorPlaceholder: some View {
+        Text("Select a site")
+            .foregroundStyle(KTColor.muted)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(KTColor.contentBg)
+    }
+
+    private var shortcuts: some View {
+        ZStack {
+            Button("") { pane.inspectorVisible.toggle() }
+                .keyboardShortcut("i", modifiers: [.command, .option])
+                .disabled(!pane.isActive)
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
+    }
+
     private var toolbar: some View {
         HStack(spacing: 10) {
-            KTSearchField(text: $searchText, placeholder: "Search sites by name or domain…")
+            KTSearchField(text: $pane.searchText, placeholder: "Search sites by name or domain…")
             HStack(spacing: 2) {
                 viewToggle(systemImage: "square.grid.2x2", active: gridView) { gridView = true }
                 viewToggle(systemImage: "list.bullet", active: !gridView) { gridView = false }
@@ -142,7 +170,7 @@ struct SitesScreen: View {
         if vm.sites.isEmpty {
             emptyState(title: "No sites yet", message: "Add a folder under \(sitesRoot.path) to serve it at <name>.\(vm.tld).")
         } else if filteredSites.isEmpty {
-            emptyState(title: "No matching sites", message: "No site matches “\(searchText)”.")
+            emptyState(title: "No matching sites", message: "No site matches “\(pane.searchText)”.")
         } else if gridView {
             ScrollView { grid.padding(.top, 2).padding(.horizontal, 2).padding(.bottom, 4) }
         } else {
