@@ -29,14 +29,15 @@ private final class FakeService: ManagedService {
 
 @MainActor
 final class ServiceManagerHandoffTests: XCTestCase {
-    private func makeManager() throws -> (ServiceManager, AppSupportPaths) {
+    private func makeManager(loaded: Set<String> = []) throws -> (ServiceManager, AppSupportPaths) {
         let root = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("kd-handoff-\(UUID().uuidString)", isDirectory: true)
         let paths = AppSupportPaths(root: root)
         try paths.ensureDirectoryTree()
         let dns = DNSAutomationService(bundledDnsmasq: URL(fileURLWithPath: "/dev/null"), tld: "test")
         let server = LocalServerController(bundleBinDir: URL(fileURLWithPath: "/dev/null"), paths: paths)
-        return (ServiceManager(server: server, dns: dns, paths: paths), paths)
+        let jobs = FakeLaunchAgentManager(paths: paths, loaded: loaded)
+        return (ServiceManager(server: server, dns: dns, paths: paths, launchAgents: jobs), paths)
     }
 
     private func setStatus(_ sut: ServiceManager, _ kind: ServiceKind, _ status: ServiceStatus) {
@@ -117,5 +118,21 @@ final class ServiceManagerHandoffTests: XCTestCase {
 
         let events = await log.events
         XCTAssertEqual(events, [.start(.mysql)])
+    }
+
+    func testToggleStopsAServiceWhoseJobIsLoaded() async throws {
+        let (sut, paths) = try makeManager(loaded: [ServiceKind.mysql.launchdLabel])
+        defer { try? FileManager.default.removeItem(at: paths.config.deletingLastPathComponent()) }
+        let log = HandoffCallLog()
+        sut.services[.mysql] = FakeService(.mysql, log: log)
+        sut.services[.mariadb] = FakeService(.mariadb, log: log)
+        setStatus(sut, .mysql, .stopped)
+        setStatus(sut, .mariadb, .stopped)
+
+        sut.toggle(ServiceKind.mysql)
+        await drainBusy(sut)
+
+        let events = await log.events
+        XCTAssertEqual(events, [.stop(.mysql)], "the injected launchd view decides, not the jobs loaded on this Mac")
     }
 }

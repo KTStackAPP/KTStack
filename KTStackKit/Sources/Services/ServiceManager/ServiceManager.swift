@@ -14,7 +14,7 @@ public final class ServiceManager: ObservableObject {
     let server: LocalServerController
     let dns: DNSAutomationService
     let paths: AppSupportPaths
-    let agents: LaunchAgentManager
+    let agents: any LaunchAgentManaging
     var jobLoadedProbe: @Sendable (String) -> Bool
 
     var services: [ServiceKind: ManagedService] = [:]
@@ -39,14 +39,16 @@ public final class ServiceManager: ObservableObject {
     public init(
         server: LocalServerController,
         dns: DNSAutomationService,
-        paths: AppSupportPaths = AppSupportPaths()
+        paths: AppSupportPaths = AppSupportPaths(),
+        launchAgents: (any LaunchAgentManaging)? = nil
     ) {
         self.server = server
         self.dns = dns
         self.paths = paths
         let agents = LaunchAgentManager(paths: paths)
-        self.agents = agents
-        jobLoadedProbe = { agents.isLoadedNow($0) }
+        let jobs: any LaunchAgentManaging = launchAgents ?? agents
+        self.agents = jobs
+        jobLoadedProbe = { jobs.isLoadedNow($0) }
         let cat = ServiceBinaryCatalog(paths: paths)
         catalog = cat
         downloader = RuntimeDownloader(paths: paths)
