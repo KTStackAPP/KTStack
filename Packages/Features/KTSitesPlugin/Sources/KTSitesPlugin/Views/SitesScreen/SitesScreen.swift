@@ -57,7 +57,11 @@ struct SitesScreen: View {
                         .environmentObject(feedback)
                         .ktTooltipHost()
                 ),
-                inspector: AnyView(inspectorPlaceholder)
+                inspector: AnyView(
+                    SiteInspector(vm: vm, pane: pane, actions: inspectorActions)
+                        .environmentObject(feedback)
+                        .ktTooltipHost()
+                )
             )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.top, 14)
@@ -112,11 +116,16 @@ struct SitesScreen: View {
         }
     }
 
-    private var inspectorPlaceholder: some View {
-        Text("Select a site")
-            .foregroundStyle(KTColor.muted)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(KTColor.contentBg)
+    private var inspectorActions: SiteInspectorActions {
+        SiteInspectorActions(
+            openLogs: vm.openLogs,
+            toggleShare: toggleShare,
+            recheckType: recheckType,
+            configureVSCode: configureVSCode,
+            restore: { restoreSite = $0 },
+            remove: confirmRemove,
+            reportError: { actionError = $0 }
+        )
     }
 
     private var shortcuts: some View {
