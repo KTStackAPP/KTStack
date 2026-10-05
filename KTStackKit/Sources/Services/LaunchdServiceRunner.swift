@@ -80,7 +80,8 @@ public struct LaunchdServiceRunner: Sendable {
 
     private func verifyBinarySignature(_ spec: LaunchAgentSpec) throws {
         guard let path = spec.programArguments.first else { return }
-        guard BinaryStager.verifySignature(at: URL(fileURLWithPath: path)) else {
+        // Engine tải về ký ad-hoc hoặc bởi bên thứ ba, chỉ kiểm tính toàn vẹn, không kiểm team.
+        guard BinaryStager.verifySignature(at: URL(fileURLWithPath: path), requirement: nil) else {
             diag.log(.error, "\(kind.displayName) code-signature check failed: \(path)")
             throw Self.error(
                 "\(kind.displayName) could not start: its program failed a code-signature "

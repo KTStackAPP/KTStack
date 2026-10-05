@@ -12,7 +12,7 @@ extension BinaryStager {
 
     static func codesignArguments(for url: URL, requirement: String?) -> [String] {
         var arguments = ["--verify", "--strict"]
-        if let requirement { arguments += ["-R", requirement] }
+        if let requirement { arguments += ["-R", "=" + requirement] }
         return arguments + [url.path]
     }
 }

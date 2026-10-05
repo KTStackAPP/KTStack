@@ -53,8 +53,14 @@ final class HelperHardeningTests: XCTestCase {
         XCTAssertEqual(BinaryStager.codesignArguments(for: url, requirement: nil), ["--verify", "--strict", "/tmp/x"])
         XCTAssertEqual(
             BinaryStager.codesignArguments(for: url, requirement: "anchor apple generic"),
-            ["--verify", "--strict", "-R", "anchor apple generic", "/tmp/x"]
+            ["--verify", "--strict", "-R", "=anchor apple generic", "/tmp/x"]
         )
+    }
+
+    func testCodesignAcceptsATextRequirementOnARealBinary() {
+        let ls = URL(fileURLWithPath: "/bin/ls")
+        XCTAssertTrue(BinaryStager.verifySignature(at: ls, requirement: "anchor apple"))
+        XCTAssertFalse(BinaryStager.verifySignature(at: ls, requirement: "anchor apple generic and certificate leaf[subject.OU] = \"ABCDE12345\""))
     }
 
     func testAdminScriptRunsInlineAndRoundTripsThroughAppleScript() throws {
