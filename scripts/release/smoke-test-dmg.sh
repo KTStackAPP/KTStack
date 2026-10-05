@@ -228,6 +228,9 @@ else
         done <<<"$ITEMS"
         [[ $found -eq 1 ]] && pass "$(basename "$DMG") is enclosed in the appcast" \
             || fail "$(basename "$DMG") missing from $APPCAST"
+        [[ "$(grep -c '<description>' "$APPCAST")" == "$(grep -c '<item>' "$APPCAST")" ]] \
+            && pass "every appcast item embeds release notes" \
+            || warn "some appcast items have no <description>: Sparkle's update dialog will show no release notes"
     fi
 fi
 
