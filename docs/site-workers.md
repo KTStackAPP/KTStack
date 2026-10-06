@@ -82,7 +82,7 @@ Sites section is visible.
 
 ## Interfaces
 
-- **UI**: Sites inspector → Runtime → Workers (add, edit, remove, Laravel presets, start, stop, restart, logs).
+- **UI**: Sites detail → Runtime → Workers → **Manage…** (add, edit, remove, Laravel presets, start, stop, restart, logs).
   The list row shows a worker status icon.
 - **IPC**: `workers.list` (`site` optional), `workers.start`, `workers.stop`, `workers.restart`
   (`site`, `worker`). The site is matched by domain or name, the worker by name.

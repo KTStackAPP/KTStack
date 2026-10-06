@@ -3,9 +3,20 @@ import KTPluginKit
 import SwiftUI
 
 struct SiteInspector: View {
+    enum Sheet: String, Identifiable {
+        case environment, directives, workers
+        var id: String { rawValue }
+    }
+
+    private static let columnMin: CGFloat = 320
+    private static let gap: CGFloat = 18
+    private static let padding = EdgeInsets(top: 22, leading: 28, bottom: 22, trailing: 28)
+
     @ObservedObject var vm: SitesViewModel
     @ObservedObject var pane: SitesPaneModel
     let actions: SiteInspectorActions
+
+    @State var sheet: Sheet?
 
     var body: some View {
         Group {
@@ -22,39 +33,59 @@ struct SiteInspector: View {
     }
 
     private func content(_ site: SiteSummary) -> some View {
-        VStack(spacing: 0) {
-            SiteInspectorHeader(
-                site: site,
-                framework: framework(site),
-                canOpen: SiteInspectorInput.canOpen(
-                    kind: site.kind,
-                    serverRunning: vm.server.isRunning,
-                    upstreamRunning: upstreamRunning(site)
-                ),
-                editors: vm.editors,
-                preferredEditor: vm.preferredEditor,
-                onOpenLogs: { actions.openLogs(site) },
-                onRecheckType: { actions.recheckType(site) },
-                onRemove: { actions.remove(site) }
-            )
-            Divider()
+        GeometryReader { geo in
             ScrollView {
-                SiteSettingsHost(site: site, vm: vm) { settings in
-                    VStack(alignment: .leading, spacing: 22) {
-                        domainGroup(site, settings: settings)
-                        runtimeGroup(site)
-                        securityGroup(site)
-                        SiteAdvancedSection(site: site, model: settings, onOpenLogs: { actions.openLogs(site) })
+                VStack(alignment: .leading, spacing: Self.gap) {
+                    SiteInspectorHeader(
+                        site: site,
+                        framework: framework(site),
+                        endOfLife: site.kind == .php && vm.isEndOfLife(site.phpVersion),
+                        canOpen: SiteInspectorInput.canOpen(
+                            kind: site.kind,
+                            serverRunning: vm.server.isRunning,
+                            upstreamRunning: upstreamRunning(site)
+                        ),
+                        editors: vm.editors,
+                        preferredEditor: vm.preferredEditor,
+                        onOpenLogs: { actions.openLogs(site) },
+                        onRecheckType: { actions.recheckType(site) },
+                        onRemove: { actions.remove(site) }
+                    )
+                    SiteSettingsHost(site: site, vm: vm) { settings in
+                        cards(site, settings: settings, twoColumns: fitsTwoColumns(geo.size.width))
+                            .sheet(item: $sheet) { sheetContent($0, site: site, settings: settings) }
                     }
-                    .padding(18)
+                    // Model giữ kind lúc tạo, nên dựng lại khi Re-detect đổi loại site.
+                    .id(site.kind)
+                    footer(site)
                 }
-                // Model giữ kind lúc tạo, nên dựng lại khi Re-detect đổi loại site.
-                .id(site.kind)
+                .padding(Self.padding)
             }
-            Divider()
-            footer(site)
         }
         .id(site.id)
+    }
+
+    private func fitsTwoColumns(_ width: CGFloat) -> Bool {
+        width >= Self.columnMin * 2 + Self.gap + Self.padding.leading + Self.padding.trailing
+    }
+
+    // Đổi layout bằng AnyLayout để giữ nguyên view khi chuyển một/hai cột.
+    private func cards(_ site: SiteSummary, settings: SiteSettingsModel, twoColumns: Bool) -> some View {
+        let layout = twoColumns
+            ? AnyLayout(HStackLayout(alignment: .top, spacing: Self.gap))
+            : AnyLayout(VStackLayout(spacing: Self.gap))
+        return layout {
+            VStack(spacing: Self.gap) {
+                domainCard(site, settings: settings)
+                securityCard(site)
+            }
+            .frame(maxWidth: .infinity, alignment: .top)
+            VStack(spacing: Self.gap) {
+                runtimeCard(site)
+                advancedCard(site, settings: settings)
+            }
+            .frame(maxWidth: .infinity, alignment: .top)
+        }
     }
 
     private func footer(_ site: SiteSummary) -> some View {
@@ -66,8 +97,8 @@ struct SiteInspector: View {
             Spacer()
             KTButton(title: "Remove Site…", kind: .danger) { actions.remove(site) }
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 12)
+        .padding(.top, 14)
+        .overlay(alignment: .top) { Rectangle().fill(KTColor.sep).frame(height: 1) }
     }
 
     func framework(_ site: SiteSummary) -> PHPFramework {

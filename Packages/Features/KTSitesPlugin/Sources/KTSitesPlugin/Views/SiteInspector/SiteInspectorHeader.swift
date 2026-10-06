@@ -5,6 +5,7 @@ import SwiftUI
 struct SiteInspectorHeader: View {
     let site: SiteSummary
     let framework: PHPFramework
+    let endOfLife: Bool
     let canOpen: Bool
     let editors: CodeEditorCatalog
     let preferredEditor: CodeEditor?
@@ -13,36 +14,65 @@ struct SiteInspectorHeader: View {
     let onRemove: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                SiteKindIcon(kind: site.kind, size: 36)
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(site.name).font(KTType.label).foregroundStyle(KTColor.ink).lineLimit(1)
-                        KTBadge(text: badgeText, tint: badgeTint, radius: 8)
-                    }
-                    Text(url)
-                        .font(KTType.caption)
-                        .foregroundStyle(KTColor.muted)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .textSelection(.enabled)
-                }
-            }
-            HStack(spacing: 6) {
-                KTButton(title: "Open", kind: .primary) { SiteActions.openInBrowser(site) }
-                    .disabled(!canOpen)
-                    .ktTip(openTip)
-                if !site.path.isEmpty {
-                    SiteQuickEditorButton(site: site, catalog: editors, preferred: preferredEditor)
-                    iconButton("folder", "Show in Finder") { SiteActions.revealInFinder(site) }
-                    iconButton("terminal", "Open in Terminal") { SiteActions.openTerminal(site) }
-                }
-                Spacer(minLength: 0)
-                moreMenu
+        HStack(spacing: 14) {
+            SiteKindIcon(kind: site.kind, size: 44)
+            identity.layoutPriority(-1)
+            Spacer(minLength: 8)
+            ViewThatFits(in: .horizontal) {
+                actions(showsEditorName: true)
+                actions(showsEditorName: false)
             }
         }
-        .padding(18)
+    }
+
+    private var identity: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Text(site.name)
+                    .font(.jbMono(18, .bold))
+                    .foregroundStyle(KTColor.ink)
+                    .lineLimit(1)
+                KTBadge(text: badgeText, tint: badgeTint, radius: 6)
+                if endOfLife {
+                    KTBadge(
+                        text: "PHP \(site.phpVersion) EOL",
+                        tint: KTTint(fg: Color(nsColor: .systemOrange), bg: Color(nsColor: .systemOrange).opacity(0.14)),
+                        radius: 6
+                    )
+                }
+            }
+            Button { SiteActions.openInBrowser(site) } label: {
+                Text(url)
+                    .font(.jbMono(12.5))
+                    .foregroundStyle(canOpen ? KTColor.accent : KTColor.muted)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .buttonStyle(.plain)
+            .disabled(!canOpen)
+            .ktTip(openTip)
+        }
+    }
+
+    private func actions(showsEditorName: Bool) -> some View {
+        HStack(spacing: 6) {
+            KTButton(title: "Open", systemImage: "arrow.up.right.square", kind: .primary) { SiteActions.openInBrowser(site) }
+                .disabled(!canOpen)
+                .ktTip(openTip)
+            if hasFolder {
+                if let preferredEditor {
+                    SiteEditorButton(site: site, catalog: editors, preferred: preferredEditor, showsName: showsEditorName)
+                }
+                iconButton("folder", "Show in Finder") { SiteActions.revealInFinder(site) }
+                iconButton("terminal", "Open in Terminal") { SiteActions.openTerminal(site) }
+            }
+            moreMenu
+        }
+        .fixedSize()
+    }
+
+    private var hasFolder: Bool {
+        !site.path.isEmpty
     }
 
     private var url: String {
@@ -67,26 +97,20 @@ struct SiteInspectorHeader: View {
 
     private var moreMenu: some View {
         Menu {
-            if !site.path.isEmpty, editors.installed.count >= 2 {
-                Menu("Open in") {
-                    ForEach(editors.installed) { editor in
-                        Button(editor.displayName) { SiteActions.openInEditor(site, editor: editor, catalog: editors) }
-                    }
-                }
-                Divider()
-            }
             Button("Open Logs", action: onOpenLogs)
-            if !site.path.isEmpty {
+            if hasFolder {
                 Button("Re-detect Site Type", action: onRecheckType)
             }
             Divider()
             Button("Remove Site…", role: .destructive, action: onRemove)
         } label: {
-            Image(systemName: "ellipsis.circle")
+            Image(systemName: "ellipsis").font(.system(size: 13))
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
-        .fixedSize()
+        .frame(width: 30, height: 30)
+        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(KTColor.fieldBg))
+        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).stroke(KTColor.btnBorder, lineWidth: 1))
         .accessibilityLabel("More actions")
     }
 
@@ -94,8 +118,10 @@ struct SiteInspectorHeader: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 13))
-                .foregroundStyle(KTColor.ink2)
-                .frame(width: 30, height: 28)
+                .foregroundStyle(KTColor.ink)
+                .frame(width: 30, height: 30)
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(KTColor.fieldBg))
+                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).stroke(KTColor.btnBorder, lineWidth: 1))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

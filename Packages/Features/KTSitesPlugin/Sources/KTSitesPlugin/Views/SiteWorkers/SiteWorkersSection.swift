@@ -7,6 +7,7 @@ struct SiteWorkersSection: View {
     let siteID: UUID
     @ObservedObject var vm: SitesViewModel
     @StateObject private var model: SiteWorkersModel
+    @Environment(\.dismiss) private var dismiss
 
     init(siteID: UUID, vm: SitesViewModel) {
         self.siteID = siteID
@@ -24,10 +25,6 @@ struct SiteWorkersSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("WORKERS")
-                .font(KTType.sectionLabel)
-                .tracking(KTType.sectionLabelTracking)
-                .foregroundStyle(KTColor.faint)
             ForEach(workers) { worker in
                 if model.draft?.editing == worker.id {
                     SiteWorkerDraftEditor(model: model, current: workers)
@@ -78,7 +75,10 @@ struct SiteWorkersSection: View {
             start: { vm.startWorker(siteID, worker) },
             stop: { vm.stopWorker(siteID, worker) },
             restart: { vm.restartWorker(siteID, worker) },
-            logs: { vm.openWorkerLogs(siteID, worker) },
+            logs: {
+                dismiss()
+                vm.openWorkerLogs(siteID, worker)
+            },
             edit: { model.beginEdit(worker) },
             remove: { model.remove(worker, current: workers) }
         )

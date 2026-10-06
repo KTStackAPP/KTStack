@@ -2,47 +2,58 @@ import KTPlatformContracts
 import KTPluginKit
 import SwiftUI
 
-struct SiteQuickEditorButton: View {
+// Nút tách: phần trái mở editor ưa thích, mũi tên chọn editor khác và nhớ lựa chọn.
+struct SiteEditorButton: View {
     let site: SiteSummary
     let catalog: CodeEditorCatalog
-    let preferred: CodeEditor?
-
-    @State private var hovering = false
+    let preferred: CodeEditor
+    let showsName: Bool
 
     var body: some View {
-        if !site.path.isEmpty, let preferred {
+        HStack(spacing: 0) {
             Button {
                 SiteActions.openInEditor(site, editor: preferred, catalog: catalog)
             } label: {
-                Image(systemName: preferred.symbol)
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundStyle(hovering ? KTColor.ink : KTColor.ink2)
-                    .frame(width: 32, height: 30)
-                    .background(hovering ? KTColor.rowHover : Color.clear)
-                    .clipShape(RoundedRectangle(cornerRadius: KTRadius.buttonSmall, style: .continuous))
-                    .contentShape(Rectangle())
+                HStack(spacing: 6) {
+                    Image(systemName: preferred.symbol).font(.system(size: 13))
+                    if showsName {
+                        Text(preferred.displayName).font(.jbMono(12.5)).lineLimit(1)
+                    }
+                }
+                .foregroundStyle(KTColor.ink)
+                .padding(.horizontal, 10)
+                .frame(height: 30)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .onHover { hovering = $0 }
-            .ktTip("Open in \(preferred.displayName) (right-click to change)")
+            .ktTip("Open in \(preferred.displayName)")
             .accessibilityLabel("Open in \(preferred.displayName)")
-            .contextMenu {
-                Text("Open with:")
+
+            Rectangle().fill(KTColor.btnBorder).frame(width: 1, height: 30)
+
+            Menu {
                 ForEach(catalog.installed) { editor in
                     Button {
                         catalog.setPreferred(editor)
                         SiteActions.openInEditor(site, editor: editor, catalog: catalog)
                     } label: {
-                        HStack {
+                        if editor == preferred {
+                            Label(editor.displayName, systemImage: "checkmark")
+                        } else {
                             Text(editor.displayName)
-                            if editor == preferred {
-                                Spacer()
-                                Image(systemName: "checkmark")
-                            }
                         }
                     }
                 }
+            } label: {
+                Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold))
             }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .frame(width: 26, height: 30)
+            .accessibilityLabel("Open with another editor")
         }
+        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(KTColor.fieldBg))
+        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).stroke(KTColor.btnBorder, lineWidth: 1))
+        .fixedSize()
     }
 }

@@ -2,10 +2,8 @@ import KTPlatformContracts
 import KTPluginKit
 import SwiftUI
 
-// Per-site web-engine picker (PHP only). Shows the running engine + backend port, lets the user
-// switch Nginx↔Apache or install Apache on demand. Switching applies live: the new engine comes
-// up on a fresh port and the front repoints to it, no Web Server restart.
-struct EngineMenu: View {
+// Đổi engine áp dụng ngay: engine mới lên ở port mới rồi front trỏ sang, không restart Web Server.
+struct EngineControl: View {
     let current: SiteServerEngine
     let port: Int?
     let apacheInstalled: Bool
@@ -14,28 +12,29 @@ struct EngineMenu: View {
     let onInstallApache: () -> Void
 
     var body: some View {
-        KTDropdown(width: 210, options: options) {
-            KTDropdownChevronLabel(text: label)
+        HStack(spacing: 8) {
+            if apacheInstalled {
+                Picker("Web server", selection: Binding(get: { current }, set: onSelect)) {
+                    Text("Nginx").tag(SiteServerEngine.nginx)
+                    Text("Apache").tag(SiteServerEngine.apache)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .controlSize(.small)
+                .fixedSize()
+                .ktTip("Web engine for this site. Switching applies live, no Web Server restart.")
+            } else {
+                InspectorValue("Nginx")
+                if apacheInstalling {
+                    ProgressView().controlSize(.small)
+                    InspectorHint("Installing Apache…")
+                } else {
+                    InspectorButton(title: "Install Apache", style: .quiet, action: onInstallApache)
+                }
+            }
+            if let port {
+                InspectorHint("backend :\(port)")
+            }
         }
-        .fixedSize()
-        .ktTip("Web engine for this site. Switching applies live, no Web Server restart.")
-    }
-
-    private var label: String {
-        let name = current == .apache ? "Apache" : "Nginx"
-        guard let port else { return name }
-        return "\(name) · :\(port)"
-    }
-
-    private var options: [KTDropdownOption] {
-        var opts = [KTDropdownOption(label: "Nginx", active: current == .nginx) { onSelect(.nginx) }]
-        if apacheInstalled {
-            opts.append(KTDropdownOption(label: "Apache", active: current == .apache) { onSelect(.apache) })
-        } else if apacheInstalling {
-            opts.append(KTDropdownOption(label: "Installing Apache…", active: false) {})
-        } else {
-            opts.append(KTDropdownOption(label: "Install Apache…", active: false) { onInstallApache() })
-        }
-        return opts
     }
 }

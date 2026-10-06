@@ -43,6 +43,8 @@ struct SitesDNSFooter: View {
             Text(title)
                 .font(.jbMono(11.5))
                 .foregroundStyle(color)
+                .lineLimit(1)
+                .fixedSize()
                 .padding(.vertical, 3)
                 .padding(.horizontal, 8)
                 .contentShape(Rectangle())

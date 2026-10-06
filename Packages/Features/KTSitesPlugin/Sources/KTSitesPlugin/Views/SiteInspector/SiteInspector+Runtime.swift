@@ -3,40 +3,36 @@ import KTPluginKit
 import SwiftUI
 
 extension SiteInspector {
-    func runtimeGroup(_ site: SiteSummary) -> some View {
-        InspectorGroup(title: "Runtime") {
+    func runtimeCard(_ site: SiteSummary) -> some View {
+        InspectorCard(title: "Runtime") {
             switch site.kind {
-            case .php: phpFields(site)
-            case .node: nodeFields(site)
-            case .proxy: proxyFields(site)
-            case .staticSite:
-                InspectorField("Folder") {
-                    InspectorValue(site.docroot.isEmpty ? site.path : site.docroot, truncation: .middle)
-                }
+            case .php: phpRows(site)
+            case .node: nodeRows(site)
+            case .proxy: proxyRows(site)
+            case .staticSite: staticRows(site)
             }
         }
     }
 
     @ViewBuilder
-    private func phpFields(_ site: SiteSummary) -> some View {
-        InspectorField("Framework") {
-            HStack(spacing: 8) {
-                InspectorValue(framework(site).label)
-                if !site.path.isEmpty {
-                    KTButton(title: "Recheck", kind: .link) { actions.recheckType(site) }
-                }
+    private func phpRows(_ site: SiteSummary) -> some View {
+        InspectorRow("Framework") {
+            KTBadge(text: framework(site).label, tint: SiteVisuals.tint(for: framework(site)), radius: 6)
+        } trailing: {
+            if !site.path.isEmpty {
+                InspectorButton(title: "Recheck", style: .quiet) { actions.recheckType(site) }
             }
         }
-        InspectorField("PHP") {
+        InspectorRow("PHP") {
             HStack(spacing: 8) {
                 PhpMenu(current: site.phpVersion, versions: vm.server.phpVersions, onSelect: { vm.setPHP(site.id, $0) })
                 if vm.isEndOfLife(site.phpVersion) {
-                    KTBadge(text: "End of life", tint: KTTint(fg: KTColor.danger, bg: KTColor.dangerBg), radius: 8)
+                    InspectorHint("End of life", color: Color(nsColor: .systemOrange))
                 }
             }
         }
-        InspectorField("Web server") {
-            EngineMenu(
+        InspectorRow("Web server") {
+            EngineControl(
                 current: site.engine,
                 port: site.backendPort,
                 apacheInstalled: vm.webEngine.installed,
@@ -46,48 +42,75 @@ extension SiteInspector {
             )
         }
         if !site.path.isEmpty {
-            SiteWorkersSection(siteID: site.id, vm: vm)
+            InspectorRow("Workers") {
+                InspectorValue(SiteDetailSummary.workers(vm.workersSummary(for: site)))
+            } trailing: {
+                InspectorButton(title: "Manage…") { sheet = .workers }
+            }
         }
     }
 
     @ViewBuilder
-    private func nodeFields(_ site: SiteSummary) -> some View {
-        InspectorField("Port") {
+    private func staticRows(_ site: SiteSummary) -> some View {
+        InspectorRow("Serves") {
+            InspectorHint("Files from the folder, no PHP")
+        } trailing: {
+            InspectorButton(title: "Recheck type", style: .quiet) { actions.recheckType(site) }
+        }
+        InspectorRow("Folder") {
+            InspectorValue(site.docroot.isEmpty ? site.path : site.docroot, truncation: .middle)
+        }
+    }
+
+    @ViewBuilder
+    private func nodeRows(_ site: SiteSummary) -> some View {
+        InspectorRow("Proxies to") {
             NodePortEditor(site: site, save: { try vm.setNodePort(site.id, $0) })
         }
-        InspectorField("Status") { UpstreamStatus(running: upstreamRunning(site)) }
-        if site.nodePort == nil {
-            InspectorField("Start") { InspectorValue("Set a port to route this site", muted: true) }
-        } else if !upstreamRunning(site) {
-            InspectorField("Start") {
-                KTButton(title: "Start in Terminal", kind: .secondary) { SiteActions.startNodeInTerminal(site) }
+        InspectorRow("Status") {
+            if let port = site.nodePort {
+                if upstreamRunning(site) {
+                    StatusBadge(text: "Listening on :\(port)")
+                } else {
+                    InspectorHint("Nothing on :\(port)")
+                }
+            } else {
+                InspectorHint("Set a port to route this site")
+            }
+        } trailing: {
+            if site.nodePort != nil, !upstreamRunning(site) {
+                InspectorButton(title: "Start in Terminal") { SiteActions.startNodeInTerminal(site) }
                     .ktTip("Open Terminal at the project with PORT set; run your dev server there")
             }
         }
-        InspectorField("Start command") {
+        InspectorRow("Start command") {
             InspectorValue(site.nodeCommand ?? "auto", muted: site.nodeCommand == nil)
         }
     }
 
     @ViewBuilder
-    private func proxyFields(_ site: SiteSummary) -> some View {
-        InspectorField("Upstream") {
+    private func proxyRows(_ site: SiteSummary) -> some View {
+        InspectorRow("Upstream") {
             ProxyTargetEditor(site: site, save: { try vm.setProxyTarget(site.id, $0) })
         }
-        InspectorField("Status") { UpstreamStatus(running: upstreamRunning(site)) }
+        InspectorRow("Status") {
+            VStack(alignment: .leading, spacing: 4) {
+                if upstreamRunning(site) {
+                    StatusBadge(text: "Reachable")
+                } else {
+                    InspectorHint("Not reachable")
+                }
+                InspectorHint("TCP check only, KTStack does not run it")
+            }
+        }
     }
 }
 
-private struct UpstreamStatus: View {
-    let running: Bool
+private struct StatusBadge: View {
+    let text: String
 
     var body: some View {
-        HStack(spacing: 6) {
-            KTDot(color: running ? KTColor.runDot : KTColor.stopDot)
-            Text(running ? "Reachable" : "Not reachable")
-                .font(.jbMono(12.5))
-                .foregroundStyle(running ? KTColor.online : KTColor.ink3)
-        }
+        KTBadge(text: text, tint: KTTint(fg: KTColor.online, bg: KTColor.onlineBg), radius: 6)
     }
 }
 
@@ -107,8 +130,8 @@ private struct NodePortEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
-                Text("localhost:").font(.jbMono(12.5)).foregroundStyle(KTColor.faint)
-                TextField("port", text: $draft)
+                Text("localhost:").font(.jbMono(12.5)).foregroundStyle(KTColor.muted)
+                TextField("3000", text: $draft)
                     .textFieldStyle(.roundedBorder)
                     .font(.jbMono(12.5))
                     .frame(width: 80)
