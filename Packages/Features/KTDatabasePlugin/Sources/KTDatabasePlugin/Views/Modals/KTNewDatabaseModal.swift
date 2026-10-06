@@ -61,7 +61,7 @@ struct KTNewDatabaseModal: View {
             Button(action: onClose) {
                 Text("Cancel").font(.jbMono(14, .medium)).foregroundStyle(KTColor.ink)
                     .padding(.horizontal, 20).padding(.vertical, 10)
-                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white))
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(KTColor.cardBg))
                     .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(KTColor.btnBorder, lineWidth: 0.5))
                     .contentShape(Rectangle())
             }

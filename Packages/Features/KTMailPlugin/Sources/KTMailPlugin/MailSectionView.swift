@@ -26,7 +26,7 @@ struct MailSectionView: View {
             Button(action: { mail.deleteAll() }) {
                 Text("Clear inbox").font(.jbMono(13, .medium)).foregroundStyle(KTColor.danger)
                     .padding(.horizontal, 14).padding(.vertical, 7)
-                    .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.white))
+                    .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(KTColor.cardBg))
                     .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(KTColor.dangerBorder, lineWidth: 0.5))
                     .contentShape(Rectangle())
             }
@@ -64,7 +64,7 @@ struct MailSectionView: View {
             .padding(6)
         }
         .frame(width: 300)
-        .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(Color.white))
+        .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(KTColor.cardBg))
         .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(KTColor.sep, lineWidth: 0.5))
         .overlay { if mail.messages.isEmpty { listEmptyHint } }
     }
@@ -92,7 +92,7 @@ struct MailSectionView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(Color.white))
+        .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(KTColor.cardBg))
         .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(KTColor.sep, lineWidth: 0.5))
         .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
     }

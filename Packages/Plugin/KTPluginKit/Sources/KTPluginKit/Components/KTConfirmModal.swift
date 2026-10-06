@@ -54,7 +54,7 @@ public struct KTConfirmModal: View {
                 Button(action: onCancel) {
                     Text("Cancel").font(.jbMono(14, .medium)).foregroundStyle(KTColor.ink)
                         .frame(maxWidth: .infinity).padding(.vertical, 11)
-                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white))
+                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(KTColor.cardBg))
                         .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(KTColor.btnBorder, lineWidth: 0.5))
                         .contentShape(Rectangle())
                 }
@@ -74,7 +74,7 @@ public struct KTConfirmModal: View {
         }
         .padding(24)
         .frame(width: 400)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white))
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(KTColor.cardBg))
         .background(escCatcher)
     }
 

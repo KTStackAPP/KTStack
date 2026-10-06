@@ -119,7 +119,7 @@ public struct KTSettingsTextButton: View {
                 .padding(.horizontal, 14).padding(.vertical, 7)
                 .background(
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .fill(hovering ? (danger ? KTColor.dangerBg : KTColor.btnHover) : Color.white)
+                        .fill(hovering ? (danger ? KTColor.dangerBg : KTColor.btnHover) : KTColor.cardBg)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 9, style: .continuous)

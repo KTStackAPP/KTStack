@@ -35,7 +35,7 @@ struct DumpsPanelView: View {
             Button(action: { model.clear() }) {
                 Text("Clear all").font(.jbMono(13, .medium)).foregroundStyle(KTColor.ink)
                     .padding(.horizontal, 14).padding(.vertical, 7)
-                    .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.white))
+                    .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(KTColor.cardBg))
                     .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(KTColor.btnBorder, lineWidth: 0.5))
                     .contentShape(Rectangle())
             }
@@ -60,7 +60,7 @@ struct DumpsPanelView: View {
             .padding(.horizontal, 14).padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(model.enabled ? KTColor.onlineBg : Color.white)
+                    .fill(model.enabled ? KTColor.onlineBg : KTColor.cardBg)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
@@ -80,7 +80,7 @@ struct DumpsPanelView: View {
                 .frame(width: 32, height: 30)
                 .background(
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .fill(model.autoScroll ? KTColor.accentSoft : Color.white)
+                        .fill(model.autoScroll ? KTColor.accentSoft : KTColor.cardBg)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
@@ -139,7 +139,7 @@ struct DumpsPanelView: View {
                 .padding(.horizontal, 16).padding(.vertical, 14)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(Color.white))
+        .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(KTColor.cardBg))
         .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(KTColor.sep, lineWidth: 0.5))
         .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
     }

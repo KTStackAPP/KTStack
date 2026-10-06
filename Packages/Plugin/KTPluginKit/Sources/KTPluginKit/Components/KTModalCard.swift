@@ -43,7 +43,7 @@ public struct KTModalCard<Content: View>: View {
             content()
         }
         .frame(width: width)
-        .background(RoundedRectangle(cornerRadius: KTRadius.modal, style: .continuous).fill(.white))
+        .background(RoundedRectangle(cornerRadius: KTRadius.modal, style: .continuous).fill(KTColor.cardBg))
         .clipShape(RoundedRectangle(cornerRadius: KTRadius.modal, style: .continuous))
         .overlay(alignment: .topTrailing) { closeButton }
         .background(escCatcher)
