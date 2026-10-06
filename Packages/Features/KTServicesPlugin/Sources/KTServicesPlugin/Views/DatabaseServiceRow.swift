@@ -91,7 +91,7 @@ struct DatabaseServiceRow: View, Equatable {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(KTColor.ink3)
                 .frame(width: 34, height: 32)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.white))
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(KTColor.cardBg))
                 .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(KTColor.btnBorder, lineWidth: 0.5))
         }
         .buttonStyle(.plain)

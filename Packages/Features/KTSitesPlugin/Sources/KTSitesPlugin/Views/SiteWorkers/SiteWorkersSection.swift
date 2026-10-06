@@ -25,10 +25,6 @@ struct SiteWorkersSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("WORKERS")
-                .font(KTType.sectionLabel)
-                .tracking(KTType.sectionLabelTracking)
-                .foregroundStyle(KTColor.faint)
             ForEach(workers) { worker in
                 if model.draft?.editing == worker.id {
                     SiteWorkerDraftEditor(model: model, current: workers)

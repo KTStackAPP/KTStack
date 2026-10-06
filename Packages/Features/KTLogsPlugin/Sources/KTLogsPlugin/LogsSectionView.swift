@@ -7,7 +7,7 @@ struct LogsSectionView: View {
     @State private var pickerOpen = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private let bottomID = "logs-bottom-anchor"
+    private let topID = "logs-top-anchor"
 
     private var currentSourceName: String {
         store.sources.first { $0.id == store.selectedID }?.displayName ?? "All sites"
@@ -81,8 +81,9 @@ struct LogsSectionView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(store.tail.lines) { line in logRow(line) }
-                        Color.clear.frame(height: 1).id(bottomID)
+                        Color.clear.frame(height: 1).id(topID)
+                        // Dòng mới nhất nằm trên cùng.
+                        ForEach(store.tail.lines.reversed()) { line in logRow(line) }
                     }
                 }
                 .padding(14)
@@ -97,8 +98,8 @@ struct LogsSectionView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
                 .onChange(of: store.tail.lines.last?.id) { _ in
                     guard store.tail.isLive else { return }
-                    if reduceMotion { proxy.scrollTo(bottomID, anchor: .bottom) }
-                    else { withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(bottomID, anchor: .bottom) } }
+                    if reduceMotion { proxy.scrollTo(topID, anchor: .top) }
+                    else { withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(topID, anchor: .top) } }
                 }
             }
             .frame(maxHeight: .infinity)

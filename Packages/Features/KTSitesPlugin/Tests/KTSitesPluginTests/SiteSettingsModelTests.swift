@@ -133,4 +133,29 @@ final class SiteSettingsModelTests: XCTestCase {
         XCTAssertNil(model.directivesError)
         XCTAssertNotNil(model.directivesNote)
     }
+
+    func testResetEnvRestoresSavedRowsAndClearsFeedback() {
+        let model = makeModel(makeSite(), Recorder())
+        model.envRows = [.init(key: "DRAFT", value: "x")]
+        model.envError = "bad"
+        model.envSaved = true
+        model.resetEnv(["B": "2", "A": "1"])
+
+        XCTAssertEqual(model.envRows.map(\.key), ["A", "B"])
+        XCTAssertEqual(model.envRows.map(\.value), ["1", "2"])
+        XCTAssertNil(model.envError)
+        XCTAssertFalse(model.envSaved)
+    }
+
+    func testResetDirectivesRestoresSavedTextAndClearsFeedback() {
+        let model = makeModel(makeSite(), Recorder())
+        model.directives = "draft;"
+        model.directivesError = "bad"
+        model.directivesNote = "Saved."
+        model.resetDirectives(nil)
+
+        XCTAssertEqual(model.directives, "")
+        XCTAssertNil(model.directivesError)
+        XCTAssertNil(model.directivesNote)
+    }
 }

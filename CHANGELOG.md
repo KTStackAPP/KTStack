@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Sites: a fixed-width list beside a wide site detail pane. Search and kind filters share one row above both, and search also matches a PHP version ("PHP 8.4"). The detail shows Domain, Security & Sharing, Runtime and Advanced cards in two columns, with environment variables, nginx directives and workers edited in their own sheets. Site Settings moved into the detail; grid view removed. The server control sits in the header and DNS status under the list.
+- Logs: newest line on top. Following keeps the view at the top as lines arrive, so opening a log no longer starts at the oldest line.
+
+### Fixed
+
+- Dark mode: Mail, Dumps, Services, Database backups, modals, form fields and segmented tabs no longer draw white panels behind white text. The sidebar uses the native sidebar material and full-contrast row labels.
+
 ## 0.3.5 — 2026-10-05
 
 ### Changed

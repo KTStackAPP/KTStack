@@ -33,7 +33,7 @@ struct KTBackupRow: View {
             Button(action: onRestore) {
                 Text("Restore").font(.jbMono(13, .medium)).foregroundStyle(KTColor.accent)
                     .padding(.vertical, 7).padding(.horizontal, 14)
-                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.white))
+                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(KTColor.cardBg))
                     .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color(hex: 0xBFD4FF), lineWidth: 0.5))
             }
             .buttonStyle(.plain)
@@ -66,7 +66,7 @@ struct KTBackupRow: View {
         Button(action: action) {
             Image(systemName: symbol).font(.system(size: 14, weight: .medium)).foregroundStyle(color)
                 .frame(width: 32, height: 32)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.white))
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(KTColor.cardBg))
                 .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(KTColor.btnBorder, lineWidth: 0.5))
         }
         .buttonStyle(.plain)

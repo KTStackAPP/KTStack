@@ -5,6 +5,7 @@ import SwiftUI
 
 struct SitesScreen: View {
     @ObservedObject var vm: SitesViewModel
+    @ObservedObject var pane: SitesPaneModel
     let provisioning: any SiteProvisioning
     let restore: any WordPressRestoring
     let ide: any SiteIDEConfiguring
@@ -14,40 +15,35 @@ struct SitesScreen: View {
 
     @EnvironmentObject var feedback: KTFeedbackCenter
 
-    @State var searchText = ""
-    @State var gridView = false
     @State var showScan = false
     @State var restoreSite: SiteSummary?
-    @State var settingsSite: SiteSummary?
     @State var removingSiteID: UUID?
     @State var removeSite: SiteSummary?
     @State var actionError: String?
 
-    var filteredSites: [SiteSummary] {
-        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { return vm.sites }
-        return vm.sites.filter {
-            $0.name.localizedCaseInsensitiveContains(q) || $0.domain.localizedCaseInsensitiveContains(q)
-        }
-    }
-
     var body: some View {
         VStack(spacing: 0) {
-            SitesHeader(siteCount: vm.sites.count, onScan: { showScan = true }, onNewSite: openNewSite)
+            SitesHeader(
+                siteCount: vm.sites.count,
+                isRunning: vm.server.isRunning,
+                isBusy: vm.server.isBusy,
+                onToggleServer: vm.toggleServer,
+                onScan: { showScan = true },
+                onNewSite: openNewSite
+            )
                 .padding(.horizontal, KTSpacing.screenGutter)
                 .padding(.top, 18)
 
-            serverStatusRow
+            if !vm.server.isRunning, !vm.sites.isEmpty {
+                stoppedBanner
+                    .padding(.horizontal, KTSpacing.screenGutter)
+                    .padding(.top, 14)
+            }
+
+            SitesSearchBar(vm: vm, pane: pane)
                 .padding(.horizontal, KTSpacing.screenGutter)
                 .padding(.top, 14)
-
-            toolbar
-                .padding(.horizontal, KTSpacing.screenGutter)
-                .padding(.top, 16)
-
-            content
-                .padding(.horizontal, KTSpacing.screenGutter)
-                .padding(.top, 14)
+                .padding(.bottom, 12)
 
             if let actionError = vm.server.lastError ?? actionError {
                 Text(actionError)
@@ -55,13 +51,27 @@ struct SitesScreen: View {
                     .foregroundStyle(KTColor.danger)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, KTSpacing.screenGutter)
-                    .padding(.top, 6)
+                    .padding(.bottom, 8)
             }
 
-            SitesDNSFooter(dns: vm.dns, tld: vm.tld, onEnable: vm.enableDNS, onDisable: vm.disableDNS, onReset: vm.resetDNS)
-                .padding(.top, 14)
+            SitesSplitRepresentable(
+                pane: pane,
+                list: AnyView(
+                    SitesListPane(vm: vm, pane: pane, sitesRoot: sitesRoot)
+                        .environmentObject(feedback)
+                        .ktTooltipHost()
+                ),
+                inspector: AnyView(
+                    SiteInspector(vm: vm, pane: pane, actions: inspectorActions)
+                        .environmentObject(feedback)
+                        .ktTooltipHost()
+                )
+            )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .top) { Rectangle().fill(KTColor.sep).frame(height: 1) }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(shortcuts)
         .ktTooltipHost()
         .ktFeedbackHost(feedback)
         .background(KTColor.contentBg)
@@ -77,9 +87,6 @@ struct SitesScreen: View {
         .sheet(item: $restoreSite) {
             RestoreBackupSheet(site: $0, restoring: restore, availableVersions: vm.server.phpVersions, isEndOfLife: vm.isEndOfLife)
         }
-        .sheet(item: $settingsSite) {
-            SiteSettingsSheet(site: $0, vm: vm)
-        }
         .sheet(item: $removeSite) { site in
             RemoveSiteSheet(site: site) { remove(site, options: $0) }
         }
@@ -92,71 +99,47 @@ struct SitesScreen: View {
         }
     }
 
-    private var serverStatusRow: some View {
+    private var stoppedBanner: some View {
         HStack(spacing: 10) {
-            HStack(spacing: 8) {
-                KTDot(color: vm.server.isRunning ? KTColor.runDot : KTColor.stopDot)
-                Text("Server: \(vm.server.isRunning ? "Running" : "Stopped")")
-                    .font(.jbMono(13, .medium))
-                    .foregroundStyle(vm.server.isRunning ? KTColor.online : KTColor.ink2)
-            }
-            .padding(.vertical, 6)
-            .padding(.horizontal, 12)
-            .background(Capsule().fill((vm.server.isRunning ? KTColor.runDot : KTColor.stopDot).opacity(0.12)))
-
-            KTButton(title: vm.server.isRunning ? "Stop Server" : "Start Server", kind: .secondary) { vm.toggleServer() }
-                .disabled(vm.server.isBusy)
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 14))
+                .foregroundStyle(Color(nsColor: .systemOrange))
+            Text("Server is stopped. No site will load until it starts.")
+                .font(.jbMono(12.5))
+                .foregroundStyle(KTColor.ink)
             Spacer()
+            KTButton(title: "Start Server", kind: .primary) { vm.toggleServer() }
+                .disabled(vm.server.isBusy)
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color(nsColor: .systemOrange).opacity(0.10)))
+        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Color(nsColor: .systemOrange).opacity(0.35), lineWidth: 1))
     }
 
-    private var toolbar: some View {
-        HStack(spacing: 10) {
-            KTSearchField(text: $searchText, placeholder: "Search sites by name or domain…")
-            HStack(spacing: 2) {
-                viewToggle(systemImage: "square.grid.2x2", active: gridView) { gridView = true }
-                viewToggle(systemImage: "list.bullet", active: !gridView) { gridView = false }
-            }
-            .padding(3)
-            .background(RoundedRectangle(cornerRadius: KTRadius.segment, style: .continuous).fill(KTColor.segmentBg))
-        }
+    private var inspectorActions: SiteInspectorActions {
+        SiteInspectorActions(
+            openLogs: vm.openLogs,
+            toggleShare: toggleShare,
+            recheckType: recheckType,
+            configureVSCode: configureVSCode,
+            restore: { restoreSite = $0 },
+            remove: confirmRemove
+        )
     }
 
-    private func viewToggle(systemImage: String, active: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(active ? KTColor.ink : KTColor.ink3)
-                .frame(width: 30, height: 26)
-                .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(active ? KTColor.cardBg : Color.clear)
-                        .shadow(color: active ? .black.opacity(0.10) : .clear, radius: 1.5, y: 1)
-                )
+    private var shortcuts: some View {
+        ZStack {
+            Button("") { pane.inspectorVisible.toggle() }
+                .keyboardShortcut("i", modifiers: [.command, .option])
+                .disabled(!pane.isActive)
+            Button("") { pane.focusSearch() }
+                .keyboardShortcut("f", modifiers: .command)
+                .disabled(!pane.isActive)
         }
-        .buttonStyle(.plain)
-    }
-
-    @ViewBuilder
-    var content: some View {
-        if vm.sites.isEmpty {
-            emptyState(title: "No sites yet", message: "Add a folder under \(sitesRoot.path) to serve it at <name>.\(vm.tld).")
-        } else if filteredSites.isEmpty {
-            emptyState(title: "No matching sites", message: "No site matches “\(searchText)”.")
-        } else if gridView {
-            ScrollView { grid.padding(.top, 2).padding(.horizontal, 2).padding(.bottom, 4) }
-        } else {
-            KTListContainer { ScrollView { list } }
-        }
-    }
-
-    private func emptyState(title: String, message: String) -> some View {
-        VStack(spacing: 6) {
-            Image(systemName: "globe").font(.system(size: 46, weight: .light)).foregroundStyle(KTColor.faint)
-            Text(title).font(.jbMono(17, .regular)).foregroundStyle(KTColor.ink3)
-            Text(message).font(.jbMono(13)).foregroundStyle(KTColor.muted).multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
     }
 
     private func openNewSite() {

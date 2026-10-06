@@ -43,7 +43,7 @@ public struct KTModalCard<Content: View>: View {
             content()
         }
         .frame(width: width)
-        .background(RoundedRectangle(cornerRadius: KTRadius.modal, style: .continuous).fill(.white))
+        .background(RoundedRectangle(cornerRadius: KTRadius.modal, style: .continuous).fill(KTColor.cardBg))
         .clipShape(RoundedRectangle(cornerRadius: KTRadius.modal, style: .continuous))
         .overlay(alignment: .topTrailing) { closeButton }
         .background(escCatcher)
@@ -62,8 +62,8 @@ public struct KTModalCard<Content: View>: View {
         }
         .padding(22)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(LinearGradient(colors: [Color(hex: 0xFBFBFD), .white], startPoint: .top, endPoint: .bottom))
-        .overlay(alignment: .bottom) { Rectangle().fill(Color(hex: 0xF0F0F3)).frame(height: 0.5) }
+        .background(KTColor.cardBg)
+        .overlay(alignment: .bottom) { Rectangle().fill(KTColor.sepFaint).frame(height: 0.5) }
     }
 
     private var closeButton: some View {

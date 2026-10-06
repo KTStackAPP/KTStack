@@ -28,10 +28,10 @@ public struct KTModalField: View {
         .foregroundStyle(KTColor.ink)
         .focused($focused)
         .padding(.horizontal, 13).padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white))
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(KTColor.fieldBg))
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(focused ? KTColor.accent : Color(hex: 0xE2E2E8), lineWidth: 1.5)
+                .stroke(focused ? KTColor.accent : KTColor.fieldBorder, lineWidth: 1.5)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)

@@ -48,7 +48,7 @@ public struct KTSegmentedTabs<Value: Hashable>: View {
                         .padding(.horizontal, hPad)
                         .background(
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(active ? Color.white : Color.clear)
+                                .fill(active ? Color(nsColor: .controlColor) : Color.clear)
                                 .shadow(color: active ? .black.opacity(0.10) : .clear, radius: 1.5, y: 1)
                         )
                         .contentShape(Rectangle())

@@ -25,7 +25,7 @@ struct KTLogSourcePicker: View {
             list
         }
         .frame(width: 440, height: 520)
-        .background(Color.white)
+        .background(KTColor.cardBg)
         .onAppear { searchFocused = true }
     }
 

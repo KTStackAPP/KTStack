@@ -22,7 +22,7 @@ enum SiteFormControls {
         HStack(spacing: 10) { content() }
             .padding(.vertical, 8).padding(.horizontal, 12)
             .frame(maxWidth: .infinity)
-            .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(.white))
+            .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(KTColor.fieldBg))
             .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(KTColor.fieldBorderStrong, lineWidth: 1.5))
     }
 
@@ -42,7 +42,7 @@ enum SiteFormControls {
             }
             .padding(.vertical, 8).padding(.horizontal, 12)
             .frame(maxWidth: .infinity)
-            .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(.white))
+            .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(KTColor.fieldBg))
             .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(KTColor.fieldBorderStrong, lineWidth: 1.5))
         }
     }
@@ -82,6 +82,6 @@ enum SiteFormControls {
     }
 
     static var hairline: some View {
-        Rectangle().fill(Color(hex: 0xF0F0F3)).frame(height: 0.5)
+        Rectangle().fill(KTColor.sepFaint).frame(height: 0.5)
     }
 }

@@ -42,15 +42,7 @@ struct KTSidebar: View {
         .padding(.horizontal, 14)
         .frame(width: KTMetric.sidebarWidth)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background {
-            if #available(macOS 27, *) {
-                Color.clear
-                    .glassEffect(.regular, in: .rect(cornerRadius: 0))
-                    .ignoresSafeArea()
-            } else {
-                KTColor.sidebarBackground.ignoresSafeArea()
-            }
-        }
+        .background { SidebarMaterial().ignoresSafeArea() }
         .overlay(alignment: .trailing) {
             Rectangle().fill(KTColor.hairline).frame(width: KTMetric.hairline)
         }
@@ -92,4 +84,17 @@ struct KTSidebar: View {
             }
         }
     }
+}
+
+// Nền sidebar native: tối ở dark mode, không hắt màu cửa sổ phía sau như glass.
+private struct SidebarMaterial: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .sidebar
+        view.blendingMode = .behindWindow
+        view.state = .followsWindowActiveState
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }

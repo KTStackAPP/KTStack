@@ -106,6 +106,18 @@ final class SiteSettingsModel: ObservableObject {
         envSaved = false
     }
 
+    func resetEnv(_ saved: [String: String]) {
+        envRows = SiteEnvVars.sorted(saved).map { EnvRow(key: $0.key, value: $0.value) }
+        envError = nil
+        envSaved = false
+    }
+
+    func resetDirectives(_ saved: String?) {
+        directives = saved ?? ""
+        directivesError = nil
+        directivesNote = nil
+    }
+
     func saveEnv() {
         envSaved = false
         var dict: [String: String] = [:]

@@ -12,36 +12,48 @@ struct SitesDNSFooter: View {
     private var isEnabled: Bool { dns.status == .enabled }
 
     var body: some View {
-        HStack(spacing: 12) {
-            KTIconTile(tint: KTIconTint.globe, size: 30, radius: 9) {
-                Image(systemName: "checkmark.shield").font(.system(size: 14, weight: .medium))
-            }
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.jbMono(13, .regular)).foregroundStyle(KTColor.ink)
-                Text(subtitle).font(.jbMono(12)).foregroundStyle(KTColor.ink2)
-            }
-            Spacer()
+        HStack(spacing: 8) {
+            Image(systemName: isEnabled ? "checkmark.shield" : "exclamationmark.shield")
+                .font(.system(size: 13))
+                .foregroundStyle(isEnabled ? KTColor.online : Color(nsColor: .systemOrange))
+            Text(status)
+                .font(.jbMono(11.5))
+                .foregroundStyle(KTColor.ink2)
+                .lineLimit(1)
+                .layoutPriority(1)
+            Spacer(minLength: 4)
             if dns.isBusy {
                 ProgressView().controlSize(.small)
             } else {
-                KTButton(title: "Reset", kind: .secondary, action: onReset)
+                quietButton("Reset", color: KTColor.ink, action: onReset)
                 if isEnabled {
-                    KTButton(title: "Disable DNS", kind: .danger, action: onDisable)
+                    quietButton("Disable", color: KTColor.danger, action: onDisable)
                 } else {
-                    KTButton(title: "Enable DNS", kind: .secondary, action: onEnable)
+                    quietButton("Enable", color: KTColor.accent, action: onEnable)
                 }
             }
         }
-        .padding(.horizontal, KTSpacing.screenGutter)
-        .padding(.vertical, 12)
-        .overlay(alignment: .top) { Rectangle().fill(KTColor.sep).frame(height: 0.5) }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .overlay(alignment: .top) { Rectangle().fill(KTColor.sep).frame(height: 1) }
     }
 
-    private var title: String {
-        isEnabled ? "Automatic DNS is on" : "Automatic DNS is off"
+    private func quietButton(_ title: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.jbMono(11.5))
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .fixedSize()
+                .padding(.vertical, 3)
+                .padding(.horizontal, 8)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title) DNS")
     }
 
-    private var subtitle: String {
-        isEnabled ? "*.\(tld) resolves to this machine." : "Enable DNS to resolve *.\(tld) domains."
+    private var status: String {
+        isEnabled ? "DNS on · *.\(tld) → this Mac" : "DNS off · *.\(tld) will not resolve"
     }
 }

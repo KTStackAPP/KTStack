@@ -16,8 +16,10 @@ struct KTSidebarRow: View {
                 Image(systemName: row.symbol)
                     .font(.system(size: 15, weight: .regular))
                     .frame(width: 18, height: 18)
+                    .foregroundStyle(isActive ? KTColor.accent : KTColor.ink2)
                 Text(row.title)
                     .font(.jbMono(13.5, isActive ? .regular : .medium))
+                    .foregroundStyle(isActive ? KTColor.accent : KTColor.ink)
                 Spacer(minLength: 6)
                 if let badge {
                     Text("\(badge)")
@@ -28,12 +30,11 @@ struct KTSidebarRow: View {
                         .background(Capsule().fill(isActive ? KTColor.accentSoft : KTColor.pillBg))
                 }
             }
-            .foregroundStyle(isActive ? KTColor.accent : KTColor.ink2)
             .padding(.vertical, 8)
             .padding(.horizontal, 11)
             .background(
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(isActive ? KTColor.accentSoft : (hovering ? Color.black.opacity(0.045) : .clear))
+                    .fill(isActive ? KTColor.accentSoft : (hovering ? Color.primary.opacity(0.07) : .clear))
             )
             .contentShape(Rectangle())
         }
