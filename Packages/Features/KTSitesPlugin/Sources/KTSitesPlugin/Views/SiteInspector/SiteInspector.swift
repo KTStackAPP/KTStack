@@ -5,7 +5,9 @@ import SwiftUI
 struct SiteInspector: View {
     enum Sheet: String, Identifiable {
         case environment, directives, workers
-        var id: String { rawValue }
+        var id: String {
+            rawValue
+        }
     }
 
     private static let columnMin: CGFloat = 320
@@ -34,42 +36,48 @@ struct SiteInspector: View {
 
     private func content(_ site: SiteSummary) -> some View {
         GeometryReader { geo in
-            ScrollView {
-                VStack(alignment: .leading, spacing: Self.gap) {
-                    SiteInspectorHeader(
-                        site: site,
-                        framework: framework(site),
-                        endOfLife: site.kind == .php && vm.isEndOfLife(site.phpVersion),
-                        canOpen: SiteInspectorInput.canOpen(
-                            kind: site.kind,
-                            serverRunning: vm.server.isRunning,
-                            upstreamRunning: upstreamRunning(site)
-                        ),
-                        editors: vm.editors,
-                        preferredEditor: vm.preferredEditor,
-                        onOpenLogs: { actions.openLogs(site) },
-                        onRecheckType: { actions.recheckType(site) },
-                        onRemove: { actions.remove(site) }
-                    )
-                    SiteSettingsHost(site: site, vm: vm) { settings in
-                        cards(site, settings: settings, twoColumns: fitsTwoColumns(geo.size.width))
-                            .sheet(item: $sheet) { sheetContent($0, site: site, settings: settings) }
-                    }
-                    // Model giữ kind lúc tạo, nên dựng lại khi Re-detect đổi loại site.
-                    .id(site.kind)
-                    footer(site)
-                }
-                .padding(Self.padding)
+            VStack(spacing: 0) {
+                scroll(site, width: geo.size.width)
+                footer(site)
             }
         }
         .id(site.id)
+    }
+
+    private func scroll(_ site: SiteSummary, width: CGFloat) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Self.gap) {
+                SiteInspectorHeader(
+                    site: site,
+                    framework: framework(site),
+                    endOfLife: site.kind == .php && vm.isEndOfLife(site.phpVersion),
+                    canOpen: SiteInspectorInput.canOpen(
+                        kind: site.kind,
+                        serverRunning: vm.server.isRunning,
+                        upstreamRunning: upstreamRunning(site)
+                    ),
+                    editors: vm.editors,
+                    preferredEditor: vm.preferredEditor,
+                    onOpenLogs: { actions.openLogs(site) },
+                    onRecheckType: { actions.recheckType(site) },
+                    onRemove: { actions.remove(site) }
+                )
+                SiteSettingsHost(site: site, vm: vm) { settings in
+                    cards(site, settings: settings, twoColumns: fitsTwoColumns(width))
+                        .sheet(item: $sheet) { sheetContent($0, site: site, settings: settings) }
+                }
+                // Model giữ kind lúc tạo, nên dựng lại khi Re-detect đổi loại site.
+                .id(site.kind)
+            }
+            .padding(Self.padding)
+        }
     }
 
     private func fitsTwoColumns(_ width: CGFloat) -> Bool {
         width >= Self.columnMin * 2 + Self.gap + Self.padding.leading + Self.padding.trailing
     }
 
-    // Đổi layout bằng AnyLayout để giữ nguyên view khi chuyển một/hai cột.
+    /// Đổi layout bằng AnyLayout để giữ nguyên view khi chuyển một/hai cột.
     private func cards(_ site: SiteSummary, settings: SiteSettingsModel, twoColumns: Bool) -> some View {
         let layout = twoColumns
             ? AnyLayout(HStackLayout(alignment: .top, spacing: Self.gap))
@@ -97,7 +105,9 @@ struct SiteInspector: View {
             Spacer()
             KTButton(title: "Remove Site…", kind: .danger) { actions.remove(site) }
         }
-        .padding(.top, 14)
+        .padding(.horizontal, Self.padding.leading)
+        .padding(.vertical, 12)
+        .background(KTColor.contentBg)
         .overlay(alignment: .top) { Rectangle().fill(KTColor.sep).frame(height: 1) }
     }
 

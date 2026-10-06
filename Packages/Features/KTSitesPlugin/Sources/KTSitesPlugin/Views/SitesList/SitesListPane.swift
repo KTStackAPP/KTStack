@@ -49,6 +49,7 @@ struct SitesListPane: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 8) }
             .contextMenu(forSelectionType: UUID.self, menu: { _ in EmptyView() }, primaryAction: openFirst)
         }
     }
