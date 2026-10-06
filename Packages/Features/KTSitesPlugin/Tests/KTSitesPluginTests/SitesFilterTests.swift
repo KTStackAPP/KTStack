@@ -21,6 +21,14 @@ final class SitesFilterTests: XCTestCase {
         XCTAssertEqual(SitesFilter.visible(all, kind: nil, query: "  .TEST ").map(\.id), all.map(\.id))
     }
 
+    func testQueryMatchesPHPVersionOfPHPSitesOnly() {
+        let legacy = makeSite(name: "legacy", domain: "legacy.test", phpVersion: "7.4", kind: .php)
+        let sites = all + [legacy]
+        XCTAssertEqual(SitesFilter.visible(sites, kind: nil, query: "php 7.4").map(\.id), [legacy.id])
+        XCTAssertEqual(SitesFilter.visible(sites, kind: nil, query: "7.4").map(\.id), [legacy.id])
+        XCTAssertEqual(SitesFilter.visible(sites, kind: nil, query: "PHP 8.4").map(\.id), [shop.id, blog.id])
+    }
+
     func testWhitespaceQueryReturnsEverything() {
         XCTAssertEqual(SitesFilter.visible(all, kind: nil, query: " \n\t ").map(\.id), all.map(\.id))
     }

@@ -30,7 +30,9 @@ enum SitesFilter {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return sites }
         return sites.filter {
-            $0.name.localizedCaseInsensitiveContains(trimmed) || $0.domain.localizedCaseInsensitiveContains(trimmed)
+            $0.name.localizedCaseInsensitiveContains(trimmed)
+                || $0.domain.localizedCaseInsensitiveContains(trimmed)
+                || ($0.kind == .php && "PHP \($0.phpVersion)".localizedCaseInsensitiveContains(trimmed))
         }
     }
 }

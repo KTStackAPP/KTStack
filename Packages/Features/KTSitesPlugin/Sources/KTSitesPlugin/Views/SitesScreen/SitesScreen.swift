@@ -40,13 +40,18 @@ struct SitesScreen: View {
                     .padding(.top, 14)
             }
 
+            SitesSearchBar(vm: vm, pane: pane)
+                .padding(.horizontal, KTSpacing.screenGutter)
+                .padding(.top, 14)
+                .padding(.bottom, 12)
+
             if let actionError = vm.server.lastError ?? actionError {
                 Text(actionError)
                     .font(.jbMono(12))
                     .foregroundStyle(KTColor.danger)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, KTSpacing.screenGutter)
-                    .padding(.top, 6)
+                    .padding(.bottom, 8)
             }
 
             SitesSplitRepresentable(
@@ -63,7 +68,7 @@ struct SitesScreen: View {
                 )
             )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.top, 14)
+                .overlay(alignment: .top) { Rectangle().fill(KTColor.sep).frame(height: 1) }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(shortcuts)
@@ -95,17 +100,21 @@ struct SitesScreen: View {
     }
 
     private var stoppedBanner: some View {
-        HStack(spacing: 12) {
-            Text("The web server is stopped. Sites will not open until you start it.")
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 14))
+                .foregroundStyle(Color(nsColor: .systemOrange))
+            Text("Server is stopped. No site will load until it starts.")
                 .font(.jbMono(12.5))
                 .foregroundStyle(KTColor.ink)
             Spacer()
             KTButton(title: "Start Server", kind: .primary) { vm.toggleServer() }
                 .disabled(vm.server.isBusy)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .systemOrange).opacity(0.12)))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color(nsColor: .systemOrange).opacity(0.10)))
+        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Color(nsColor: .systemOrange).opacity(0.35), lineWidth: 1))
     }
 
     private var inspectorActions: SiteInspectorActions {
@@ -123,6 +132,9 @@ struct SitesScreen: View {
         ZStack {
             Button("") { pane.inspectorVisible.toggle() }
                 .keyboardShortcut("i", modifiers: [.command, .option])
+                .disabled(!pane.isActive)
+            Button("") { pane.focusSearch() }
+                .keyboardShortcut("f", modifiers: .command)
                 .disabled(!pane.isActive)
         }
         .opacity(0)

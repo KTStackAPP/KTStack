@@ -13,7 +13,6 @@ struct SitesKindChips: View {
             ForEach(Self.order, id: \.self) { kind in
                 chip(kind)
             }
-            Spacer(minLength: 0)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Filter by kind")
@@ -23,16 +22,16 @@ struct SitesKindChips: View {
         let active = selection == kind
         let title = kind.map(SiteVisuals.label(for:)) ?? "All"
         return Button { selection = kind } label: {
-            HStack(spacing: 5) {
+            HStack(spacing: 6) {
                 Text(title)
-                Text("\(counts[kind] ?? 0)").foregroundStyle(KTColor.faint)
+                Text("\(counts[kind] ?? 0)").foregroundStyle(active ? KTColor.contentBg.opacity(0.7) : KTColor.muted)
             }
-            .font(.jbMono(11.5))
-            .foregroundStyle(active ? KTColor.ink : KTColor.ink3)
-            .padding(.vertical, 4)
-            .padding(.horizontal, 10)
-            .background(Capsule().fill(active ? KTColor.cardBg : Color.clear))
-            .overlay(Capsule().stroke(active ? KTColor.sep : Color.clear, lineWidth: 0.5))
+            .font(.jbMono(12))
+            .foregroundStyle(active ? KTColor.contentBg : KTColor.ink)
+            .padding(.vertical, 5)
+            .padding(.horizontal, 11)
+            .background(Capsule().fill(active ? KTColor.ink : KTColor.fieldBg))
+            .overlay(Capsule().stroke(active ? KTColor.ink : KTColor.sep, lineWidth: 1))
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)

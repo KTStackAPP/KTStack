@@ -6,17 +6,17 @@ import SwiftUI
 @MainActor
 final class SitesSplitController: NSViewController, NSSplitViewDelegate {
     private enum Width {
-        static let listMin: CGFloat = 420
-        static let inspectorMin: CGFloat = 320
-        static let inspectorMax: CGFloat = 460
-        static let inspectorDefault: CGFloat = 360
+        static let listMin: CGFloat = 320
+        static let listMax: CGFloat = 460
+        static let listDefault: CGFloat = 380
+        static let inspectorMin: CGFloat = 460
     }
 
     private let pane: SitesPaneModel
     private let splitView = NSSplitView()
     private let listView: NSView
     private let inspectorView: NSView
-    private var inspectorWidth = Width.inspectorDefault
+    private var listWidth = Width.listDefault
     private var collapsedByResize = false
     private var didPlaceDivider = false
     private var isAdjusting = false
@@ -40,8 +40,8 @@ final class SitesSplitController: NSViewController, NSSplitViewDelegate {
         splitView.delegate = self
         splitView.addArrangedSubview(listView)
         splitView.addArrangedSubview(inspectorView)
-        splitView.setHoldingPriority(.defaultLow, forSubviewAt: 0)
-        splitView.setHoldingPriority(.defaultLow + 1, forSubviewAt: 1)
+        splitView.setHoldingPriority(.defaultLow + 1, forSubviewAt: 0)
+        splitView.setHoldingPriority(.defaultLow, forSubviewAt: 1)
         inspectorView.isHidden = !pane.inspectorVisible
         view = splitView
         bindModelToSplit()
@@ -84,8 +84,8 @@ final class SitesSplitController: NSViewController, NSSplitViewDelegate {
     }
 
     private func placeDivider() {
-        let position = splitView.bounds.width - splitView.dividerThickness - inspectorWidth
-        splitView.setPosition(max(position, Width.listMin), ofDividerAt: 0)
+        let maxList = splitView.bounds.width - splitView.dividerThickness - Width.inspectorMin
+        splitView.setPosition(max(min(listWidth, maxList), Width.listMin), ofDividerAt: 0)
     }
 
     private func adjusting(_ body: () -> Void) {
@@ -95,11 +95,11 @@ final class SitesSplitController: NSViewController, NSSplitViewDelegate {
     }
 
     func splitView(_ splitView: NSSplitView, constrainMinCoordinate _: CGFloat, ofSubviewAt _: Int) -> CGFloat {
-        max(Width.listMin, splitView.bounds.width - splitView.dividerThickness - Width.inspectorMax)
+        Width.listMin
     }
 
     func splitView(_ splitView: NSSplitView, constrainMaxCoordinate _: CGFloat, ofSubviewAt _: Int) -> CGFloat {
-        splitView.bounds.width - splitView.dividerThickness - Width.inspectorMin
+        min(Width.listMax, splitView.bounds.width - splitView.dividerThickness - Width.inspectorMin)
     }
 
     func splitView(_: NSSplitView, canCollapseSubview subview: NSView) -> Bool {
@@ -115,7 +115,7 @@ final class SitesSplitController: NSViewController, NSSplitViewDelegate {
             return
         }
         if inspectorShown {
-            inspectorWidth = min(max(inspectorView.frame.width, Width.inspectorMin), Width.inspectorMax)
+            listWidth = min(max(listView.frame.width, Width.listMin), Width.listMax)
             if !inspectorFits {
                 pane.inspectorVisible = false
                 collapsedByResize = true

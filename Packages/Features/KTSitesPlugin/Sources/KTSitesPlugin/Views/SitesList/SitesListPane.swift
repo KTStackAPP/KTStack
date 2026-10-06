@@ -7,25 +7,12 @@ struct SitesListPane: View {
     @ObservedObject var pane: SitesPaneModel
     let sitesRoot: URL
 
-    @FocusState private var searchFocused: Bool
     @State private var lastVisible: [UUID] = []
 
     var body: some View {
         let sites = SitesFilter.visible(vm.sites, kind: pane.kindFilter, query: pane.searchText)
         let visibleIDs = sites.map(\.id)
         VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 10) {
-                TextField("Search sites", text: $pane.searchText)
-                    .textFieldStyle(.roundedBorder)
-                    .focused($searchFocused)
-                SitesKindChips(
-                    selection: $pane.kindFilter,
-                    counts: SitesFilter.counts(vm.sites, query: pane.searchText)
-                )
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-
             content(sites)
 
             SitesDNSFooter(dns: vm.dns, tld: vm.tld, onEnable: vm.enableDNS, onDisable: vm.disableDNS, onReset: vm.resetDNS)
@@ -33,7 +20,6 @@ struct SitesListPane: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(KTColor.contentBg)
         .background(shortcuts)
-        .onChange(of: pane.searchFocusToken) { _ in searchFocused = true }
         .onChange(of: visibleIDs) { reconcileSelection($0) }
         .onAppear { reconcileSelection(visibleIDs) }
     }
@@ -51,13 +37,18 @@ struct SitesListPane: View {
                         site: site,
                         upstreamRunning: vm.upstreamRunning[site.id] ?? false,
                         shared: vm.shares[site.id]?.publicURL != nil,
-                        workers: vm.workersSummary(for: site)
+                        workers: vm.workersSummary(for: site),
+                        isSelected: pane.selectedID == site.id
                     )
                     .equatable()
+                    .background(TableHighlightRemover())
+                    .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
+                    .listRowSeparator(.hidden)
                     .tag(site.id)
                 }
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
             .contextMenu(forSelectionType: UUID.self, menu: { _ in EmptyView() }, primaryAction: openFirst)
         }
     }
@@ -74,9 +65,6 @@ struct SitesListPane: View {
 
     private var shortcuts: some View {
         ZStack {
-            Button("") { pane.focusSearch() }
-                .keyboardShortcut("f", modifiers: .command)
-                .disabled(!pane.isActive)
             Button("") { openSelected() }
                 .keyboardShortcut("o", modifiers: .command)
                 .disabled(!pane.isActive)

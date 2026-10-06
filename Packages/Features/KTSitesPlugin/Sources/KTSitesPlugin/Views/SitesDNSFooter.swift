@@ -13,30 +13,42 @@ struct SitesDNSFooter: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            KTDot(color: isEnabled ? KTColor.runDot : KTColor.stopDot)
+            Image(systemName: isEnabled ? "checkmark.shield" : "exclamationmark.shield")
+                .font(.system(size: 13))
+                .foregroundStyle(isEnabled ? KTColor.online : Color(nsColor: .systemOrange))
             Text(status)
                 .font(.jbMono(11.5))
                 .foregroundStyle(KTColor.ink2)
                 .lineLimit(1)
-                .truncationMode(.middle)
-            Spacer()
-            Group {
-                if dns.isBusy {
-                    ProgressView().controlSize(.small)
+                .layoutPriority(1)
+            Spacer(minLength: 4)
+            if dns.isBusy {
+                ProgressView().controlSize(.small)
+            } else {
+                quietButton("Reset", color: KTColor.ink, action: onReset)
+                if isEnabled {
+                    quietButton("Disable", color: KTColor.danger, action: onDisable)
                 } else {
-                    KTButton(title: "Reset", kind: .secondary, action: onReset)
-                    if isEnabled {
-                        KTButton(title: "Disable DNS", kind: .danger, action: onDisable)
-                    } else {
-                        KTButton(title: "Enable DNS", kind: .secondary, action: onEnable)
-                    }
+                    quietButton("Enable", color: KTColor.accent, action: onEnable)
                 }
             }
-            .controlSize(.small)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-        .overlay(alignment: .top) { Rectangle().fill(KTColor.sep).frame(height: 0.5) }
+        .padding(.vertical, 9)
+        .overlay(alignment: .top) { Rectangle().fill(KTColor.sep).frame(height: 1) }
+    }
+
+    private func quietButton(_ title: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.jbMono(11.5))
+                .foregroundStyle(color)
+                .padding(.vertical, 3)
+                .padding(.horizontal, 8)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title) DNS")
     }
 
     private var status: String {
