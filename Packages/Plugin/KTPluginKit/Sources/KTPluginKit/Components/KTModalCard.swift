@@ -62,8 +62,8 @@ public struct KTModalCard<Content: View>: View {
         }
         .padding(22)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(LinearGradient(colors: [Color(hex: 0xFBFBFD), .white], startPoint: .top, endPoint: .bottom))
-        .overlay(alignment: .bottom) { Rectangle().fill(Color(hex: 0xF0F0F3)).frame(height: 0.5) }
+        .background(KTColor.cardBg)
+        .overlay(alignment: .bottom) { Rectangle().fill(KTColor.sepFaint).frame(height: 0.5) }
     }
 
     private var closeButton: some View {

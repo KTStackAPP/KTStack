@@ -82,6 +82,6 @@ enum SiteFormControls {
     }
 
     static var hairline: some View {
-        Rectangle().fill(Color(hex: 0xF0F0F3)).frame(height: 0.5)
+        Rectangle().fill(KTColor.sepFaint).frame(height: 0.5)
     }
 }

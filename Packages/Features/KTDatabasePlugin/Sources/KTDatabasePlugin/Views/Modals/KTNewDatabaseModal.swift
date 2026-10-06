@@ -80,7 +80,7 @@ struct KTNewDatabaseModal: View {
             .opacity(canSubmit ? 1 : 0.5)
         }
         .padding(.horizontal, 24).padding(.vertical, 16)
-        .overlay(alignment: .top) { Rectangle().fill(Color(hex: 0xF0F0F3)).frame(height: 0.5) }
+        .overlay(alignment: .top) { Rectangle().fill(KTColor.sepFaint).frame(height: 0.5) }
     }
 
     private func create() {

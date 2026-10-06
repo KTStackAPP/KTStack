@@ -23,7 +23,7 @@ public struct KTToggle: View {
     public var body: some View {
         Button(action: action) {
             Capsule()
-                .fill(isOn ? KTColor.accent : Color(hex: 0xE3E3E9))
+                .fill(isOn ? KTColor.accent : Color.primary.opacity(0.15))
                 .frame(width: KTMetric.toggleWidth, height: KTMetric.toggleHeight)
                 .overlay(alignment: .leading) {
                     Circle()

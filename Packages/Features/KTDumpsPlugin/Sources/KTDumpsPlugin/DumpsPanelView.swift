@@ -133,7 +133,7 @@ struct DumpsPanelView: View {
                     .font(.jbMono(12)).foregroundStyle(KTColor.muted)
             }
             .padding(.horizontal, 16).padding(.vertical, 11)
-            .background(Color(hex: 0xFAFAFC))
+            .background(Color.primary.opacity(0.03))
             .overlay(alignment: .bottom) { Rectangle().fill(KTColor.sepFaint).frame(height: 0.5) }
             DumpTreeView(event.root)
                 .padding(.horizontal, 16).padding(.vertical, 14)
