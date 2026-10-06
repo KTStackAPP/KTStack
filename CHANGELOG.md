@@ -1,11 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.3.6 - 2026-10-06
 
 ### Changed
 
 - Sites: a fixed-width list beside a wide site detail pane. Search and kind filters share one row above both, and search also matches a PHP version ("PHP 8.4"). The detail shows Domain, Security & Sharing, Runtime and Advanced cards in two columns, with environment variables, nginx directives and workers edited in their own sheets. Site Settings moved into the detail; grid view removed. The server control sits in the header and DNS status under the list.
 - Logs: newest line on top. Following keeps the view at the top as lines arrive, so opening a log no longer starts at the oldest line.
+- Switching dashboard tabs is faster: the sidebar no longer re-renders twice per switch, and a tab starts its polling and log tail after it first draws.
+- The Sites list scrolls without per-row work: installed editors are read once and refreshed when the app becomes active, and site frameworks publish in one update.
 
 ### Fixed
 
