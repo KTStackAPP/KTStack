@@ -92,14 +92,15 @@ markdown_to_html() {
 # Write <archive-basename>.html next to an archive named KTStack-<version>[-<arch>].(dmg|zip) so
 # generate_appcast embeds it as the item's <description>. Notes come from RELEASE_NOTES if set,
 # else the matching CHANGELOG.md section. An existing .html/.md/.txt beside the archive wins.
+# Missing notes fail the release: Sparkle would otherwise show an empty update dialog.
 write_release_notes() {
     local archive="$1" source="$2" stem version html
     stem="${archive%.*}"
     for ext in html md markdown txt; do [[ -f "$stem.$ext" ]] && return 0; done
     version="$(basename "$stem")"; version="${version#*-}"
     version="${version%-arm64}"; version="${version%-x86_64}"; version="${version%-universal}"
-    [[ -f "$source" ]] || { echo "release notes: $source not found, $(basename "$archive") ships without notes" >&2; return 0; }
+    [[ -f "$source" ]] || { echo "release notes: $source not found for $(basename "$archive")" >&2; return 1; }
     html="$(changelog_section "$version" "$source" | markdown_to_html)"
-    [[ -n "$html" ]] || { echo "release notes: no '## $version' section in $source, $(basename "$archive") ships without notes" >&2; return 0; }
+    [[ -n "$html" ]] || { echo "release notes: no '## $version' section in $source; add it before building the appcast" >&2; return 1; }
     printf '%s\n' "$html" > "$stem.html"
 }

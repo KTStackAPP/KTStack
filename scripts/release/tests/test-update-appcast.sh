@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Runs update-appcast.sh against a stub generate_appcast and checks the arch tagging the DMG smoke
 # test requires: the -arm64 item carries sparkle:hardwareRequirements, the -x86_64 item does not.
-# Also checks every item embeds the CHANGELOG section for its version as its release notes.
+# Also checks every item embeds the CHANGELOG section for its version as its release notes, and that
+# a version with no notes fails instead of shipping an empty update dialog.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 WORK="$(mktemp -d)"
@@ -94,8 +95,8 @@ GENERATE_APPCAST="$WORK/generate_appcast" "$ROOT/scripts/release/update-appcast.
 mkdir -p "$WORK/missing"
 touch "$WORK/missing/KTStack-2.0-arm64.dmg" "$WORK/missing/KTStack-2.0-x86_64.dmg"
 GENERATE_APPCAST="$WORK/generate_appcast" "$ROOT/scripts/release/update-appcast.sh" "$WORK/missing" >/dev/null 2>&1 \
-    || fail "a version without a CHANGELOG section must still produce an appcast"
-! grep -q '<description>' "$WORK/missing/appcast.xml" || fail "no notes expected for an unknown version"
+    && fail "a version without a CHANGELOG section must fail, not ship without notes"
+[[ ! -e "$WORK/missing/appcast.xml" ]] || fail "no appcast may be written when notes are missing"
 
 tag_arm64_items "$WORK/both/appcast.xml"
 [[ "$(grep -c hardwareRequirements "$WORK/both/appcast.xml")" == 1 ]] || fail "tagging must be idempotent"

@@ -31,7 +31,8 @@ When documentation conflicts with code, the following precedence applies:
 10. [10. Current State & Technical Debt](10-current-state-and-debt.md) — Working Tree Audit, GPU/CPU Performance Profiles, Virtual Scrolling, Liquid Glass Adoption.
 11. [11. Specification Parity & Extension Points](11-specification-parity-and-extensions.md) — Feature Parity vs Alternatives (Herd/Valet/Laragon), Plugin SDK Extension Points.
 12. [Scheduled Backups](scheduled-backups.md) — Plans, scheduler, archive pipeline, local/S3/Google Drive destinations, restore, Google credentials and folder Picker.
-13. [System Architecture Presentation](System_Architecture_Presentation.md) — Visual High-Level Executive Presentation Deck.
+13. [Release Process](publishing-releases.md): Mandatory release rules: CHANGELOG section per version, appcast release notes, per-arch DMGs, publishing.
+14. [System Architecture Presentation](System_Architecture_Presentation.md) — Visual High-Level Executive Presentation Deck.
 
 ---
 

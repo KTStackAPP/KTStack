@@ -16,6 +16,7 @@
 # Release notes: each item embeds the "## <version>" section of CHANGELOG.md as HTML, which is what
 # Sparkle shows in its update dialog. Set RELEASE_NOTES=<file.md> to use another markdown file, or
 # drop KTStack-<ver>-<arch>.html next to the DMG to supply the HTML yourself.
+# Notes are mandatory: a DMG with no matching section fails the run (see docs/publishing-releases.md).
 set -euo pipefail
 # shellcheck source=scripts/release/lib-appcast.sh
 source "$(dirname "$0")/lib-appcast.sh"
