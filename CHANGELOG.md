@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.6.1 - 2026-10-09
+
+### Fixed
+
+- Database: PostgreSQL `timestamp`, `timestamptz`, `date`, `time`, `timetz`, `interval` and `numeric` columns show their values instead of unreadable bytes. `timestamptz` shows in UTC (`+00`), and `numeric` keeps its scale (`12.50`).
+- Database: the row inspector is easier to read. Column names and types use stronger text colors, long type names stay on one line, and the inspector edge, header and field borders are darker.
+
 ## 0.3.6 - 2026-10-06
 
 ### Changed
