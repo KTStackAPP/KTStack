@@ -2,14 +2,8 @@ import Foundation
 import NIOCore
 import PostgresNIO
 
-/// Bridges PostgresNIO rows/cells to the engine-agnostic `QueryResult`/`Cell`, and `Cell` to a bind
-/// list. PostgreSQL sends every value text-or-binary tagged by its OID, so the cell's `dataType`
-/// picks the decode; anything we don't special-case (numeric, timestamps, uuid, json) renders as its
-/// text form, which is what the grid displays anyway (numeric stays text to avoid Double precision
-/// loss). A `bool` decodes to `Cell.bool`, so the grid shows it as `1`/`0` rather than psql's `t`/`f`.
-/// Column names come from each cell (`PostgresRow`
-/// doesn't expose its column descriptions publicly), so a zero-row result has no header — acceptable
-/// for a browse/SQL surface.
+/// Bridges PostgresNIO rows/cells to `QueryResult`/`Cell`. Results arrive in binary format, so temporal
+/// and numeric values go through `PostgresBinaryText`; a raw String decode would print their bytes.
 enum PostgresCellMapper {
     static func result(from rows: [PostgresRow]) -> QueryResult {
         guard let first = rows.first else { return QueryResult(columns: [], rows: []) }
@@ -19,7 +13,10 @@ enum PostgresCellMapper {
     }
 
     static func cell(_ c: PostgresCell) -> Cell {
-        guard c.bytes != nil else { return .null }
+        guard let bytes = c.bytes else { return .null }
+        if c.format == .binary, let rendered = PostgresBinaryText.text(type: c.dataType, bytes: bytes) {
+            return .text(rendered)
+        }
         switch c.dataType {
         case .bool:
             return (try? c.decode(Bool.self)).map(Cell.bool) ?? text(c)

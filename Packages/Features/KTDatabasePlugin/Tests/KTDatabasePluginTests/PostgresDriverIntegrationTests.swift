@@ -52,6 +52,22 @@ final class PostgresDriverIntegrationTests: XCTestCase {
         XCTAssertEqual(result.rows[0][4], .bool(true))
     }
 
+    func testQueryRendersTemporalAndNumericAsPsqlText() async throws {
+        let driver = try makeDriver()
+        let result = try await driver.query(
+            """
+            SELECT '2024-05-06 07:08:09.5'::timestamp AS ts,
+            '2024-05-06 07:08:09.5+07'::timestamptz AS tstz, '2024-05-06'::date AS d,
+            '13:45:30.25'::time AS t, '1 year 2 mons 3 days 04:05:06.5'::interval AS iv, 12.50::numeric AS n
+            """,
+            database: nil
+        )
+        XCTAssertEqual(result.rows.first, [
+            .text("2024-05-06 07:08:09.5"), .text("2024-05-06 00:08:09.5+00"), .text("2024-05-06"),
+            .text("13:45:30.25"), .text("1 year 2 mons 3 days 04:05:06.5"), .text("12.50"),
+        ])
+    }
+
     func testPaginationLimitsRows() async throws {
         let driver = try makeDriver()
         let page = try await driver.paginatedRows(
