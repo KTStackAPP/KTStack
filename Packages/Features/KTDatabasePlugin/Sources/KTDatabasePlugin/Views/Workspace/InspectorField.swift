@@ -45,7 +45,8 @@ struct InspectorField: View {
             HStack(spacing: 6) {
                 Text(columnName)
                     .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(KTEditorTheme.label2)
+                    .foregroundStyle(KTEditorTheme.label)
+                    .layoutPriority(1)
                 if isPrimaryKey {
                     Text("PK")
                         .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -64,7 +65,10 @@ struct InspectorField: View {
                 }
                 Text(dataType)
                     .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(KTEditorTheme.faint)
+                    .foregroundStyle(KTEditorTheme.label2)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .help(dataType)
                 Spacer()
                 if isModified {
                     Circle()
@@ -75,7 +79,7 @@ struct InspectorField: View {
                     Button("NULL") { text = ""; onSetNull() }
                         .buttonStyle(.plain)
                         .font(.system(size: 10, weight: .medium, design: .monospaced))
-                        .foregroundStyle(KTEditorTheme.label3)
+                        .foregroundStyle(KTEditorTheme.label2)
                 }
             }
             if editable {
@@ -105,7 +109,7 @@ struct InspectorField: View {
                 .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 5))
                 .overlay(
                     RoundedRectangle(cornerRadius: 5)
-                        .stroke(focused ? Color.accentColor : Color(nsColor: .separatorColor).opacity(0.6), lineWidth: focused ? 1.5 : 0.5)
+                        .stroke(focused ? Color.accentColor : KTEditorTheme.separatorStrong, lineWidth: focused ? 1.5 : 1)
                 )
                 .focused($focused)
                 .onChange(of: focused) { isFocused in
@@ -120,7 +124,7 @@ struct InspectorField: View {
                 .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 5))
                 .overlay(
                     RoundedRectangle(cornerRadius: 5)
-                        .stroke(focused ? Color.accentColor : Color(nsColor: .separatorColor).opacity(0.6), lineWidth: focused ? 1.5 : 0.5)
+                        .stroke(focused ? Color.accentColor : KTEditorTheme.separatorStrong, lineWidth: focused ? 1.5 : 1)
                 )
                 .focused($focused)
                 .onSubmit { onCommit(text) }
@@ -134,7 +138,7 @@ struct InspectorField: View {
     private var staticValue: some View {
         switch cell {
         case .null:
-            Text("NULL").font(.system(size: 12, design: .monospaced)).italic().foregroundStyle(KTEditorTheme.faint)
+            Text("NULL").font(.system(size: 12, design: .monospaced)).italic().foregroundStyle(KTEditorTheme.label3)
         case let .int(intValue):
             Text(String(intValue)).font(.system(size: 12, design: .monospaced)).foregroundStyle(KTEditorTheme.Grid.number)
         case let .double(doubleValue):
@@ -144,7 +148,7 @@ struct InspectorField: View {
         case let .text(stringValue):
             Text(stringValue).font(.system(size: 12, design: .monospaced)).foregroundStyle(KTEditorTheme.label)
         case let .blob(dataValue):
-            Text("[\(dataValue.count) bytes]").font(.system(size: 12, design: .monospaced)).italic().foregroundStyle(KTEditorTheme.faint)
+            Text("[\(dataValue.count) bytes]").font(.system(size: 12, design: .monospaced)).italic().foregroundStyle(KTEditorTheme.label3)
         }
     }
 }

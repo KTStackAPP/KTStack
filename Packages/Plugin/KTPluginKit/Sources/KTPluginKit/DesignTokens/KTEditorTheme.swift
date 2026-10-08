@@ -7,7 +7,7 @@ public enum KTEditorTheme {
     public static let content2 = Color(nsColor: .controlBackgroundColor)
     public static let sidebar = Color(nsColor: .controlBackgroundColor)
     public static let separator = Color(nsColor: .separatorColor)
-    public static let separatorStrong = Color(nsColor: .separatorColor)
+    public static let separatorStrong = Color(kdLight: 0xC7C7CC, dark: 0x48484A)
 
     public static let titlebarTop = Color(nsColor: .windowBackgroundColor)
     public static let titlebarBottom = Color(nsColor: .windowBackgroundColor)

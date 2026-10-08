@@ -16,6 +16,9 @@ struct WorkspaceInspector: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(KTEditorTheme.content)
+        .overlay(alignment: .leading) {
+            Rectangle().fill(KTEditorTheme.separatorStrong).frame(width: 1)
+        }
     }
 
     private var header: some View {
@@ -27,12 +30,12 @@ struct WorkspaceInspector: View {
             if let row = selectedRow {
                 Text("#\(vm.windowStart + row + 1)")
                     .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(KTEditorTheme.faint)
+                    .foregroundStyle(KTEditorTheme.label3)
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .overlay(alignment: .bottom) { Divider().overlay(KTEditorTheme.separator) }
+        .overlay(alignment: .bottom) { Rectangle().fill(KTEditorTheme.separatorStrong).frame(height: 1) }
     }
 
     private var placeholder: some View {
