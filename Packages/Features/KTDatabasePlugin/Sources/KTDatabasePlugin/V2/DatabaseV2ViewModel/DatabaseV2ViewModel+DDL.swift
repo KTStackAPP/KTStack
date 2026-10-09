@@ -226,7 +226,7 @@ public extension DatabaseV2ViewModel {
         }
     }
 
-    // Nguồn DDL chuẩn từ server (SHOW CREATE), không phải draft; refresh sau apply.
+    // Nguồn DDL lấy từ server theo engine, không phải draft; refresh sau apply.
     func loadCreateTableDDL() async {
         guard let driver = await connectedDriver(), let database = selectedDatabase, let table = selectedTable else {
             createTableDDL = nil
@@ -234,12 +234,9 @@ public extension DatabaseV2ViewModel {
         }
         let token = generation
         do {
-            let verb = table.isView ? "SHOW CREATE VIEW" : "SHOW CREATE TABLE"
-            let identifier = try ddlDialect.qualifiedTable(schema: database, table: table.name)
-            let result = try await driver.query("\(verb) \(identifier)", database: database)
+            let statement = try await driver.createStatement(database: database, table: table)
             guard token == generation else { return }
-            // SHOW CREATE trả về ô cuối cùng của hàng đầu là câu lệnh tạo.
-            createTableDDL = result.rows.first?.last?.displayText
+            createTableDDL = statement
         } catch {
             guard token == generation else { return }
             createTableDDL = nil

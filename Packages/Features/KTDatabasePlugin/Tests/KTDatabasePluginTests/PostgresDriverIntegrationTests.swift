@@ -120,6 +120,64 @@ final class PostgresDriverIntegrationTests: XCTestCase {
         XCTAssertEqual(after.rowCount, 0)
     }
 
+    func testCreateStatementRebuildsTableAndView() async throws {
+        let driver = try makeDriver()
+        do {
+            try await dropDDLFixtures(driver)
+            try await assertCreateStatements(driver)
+            try await dropDDLFixtures(driver)
+        } catch {
+            try? await dropDDLFixtures(driver)
+            await driver.closeSession()
+            throw error
+        }
+        await driver.closeSession()
+    }
+
+    private func dropDDLFixtures(_ driver: PostgresDriver) async throws {
+        for sql in ["DROP VIEW IF EXISTS ktstack_ddl_v", "DROP TABLE IF EXISTS ktstack_ddl", "DROP TABLE IF EXISTS ktstack_ddl_copy"] {
+            _ = try await driver.query(sql, database: nil)
+        }
+    }
+
+    private func assertCreateStatements(_ driver: PostgresDriver) async throws {
+        _ = try await driver.query("""
+        CREATE TABLE ktstack_ddl (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, \
+        email varchar(120) NOT NULL UNIQUE, score numeric(6,2) DEFAULT 0, \
+        CONSTRAINT ktstack_ddl_score_chk CHECK (score >= 0))
+        """, database: nil)
+        _ = try await driver.query("CREATE INDEX ktstack_ddl_score_idx ON ktstack_ddl (score)", database: nil)
+        _ = try await driver.query("CREATE VIEW ktstack_ddl_v AS SELECT id, email FROM ktstack_ddl", database: nil)
+
+        let tableDDL = try await driver.createStatement(
+            database: "public", table: TableInfo(name: "ktstack_ddl", isView: false)
+        )
+        let table = try XCTUnwrap(tableDDL)
+        XCTAssertTrue(table.hasPrefix("CREATE TABLE \"public\".\"ktstack_ddl\" ("))
+        XCTAssertTrue(table.contains("\"id\" integer GENERATED ALWAYS AS IDENTITY NOT NULL"))
+        XCTAssertTrue(table.contains("\"email\" character varying(120) NOT NULL"))
+        XCTAssertTrue(table.contains("\"score\" numeric(6,2) DEFAULT 0"))
+        XCTAssertTrue(table.contains("CONSTRAINT \"ktstack_ddl_pkey\" PRIMARY KEY (id)"))
+        XCTAssertTrue(table.contains("CONSTRAINT \"ktstack_ddl_email_key\" UNIQUE (email)"))
+        XCTAssertTrue(table.contains("CONSTRAINT \"ktstack_ddl_score_chk\" CHECK (score >= 0::numeric)"))
+        XCTAssertTrue(table.contains("CREATE INDEX ktstack_ddl_score_idx ON public.ktstack_ddl USING btree (score);"))
+        XCTAssertFalse(table.contains("ktstack_ddl_pkey ON"))
+
+        // DDL dựng lại phải chạy được trên server.
+        let copy = table.replacingOccurrences(of: "ktstack_ddl", with: "ktstack_ddl_copy")
+        for statement in SQLStatementSplitter.statements(copy) {
+            _ = try await driver.query(statement, database: nil)
+        }
+
+        let viewDDL = try await driver.createStatement(
+            database: "public", table: TableInfo(name: "ktstack_ddl_v", isView: true)
+        )
+        let view = try XCTUnwrap(viewDDL)
+        XCTAssertTrue(view.hasPrefix("CREATE VIEW \"public\".\"ktstack_ddl_v\" AS\n"))
+        XCTAssertTrue(view.contains("FROM ktstack_ddl"))
+        XCTAssertTrue(view.hasSuffix(";"))
+    }
+
     func testDeleteAffectingNoRowIsRejected() async throws {
         let driver = try makeDriver()
         _ = try await driver.query("DROP TABLE IF EXISTS ktstack_it", database: nil)

@@ -59,6 +59,22 @@ final class MySQLDriverIntegrationTests: XCTestCase {
         _ = try? await driver.query("DROP DATABASE IF EXISTS \(db)", database: nil)
     }
 
+    func testCreateStatementReadsShowCreateForTableAndView() async throws {
+        let driver = try makeDriver()
+        let db = "kt_ddl_\(UUID().uuidString.prefix(8))"
+        _ = try await driver.query("CREATE DATABASE \(db)", database: nil)
+        _ = try await driver.query("CREATE TABLE \(db).t (id INT PRIMARY KEY, note VARCHAR(16))", database: nil)
+        _ = try await driver.query("CREATE VIEW \(db).v AS SELECT id FROM \(db).t", database: nil)
+
+        let table = try await driver.createStatement(database: db, table: TableInfo(name: "t", isView: false))
+        XCTAssertEqual(table?.hasPrefix("CREATE TABLE `t`"), true)
+        let view = try await driver.createStatement(database: db, table: TableInfo(name: "v", isView: true))
+        XCTAssertEqual(view?.hasPrefix("CREATE "), true)
+        XCTAssertEqual(view?.contains("VIEW `v`"), true)
+
+        _ = try? await driver.query("DROP DATABASE IF EXISTS \(db)", database: nil)
+    }
+
     func testQueryMapsTypedCellsAndNull() async throws {
         let driver = try makeDriver()
         // 1.5e0 is a DOUBLE literal; a bare 1.5 is DECIMAL, which the mapper keeps as text to preserve

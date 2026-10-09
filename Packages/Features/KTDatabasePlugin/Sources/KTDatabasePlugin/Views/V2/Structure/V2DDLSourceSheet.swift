@@ -1,7 +1,7 @@
 import KTPluginKit
 import SwiftUI
 
-/// Read-only canonical DDL from the server (SHOW CREATE TABLE/VIEW), loaded on appear.
+/// Read-only DDL from the server (per engine, see `RelationalDriver.createStatement`), loaded on appear.
 struct V2DDLSourceSheet: View {
     @ObservedObject var vm: DatabaseV2ViewModel
     @Environment(\.dismiss) private var dismiss

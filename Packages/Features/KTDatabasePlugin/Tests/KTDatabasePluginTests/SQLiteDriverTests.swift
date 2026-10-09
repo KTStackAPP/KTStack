@@ -126,6 +126,16 @@ final class SQLiteDriverTests: XCTestCase {
         XCTAssertTrue(idx.isUnique)
     }
 
+    func testCreateStatementReturnsOriginalSQLForTableAndView() async throws {
+        let driver = makeDriver()
+        try await seedSchema(driver)
+        _ = try await driver.query("CREATE VIEW recent AS SELECT * FROM notes", database: nil)
+        let table = try await driver.createStatement(database: "main", table: TableInfo(name: "notes", isView: false))
+        XCTAssertEqual(table?.hasPrefix("CREATE TABLE notes"), true)
+        let view = try await driver.createStatement(database: "main", table: TableInfo(name: "recent", isView: true))
+        XCTAssertEqual(view, "CREATE VIEW recent AS SELECT * FROM notes")
+    }
+
     func testRowCRUDWithBlob() async throws {
         let driver = makeDriver()
         try await seedSchema(driver)

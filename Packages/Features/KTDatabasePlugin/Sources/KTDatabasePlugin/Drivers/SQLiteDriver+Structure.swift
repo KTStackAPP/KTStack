@@ -59,6 +59,20 @@ public extension SQLiteDriver {
         }
     }
 
+    // sqlite_master giữ nguyên câu CREATE gốc; object tự sinh có sql NULL.
+    func createStatement(database _: String, table: TableInfo) async throws -> String? {
+        let queue = try makeQueue()
+        do {
+            return try await queue.read { db in
+                try String.fetchOne(db, sql: """
+                SELECT sql FROM sqlite_master WHERE name = ? AND type IN ('table', 'view')
+                """, arguments: [table.name])
+            }
+        } catch {
+            throw Self.mapError(error)
+        }
+    }
+
     private static func quoteIdent(_ name: String) -> String {
         "\"" + name.replacingOccurrences(of: "\"", with: "\"\"") + "\""
     }

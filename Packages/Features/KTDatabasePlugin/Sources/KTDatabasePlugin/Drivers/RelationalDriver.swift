@@ -21,6 +21,8 @@ public protocol RelationalDriver: DatabaseDriver {
 
     func checkConstraints(database: String, table: String) async throws -> [CheckConstraintInfo]
 
+    func createStatement(database: String, table: TableInfo) async throws -> String?
+
     func query(_ sql: String, database: String?) async throws -> QueryResult
 
     func paginatedRows(database: String, table: String, limit: Int, offset: Int) async throws -> QueryResult
@@ -52,6 +54,19 @@ public extension RelationalDriver {
 
     // Engine không introspect CHECK (Postgres/SQLite/Mongo, hoặc MySQL cũ) trả rỗng.
     func checkConstraints(database: String, table: String) async throws -> [CheckConstraintInfo] { [] }
+
+    // SHOW CREATE chỉ MySQL/MariaDB có; Postgres và SQLite tự override.
+    func createStatement(database: String, table: TableInfo) async throws -> String? {
+        guard kind == .mysql else {
+            throw DatabaseError.connection("DDL source isn't available for this engine")
+        }
+        let verb = table.isView ? "SHOW CREATE VIEW" : "SHOW CREATE TABLE"
+        let identifier = try SQLDialect.forKind(kind).qualifiedTable(schema: database, table: table.name)
+        let result = try await query("\(verb) \(identifier)", database: database)
+        // Cột thứ hai là câu lệnh tạo; SHOW CREATE VIEW còn thêm charset/collation phía sau.
+        guard let row = result.rows.first, row.count > 1 else { return nil }
+        return row[1].displayText
+    }
 
     // Batch commit chỉ bật cho engine MVP (MySQL/MariaDB); engine khác override khi có nhu cầu.
     func executeTransaction(_ steps: [WriteStep], database: String) async throws {
