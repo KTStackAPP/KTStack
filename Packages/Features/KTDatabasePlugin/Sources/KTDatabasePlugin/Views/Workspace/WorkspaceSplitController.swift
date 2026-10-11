@@ -19,6 +19,8 @@ final class WorkspaceSplitController: NSSplitViewController {
                 .environmentObject(model.documentVM)
                 .environmentObject(model.connectionStore)
         )
+        // Kích thước pane do split item quyết định, bỏ đo size SwiftUI tốn kém khi dựng cửa sổ.
+        sidebar.sizingOptions = []
         sidebarPane = NSSplitViewItem(sidebarWithViewController: sidebar)
         sidebarPane.minimumThickness = 248
         sidebarPane.maximumThickness = 380
@@ -33,6 +35,7 @@ final class WorkspaceSplitController: NSSplitViewController {
             .environmentObject(model.documentVM)
             .environmentObject(model.connectionStore)
         )
+        content.sizingOptions = []
         let contentPane = NSSplitViewItem(viewController: content)
         contentPane.minimumThickness = 480
         contentPane.holdingPriority = .defaultLow
@@ -40,6 +43,7 @@ final class WorkspaceSplitController: NSSplitViewController {
         let inspector = NSHostingController(
             rootView: WorkspaceInspectorPane(workspace: workspace)
         )
+        inspector.sizingOptions = []
         inspectorPane = NSSplitViewItem(inspectorWithViewController: inspector)
         inspectorPane.minimumThickness = 250
         inspectorPane.maximumThickness = 460
