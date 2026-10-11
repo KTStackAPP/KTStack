@@ -86,16 +86,23 @@ struct WorkspaceContentPane: View {
 
     @ViewBuilder
     private var activePane: some View {
-        if let session = workspace.activeSession {
-            if session.kind.isQuery {
-                WorkspaceQueryPane(vm: session.vm).id(session.id)
-            } else {
-                WorkspaceTablePane(vm: session.vm, workspace: workspace, session: session)
-                    .id(session.id)
-            }
+        if let activeID = workspace.activeSession?.id {
+            WorkspaceTabHost(tabs: workspace.tabs, activeID: activeID, makePane: pane(for:))
         } else {
             noTabPlaceholder
         }
+    }
+
+    private func pane(for session: WorkspaceTabSession) -> AnyView {
+        let pane: AnyView = session.kind.isQuery
+            ? AnyView(WorkspaceQueryPane(vm: session.vm))
+            : AnyView(WorkspaceTablePane(vm: session.vm, workspace: workspace, session: session))
+        return AnyView(
+            pane
+                .environmentObject(model.admin)
+                .environmentObject(model.documentVM)
+                .environmentObject(model.connectionStore)
+        )
     }
 
     private var noTabPlaceholder: some View {

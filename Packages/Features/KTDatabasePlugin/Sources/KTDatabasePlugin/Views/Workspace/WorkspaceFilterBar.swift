@@ -3,7 +3,8 @@ import SwiftUI
 
 struct WorkspaceFilterBar: View {
     @ObservedObject var vm: DatabaseV2ViewModel
-    @ObservedObject var workspace: WorkspaceStore
+    let workspace: WorkspaceStore
+    @Environment(\.isWorkspacePaneActive) private var isPaneActive
 
     @State private var conditions: [EditableCondition] = []
     @State private var showSQL = false
@@ -40,6 +41,7 @@ struct WorkspaceFilterBar: View {
                 }
                 V2Button(title: "Áp dụng", kind: .primary) { apply() }
                     .keyboardShortcut(.return, modifiers: [])
+                    .disabled(!isPaneActive)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 7)
@@ -52,8 +54,8 @@ struct WorkspaceFilterBar: View {
         .overlay(alignment: .bottom) { Divider().overlay(KTEditorTheme.separator) }
         .onAppear(perform: syncFromVM)
         .onChange(of: vm.selectedTable?.name) { _ in syncFromVM() }
-        .onChange(of: workspace.filterFocusToken) { _ in
-            if conditions.isEmpty, let first = columnNames.first {
+        .onReceive(workspace.$filterFocusToken.dropFirst()) { _ in
+            if isPaneActive, conditions.isEmpty, let first = columnNames.first {
                 conditions.append(EditableCondition(column: first, op: .equals, value: ""))
             }
         }

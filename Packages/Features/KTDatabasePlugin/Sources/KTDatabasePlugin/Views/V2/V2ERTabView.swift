@@ -5,6 +5,7 @@ import SwiftUI
 struct V2ERTabView: View {
     @ObservedObject var vm: DatabaseV2ViewModel
     @StateObject private var state = ERDiagramState()
+    @Environment(\.isWorkspacePaneActive) private var isPaneActive
 
     @State private var scrollMonitor: Any?
     @State private var hoverCursor: NSCursor?
@@ -27,8 +28,20 @@ struct V2ERTabView: View {
         .onChange(of: vm.diagramLoaded) { loaded in
             if loaded { syncState() }
         }
-        .onAppear { attachScrollMonitor() }
+        .onAppear {
+            if isPaneActive {
+                attachScrollMonitor()
+            }
+        }
         .onDisappear { detachScrollMonitor() }
+        .onChange(of: isPaneActive) { active in
+            if active {
+                attachScrollMonitor()
+            } else {
+                updateHover(.ended)
+                detachScrollMonitor()
+            }
+        }
     }
 
     private func syncState() {

@@ -3,7 +3,7 @@ import SwiftUI
 
 struct WorkspaceTablePane: View {
     @ObservedObject var vm: DatabaseV2ViewModel
-    @ObservedObject var workspace: WorkspaceStore
+    let workspace: WorkspaceStore
     @ObservedObject var session: WorkspaceTabSession
 
     @State private var mode: TablePaneMode = .data
