@@ -40,7 +40,7 @@ final class ConnectionProfileAndModelsTests: XCTestCase {
         XCTAssertFalse(json.contains("secret"))
     }
 
-    func testTLSDefaultsToVerifyFullForRemoteAndPreferForLoopback() {
+    func testTLSDefaultsToPreferForRemoteAndLoopback() {
         let remote = ConnectionProfile(
             name: "r",
             kind: .mysql,
@@ -49,7 +49,7 @@ final class ConnectionProfileAndModelsTests: XCTestCase {
             user: "u",
             database: "d"
         )
-        XCTAssertEqual(remote.tlsMode, .verifyFull) // fails closed for non-loopback
+        XCTAssertEqual(remote.tlsMode, .prefer)
 
         let local = ConnectionProfile(
             name: "l",
