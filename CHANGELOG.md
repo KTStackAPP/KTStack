@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.6.2 - 2026-10-25
+
+### Fixed
+
+- Shell integration: turning it on now downloads WP-CLI along with Composer, so `wp` works in a new terminal for imported WordPress sites too. Settings names any tool whose download did not finish.
+- Database: PostgreSQL connections default to TLS `prefer`. A TLS failure now says whether the server refused TLS or the handshake failed (for example a self-signed certificate) and which TLS setting to try.
+- Database: the DDL source sheet shows the `CREATE TABLE` and `CREATE VIEW` statement for PostgreSQL and SQLite tables.
+
+### Changed
+
+- Database: the workspace window responds faster. Object tabs keep their pane when you switch instead of rebuilding it, the data grid stays on screen while a table loads, and the ER diagram redraws only when the diagram changes.
+
 ## 0.3.6.1 - 2026-10-09
 
 ### Fixed
