@@ -7,7 +7,7 @@ import SwiftUI
 final class ShellIntegrationModel: ObservableObject {
     @Published private(set) var status: ShellPathManager.Status
     @Published private(set) var busy = false
-    @Published private(set) var composerWarning = false
+    @Published private(set) var missingPhars: [String] = []
     @Published var errorText: String?
     @Published var expandedSuites: Set<ShellToolSuite> = Set(ShellToolSuite.allCases)
     @Published private(set) var globalCLIState: GlobalCLILink.State
@@ -22,6 +22,7 @@ final class ShellIntegrationModel: ObservableObject {
         status = manager.status()
         globalCLIState = manager.globalCLI.state()
         backups = manager.latestBackups()
+        missingPhars = status.enabled ? manager.missingPharTools() : []
     }
 
     func setMasterEnabled(_ enabled: Bool) {
@@ -35,7 +36,7 @@ final class ShellIntegrationModel: ObservableObject {
                 errorText = error.localizedDescription
             }
             status = manager.status()
-            composerWarning = status.enabled && !manager.composerProvisioned()
+            missingPhars = status.enabled ? manager.missingPharTools() : []
             backups = manager.latestBackups()
             globalCLIState = manager.globalCLI.state()
             busy = false
@@ -111,9 +112,9 @@ struct ShellIntegrationView: View {
                     .font(KDFont.footnote).foregroundStyle(.secondary).textSelection(.enabled)
             }
 
-            if model.composerWarning {
+            if !model.missingPhars.isEmpty {
                 Label(
-                    "Composer download didn't finish — the composer command won't work yet. Re-apply to retry.",
+                    "\(model.missingPhars.joined(separator: ", ")) download didn't finish, so the command won't work yet. Re-apply to retry.",
                     systemImage: "exclamationmark.triangle"
                 )
                 .font(KDFont.footnote).foregroundStyle(.orange)

@@ -23,6 +23,15 @@ public struct PharProvisioner: Sendable {
         )
     }
 
+    public static func composer(paths: AppSupportPaths) -> PharProvisioner {
+        PharProvisioner(
+            paths: paths,
+            url: ComposerProvisioner.downloadURL,
+            sha256: ComposerProvisioner.sha256,
+            dest: paths.composerPhar
+        )
+    }
+
     public var isProvisioned: Bool {
         guard FileManager.default.fileExists(atPath: dest.path),
               let actual = try? ChecksumVerifier.sha256(of: dest) else { return false }

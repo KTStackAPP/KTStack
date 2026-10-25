@@ -47,13 +47,22 @@ final class ShellPathManagerTests: XCTestCase {
         return helper
     }
 
+    func testEnableProvisionsEveryPharTheShimsRun() throws {
+        let paths = AppSupportPaths(root: tmp.appendingPathComponent("support"))
+        let manager = try ShellPathManager(paths: paths, helperSource: makeHelper(), home: tmp)
+
+        let dests = Dictionary(uniqueKeysWithValues: manager.pharProvisioners.map { ($0.toolId, $0.provisioner.dest) })
+        XCTAssertEqual(dests, ["composer": paths.composerPhar, "wp": paths.wpCliPhar])
+        XCTAssertEqual(manager.missingPharTools(), ["Composer", "WP-CLI"])
+    }
+
     func testEnableWritesHardenedShimsAndPatchesZshrc() async throws {
         let home = tmp.appendingPathComponent("home")
         try fm.createDirectory(at: home, withIntermediateDirectories: true)
         let paths = AppSupportPaths(root: tmp.appendingPathComponent("support"))
         let manager = try ShellPathManager(paths: paths, helperSource: makeHelper(), home: home)
 
-        try await manager.enable(provisionComposer: false)
+        try await manager.enable(provisionPhars: false)
 
         let dirPerms = try fm.attributesOfItem(atPath: paths.shimBinDir.path)[.posixPermissions] as? Int
         XCTAssertEqual(dirPerms, 0o755)
@@ -79,8 +88,8 @@ final class ShellPathManagerTests: XCTestCase {
         let paths = AppSupportPaths(root: tmp.appendingPathComponent("support"))
         let manager = try ShellPathManager(paths: paths, helperSource: makeHelper(), home: home)
 
-        try await manager.enable(provisionComposer: false)
-        try await manager.enable(provisionComposer: false)
+        try await manager.enable(provisionPhars: false)
+        try await manager.enable(provisionPhars: false)
 
         let backups = try fm.contentsOfDirectory(atPath: home.path)
             .filter { $0.hasPrefix(".zshrc.ktstack.bak-") }
@@ -93,7 +102,7 @@ final class ShellPathManagerTests: XCTestCase {
         let paths = AppSupportPaths(root: tmp.appendingPathComponent("support"))
         let manager = try ShellPathManager(paths: paths, helperSource: makeHelper(), home: home)
 
-        try await manager.enable(provisionComposer: false)
+        try await manager.enable(provisionPhars: false)
         try manager.disable()
 
         let zshrc = try String(contentsOf: home.appendingPathComponent(".zshrc"), encoding: .utf8)
@@ -122,7 +131,7 @@ final class ShellPathManagerTests: XCTestCase {
         let paths = AppSupportPaths(root: tmp.appendingPathComponent("support"))
         let helper = try makeHelper()
         try await ShellPathManager(paths: paths, helperSource: helper, home: home)
-            .enable(provisionComposer: false)
+            .enable(provisionPhars: false)
 
         try "#!/bin/sh\necho v2\n".write(to: helper, atomically: true, encoding: .utf8)
         try ShellPathManager(paths: paths, helperSource: helper, home: home)
