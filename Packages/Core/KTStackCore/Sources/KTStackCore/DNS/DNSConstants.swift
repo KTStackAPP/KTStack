@@ -20,6 +20,18 @@ public enum DNSConstants {
     // /etc/resolver entries whose terminal label is one of these, so the resolver never resolves.
     public static let reservedTLDs: Set<String> = ["local", "localhost"]
 
+    // TLD trong HSTS preload list của Chromium (force-https + include_subdomains): trình duyệt luôn ép https.
+    public static let hstsPreloadedTLDs: Set<String> = [
+        "amazon", "android", "app", "audible", "azure", "bank", "bing", "boo", "channel", "chrome",
+        "dad", "day", "dev", "eat", "esq", "fire", "fly", "foo", "fujitsu", "gle", "gmail", "google",
+        "hangout", "here", "hotmail", "imdb", "ing", "insurance", "kindle", "meet", "meme", "microsoft",
+        "mov", "new", "nexus", "office", "page", "phd", "play", "prime", "prof", "rsvp", "search",
+        "silk", "skype", "windows", "xbox", "xn--cckwcxetd", "xn--jlq480n2rg", "youtube", "zappos", "zip",
+    ]
+
+    public static func isHSTSPreloaded(_ tld: String) -> Bool {
+        tld.split(separator: ".").last.map { hstsPreloadedTLDs.contains(String($0)) } ?? false
+    }
 
     public static func isValidTLD(_ s: String) -> Bool {
         guard !s.isEmpty, s.count <= 253, s == s.lowercased(),

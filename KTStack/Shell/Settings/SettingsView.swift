@@ -132,7 +132,13 @@ struct SettingsView: View {
 
     private var localTLDSubtitle: String {
         if awaitingRelaunch { return "Migrating sites to the new TLD and relaunching…" }
-        return tldError ?? "Domain suffix for resolved sites. Press return to apply."
+        if let tldError { return tldError }
+        if DNSConstants.isHSTSPreloaded(preferences.tld) { return Self.hstsWarning(preferences.tld) }
+        return "Domain suffix for resolved sites. Press return to apply."
+    }
+
+    private static func hstsWarning(_ tld: String) -> String {
+        "Browsers force HTTPS on every .\(tld) domain, so a site loads only with HTTPS on. Use a TLD like test to avoid this."
     }
 
     private var relaunchOverlay: some View {
@@ -283,7 +289,8 @@ struct SettingsView: View {
 
     private var tldChangeMessage: String {
         let count = affectedSites.count
-        let base = "KTStack will reconfigure local DNS (one admin step) and relaunch to apply the new TLD."
+        var base = "KTStack will reconfigure local DNS (one admin step) and relaunch to apply the new TLD."
+        if let pendingTLD, DNSConstants.isHSTSPreloaded(pendingTLD) { base += "\n\n" + Self.hstsWarning(pendingTLD) }
         guard count > 0 else { return base }
         let names = affectedSites.prefix(5).map(\.domain).joined(separator: ", ")
         let more = count > 5 ? " (+\(count - 5) more)" : ""

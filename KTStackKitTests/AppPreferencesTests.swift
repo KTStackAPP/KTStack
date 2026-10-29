@@ -1,3 +1,4 @@
+import KTStackCore
 import XCTest
 @testable import KTStackKit
 
@@ -51,5 +52,15 @@ final class AppPreferencesTests: XCTestCase {
     func testSafeListExcludesHSTSAndPublicTLDs() {
         XCTAssertFalse(AppPreferences.safeTLDs.contains("dev")) // HSTS-preloaded
         XCTAssertFalse(AppPreferences.safeTLDs.contains("com")) // real public TLD
+    }
+
+    func testHSTSPreloadedTLDsAreFlagged() {
+        XCTAssertTrue(DNSConstants.isHSTSPreloaded("dev"))
+        XCTAssertTrue(DNSConstants.isHSTSPreloaded("app"))
+        XCTAssertTrue(DNSConstants.isHSTSPreloaded("corp.dev"))
+        for tld in AppPreferences.safeTLDs {
+            XCTAssertFalse(DNSConstants.isHSTSPreloaded(tld), "\(tld) is not preloaded")
+        }
+        XCTAssertFalse(DNSConstants.isHSTSPreloaded("devs"))
     }
 }
