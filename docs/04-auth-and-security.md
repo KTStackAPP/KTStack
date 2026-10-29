@@ -80,6 +80,15 @@ KTStack mints internal TLS certificates via an embedded `mkcert` engine. To ensu
 ### 3.0 Name-Constrained Root CA
 When `KTStack.restrictLocalCA` is on (the default), `RestrictedRootCA` generates the root CA with `/usr/bin/openssl` instead of letting mkcert create it. The CA carries a critical `nameConstraints` extension that permits only the safe dev TLDs (`test`, `home.arpa`, `internal`), the configured TLD, and the loopback ranges `127.0.0.0/8` and `::1`. It also has `pathlen:0`. The subject organization stays `mkcert development CA`, so the helper's `RootCAConstraint` check accepts it without a helper change. mkcert keeps minting leaf certificates from this CA as before. A sidecar `ktstack-ca-constraints.json` records the CA's SHA-256 fingerprint and permitted TLDs, and any CA without a matching sidecar counts as unrestricted. Regeneration stages the new CA first, then untrusts the old one, moves the old files to `ca/retired/<timestamp>/`, and trusts the new one. The site certificates are then re-issued through `CertRenewalPolicy`, which re-mints any leaf not issued by the current CA.
 
+### 3.0.1 Custom Site Certificates
+A site can serve HTTPS with a certificate the user imports (fullchain + private key) instead of an mkcert leaf. Rules:
+
+- **Storage.** Import copies both files into `config/certs-custom/<site-uuid>/` (`fullchain.pem` 0644, `privkey.pem` 0600, dir 0700). nginx never reads the user's original files: it runs without TCC access, and a moved source file would fail `nginx -t` for every site. Re-import reads the stored source paths again; KTStack does not watch them.
+- **Refused before any write.** A non-PEM certificate or key, an encrypted key, an expired certificate, or a certificate whose SAN list does not cover every `server_name` of the site (domain, aliases, `*.<domain>` when wildcard is on). `*.example.com` covers exactly one label.
+- **Fail-closed order** (`SiteCertificateImporter`): stage, swap in with a `.bak`, render config, `nginx -t`, persist, reload, drop the `.bak`. A failed render, a rejected check, an nginx that cannot run, or a failed reload restores the previous files and record.
+- **Never minted over.** `SiteHTTPSProvisioner.enableHTTPS` only checks coverage for a custom-certificate site, so an alias or wildcard change the cert does not cover is refused. Renewal skips these sites. A TLD change turns HTTPS off for a site whose cert no longer covers the new name.
+- **Removal.** Removing the certificate turns HTTPS off and deletes the folder. Removing the site deletes it at the next prune.
+
 ### 3.1 Policy Configuration Flags
 When the helper installs the certificate into `/Library/Keychains/System.keychain`, it invokes:
 ```bash
