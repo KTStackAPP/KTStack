@@ -97,7 +97,7 @@ public struct SiteHTTPSProvisioner: Sendable {
         trustQuery: @escaping TrustQuery,
         installCA: @escaping InstallCA,
         mintLeaf: @escaping MintLeaf,
-        verifyCustom: @escaping VerifyCustom = { _ in }
+        verifyCustom: @escaping VerifyCustom
     ) {
         self.caCert = caCert
         self.tld = tld
