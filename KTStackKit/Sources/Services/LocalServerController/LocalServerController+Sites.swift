@@ -31,12 +31,16 @@ public extension LocalServerController {
         guard !migrated.isEmpty else { return }
         let provisioner = httpsProvisioner
         let secure = migrated.filter(\.secure)
+        let minted = secure.filter { !$0.usesCustomCertificate }
+        let custom = secure.filter(\.usesCustomCertificate)
         let keep = Set(registry.sites.map(\.domain))
+        let ids = Set(registry.sites.map(\.id.uuidString))
         let minter = certMinter
-        await Task.detached(priority: .userInitiated) {
+        let store = CustomCertificateStore(paths: paths)
+        let uncovered = await Task.detached(priority: .userInitiated) { () -> [Site] in
             // mkcert mỗi site độc lập nên re-mint song song để không cộng dồn delay lúc relaunch.
             await withTaskGroup(of: Void.self) { group in
-                for site in secure {
+                for site in minted {
                     group.addTask {
                         do { try provisioner.enableHTTPS(for: site, overridingTLD: new) }
                         catch { NSLog("KTStack: TLD migrate cert re-mint failed for \(site.domain): \(error.localizedDescription)") }
@@ -44,7 +48,14 @@ public extension LocalServerController {
                 }
             }
             minter.pruneOrphans(keeping: keep)
+            store.pruneOrphans(keeping: ids)
+            return custom.filter { (try? store.verifyCoverage(for: $0)) == nil }
         }.value
+        // Cert import không cover tên mới thì về HTTP, giống site mkcert mint hỏng.
+        for site in uncovered {
+            registry.setSecure(site, false)
+            NSLog("KTStack: custom certificate does not cover \(site.domain) after TLD change; HTTPS turned off")
+        }
     }
 
     func setNodePort(_ site: Site, _ port: Int?) {

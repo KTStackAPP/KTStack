@@ -96,6 +96,10 @@ public struct AppSupportPaths: Sendable {
         config.appendingPathComponent("certs", isDirectory: true)
     }
 
+    public var customCertsDir: URL {
+        config.appendingPathComponent("certs-custom", isDirectory: true)
+    }
+
     public var run: URL {
         dir("run")
     }
@@ -345,6 +349,18 @@ public struct AppSupportPaths: Sendable {
 
     public func siteKey(_ name: String) -> URL {
         siteCertDir(name).appendingPathComponent("key.pem")
+    }
+
+    public func siteCustomCertDir(_ id: String) -> URL {
+        customCertsDir.appendingPathComponent(id, isDirectory: true)
+    }
+
+    public func siteCustomCert(_ id: String) -> URL {
+        siteCustomCertDir(id).appendingPathComponent("fullchain.pem")
+    }
+
+    public func siteCustomKey(_ id: String) -> URL {
+        siteCustomCertDir(id).appendingPathComponent("privkey.pem")
     }
 
     public var nginxUserConf: URL {

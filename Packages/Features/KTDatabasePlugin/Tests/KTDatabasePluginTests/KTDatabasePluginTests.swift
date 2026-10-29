@@ -27,6 +27,8 @@ final class KTDatabasePluginTests: XCTestCase {
         func setWildcardSubdomains(_: UUID, _: Bool) throws {}
         func setEnvVars(_: UUID, _: [String: String]) throws {}
         func saveFrontDirectives(_: UUID, _: String) async throws {}
+        func importCertificate(_: UUID, certPath _: String, keyPath _: String) async throws {}
+        func removeCustomCertificate(_: UUID) async throws {}
         func recheckKind(_: UUID) -> SiteKind? { nil }
     }
 

@@ -11,6 +11,21 @@ public enum SiteServerEngine: String, Sendable, CaseIterable {
     case nginx, apache
 }
 
+// Cert người dùng import cho site: tên SAN + hạn để inspector hiển thị, source path để Re-import.
+public struct SiteCertificateSummary: Sendable, Equatable, Hashable {
+    public let sourceCertPath: String
+    public let sourceKeyPath: String
+    public let notAfter: Date
+    public let names: [String]
+
+    public init(sourceCertPath: String, sourceKeyPath: String, notAfter: Date, names: [String]) {
+        self.sourceCertPath = sourceCertPath
+        self.sourceKeyPath = sourceKeyPath
+        self.notAfter = notAfter
+        self.names = names
+    }
+}
+
 // Projection của Site theo capability Sites: 18 field UI đọc. Không phải snapshot chung (Tunnel dùng
 // TunnelSiteTarget, Logs dùng siteDomains).
 public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
@@ -33,6 +48,7 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
     public let envVars: [String: String]
     public let frontDirectives: String?
     public let workers: [SiteWorker]
+    public let customCertificate: SiteCertificateSummary?
 
     public init(
         id: UUID,
@@ -53,7 +69,8 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
         wildcardSubdomains: Bool = false,
         envVars: [String: String] = [:],
         frontDirectives: String? = nil,
-        workers: [SiteWorker] = []
+        workers: [SiteWorker] = [],
+        customCertificate: SiteCertificateSummary? = nil
     ) {
         self.id = id
         self.name = name
@@ -74,6 +91,7 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
         self.envVars = envVars
         self.frontDirectives = frontDirectives
         self.workers = workers
+        self.customCertificate = customCertificate
     }
 }
 
@@ -104,6 +122,10 @@ public protocol SiteCatalogManaging: AnyObject {
     @MainActor func setEnvVars(_ id: UUID, _ env: [String: String]) throws
     // Fail-closed: nginx -t trước khi persist; tái dùng NginxIncludeSaveError.
     @MainActor func saveFrontDirectives(_ id: UUID, _ text: String) async throws
+    // Fail-closed như directives: copy cặp PEM, nginx -t, reload, rollback; bật HTTPS khi thành công.
+    @MainActor func importCertificate(_ id: UUID, certPath: String, keyPath: String) async throws
+    // Bỏ cert import, HTTPS tắt theo.
+    @MainActor func removeCustomCertificate(_ id: UUID) async throws
     // Parse lại folder để nhận diện type; nil khi site không tồn tại hoặc không có folder.
     @discardableResult
     @MainActor func recheckKind(_ id: UUID) -> SiteKind?

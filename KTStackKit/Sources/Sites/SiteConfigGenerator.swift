@@ -19,13 +19,14 @@ public struct SiteConfigGenerator {
         let error = paths.siteErrorLog(site.domain)
         let directivesInclude: URL? = site.hasFrontDirectives ? paths.siteDirectivesConf(site.id.uuidString) : nil
 
+        let certs = certFiles(for: site)
         if site.type == .php {
             return frontProxy.vhost(
                 domain: site.domain,
                 backendPort: site.backendPort ?? 0,
                 secure: secure,
-                certFile: secure ? paths.siteCert(site.domain) : nil,
-                keyFile: secure ? paths.siteKey(site.domain) : nil,
+                certFile: secure ? certs.cert : nil,
+                keyFile: secure ? certs.key : nil,
                 aliases: site.routedAliases,
                 directivesInclude: directivesInclude
             )
@@ -42,8 +43,8 @@ public struct SiteConfigGenerator {
                 + tls.secureVhost(
                     domain: site.domain,
                     root: root,
-                    certFile: paths.siteCert(site.domain),
-                    keyFile: paths.siteKey(site.domain),
+                    certFile: certs.cert,
+                    keyFile: certs.key,
                     phpFpmSocket: nil,
                     proxyUpstream: upstream,
                     aliases: site.routedAliases,
@@ -103,10 +104,17 @@ public struct SiteConfigGenerator {
         sites.contains { $0.secure && certPresent(for: $0) }
     }
 
+    // Cert import nằm theo uuid site, cert mkcert nằm theo domain.
+    func certFiles(for site: Site) -> (cert: URL, key: URL) {
+        guard site.usesCustomCertificate else { return (paths.siteCert(site.domain), paths.siteKey(site.domain)) }
+        let id = site.id.uuidString
+        return (paths.siteCustomCert(id), paths.siteCustomKey(id))
+    }
+
     private func certPresent(for site: Site) -> Bool {
         let fm = FileManager.default
-        return fm.fileExists(atPath: paths.siteCert(site.domain).path)
-            && fm.fileExists(atPath: paths.siteKey(site.domain).path)
+        let certs = certFiles(for: site)
+        return fm.fileExists(atPath: certs.cert.path) && fm.fileExists(atPath: certs.key.path)
     }
 
     @discardableResult

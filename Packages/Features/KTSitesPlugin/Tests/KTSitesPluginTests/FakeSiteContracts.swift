@@ -52,6 +52,9 @@ final class FakeSiteCatalog: SiteCatalogManaging {
     var setEnvVarsShouldThrow: Error?
     private(set) var saveFrontDirectivesCalls: [(UUID, String)] = []
     var saveFrontDirectivesShouldThrow: Error?
+    private(set) var importCertificateCalls: [(UUID, String, String)] = []
+    var importCertificateShouldThrow: Error?
+    private(set) var removeCustomCertificateCalls: [UUID] = []
     private(set) var recheckKindCalls: [UUID] = []
     var recheckKindResult: SiteKind?
     private var continuation: AsyncStream<SiteCatalogState>.Continuation?
@@ -110,6 +113,15 @@ final class FakeSiteCatalog: SiteCatalogManaging {
     func saveFrontDirectives(_ id: UUID, _ text: String) async throws {
         if let saveFrontDirectivesShouldThrow { throw saveFrontDirectivesShouldThrow }
         saveFrontDirectivesCalls.append((id, text))
+    }
+
+    func importCertificate(_ id: UUID, certPath: String, keyPath: String) async throws {
+        if let importCertificateShouldThrow { throw importCertificateShouldThrow }
+        importCertificateCalls.append((id, certPath, keyPath))
+    }
+
+    func removeCustomCertificate(_ id: UUID) async throws {
+        removeCustomCertificateCalls.append(id)
     }
 
     @discardableResult

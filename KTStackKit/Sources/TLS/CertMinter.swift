@@ -11,12 +11,6 @@ public struct CertMinter {
         self.runner = runner
     }
 
-    public func certExists(name: String) -> Bool {
-        let fm = FileManager.default
-        return fm.fileExists(atPath: paths.siteCert(name).path)
-            && fm.fileExists(atPath: paths.siteKey(name).path)
-    }
-
     public enum CertError: LocalizedError {
         case nonLocalDomain(String, tld: String)
         case wildcardTooBroad(String)
@@ -88,25 +82,29 @@ public struct SiteHTTPSProvisioner: Sendable {
     public typealias TrustQuery = @Sendable (URL) -> Bool
     public typealias InstallCA = @Sendable () throws -> Void
     public typealias MintLeaf = @Sendable (String, [String], String) throws -> Void
+    public typealias VerifyCustom = @Sendable (Site) throws -> Void
 
     private let caCert: URL
     private let tld: String
     private let trustQuery: TrustQuery
     private let installCA: InstallCA
     private let mintLeaf: MintLeaf
+    private let verifyCustom: VerifyCustom
 
     public init(
         caCert: URL,
         tld: String,
         trustQuery: @escaping TrustQuery,
         installCA: @escaping InstallCA,
-        mintLeaf: @escaping MintLeaf
+        mintLeaf: @escaping MintLeaf,
+        verifyCustom: @escaping VerifyCustom = { _ in }
     ) {
         self.caCert = caCert
         self.tld = tld
         self.trustQuery = trustQuery
         self.installCA = installCA
         self.mintLeaf = mintLeaf
+        self.verifyCustom = verifyCustom
     }
 
     public init(
@@ -130,7 +128,8 @@ public struct SiteHTTPSProvisioner: Sendable {
             },
             mintLeaf: { domain, aliases, tld in
                 try certMinter.mint(name: domain, domain: domain, aliases: aliases, tld: tld)
-            }
+            },
+            verifyCustom: { try CustomCertificateStore(paths: paths).verifyCoverage(for: $0) }
         )
     }
 
@@ -140,6 +139,8 @@ public struct SiteHTTPSProvisioner: Sendable {
 
     /// Re-mint cho TLD mới lúc migrate: provisioner giữ tld cũ nên phải truyền tld tường minh.
     public func enableHTTPS(for site: Site, overridingTLD tld: String) throws {
+        // Cert import không bao giờ bị mint đè; chỉ kiểm tra nó còn cover mọi tên của site.
+        if site.usesCustomCertificate { try verifyCustom(site); return }
         if !trustQuery(caCert) {
             try installCA()
         }

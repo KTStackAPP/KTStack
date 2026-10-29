@@ -52,6 +52,20 @@ final class SiteCatalogConformanceTests: XCTestCase {
         XCTAssertEqual(s.engine, .apache)
         XCTAssertEqual(s.backendPort, 4001)
         XCTAssertEqual(s.proxyTarget, "http://127.0.0.1:8000")
+        XCTAssertNil(s.customCertificate)
+    }
+
+    func testSiteSummaryMirrorsCustomCertificate() {
+        let cert = SiteCustomCertificate(
+            sourceCertPath: "/c/fullchain.pem", sourceKeyPath: "/c/privkey.pem",
+            notAfter: Date(timeIntervalSince1970: 2_000_000_000), names: ["shop.test", "*.shop.test"]
+        )
+        var site = Site(name: "Shop", path: "/tmp/shop", docroot: "/tmp/shop", domain: "shop.test", phpVersion: "8.3", type: .php)
+        site.customCertificate = cert
+        XCTAssertEqual(
+            SiteSummary(site).customCertificate,
+            SiteCertificateSummary(sourceCertPath: "/c/fullchain.pem", sourceKeyPath: "/c/privkey.pem", notAfter: cert.notAfter, names: cert.names)
+        )
     }
 
     func testCatalogReflectsRegistryAndTLD() throws {
