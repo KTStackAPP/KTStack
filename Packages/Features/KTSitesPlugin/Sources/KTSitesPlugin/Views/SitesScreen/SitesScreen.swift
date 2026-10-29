@@ -29,7 +29,9 @@ struct SitesScreen: View {
                 isBusy: vm.server.isBusy,
                 onToggleServer: vm.toggleServer,
                 onScan: { showScan = true },
-                onNewSite: openNewSite
+                onNewSite: openNewSite,
+                inspectorVisible: pane.inspectorVisible,
+                onToggleInspector: { pane.inspectorVisible.toggle() }
             )
                 .padding(.horizontal, KTSpacing.screenGutter)
                 .padding(.top, 18)
