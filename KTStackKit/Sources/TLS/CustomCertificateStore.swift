@@ -35,11 +35,18 @@ public struct CustomCertificateStore: Sendable {
     }
 
     func swapIn(id: String, staged: URL) throws {
-        if fm.fileExists(atPath: live(id).path) {
+        let hadLive = fm.fileExists(atPath: live(id).path)
+        if hadLive {
             if fm.fileExists(atPath: backup(id).path) { try fm.removeItem(at: backup(id)) }
             try fm.moveItem(at: live(id), to: backup(id))
         }
-        try fm.moveItem(at: staged, to: live(id))
+        do {
+            try fm.moveItem(at: staged, to: live(id))
+        } catch {
+            if hadLive { try? fm.moveItem(at: backup(id), to: live(id)) }
+            try? fm.removeItem(at: staged)
+            throw error
+        }
     }
 
     func rollback(id: String) {

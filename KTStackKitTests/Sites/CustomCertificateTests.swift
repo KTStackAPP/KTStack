@@ -203,6 +203,16 @@ final class CustomCertificateTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: paths.siteCustomKey("x")), Data("old-k".utf8))
     }
 
+    func testFailedSwapKeepsLivePair() throws {
+        let store = CustomCertificateStore(paths: paths)
+        try store.swapIn(id: "x", staged: store.stage(id: "x", certPEM: Data("old-c".utf8), keyPEM: Data("old-k".utf8)))
+        let missing = paths.customCertsDir.appendingPathComponent("x.staging")
+
+        XCTAssertThrowsError(try store.swapIn(id: "x", staged: missing))
+        XCTAssertEqual(try Data(contentsOf: paths.siteCustomCert("x")), Data("old-c".utf8))
+        XCTAssertFalse(fm.fileExists(atPath: paths.customCertsDir.appendingPathComponent("x.bak").path))
+    }
+
     func testCommitDropsBackup() throws {
         let store = CustomCertificateStore(paths: paths)
         try store.swapIn(id: "x", staged: store.stage(id: "x", certPEM: Data("a".utf8), keyPEM: Data("a".utf8)))
