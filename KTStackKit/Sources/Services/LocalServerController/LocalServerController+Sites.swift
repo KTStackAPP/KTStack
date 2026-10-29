@@ -76,7 +76,7 @@ public extension LocalServerController {
         let normalized = aliases.map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
         var updated = site; updated.aliases = normalized
         if site.usesCustomCertificate {
-            try httpsProvisioner.enableHTTPS(for: updated)
+            try verifyImportedCertificate(from: site, to: updated)
             try registry.setAliases(site, aliases)
             return
         }
@@ -97,6 +97,12 @@ public extension LocalServerController {
         }
     }
 
+    // Bớt tên thì cert import vẫn đủ, kể cả khi đã hết hạn; chỉ kiểm tra khi có tên mới.
+    private func verifyImportedCertificate(from site: Site, to updated: Site) throws {
+        guard !Set(updated.serverNames).isSubset(of: site.serverNames) else { return }
+        try httpsProvisioner.enableHTTPS(for: updated)
+    }
+
     // `*.<domain>` vào server_name + SAN cert. Secure: re-mint trước, chỉ persist khi mint xong
     // (fail-closed như setSiteAliases), nên cert cũ không bao giờ đứng sau server_name có wildcard.
     func setSiteWildcardSubdomains(_ site: Site, _ enabled: Bool) throws {
@@ -108,7 +114,7 @@ public extension LocalServerController {
         guard !isBusy else { throw SiteRegistry.RegistryError.serverBusy }
         var updated = site; updated.wildcardSubdomains = enabled
         if site.usesCustomCertificate {
-            try httpsProvisioner.enableHTTPS(for: updated)
+            try verifyImportedCertificate(from: site, to: updated)
             registry.setWildcardSubdomains(site, enabled)
             return
         }

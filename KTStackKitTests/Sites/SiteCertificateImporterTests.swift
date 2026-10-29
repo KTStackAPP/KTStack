@@ -173,7 +173,7 @@ final class SiteCertificateImporterTests: XCTestCase {
         XCTAssertFalse(fm.fileExists(atPath: paths.siteCustomCertDir(s.id.uuidString).path))
     }
 
-    func testUncoveredAliasOnImportedCertificateFailsBeforePersisting() throws {
+    private func serverWithImportedSite() throws -> LocalServerController {
         let server = LocalServerController(bundleBinDir: URL(fileURLWithPath: "/dev/null"), paths: paths)
         let folder = root.appendingPathComponent("app", isDirectory: true)
         try fm.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -184,6 +184,11 @@ final class SiteCertificateImporterTests: XCTestCase {
         try store.swapIn(id: id, staged: store.stage(id: id, certPEM: Data(contentsOf: source.cert), keyPEM: Data(contentsOf: source.key)))
         let cert = SiteCustomCertificate(sourceCertPath: source.cert.path, sourceKeyPath: source.key.path, notAfter: .distantFuture, names: ["app.test", "*.app.test"])
         server.registry.setCustomCertificate(added, cert, secure: true)
+        return server
+    }
+
+    func testUncoveredAliasOnImportedCertificateFailsBeforePersisting() throws {
+        let server = try serverWithImportedSite()
         let site = try XCTUnwrap(server.registry.sites.first)
 
         XCTAssertThrowsError(try server.setSiteAliases(site, ["other.test"])) {
@@ -194,6 +199,21 @@ final class SiteCertificateImporterTests: XCTestCase {
         try server.setSiteAliases(site, ["a.app.test"])
         XCTAssertEqual(server.registry.sites.first?.aliases, ["a.app.test"])
         XCTAssertFalse(server.isBusy)
+    }
+
+    func testShrinkingNamesSkipsTheImportedCertificateCheck() throws {
+        let server = try serverWithImportedSite()
+        var site = try XCTUnwrap(server.registry.sites.first)
+        try server.setSiteAliases(site, ["a.app.test"])
+        try server.setSiteWildcardSubdomains(XCTUnwrap(server.registry.sites.first), true)
+        site = try XCTUnwrap(server.registry.sites.first)
+        try fm.removeItem(at: paths.siteCustomCertDir(site.id.uuidString))
+
+        XCTAssertThrowsError(try server.setSiteAliases(site, ["a.app.test", "b.app.test"]))
+        try server.setSiteAliases(site, [])
+        try server.setSiteWildcardSubdomains(XCTUnwrap(server.registry.sites.first), false)
+        XCTAssertEqual(server.registry.sites.first?.aliases, [])
+        XCTAssertEqual(server.registry.sites.first?.wildcardSubdomains, false)
     }
 
     func testRemoveKeepsFilesWhenRenderFails() async throws {
