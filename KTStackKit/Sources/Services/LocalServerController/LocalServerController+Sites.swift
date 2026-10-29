@@ -73,9 +73,14 @@ public extension LocalServerController {
             return
         }
         guard !isBusy else { throw SiteRegistry.RegistryError.serverBusy }
-        isBusy = true; lastError = nil
         let normalized = aliases.map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
         var updated = site; updated.aliases = normalized
+        if site.usesCustomCertificate {
+            try httpsProvisioner.enableHTTPS(for: updated)
+            try registry.setAliases(site, aliases)
+            return
+        }
+        isBusy = true; lastError = nil
         let provisioner = httpsProvisioner
         Task.detached(priority: .userInitiated) {
             var failure: String?
@@ -101,8 +106,13 @@ public extension LocalServerController {
             return
         }
         guard !isBusy else { throw SiteRegistry.RegistryError.serverBusy }
-        isBusy = true; lastError = nil
         var updated = site; updated.wildcardSubdomains = enabled
+        if site.usesCustomCertificate {
+            try httpsProvisioner.enableHTTPS(for: updated)
+            registry.setWildcardSubdomains(site, enabled)
+            return
+        }
+        isBusy = true; lastError = nil
         let provisioner = httpsProvisioner
         Task.detached(priority: .userInitiated) {
             var failure: String?

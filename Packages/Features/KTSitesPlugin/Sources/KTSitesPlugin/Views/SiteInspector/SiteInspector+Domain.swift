@@ -48,7 +48,9 @@ private struct AliasesEditor: View {
                 }
                 if let error = model.aliasError { InspectorError(error) }
                 if adding, site.secure {
-                    InspectorHint("The HTTPS certificate is re-issued with the new aliases.")
+                    InspectorHint(site.customCertificate == nil
+                        ? "The HTTPS certificate is re-issued with the new aliases."
+                        : "The imported certificate must cover the new aliases.")
                 }
             }
         } trailing: {
