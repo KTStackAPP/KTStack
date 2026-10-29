@@ -26,7 +26,7 @@ public struct SiteCertificateSummary: Sendable, Equatable, Hashable {
     }
 }
 
-// Projection của Site theo capability Sites: 18 field UI đọc. Không phải snapshot chung (Tunnel dùng
+// Projection của Site theo capability Sites: 19 field UI đọc. Không phải snapshot chung (Tunnel dùng
 // TunnelSiteTarget, Logs dùng siteDomains).
 public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
     public let id: UUID

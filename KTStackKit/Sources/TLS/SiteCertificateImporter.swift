@@ -2,7 +2,7 @@ import Foundation
 import KTStackCore
 
 // Import fail-closed: copy cặp PEM → render → nginx -t → persist → reload; hỏng ở đâu cũng trả file
-// và record về như cũ. Chặt hơn directives: nginx không chạy được thì cũng revert.
+// và record về như cũ. Chặt hơn directives: nginx -t không chạy được hoặc reload hỏng thì cũng revert.
 @MainActor
 struct SiteCertificateImporter {
     var store: CustomCertificateStore

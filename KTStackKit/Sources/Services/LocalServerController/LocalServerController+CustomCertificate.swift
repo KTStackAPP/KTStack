@@ -30,7 +30,12 @@ public extension LocalServerController {
                 }.value
             },
             validate: { await self.validateNginxConfig() },
-            reload: { try await self.reloadNginxConfig() },
+            reload: {
+                // Server đang dừng thì cấu hình mới được dùng ở lần Start sau.
+                let nginx = self.nginx
+                guard await Task.detached(operation: { nginx.isRunningNow }).value else { return }
+                try await self.reloadNginxConfig()
+            },
             liveSites: { self.registry.sites },
             persist: { self.registry.setCustomCertificate($0, $1, secure: $2) }
         )
