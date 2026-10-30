@@ -60,11 +60,12 @@ final class SitesSplitController: NSViewController, NSSplitViewDelegate {
             .removeDuplicates()
             .sink { [weak self] visible in
                 guard let self else { return }
-                // Cửa sổ quá hẹp thì từ chối hiện inspector; sink chạy trong willSet nên phải trả model về sau.
+                // Cửa sổ quá hẹp: nới cửa sổ rồi để resize tự hiện lại; sink chạy trong willSet nên phải trả model về sau.
                 if visible, self.didPlaceDivider, !self.inspectorFits {
                     DispatchQueue.main.async {
                         self.pane.inspectorVisible = false
                         self.collapsedByResize = true
+                        self.widenWindowForInspector()
                     }
                     return
                 }
@@ -72,6 +73,18 @@ final class SitesSplitController: NSViewController, NSSplitViewDelegate {
                 self.apply(visible: visible)
             }
             .store(in: &cancellables)
+    }
+
+    // Màn hình không đủ rộng thì giữ nguyên, inspector hiện khi người dùng tự nới cửa sổ.
+    private func widenWindowForInspector() {
+        guard let window = view.window, let screen = window.screen else { return }
+        let missing = Width.listMin + splitView.dividerThickness + Width.inspectorMin - splitView.bounds.width
+        let visible = screen.visibleFrame
+        var frame = window.frame
+        frame.size.width += ceil(missing)
+        guard missing > 0, frame.width <= visible.width else { return }
+        frame.origin.x = min(max(frame.minX, visible.minX), visible.maxX - frame.width)
+        window.setFrame(frame, display: true, animate: true)
     }
 
     private func apply(visible: Bool) {

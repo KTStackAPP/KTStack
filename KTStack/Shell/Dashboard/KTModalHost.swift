@@ -51,7 +51,6 @@ final class KTModalHostController {
         window.backgroundColor = .clear
         window.hasShadow = false
         window.level = parent.level
-        window.hidesOnDeactivate = true
         window.contentView = NSHostingView(rootView: AnyView(KTWindowModals().environmentObject(modals)))
 
         observe()

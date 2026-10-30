@@ -8,6 +8,8 @@ struct SitesHeader: View {
     let onToggleServer: () -> Void
     let onScan: () -> Void
     let onNewSite: () -> Void
+    let inspectorVisible: Bool
+    let onToggleInspector: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -20,7 +22,28 @@ struct SitesHeader: View {
             serverControl
             KTButton(title: "Scan", systemImage: "arrow.triangle.2.circlepath", kind: .secondary, action: onScan)
             newSiteButton
+            inspectorToggle
         }
+    }
+
+    private var inspectorToggle: some View {
+        Button(action: onToggleInspector) {
+            Image(systemName: "sidebar.right")
+                .font(.system(size: 14))
+                .foregroundStyle(inspectorVisible ? KTColor.accent : KTColor.ink)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 10)
+                .background(KTColor.cardBg)
+                .overlay(
+                    RoundedRectangle(cornerRadius: KTRadius.button, style: .continuous)
+                        .strokeBorder(KTColor.btnBorder, lineWidth: 0.5)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: KTRadius.button, style: .continuous))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .ktTip(inspectorVisible ? "Hide details (⌥⌘I)" : "Show details (⌥⌘I)")
+        .accessibilityLabel(inspectorVisible ? "Hide details" : "Show details")
     }
 
     private var serverControl: some View {
