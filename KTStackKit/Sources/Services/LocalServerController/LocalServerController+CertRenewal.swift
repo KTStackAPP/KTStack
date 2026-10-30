@@ -29,7 +29,7 @@ extension LocalServerController {
         guard !didCheckCertRenewal, registry.loadFailure == nil else { return }
         didCheckCertRenewal = true
         guard FileManager.default.fileExists(atPath: paths.caRootCert.path) else { return }
-        let secure = registry.sites.filter(\.secure)
+        let secure = registry.sites.filter { $0.secure && !$0.usesCustomCertificate }
         guard !secure.isEmpty else { return }
         let policy = CertRenewalPolicy(paths: paths, minter: certMinter)
         let provisioner = httpsProvisioner

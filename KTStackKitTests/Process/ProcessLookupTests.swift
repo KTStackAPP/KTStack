@@ -47,7 +47,8 @@ final class ProcessLookupTests: XCTestCase {
         try proc.run()
         children.append(proc)
         let deadline = Date().addingTimeInterval(5)
-        while ProcessLookup.executablePath(of: proc.processIdentifier) == nil, Date() < deadline {
+        // Trước exec, proc_pidpath còn trả path của process cha.
+        while !ProcessLookup.pids(executablePath: url.path).contains(proc.processIdentifier), Date() < deadline {
             usleep(20000)
         }
         return proc

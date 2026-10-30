@@ -232,6 +232,35 @@ final class SitesViewModelTests: XCTestCase {
         XCTAssertEqual(h.catalog.saveFrontDirectivesCalls.first?.1, "add_header X-A 1;")
     }
 
+    func testImportCertificateForwardsIDAndPaths() async throws {
+        let site = makeSite()
+        let h = makeVM(sites: [site])
+        try await h.vm.importCertificate(site.id, certPath: "/c/fullchain.pem", keyPath: "/c/privkey.pem")
+        let call = try XCTUnwrap(h.catalog.importCertificateCalls.first)
+        XCTAssertEqual(call.0, site.id)
+        XCTAssertEqual(call.1, "/c/fullchain.pem")
+        XCTAssertEqual(call.2, "/c/privkey.pem")
+    }
+
+    func testImportCertificateSurfacesCatalogError() async {
+        let site = makeSite()
+        let h = makeVM(sites: [site])
+        h.catalog.importCertificateShouldThrow = SiteActionError.invalidProxyTarget(message: "does not cover b.test")
+        do {
+            try await h.vm.importCertificate(site.id, certPath: "/c", keyPath: "/k")
+            XCTFail("expected error")
+        } catch {
+            XCTAssertEqual(error.localizedDescription, "does not cover b.test")
+        }
+    }
+
+    func testRemoveCustomCertificateForwardsToCatalog() async throws {
+        let site = makeSite()
+        let h = makeVM(sites: [site])
+        try await h.vm.removeCustomCertificate(site.id)
+        XCTAssertEqual(h.catalog.removeCustomCertificateCalls, [site.id])
+    }
+
     func testEnableDisableResetDNSDelegate() {
         let h = makeVM()
         let vm = h.vm

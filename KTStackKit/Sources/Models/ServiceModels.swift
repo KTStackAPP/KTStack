@@ -91,6 +91,8 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
     // Verbatim nginx directives spliced into this site's front server block; scope in the name so a backend variant can follow.
     public var frontDirectives: String?
     public var workers: [SiteWorker]
+    // Cert import thay cho mkcert; nil là site dùng cert local tự mint.
+    public var customCertificate: SiteCustomCertificate?
 
     public init(
         id: UUID = UUID(),
@@ -112,7 +114,8 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         wildcardSubdomains: Bool = false,
         envVars: [String: String] = [:],
         frontDirectives: String? = nil,
-        workers: [SiteWorker] = []
+        workers: [SiteWorker] = [],
+        customCertificate: SiteCustomCertificate? = nil
     ) {
         self.id = id
         self.name = name
@@ -134,12 +137,13 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         self.envVars = envVars
         self.frontDirectives = frontDirectives
         self.workers = workers
+        self.customCertificate = customCertificate
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, name, path, docroot, domain, phpVersion, type, databaseName, secure
         case nodePort, nodeCommand, nodeEnabled, serverEngine, backendPort, proxyTarget
-        case aliases, wildcardSubdomains, envVars, frontDirectives, workers
+        case aliases, wildcardSubdomains, envVars, frontDirectives, workers, customCertificate
     }
 
     public init(from decoder: Decoder) throws {
@@ -166,10 +170,13 @@ public struct Site: Identifiable, Hashable, Codable, Sendable {
         envVars = try c.decodeIfPresent([String: String].self, forKey: .envVars) ?? [:]
         frontDirectives = try c.decodeIfPresent(String.self, forKey: .frontDirectives)
         workers = (try? c.decodeIfPresent([LossySiteWorker].self, forKey: .workers))?.compactMap(\.worker) ?? []
+        customCertificate = try c.decodeIfPresent(SiteCustomCertificate.self, forKey: .customCertificate)
     }
 
     // Có thư mục trên đĩa; proxy site không có nên mọi thao tác folder phải gate cái này.
     public var hasFolder: Bool { !path.isEmpty }
+
+    public var usesCustomCertificate: Bool { customCertificate != nil }
 
     public var supportsWorkers: Bool { type == .php && hasFolder }
 

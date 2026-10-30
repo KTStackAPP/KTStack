@@ -118,7 +118,8 @@ final class SiteWildcardSubdomainsTests: XCTestCase {
             tld: "test",
             trustQuery: { _ in true },
             installCA: {},
-            mintLeaf: { domain, aliases, _ in minted = [domain] + aliases }
+            mintLeaf: { domain, aliases, _ in minted = [domain] + aliases },
+            verifyCustom: { _ in }
         )
         try provisioner.enableHTTPS(for: site(aliases: ["www.shop.test"]))
         XCTAssertEqual(minted, ["shop.test", "www.shop.test", "*.shop.test"])

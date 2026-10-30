@@ -162,7 +162,10 @@ public final class LocalServerController: ObservableObject {
         }
         recomputeStatus()
         refreshWatches()
-        if registry.loadFailure == nil { certMinter.pruneOrphans(keeping: Set(registry.sites.map(\.domain))) }
+        if registry.loadFailure == nil {
+            certMinter.pruneOrphans(keeping: Set(registry.sites.map(\.domain)))
+            CustomCertificateStore(paths: paths).pruneOrphans(keeping: Set(registry.sites.map(\.id.uuidString)))
+        }
         if error == nil { renewCertificatesIfNeeded() }
         if pendingReconcile { pendingReconcile = false; reconcile() }
     }
