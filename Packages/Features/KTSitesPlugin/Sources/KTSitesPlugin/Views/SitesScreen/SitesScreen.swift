@@ -126,7 +126,10 @@ struct SitesScreen: View {
             recheckType: recheckType,
             configureVSCode: configureVSCode,
             restore: { restoreSite = $0 },
-            remove: confirmRemove
+            remove: confirmRemove,
+            chooseCertificate: chooseCertificate,
+            reimportCertificate: reimportCertificate,
+            removeCertificate: removeCertificate
         )
     }
 

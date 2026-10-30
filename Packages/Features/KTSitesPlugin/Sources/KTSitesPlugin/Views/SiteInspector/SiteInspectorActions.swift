@@ -8,4 +8,7 @@ struct SiteInspectorActions {
     let configureVSCode: (SiteSummary) -> Void
     let restore: (SiteSummary) -> Void
     let remove: (SiteSummary) -> Void
+    let chooseCertificate: (SiteSummary) -> Void
+    let reimportCertificate: (SiteSummary) -> Void
+    let removeCertificate: (SiteSummary) -> Void
 }

@@ -58,6 +58,14 @@ extension SitesViewModel {
         try await catalog.saveFrontDirectives(id, text)
     }
 
+    func importCertificate(_ id: UUID, certPath: String, keyPath: String) async throws {
+        try await catalog.importCertificate(id, certPath: certPath, keyPath: keyPath)
+    }
+
+    func removeCustomCertificate(_ id: UUID) async throws {
+        try await catalog.removeCustomCertificate(id)
+    }
+
     func recheckKind(_ id: UUID) -> SiteKind? {
         let kind = catalog.recheckKind(id)
         if let path = sites.first(where: { $0.id == id })?.path {

@@ -246,6 +246,13 @@ public final class SiteRegistry: ObservableObject {
         update(site.id) { $0.secure = secure }
     }
 
+    public func setCustomCertificate(_ site: Site, _ cert: SiteCustomCertificate?, secure: Bool) {
+        update(site.id) {
+            $0.customCertificate = cert
+            $0.secure = secure
+        }
+    }
+
     public func setNodePort(_ site: Site, _ port: Int?) {
         update(site.id) { $0.nodePort = port }
     }

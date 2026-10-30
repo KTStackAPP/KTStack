@@ -23,7 +23,10 @@ extension SiteSummary {
             wildcardSubdomains: site.wildcardSubdomains,
             envVars: site.envVars,
             frontDirectives: site.frontDirectives,
-            workers: site.workers
+            workers: site.workers,
+            customCertificate: site.customCertificate.map {
+                SiteCertificateSummary(sourceCertPath: $0.sourceCertPath, sourceKeyPath: $0.sourceKeyPath, notAfter: $0.notAfter, names: $0.names)
+            }
         )
     }
 }
@@ -103,6 +106,16 @@ extension LocalServerController: SiteCatalogManaging {
     public func saveFrontDirectives(_ id: UUID, _ text: String) async throws {
         guard let site = registry.sites.first(where: { $0.id == id }) else { return }
         try await saveFrontDirectives(site, text)
+    }
+
+    public func importCertificate(_ id: UUID, certPath: String, keyPath: String) async throws {
+        guard let site = registry.sites.first(where: { $0.id == id }) else { return }
+        try await importCustomCertificate(site, certPath: certPath, keyPath: keyPath)
+    }
+
+    public func removeCustomCertificate(_ id: UUID) async throws {
+        guard let site = registry.sites.first(where: { $0.id == id }) else { return }
+        try await removeCustomCertificate(site)
     }
 
     @discardableResult

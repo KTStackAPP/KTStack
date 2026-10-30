@@ -31,12 +31,16 @@ public extension LocalServerController {
         guard !migrated.isEmpty else { return }
         let provisioner = httpsProvisioner
         let secure = migrated.filter(\.secure)
+        let minted = secure.filter { !$0.usesCustomCertificate }
+        let custom = secure.filter(\.usesCustomCertificate)
         let keep = Set(registry.sites.map(\.domain))
+        let ids = Set(registry.sites.map(\.id.uuidString))
         let minter = certMinter
-        await Task.detached(priority: .userInitiated) {
+        let store = CustomCertificateStore(paths: paths)
+        let uncovered = await Task.detached(priority: .userInitiated) { () -> [(Site, String)] in
             // mkcert mỗi site độc lập nên re-mint song song để không cộng dồn delay lúc relaunch.
             await withTaskGroup(of: Void.self) { group in
-                for site in secure {
+                for site in minted {
                     group.addTask {
                         do { try provisioner.enableHTTPS(for: site, overridingTLD: new) }
                         catch { NSLog("KTStack: TLD migrate cert re-mint failed for \(site.domain): \(error.localizedDescription)") }
@@ -44,7 +48,16 @@ public extension LocalServerController {
                 }
             }
             minter.pruneOrphans(keeping: keep)
+            store.pruneOrphans(keeping: ids)
+            return custom.compactMap { site in
+                do { try store.verifyCoverage(for: site); return nil } catch { return (site, error.localizedDescription) }
+            }
         }.value
+        // Cert import không cover tên mới thì về HTTP, giống site mkcert mint hỏng.
+        for (site, reason) in uncovered {
+            registry.setSecure(site, false)
+            NSLog("KTStack: custom certificate unusable for \(site.domain) after TLD change (\(reason)); HTTPS turned off")
+        }
     }
 
     func setNodePort(_ site: Site, _ port: Int?) {
@@ -60,9 +73,14 @@ public extension LocalServerController {
             return
         }
         guard !isBusy else { throw SiteRegistry.RegistryError.serverBusy }
-        isBusy = true; lastError = nil
         let normalized = aliases.map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
         var updated = site; updated.aliases = normalized
+        if site.usesCustomCertificate {
+            try verifyImportedCertificate(from: site, to: updated)
+            try registry.setAliases(site, aliases)
+            return
+        }
+        isBusy = true; lastError = nil
         let provisioner = httpsProvisioner
         Task.detached(priority: .userInitiated) {
             var failure: String?
@@ -79,6 +97,12 @@ public extension LocalServerController {
         }
     }
 
+    // Bớt tên thì cert import vẫn đủ, kể cả khi đã hết hạn; chỉ kiểm tra khi có tên mới.
+    private func verifyImportedCertificate(from site: Site, to updated: Site) throws {
+        guard !Set(updated.serverNames).isSubset(of: site.serverNames) else { return }
+        try httpsProvisioner.enableHTTPS(for: updated)
+    }
+
     // `*.<domain>` vào server_name + SAN cert. Secure: re-mint trước, chỉ persist khi mint xong
     // (fail-closed như setSiteAliases), nên cert cũ không bao giờ đứng sau server_name có wildcard.
     func setSiteWildcardSubdomains(_ site: Site, _ enabled: Bool) throws {
@@ -88,8 +112,13 @@ public extension LocalServerController {
             return
         }
         guard !isBusy else { throw SiteRegistry.RegistryError.serverBusy }
-        isBusy = true; lastError = nil
         var updated = site; updated.wildcardSubdomains = enabled
+        if site.usesCustomCertificate {
+            try verifyImportedCertificate(from: site, to: updated)
+            registry.setWildcardSubdomains(site, enabled)
+            return
+        }
+        isBusy = true; lastError = nil
         let provisioner = httpsProvisioner
         Task.detached(priority: .userInitiated) {
             var failure: String?

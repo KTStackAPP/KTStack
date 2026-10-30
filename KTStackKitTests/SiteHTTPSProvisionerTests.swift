@@ -16,7 +16,8 @@ final class SiteHTTPSProvisionerTests: XCTestCase {
             },
             mintLeaf: { domain, aliases, tld in
                 calls.append("mint:\(domain):\(aliases.joined(separator: ",")):\(tld)")
-            }
+            },
+            verifyCustom: { _ in }
         )
 
         try provisioner.enableHTTPS(for: Site(
@@ -46,7 +47,8 @@ final class SiteHTTPSProvisionerTests: XCTestCase {
             },
             mintLeaf: { domain, aliases, tld in
                 calls.append("mint:\(domain):\(aliases.joined(separator: ",")):\(tld)")
-            }
+            },
+            verifyCustom: { _ in }
         )
 
         try provisioner.enableHTTPS(for: Site(
