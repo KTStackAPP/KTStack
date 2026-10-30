@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.6.3 - 2026-10-30
+
+### Added
+
+- Sites: import your own certificate (full chain + private key) for a site. KTStack serves it on HTTPS and never re-mints, renews or deletes it. Re-import to update it. An alias or wildcard the certificate does not cover is refused.
+- Sites: a details button in the header shows the inspector, and widens a narrow window to fit it.
+- Sites and Settings: a warning when the TLD is HSTS-preloaded (`.dev`, `.app` and others). Browsers force HTTPS on these TLDs, so a site with HTTPS off won't load.
+
+### Fixed
+
+- An open sheet such as New Site no longer disappears when you switch to another app.
+
 ## 0.3.6.2 - 2026-10-25
 
 ### Fixed
