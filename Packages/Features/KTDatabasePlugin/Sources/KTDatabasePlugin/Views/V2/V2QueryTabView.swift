@@ -3,6 +3,7 @@ import SwiftUI
 
 struct V2QueryTabView: View {
     @ObservedObject var vm: DatabaseV2ViewModel
+    @Environment(\.isWorkspacePaneActive) private var isPaneActive
 
     var body: some View {
         VStack(spacing: 0) {
@@ -86,10 +87,12 @@ struct V2QueryTabView: View {
                     Task { await vm.runQuery() }
                 }
                 .keyboardShortcut(.return, modifiers: .command)
+                .disabled(!isPaneActive)
                 V2Button(title: "Format", systemImage: "text.alignleft", kind: .standard) {
                     vm.requestFormat()
                 }
                 .keyboardShortcut("l", modifiers: [.command, .shift])
+                .disabled(!isPaneActive)
                 V2Button(title: "Explain", systemImage: "list.bullet.indent", kind: .standard) {
                     Task { await vm.explainActiveQuery() }
                 }

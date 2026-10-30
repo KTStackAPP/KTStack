@@ -101,7 +101,7 @@ final class ShellIntegrationSafetyTests: XCTestCase {
         let zshrc = home.appendingPathComponent(".zshrc")
         try fm.createSymbolicLink(atPath: zshrc.path, withDestinationPath: real.path)
 
-        try await manager.enable(provisionComposer: false)
+        try await manager.enable(provisionPhars: false)
 
         XCTAssertEqual(try fm.destinationOfSymbolicLink(atPath: zshrc.path), real.path)
         let content = try String(contentsOf: real, encoding: .utf8)
@@ -117,7 +117,7 @@ final class ShellIntegrationSafetyTests: XCTestCase {
         try original.write(to: zshrc)
 
         do {
-            try await manager.enable(provisionComposer: false)
+            try await manager.enable(provisionPhars: false)
             XCTFail("enable must fail when an rc file cannot be decoded")
         } catch {}
 

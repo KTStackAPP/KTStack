@@ -3,7 +3,7 @@ import SwiftUI
 
 struct WorkspaceTablePane: View {
     @ObservedObject var vm: DatabaseV2ViewModel
-    @ObservedObject var workspace: WorkspaceStore
+    let workspace: WorkspaceStore
     @ObservedObject var session: WorkspaceTabSession
 
     @State private var mode: TablePaneMode = .data
@@ -62,11 +62,7 @@ struct WorkspaceTablePane: View {
 
     @ViewBuilder
     private var gridBody: some View {
-        if vm.isLoadingRows, vm.rows == nil {
-            ProgressView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(KTEditorTheme.content)
-        } else if let result = vm.displayRows {
+        if let result = gridResult {
             KTDataGrid(
                 result: result,
                 selectedRow: $session.selectedRowIndex,
@@ -99,6 +95,11 @@ struct WorkspaceTablePane: View {
                 onUndoStaged: { vm.undoOrCancelDraft() },
                 onCommitStaged: { Task { await vm.commitAllStagedAndDraft() } }
             )
+            .overlay {
+                if vm.isLoadingRows, vm.rows == nil {
+                    ProgressView()
+                }
+            }
         } else if let errorMessage = vm.loadError {
             EmptyStateView(
                 symbol: "exclamationmark.triangle",
@@ -112,6 +113,11 @@ struct WorkspaceTablePane: View {
                 message: vm.selectedTable == nil ? "Chọn một bảng từ thanh bên để duyệt dữ liệu" : "Bảng hiện tại chưa có dữ liệu."
             )
         }
+    }
+
+    // Giữ grid trong cây view khi đổi bảng để không dựng lại NSTableView
+    private var gridResult: QueryResult? {
+        vm.displayRows ?? (vm.isLoadingRows ? QueryResult(columns: [], rows: []) : nil)
     }
 
     private var draftBanner: some View {

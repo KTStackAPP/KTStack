@@ -7,9 +7,8 @@ public enum TLSMode: String, Codable, Sendable, CaseIterable {
     case require
     case verifyFull
 
-    public static func defaultMode(forHost host: String) -> TLSMode {
-        ConnectionProfile.isLoopback(host) ? .prefer : .verifyFull
-    }
+    // Giống sslmode=prefer của libpq: server không có TLS hoặc dùng cert tự ký vẫn nối được.
+    public static let defaultMode: TLSMode = .prefer
 }
 
 public enum DatabaseKind: String, Codable, Sendable, CaseIterable {
@@ -62,7 +61,7 @@ public struct ConnectionProfile: Codable, Sendable, Identifiable, Equatable {
         self.user = user
         self.database = database
         self.filePath = filePath
-        self.tlsMode = tlsMode ?? .defaultMode(forHost: host)
+        self.tlsMode = tlsMode ?? .defaultMode
         self.readOnly = readOnly ?? Self.defaultReadOnly(forHost: host)
     }
 

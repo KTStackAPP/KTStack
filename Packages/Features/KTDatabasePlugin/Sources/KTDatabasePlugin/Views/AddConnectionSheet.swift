@@ -22,7 +22,7 @@ struct AddConnectionSheet: View {
     @State private var password = ""
     @State private var database = ""
     @State private var filePath = ""
-    @State private var tlsMode: TLSMode = .verifyFull
+    @State private var tlsMode: TLSMode = .defaultMode
     @State private var readOnly = true
     @State private var test: TestState = .idle
     @State private var importingFile = false

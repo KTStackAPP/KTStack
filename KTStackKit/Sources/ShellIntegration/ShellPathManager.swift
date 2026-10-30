@@ -75,14 +75,16 @@ public final class ShellPathManager: Sendable {
         return files
     }
 
-    public func enable(provisionComposer: Bool = true) async throws {
+    public func enable(provisionPhars: Bool = true) async throws {
         try prepareShimDir()
         try ShellShimWriter(paths: paths).writeShims()
-        if provisionComposer {
-            do {
-                _ = try await ComposerProvisioner(paths: paths).provision()
-            } catch {
-                NSLog("KTStack: composer provisioning skipped — \(error.localizedDescription)")
+        if provisionPhars {
+            for (toolId, provisioner) in pharProvisioners {
+                do {
+                    _ = try await provisioner.provision()
+                } catch {
+                    NSLog("KTStack: \(toolId) provisioning skipped: \(error.localizedDescription)")
+                }
             }
         }
         let patcher = ShellRCPatcher(exportLine: exportLine)
@@ -98,8 +100,16 @@ public final class ShellPathManager: Sendable {
         try prepareShimDir()
         try ShellShimWriter(paths: paths).writeShims()
     }
-    public func composerProvisioned() -> Bool {
-        ComposerProvisioner(paths: paths).isProvisioned
+
+    // Shim của các tool này chạy phar bằng PHP, nên bật shell integration phải tải phar về.
+    var pharProvisioners: [(toolId: String, provisioner: PharProvisioner)] {
+        [("composer", .composer(paths: paths)), ("wp", .wpCli(paths: paths))]
+    }
+
+    public func missingPharTools() -> [String] {
+        pharProvisioners
+            .filter { !$0.provisioner.isProvisioned }
+            .compactMap { ShellToolCatalog.tool(for: $0.toolId)?.displayName }
     }
 
     public func isToolEnabled(_ toolId: String) -> Bool {

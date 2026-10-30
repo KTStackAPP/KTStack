@@ -51,7 +51,7 @@ final class GranularShellIntegrationTests: XCTestCase {
         let paths = AppSupportPaths(root: tmp.appendingPathComponent("support"))
         let manager = try ShellPathManager(paths: paths, helperSource: makeHelper(), home: home)
 
-        try await manager.enable(provisionComposer: false)
+        try await manager.enable(provisionPhars: false)
 
         for tool in ShellToolCatalog.tools {
             let shimUrl = paths.shimBinDir.appendingPathComponent(tool.command)
@@ -65,7 +65,7 @@ final class GranularShellIntegrationTests: XCTestCase {
         let paths = AppSupportPaths(root: tmp.appendingPathComponent("support"))
         let manager = try ShellPathManager(paths: paths, helperSource: makeHelper(), home: home)
 
-        try await manager.enable(provisionComposer: false)
+        try await manager.enable(provisionPhars: false)
 
         let zshrc = home.appendingPathComponent(".zshrc")
         let initialModDate = try fm.attributesOfItem(atPath: zshrc.path)[.modificationDate] as? Date

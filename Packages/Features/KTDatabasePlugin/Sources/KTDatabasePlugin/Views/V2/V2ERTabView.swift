@@ -5,6 +5,7 @@ import SwiftUI
 struct V2ERTabView: View {
     @ObservedObject var vm: DatabaseV2ViewModel
     @StateObject private var state = ERDiagramState()
+    @Environment(\.isWorkspacePaneActive) private var isPaneActive
 
     @State private var scrollMonitor: Any?
     @State private var hoverCursor: NSCursor?
@@ -27,8 +28,20 @@ struct V2ERTabView: View {
         .onChange(of: vm.diagramLoaded) { loaded in
             if loaded { syncState() }
         }
-        .onAppear { attachScrollMonitor() }
+        .onAppear {
+            if isPaneActive {
+                attachScrollMonitor()
+            }
+        }
         .onDisappear { detachScrollMonitor() }
+        .onChange(of: isPaneActive) { active in
+            if active {
+                attachScrollMonitor()
+            } else {
+                updateHover(.ended)
+                detachScrollMonitor()
+            }
+        }
     }
 
     private func syncState() {
@@ -41,7 +54,7 @@ struct V2ERTabView: View {
 
     private var diagram: some View {
         GeometryReader { proxy in
-            canvas
+            V2ERCanvas(state: state)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(V2ERDottedBackground())
                 .contentShape(Rectangle())
@@ -59,24 +72,6 @@ struct V2ERTabView: View {
                     fitIfNeeded(size: newSize)
                 }
                 .onChange(of: state.needsInitialFit) { _ in fitIfNeeded(size: proxy.size) }
-        }
-    }
-
-    private var canvas: some View {
-        Canvas { context, _ in
-            var ctx = context
-            ctx.translateBy(x: state.canvasOffset.x, y: state.canvasOffset.y)
-            ctx.scaleBy(x: state.magnification, y: state.magnification)
-            EREdgeRenderer.drawEdges(context: ctx, edges: state.graph.edges, rects: state.cachedRects)
-            for node in state.graph.nodes {
-                guard let rect = state.cachedRects[node.id] else { continue }
-                ERNodeRenderer.drawNode(
-                    context: &ctx,
-                    node: node,
-                    rect: rect,
-                    isSelected: state.selectedTable == node.id
-                )
-            }
         }
     }
 

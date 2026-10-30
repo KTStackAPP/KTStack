@@ -1,12 +1,13 @@
 import Foundation
 import NIOCore
+import NIOSSL
 import PostgresNIO
 
 /// Translates PostgresNIO failures into the shared `DatabaseError`. Server errors carry a SQLSTATE
 /// (`PSQLError.serverInfo[.sqlState]`); class `28` is "invalid authorization", everything else with a
 /// server message is the user's SQL/permission problem. No server response means a transport failure —
-/// distinguished as engine-not-running for the managed instance (connection refused) vs a generic
-/// connection error for external hosts.
+/// distinguished as engine-not-running for the managed instance (connection refused) vs a readable
+/// connection error built from `PSQLError.code`/`underlying` for external hosts.
 enum PostgresErrorMapper {
     static func map(_ error: any Error, isManaged: Bool) -> DatabaseError {
         if let dbError = error as? DatabaseError { return dbError }
@@ -18,20 +19,36 @@ enum PostgresErrorMapper {
                 }
                 return .syntax(message)
             }
-            return refusedOrGeneric(error, isManaged: isManaged, fallback: String(describing: pg))
+            // description của PSQLError luôn là chuỗi che, nguyên nhân nằm ở code/underlying.
+            if let underlying = pg.underlying, isConnectionRefused(underlying) {
+                return refused(isManaged: isManaged)
+            }
+            return .connection(transportMessage(code: pg.code, underlying: pg.underlying))
         }
-        return refusedOrGeneric(error, isManaged: isManaged, fallback: String(describing: error))
+        if isConnectionRefused(error) { return refused(isManaged: isManaged) }
+        return .connection(String(describing: error))
     }
 
-    private static func refusedOrGeneric(
-        _ error: any Error,
-        isManaged: Bool,
-        fallback: String
-    ) -> DatabaseError {
-        if isConnectionRefused(error) {
-            return isManaged ? .engineNotRunning(kind: "PostgreSQL") : .connection("Connection refused")
+    static func transportMessage(code: PSQLError.Code, underlying: (any Error)?) -> String {
+        if code == .sslUnsupported {
+            return "Server does not accept TLS. Set TLS to prefer or disable."
         }
-        return .connection(fallback)
+        if let underlying, isTLSFailure(underlying) {
+            return "TLS handshake failed (\(underlying)). If the server uses a self-signed certificate, set TLS to prefer."
+        }
+        if code == .unsupportedAuthMechanism {
+            return "Server asks for an authentication method that is not supported."
+        }
+        if let underlying { return String(describing: underlying) }
+        return "\(code)"
+    }
+
+    private static func refused(isManaged: Bool) -> DatabaseError {
+        isManaged ? .engineNotRunning(kind: "PostgreSQL") : .connection("Connection refused")
+    }
+
+    private static func isTLSFailure(_ error: any Error) -> Bool {
+        error is NIOSSLError || error is BoringSSLError || error is NIOSSLExtraError
     }
 
     static func isConnectionRefused(_ error: any Error) -> Bool {

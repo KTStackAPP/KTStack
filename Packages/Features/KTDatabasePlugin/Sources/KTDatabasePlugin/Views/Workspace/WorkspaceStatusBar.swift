@@ -3,6 +3,7 @@ import SwiftUI
 
 struct WorkspaceStatusBar: View {
     @ObservedObject var vm: DatabaseV2ViewModel
+    @Environment(\.isWorkspacePaneActive) private var isPaneActive
 
     @State private var showSQL = false
     @State private var sqlText = ""
@@ -35,7 +36,7 @@ struct WorkspaceStatusBar: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                     .keyboardShortcut(.return, modifiers: .command)
-                    .disabled(vm.isCommitting)
+                    .disabled(vm.isCommitting || !isPaneActive)
             }
         }
         .padding(.horizontal, 16)
