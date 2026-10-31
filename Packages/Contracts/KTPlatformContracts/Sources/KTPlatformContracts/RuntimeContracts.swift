@@ -26,15 +26,23 @@ public struct RuntimeState: Sendable, Equatable {
     public var installed: [RuntimeLanguage: [String]]
     public var defaults: [RuntimeLanguage: String]
     public var downloads: [RuntimeLanguage: RuntimeDownloadProgress]
+    public var fullVersions: [RuntimeLanguage: [String: String]]
 
     public init(
         installed: [RuntimeLanguage: [String]] = [:],
         defaults: [RuntimeLanguage: String] = [:],
-        downloads: [RuntimeLanguage: RuntimeDownloadProgress] = [:]
+        downloads: [RuntimeLanguage: RuntimeDownloadProgress] = [:],
+        fullVersions: [RuntimeLanguage: [String: String]] = [:]
     ) {
         self.installed = installed
         self.defaults = defaults
         self.downloads = downloads
+        self.fullVersions = fullVersions
+    }
+
+    // Nhãn hiển thị; version lưu trữ vẫn là major.minor.
+    public func displayVersion(_ lang: RuntimeLanguage, _ version: String) -> String {
+        fullVersions[lang]?[version] ?? version
     }
 }
 

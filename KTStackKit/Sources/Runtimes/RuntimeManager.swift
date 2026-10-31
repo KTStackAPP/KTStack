@@ -17,10 +17,12 @@ public final class RuntimeManager: ObservableObject {
     @Published public private(set) var installed: [RuntimeLanguage: [String]] = [:]
     @Published public private(set) var downloads: [RuntimeLanguage: DownloadState] = [:]
     @Published public private(set) var globalDefaults: [RuntimeLanguage: String] = [:]
+    @Published public private(set) var installedFullVersions: [RuntimeLanguage: [String: String]] = [:]
 
     private let paths: AppSupportPaths
     private let catalog: RuntimeCatalog
     private let downloader: RuntimeDownloader
+    private let versionProbe = PHPVersionProbe()
     private var tasks: [RuntimeLanguage: Task<Void, Never>] = [:]
     private var defaultsURL: URL {
         paths.config.appendingPathComponent("runtimes.json")
@@ -48,6 +50,9 @@ public final class RuntimeManager: ObservableObject {
         for lang in RuntimeLanguage.allCases {
             map[lang] = catalog.installedVersions(lang)
         }
+        installedFullVersions[.php] = Dictionary(uniqueKeysWithValues: (map[.php] ?? []).compactMap { version in
+            versionProbe.fullVersion(at: paths.phpBinary(version: version)).map { (version, $0) }
+        })
         installed = map
         // Seed the PHP default once a version is installed (first launch stages 8.4).
         if globalDefaults[.php] == nil, let php = installed[.php]?.first {

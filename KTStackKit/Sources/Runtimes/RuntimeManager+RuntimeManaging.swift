@@ -9,7 +9,8 @@ extension RuntimeManager: RuntimeManaging {
             defaults: globalDefaults,
             downloads: downloads.mapValues {
                 RuntimeDownloadProgress(version: $0.version, received: $0.received, total: $0.total, error: $0.error)
-            }
+            },
+            fullVersions: installedFullVersions
         )
     }
 

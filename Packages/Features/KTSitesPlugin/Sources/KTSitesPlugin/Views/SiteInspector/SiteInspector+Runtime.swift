@@ -25,7 +25,12 @@ extension SiteInspector {
         }
         InspectorRow("PHP") {
             HStack(spacing: 8) {
-                PhpMenu(current: site.phpVersion, versions: vm.server.phpVersions, onSelect: { vm.setPHP(site.id, $0) })
+                PhpMenu(
+                    current: site.phpVersion,
+                    versions: vm.server.phpVersions,
+                    label: { vm.runtimes.displayVersion(.php, $0) },
+                    onSelect: { vm.setPHP(site.id, $0) }
+                )
                 if vm.isEndOfLife(site.phpVersion) {
                     InspectorHint("End of life", color: Color(nsColor: .systemOrange))
                 }

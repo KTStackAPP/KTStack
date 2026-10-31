@@ -31,6 +31,12 @@ final class RuntimeManagingConformanceTests: XCTestCase {
         XCTAssertEqual(manager.state.installed[.node], ["22.22.3"])
     }
 
+    func testDisplayVersionPrefersFullVersion() {
+        let state = RuntimeState(installed: [.php: ["8.5", "8.4"]], fullVersions: [.php: ["8.5": "8.5.7"]])
+        XCTAssertEqual(state.displayVersion(.php, "8.5"), "8.5.7")
+        XCTAssertEqual(state.displayVersion(.php, "8.4"), "8.4")
+    }
+
     func testStreamYieldsCurrentThenAfterSetDefault() async throws {
         let paths = try tempPaths()
         defer { try? FileManager.default.removeItem(at: paths.config) }
