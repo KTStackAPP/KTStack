@@ -22,14 +22,15 @@ func makeSite(
     wildcardSubdomains: Bool = false,
     envVars: [String: String] = [:],
     frontDirectives: String? = nil,
-    workers: [SiteWorker] = []
+    workers: [SiteWorker] = [],
+    group: String? = nil
 ) -> SiteSummary {
     SiteSummary(
         id: id, name: name, path: path, docroot: docroot, domain: domain, phpVersion: phpVersion,
         kind: kind, databaseName: databaseName, secure: secure, nodePort: nodePort,
         nodeCommand: nodeCommand, engine: engine, backendPort: backendPort, proxyTarget: proxyTarget,
         aliases: aliases, wildcardSubdomains: wildcardSubdomains, envVars: envVars,
-        frontDirectives: frontDirectives, workers: workers
+        frontDirectives: frontDirectives, workers: workers, group: group
     )
 }
 
@@ -50,6 +51,8 @@ final class FakeSiteCatalog: SiteCatalogManaging {
     var setWildcardShouldThrow: Error?
     private(set) var setEnvVarsCalls: [(UUID, [String: String])] = []
     var setEnvVarsShouldThrow: Error?
+    private(set) var setSiteGroupCalls: [(UUID, String?)] = []
+    var setSiteGroupShouldThrow: Error?
     private(set) var saveFrontDirectivesCalls: [(UUID, String)] = []
     var saveFrontDirectivesShouldThrow: Error?
     private(set) var importCertificateCalls: [(UUID, String, String)] = []
@@ -108,6 +111,11 @@ final class FakeSiteCatalog: SiteCatalogManaging {
     func setEnvVars(_ id: UUID, _ env: [String: String]) throws {
         if let setEnvVarsShouldThrow { throw setEnvVarsShouldThrow }
         setEnvVarsCalls.append((id, env))
+    }
+
+    func setSiteGroup(_ id: UUID, _ group: String?) throws {
+        if let setSiteGroupShouldThrow { throw setSiteGroupShouldThrow }
+        setSiteGroupCalls.append((id, group))
     }
 
     func saveFrontDirectives(_ id: UUID, _ text: String) async throws {

@@ -51,6 +51,22 @@ final class SitesViewModelTests: XCTestCase {
         XCTAssertTrue(vm.server.isRunning)
     }
 
+    func testSetGroupReachesCatalog() throws {
+        let site = makeSite()
+        let harness = makeVM(sites: [site])
+        try harness.vm.setGroup(site.id, "Clients")
+        try harness.vm.setGroup(site.id, nil)
+        XCTAssertEqual(harness.catalog.setSiteGroupCalls.map(\.0), [site.id, site.id])
+        XCTAssertEqual(harness.catalog.setSiteGroupCalls.map(\.1), ["Clients", nil])
+    }
+
+    func testSetGroupSurfacesCatalogError() {
+        let site = makeSite()
+        let harness = makeVM(sites: [site])
+        harness.catalog.setSiteGroupShouldThrow = SiteActionError.invalidProxyTarget(message: "too long")
+        XCTAssertThrowsError(try harness.vm.setGroup(site.id, "x"))
+    }
+
     func testDefaultPHPPrefersRuntimeDefault() {
         let vm = makeVM(runtimes: RuntimeState(defaults: [.php: "8.3"])).vm
         XCTAssertEqual(vm.defaultPHP, "8.3")

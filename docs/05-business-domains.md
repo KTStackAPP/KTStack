@@ -28,6 +28,7 @@ The Sites domain registers local web projects, binds them to local `.test` domai
 ### 2.1 Capabilities
 - **Site Registration**: Users link a local directory (`~/Sites/my-project`). The engine resolves the web root (detecting `public`, `dist`, or root).
 - **Domain & Alias Allocation**: Automatically derives `<folder>.test`. Allows arbitrary custom domains and multiple aliases (`api.project.test`).
+- **Site Groups**: A site can sit in one named group (`group` in `sites.json`, absent when ungrouped). The Sites list shows a section per group, filters by group, and moves sites from the row context menu or the inspector. Groups change no nginx config.
 - **Runtime Version Pinning**: Binds the site to a specific PHP version (`7.4`–`8.5`).
 - **Nginx Route Generation**:
   - Writes a Front Nginx server block (`site-front/<uuid>.conf`).

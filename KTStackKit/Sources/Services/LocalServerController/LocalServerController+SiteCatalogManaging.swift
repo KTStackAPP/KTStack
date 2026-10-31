@@ -26,7 +26,8 @@ extension SiteSummary {
             workers: site.workers,
             customCertificate: site.customCertificate.map {
                 SiteCertificateSummary(sourceCertPath: $0.sourceCertPath, sourceKeyPath: $0.sourceKeyPath, notAfter: $0.notAfter, names: $0.names)
-            }
+            },
+            group: site.group
         )
     }
 }
@@ -101,6 +102,11 @@ extension LocalServerController: SiteCatalogManaging {
     public func setEnvVars(_ id: UUID, _ env: [String: String]) throws {
         guard let site = registry.sites.first(where: { $0.id == id }) else { return }
         try registry.setEnvVars(site, env)
+    }
+
+    public func setSiteGroup(_ id: UUID, _ group: String?) throws {
+        guard let site = registry.sites.first(where: { $0.id == id }) else { return }
+        try registry.setGroup(site, group)
     }
 
     public func saveFrontDirectives(_ id: UUID, _ text: String) async throws {

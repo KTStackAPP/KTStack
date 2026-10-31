@@ -26,7 +26,7 @@ public struct SiteCertificateSummary: Sendable, Equatable, Hashable {
     }
 }
 
-// Projection của Site theo capability Sites: 19 field UI đọc. Không phải snapshot chung (Tunnel dùng
+// Projection của Site theo capability Sites: 21 field UI đọc. Không phải snapshot chung (Tunnel dùng
 // TunnelSiteTarget, Logs dùng siteDomains).
 public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
     public let id: UUID
@@ -49,6 +49,7 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
     public let frontDirectives: String?
     public let workers: [SiteWorker]
     public let customCertificate: SiteCertificateSummary?
+    public let group: String?
 
     public init(
         id: UUID,
@@ -70,7 +71,8 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
         envVars: [String: String] = [:],
         frontDirectives: String? = nil,
         workers: [SiteWorker] = [],
-        customCertificate: SiteCertificateSummary? = nil
+        customCertificate: SiteCertificateSummary? = nil,
+        group: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -92,6 +94,7 @@ public struct SiteSummary: Sendable, Equatable, Hashable, Identifiable {
         self.frontDirectives = frontDirectives
         self.workers = workers
         self.customCertificate = customCertificate
+        self.group = group
     }
 }
 
@@ -120,6 +123,8 @@ public protocol SiteCatalogManaging: AnyObject {
     // Bật/tắt `*.<domain>`; site secure re-mint cert trước khi persist (serverBusy khi đang bận).
     @MainActor func setWildcardSubdomains(_ id: UUID, _ enabled: Bool) throws
     @MainActor func setEnvVars(_ id: UUID, _ env: [String: String]) throws
+    // nil hoặc tên rỗng bỏ site khỏi nhóm; tên dài quá giới hạn thì throw. Không đổi config nginx.
+    @MainActor func setSiteGroup(_ id: UUID, _ group: String?) throws
     // Fail-closed: nginx -t trước khi persist; tái dùng NginxIncludeSaveError.
     @MainActor func saveFrontDirectives(_ id: UUID, _ text: String) async throws
     // Fail-closed như directives: copy cặp PEM, nginx -t, reload, rollback; bật HTTPS khi thành công.

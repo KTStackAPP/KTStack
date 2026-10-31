@@ -51,10 +51,16 @@ struct SitesSearchBar: View {
     }
 
     private var chips: some View {
-        SitesKindChips(
-            selection: $pane.kindFilter,
-            counts: SitesFilter.counts(vm.sites, query: pane.searchText)
-        )
-        .fixedSize()
+        HStack(spacing: 6) {
+            SitesKindChips(
+                selection: $pane.kindFilter,
+                counts: SitesFilter.counts(vm.sites, group: pane.groupFilter, query: pane.searchText)
+            )
+            .fixedSize()
+            let names = vm.groupNames
+            if !names.isEmpty {
+                SitesGroupMenu(selection: $pane.groupFilter, names: names)
+            }
+        }
     }
 }
