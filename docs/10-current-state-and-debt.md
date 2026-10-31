@@ -28,6 +28,7 @@ The working tree of KTStack represents a stable, modular native macOS applicatio
 ### 2.2 Relocated Runtime Maintenance Surface
 - **Current State**: PHP 7.4 through 8.5 are vendored as relocated Homebrew bottles where every non-system dylib is rewritten via `@loader_path/../lib`.
 - **Maintenance Cost**: Each PHP point release requires re-running `scripts/build-php-from-brew.sh`, re-verifying ~35–40 dynamic libraries per version, and re-signing all binaries with the Developer ID certificate to satisfy Hardened Runtime library validation.
+- **Pins move together**: rebuilding a PHP tarball means updating its sha pin, the `cellar_version` in `scripts/php-bottle-pins*.lock` and `RuntimeCatalog.phpFullVersions` in one commit. `PHPVersionPinSyncTests` fails when the lock and the manifest disagree.
 
 ### 2.3 Legacy Node Process Fields
 - **Current State**: Node.js sites operate on a reverse-proxy model (forwarding to `localhost:<nodePort>` managed by the user).

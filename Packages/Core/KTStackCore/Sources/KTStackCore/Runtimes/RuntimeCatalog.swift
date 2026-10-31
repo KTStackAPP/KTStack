@@ -38,6 +38,7 @@ public struct RuntimeRelease: Sendable, Hashable, Identifiable {
     public let version: String
     public let urlByArch: [String: URL]
     public let sha256ByArch: [String: String]
+    public let fullVersionByArch: [String: String]
 
     public var id: String {
         "\(language.rawValue)-\(version)"
@@ -47,12 +48,18 @@ public struct RuntimeRelease: Sendable, Hashable, Identifiable {
         language: RuntimeLanguage,
         version: String,
         urlByArch: [String: URL],
-        sha256ByArch: [String: String]
+        sha256ByArch: [String: String],
+        fullVersionByArch: [String: String] = [:]
     ) {
         self.language = language
         self.version = version
         self.urlByArch = urlByArch
         self.sha256ByArch = sha256ByArch
+        self.fullVersionByArch = fullVersionByArch
+    }
+
+    public var fullVersion: String? {
+        fullVersionByArch[RuntimeCatalog.arch]
     }
 
     public var url: URL {
@@ -124,7 +131,8 @@ public struct RuntimeCatalog: Sendable {
             sha256ByArch: [
                 "arm64": phpArtifactChecksums[version] ?? "",
                 "x86_64": phpArtifactChecksumsX86[version] ?? "PENDING_x86_64_PHP",
-            ]
+            ],
+            fullVersionByArch: phpFullVersions[version].map { ["arm64": $0.arm64, "x86_64": $0.x86_64] } ?? [:]
         )
     }
 
@@ -139,12 +147,24 @@ public struct RuntimeCatalog: Sendable {
             sha256ByArch: [
                 "arm64": nodeArtifactChecksums[version]?.arm64 ?? "",
                 "x86_64": nodeArtifactChecksums[version]?.x86_64 ?? "",
-            ]
+            ],
+            fullVersionByArch: ["arm64": version, "x86_64": version]
         )
     }
 
     public static let manifest: [RuntimeRelease] =
         phpRuntimeVersions.map(phpRelease) + nodeRuntimeVersions.map(nodeRelease)
+
+    // PHP_VERSION trong tarball đã publish; đổi cùng lúc với sha pin khi build lại PHP.
+    static let phpFullVersions: [String: (arm64: String, x86_64: String)] = [
+        "7.4": ("7.4.33", "7.4.33"),
+        "8.0": ("8.0.30", "8.0.30"),
+        "8.1": ("8.1.34", "8.1.34"),
+        "8.2": ("8.2.31", "8.2.31"),
+        "8.3": ("8.3.31", "8.3.31"),
+        "8.4": ("8.4.22", "8.4.22"),
+        "8.5": ("8.5.7", "8.5.7"),
+    ]
 
     static let phpArtifactChecksums: [String: String] = [
         "7.4": "303e7a893dd5a8e96a863b9cda74a2834121c98903a0f5136e8d59228c3ba2b4",

@@ -26,10 +26,14 @@ struct MenuBarVersionSwitcher: View {
             if installed.isEmpty {
                 Text("none installed").font(KDFont.footnote).foregroundStyle(.tertiary)
             } else {
-                Menu(current ?? "Select") {
+                Menu(current.map { label(lang, $0) } ?? "Select") {
                     ForEach(installed, id: \.self) { v in
                         Button { runtimes.setGlobalDefault(lang, v) } label: {
-                            if v == current { Label(v, systemImage: "checkmark") } else { Text(v) }
+                            if v == current {
+                                Label(label(lang, v), systemImage: "checkmark")
+                            } else {
+                                Text(label(lang, v))
+                            }
                         }
                     }
                 }
@@ -38,5 +42,9 @@ struct MenuBarVersionSwitcher: View {
         }
         .padding(.vertical, KDSpacing.space1)
         .padding(.horizontal, KDSpacing.space1)
+    }
+
+    private func label(_ lang: RuntimeLanguage, _ version: String) -> String {
+        runtimes.installedFullVersions[lang]?[version] ?? version
     }
 }

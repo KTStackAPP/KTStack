@@ -47,9 +47,10 @@ extension RuntimesScreen {
 
     @ViewBuilder
     private func installedLanguageRow(_ lang: RuntimeLanguage, _ entry: RuntimesViewModel.Entry) -> some View {
+        let label = vm.state.displayVersion(lang, entry.version)
         RuntimeVersionRow(
             language: lang,
-            version: entry.version,
+            version: label,
             isDefault: entry.state == .active,
             isEndOfLife: vm.isEndOfLife(lang, entry.version),
             xdebugOn: lang == .php && phpConfig.isXdebugEnabled(phpVersion: entry.version),
@@ -57,7 +58,7 @@ extension RuntimesScreen {
             isExpanded: expandedVersion == entry.version,
             onSetDefault: {
                 vm.setDefault(lang, entry.version)
-                feedback.toast("\(lang.displayName) \(entry.version) set as default")
+                feedback.toast("\(lang.displayName) \(label) set as default")
             },
             onToggleInspector: { toggleInspector(entry.version) }
         )
@@ -79,7 +80,7 @@ extension RuntimesScreen {
     private func availableLanguageRow(_ lang: RuntimeLanguage, _ entry: RuntimesViewModel.Entry) -> some View {
         let dl = vm.download(lang, entry.version)
         return AvailableVersionRow(
-            title: "\(lang == .php ? "PHP" : "Node") \(entry.version)",
+            title: "\(lang == .php ? "PHP" : "Node") \(entry.release?.fullVersion ?? entry.version)",
             fraction: dl.flatMap { $0.error == nil ? $0.fraction : nil },
             progressText: dl?.progressText ?? "",
             errorText: dl?.error,
