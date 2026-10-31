@@ -8,6 +8,7 @@ extension SiteInspector {
             DomainEditor(domain: site.domain) { try vm.editDomain(site.id, $0) }
             AliasesEditor(site: site, model: settings)
             WildcardRow(site: site, model: settings)
+            SiteGroupField(site: site, pane: pane, names: vm.groupNames) { try vm.setGroup(site.id, $0) }
         }
     }
 }

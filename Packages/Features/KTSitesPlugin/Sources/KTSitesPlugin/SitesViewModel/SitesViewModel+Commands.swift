@@ -54,6 +54,14 @@ extension SitesViewModel {
         try catalog.setEnvVars(id, env)
     }
 
+    func setGroup(_ id: UUID, _ group: String?) throws {
+        try catalog.setSiteGroup(id, group)
+    }
+
+    var groupNames: [String] {
+        SitesFilter.groupNames(sites)
+    }
+
     func saveFrontDirectives(_ id: UUID, _ text: String) async throws {
         try await catalog.saveFrontDirectives(id, text)
     }

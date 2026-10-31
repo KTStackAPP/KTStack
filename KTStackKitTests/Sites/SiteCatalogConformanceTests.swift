@@ -68,6 +68,26 @@ final class SiteCatalogConformanceTests: XCTestCase {
         )
     }
 
+    func testSiteSummaryMirrorsGroup() {
+        var site = Site(name: "Shop", path: "/tmp/shop", docroot: "/tmp/shop", domain: "shop.test", phpVersion: "8.3", type: .php)
+        XCTAssertNil(SiteSummary(site).group)
+        site.group = "Archive"
+        XCTAssertEqual(SiteSummary(site).group, "Archive")
+    }
+
+    func testSetSiteGroupUpdatesCatalog() throws {
+        let (server, paths) = try makeServer()
+        defer { try? fm.removeItem(at: paths.config.deletingLastPathComponent()) }
+        let sitesRoot = paths.config.appendingPathComponent("scratch", isDirectory: true)
+        try fm.createDirectory(at: sitesRoot, withIntermediateDirectories: true)
+        let site = try server.registry.add(folder: try phpFolder(in: sitesRoot, named: "shop"))
+
+        try (server as any SiteCatalogManaging).setSiteGroup(site.id, "Clients")
+        XCTAssertEqual(server.catalog.sites.first?.group, "Clients")
+        try (server as any SiteCatalogManaging).setSiteGroup(site.id, " ")
+        XCTAssertNil(server.catalog.sites.first?.group)
+    }
+
     func testCatalogReflectsRegistryAndTLD() throws {
         let (server, paths) = try makeServer()
         defer { try? fm.removeItem(at: paths.config.deletingLastPathComponent()) }

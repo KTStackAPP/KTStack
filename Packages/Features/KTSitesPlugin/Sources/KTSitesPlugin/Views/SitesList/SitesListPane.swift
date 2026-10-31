@@ -10,10 +10,11 @@ struct SitesListPane: View {
     @State private var lastVisible: [UUID] = []
 
     var body: some View {
-        let sites = SitesFilter.visible(vm.sites, kind: pane.kindFilter, query: pane.searchText)
-        let visibleIDs = sites.map(\.id)
+        let sites = SitesFilter.visible(vm.sites, kind: pane.kindFilter, group: pane.groupFilter, query: pane.searchText)
+        let sections = SitesFilter.sections(sites)
+        let visibleIDs = sections.flatMap(\.sites).map(\.id)
         VStack(spacing: 0) {
-            content(sites)
+            content(sections)
 
             SitesDNSFooter(dns: vm.dns, tld: vm.tld, onEnable: vm.enableDNS, onDisable: vm.disableDNS, onReset: vm.resetDNS)
         }
@@ -21,36 +22,83 @@ struct SitesListPane: View {
         .background(KTColor.contentBg)
         .background(shortcuts)
         .onChange(of: visibleIDs) { reconcileSelection($0) }
+        .onChange(of: vm.groupNames) { dropMissingGroupFilter($0) }
         .onAppear { reconcileSelection(visibleIDs) }
     }
 
     @ViewBuilder
-    private func content(_ sites: [SiteSummary]) -> some View {
+    private func content(_ sections: [SitesSection]) -> some View {
         if vm.sites.isEmpty {
             emptyState(title: "No sites yet", message: "Add a folder under \(sitesRoot.path) to serve it at <name>.\(vm.tld).")
-        } else if sites.isEmpty {
-            emptyState(title: "No matching sites", message: "Try another name, domain or kind.")
+        } else if sections.isEmpty {
+            emptyState(title: "No matching sites", message: "Try another name, domain, kind or group.")
         } else {
+            let showHeaders = sections.contains { $0.title != nil }
             List(selection: $pane.selectedID) {
-                ForEach(sites) { site in
-                    SiteCompactRow(
-                        site: site,
-                        upstreamRunning: vm.upstreamRunning[site.id] ?? false,
-                        shared: vm.shares[site.id]?.publicURL != nil,
-                        workers: vm.workersSummary(for: site),
-                        isSelected: pane.selectedID == site.id
-                    )
-                    .equatable()
-                    .background(TableHighlightRemover())
-                    .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
-                    .listRowSeparator(.hidden)
-                    .tag(site.id)
+                ForEach(sections) { section in
+                    if showHeaders {
+                        Section { rows(section.sites) } header: { header(section) }
+                    } else {
+                        rows(section.sites)
+                    }
                 }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 8) }
-            .contextMenu(forSelectionType: UUID.self, menu: { _ in EmptyView() }, primaryAction: openFirst)
+            .contextMenu(forSelectionType: UUID.self, menu: groupMenu, primaryAction: openFirst)
+        }
+    }
+
+    private func rows(_ sites: [SiteSummary]) -> some View {
+        ForEach(sites) { site in
+            SiteCompactRow(
+                site: site,
+                upstreamRunning: vm.upstreamRunning[site.id] ?? false,
+                shared: vm.shares[site.id]?.publicURL != nil,
+                workers: vm.workersSummary(for: site),
+                isSelected: pane.selectedID == site.id
+            )
+            .equatable()
+            .background(TableHighlightRemover())
+            .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
+            .listRowSeparator(.hidden)
+            .tag(site.id)
+        }
+    }
+
+    private func header(_ section: SitesSection) -> some View {
+        HStack(spacing: 6) {
+            Text(section.title ?? "No Group").foregroundStyle(KTColor.ink3)
+            Text("\(section.sites.count)").foregroundStyle(KTColor.muted)
+        }
+        .font(.jbMono(11.5))
+        .padding(.leading, 6)
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private func groupMenu(_ ids: Set<UUID>) -> some View {
+        let targets = vm.sites.filter { ids.contains($0.id) }
+        if !targets.isEmpty {
+            let current = Set(targets.map(\.group))
+            let names = vm.groupNames
+            if !names.isEmpty {
+                Menu("Move to Group") {
+                    ForEach(names, id: \.self) { name in
+                        Toggle(name, isOn: Binding(
+                            get: { current == [name] },
+                            set: { _ in move(targets, to: name) }
+                        ))
+                    }
+                }
+            }
+            if targets.count == 1, let site = targets.first {
+                Button("New Group…") { pane.requestNewGroup(for: site.id) }
+            }
+            if current.contains(where: { $0 != nil }) {
+                Button("Remove from Group") { move(targets, to: nil) }
+            }
         }
     }
 
@@ -79,6 +127,17 @@ struct SitesListPane: View {
         let next = SitesFilter.reconcile(selected: pane.selectedID, previous: lastVisible, visible: visibleIDs)
         if next != pane.selectedID { pane.selectedID = next }
         lastVisible = visibleIDs
+    }
+
+    // Tên nhóm có sẵn đã chuẩn hóa nên không thể vượt giới hạn độ dài.
+    private func move(_ sites: [SiteSummary], to group: String?) {
+        for site in sites where site.group != group {
+            try? vm.setGroup(site.id, group)
+        }
+    }
+
+    private func dropMissingGroupFilter(_ names: [String]) {
+        if case let .named(name) = pane.groupFilter, !names.contains(name) { pane.groupFilter = .all }
     }
 
     private func openFirst(_ ids: Set<UUID>) {

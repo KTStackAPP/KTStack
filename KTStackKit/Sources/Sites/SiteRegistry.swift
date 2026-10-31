@@ -332,6 +332,11 @@ public final class SiteRegistry: ObservableObject {
         update(site.id) { $0.wildcardSubdomains = enabled }
     }
 
+    public func setGroup(_ site: Site, _ group: String?) throws {
+        let normalized = try group.flatMap(SiteGroupName.normalize)
+        update(site.id) { $0.group = normalized }
+    }
+
     public func setEnvVars(_ site: Site, _ env: [String: String]) throws {
         if let err = SiteEnvVars.validate(env) { throw RegistryError.invalidEnv(Self.envErrorKey(err)) }
         update(site.id) { $0.envVars = env }
