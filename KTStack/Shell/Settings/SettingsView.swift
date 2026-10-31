@@ -179,7 +179,7 @@ struct SettingsView: View {
         tldDraft = next
         guard next != preferences.tld else { tldError = nil; return }
         guard AppPreferences.isValidTLD(next) else {
-            tldError = "“\(next)” isn’t a valid TLD."
+            tldError = DNSConstants.reservedTLDReason(next) ?? "“\(next)” isn’t a valid TLD."
             tldDraft = preferences.tld
             return
         }

@@ -20,6 +20,17 @@ public enum DNSConstants {
     // /etc/resolver entries whose terminal label is one of these, so the resolver never resolves.
     public static let reservedTLDs: Set<String> = ["local", "localhost"]
 
+    public static func reservedTLDReason(_ name: String) -> String? {
+        switch name.lowercased().split(separator: ".").last {
+        case "local":
+            "macOS reserves .local for Bonjour (mDNS) and ignores custom resolvers for it. Use a TLD like test."
+        case "localhost":
+            "localhost always points to this Mac and can't take a custom resolver. Use a TLD like test."
+        default:
+            nil
+        }
+    }
+
     // TLD trong HSTS preload list của Chromium (force-https + include_subdomains): trình duyệt luôn ép https.
     public static let hstsPreloadedTLDs: Set<String> = [
         "amazon", "android", "app", "audible", "azure", "bank", "bing", "boo", "channel", "chrome",

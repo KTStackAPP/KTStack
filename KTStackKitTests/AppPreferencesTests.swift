@@ -63,4 +63,13 @@ final class AppPreferencesTests: XCTestCase {
         }
         XCTAssertFalse(DNSConstants.isHSTSPreloaded("devs"))
     }
+
+    func testReservedTLDReason() {
+        for name in ["local", "localhost", "foo.local"] {
+            XCTAssertNotNil(DNSConstants.reservedTLDReason(name), name)
+        }
+        for name in ["test", "dev", "locals"] {
+            XCTAssertNil(DNSConstants.reservedTLDReason(name), name)
+        }
+    }
 }
