@@ -41,6 +41,9 @@ final class ProcessLookupTests: XCTestCase {
     private func launchCopy(named name: String) throws -> Process {
         let url = directory.appendingPathComponent(name)
         try FileManager.default.copyItem(at: URL(fileURLWithPath: "/bin/sleep"), to: url)
+        // macOS kill bản copy còn chữ ký Apple sau ~130 ms, ký lại ad-hoc để nó sống hết test.
+        let resign = try Process.run(URL(fileURLWithPath: "/usr/bin/codesign"), arguments: ["-f", "-s", "-", url.path])
+        resign.waitUntilExit()
         let proc = Process()
         proc.executableURL = url
         proc.arguments = ["60"]
@@ -48,7 +51,11 @@ final class ProcessLookupTests: XCTestCase {
         children.append(proc)
         let deadline = Date().addingTimeInterval(5)
         // Trước exec, proc_pidpath còn trả path của process cha.
-        while !ProcessLookup.pids(executablePath: url.path).contains(proc.processIdentifier), Date() < deadline {
+        while !ProcessLookup.pids(executablePath: url.path).contains(proc.processIdentifier) {
+            guard Date() < deadline, proc.isRunning else {
+                XCTFail("\(name) never showed up at \(url.path) (running: \(proc.isRunning))")
+                return proc
+            }
             usleep(20000)
         }
         return proc
